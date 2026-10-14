@@ -18,12 +18,17 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+// defaultDirectSendFromSystemProbe is the value used for features.cws.directSendFromSystemProbe
+// when the field is unset.
+const defaultDirectSendFromSystemProbe = false
 
 func init() {
 	err := feature.Register(feature.CWSIDType, buildCWSFeature)
@@ -90,7 +95,10 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
-		f.directSendFromSystemProbe = apiutils.BoolValue(cwsConfig.DirectSendFromSystemProbe)
+		if cwsConfig.DirectSendFromSystemProbe == nil {
+			cwsConfig.DirectSendFromSystemProbe = new(defaultDirectSendFromSystemProbe)
+		}
+		f.directSendFromSystemProbe = *cwsConfig.DirectSendFromSystemProbe
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
@@ -250,6 +258,13 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, directSendEnvVar)
+
+		// The system-probe submits the events itself and cannot resolve a secret-backed
+		// api_key on its own, so it needs config sync to get the resolved value.
+		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		})
 	}
 
 	if f.networkEnabled {
