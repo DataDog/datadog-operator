@@ -33,9 +33,9 @@ const (
 	ddaiCRDName            = "datadogagentinternals.datadoghq.com"
 )
 
-func newFieldManager(client client.Client, scheme *runtime.Scheme, objGVK schema.GroupVersionKind) (*managedfields.FieldManager, error) {
+func newFieldManager(ctx context.Context, client client.Client, scheme *runtime.Scheme, objGVK schema.GroupVersionKind) (*managedfields.FieldManager, error) {
 	crd := &apiextensionsv1.CustomResourceDefinition{}
-	if err := client.Get(context.TODO(), types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
+	if err := client.Get(ctx, types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
 		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)
 	}
 

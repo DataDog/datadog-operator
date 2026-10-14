@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -34,7 +35,8 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: ptr.To(false),
+					Enabled:                   ptr.To(false),
+					DirectSendFromSystemProbe: ptr.To(false),
 					Enforcement: &v2alpha1.CWSEnforcementConfig{
 						Enabled: ptr.To(false),
 					},
@@ -129,6 +131,15 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	tests.Run(t, buildCWSFeature)
 }
 
+// configSyncEnvVars are the env vars direct send needs so that the system-probe, which cannot
+// resolve secret handles itself, receives a resolved api_key from the core agent.
+func configSyncEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
+	}
+}
+
 func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -196,6 +207,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 						Value: "true",
 					},
 				)
+				sysProbeWant = append(sysProbeWant, configSyncEnvVars()...)
 			}
 			sysProbeWant = append(
 				sysProbeWant,
@@ -213,6 +225,16 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 			}
 			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
+
+			// config sync is served by the core agent, so it needs the same env vars
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			if directSendFromSysProbe {
+				assert.Subset(t, coreAgentEnvVars, configSyncEnvVars())
+			} else {
+				for _, envVar := range configSyncEnvVars() {
+					assert.NotContains(t, coreAgentEnvVars, envVar)
+				}
+			}
 
 			// check volume mounts
 			securityWantVolumeMount := []corev1.VolumeMount{
@@ -434,4 +456,38 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
 		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
+}
+
+// DirectSendFromSystemProbe is resolved in Configure rather than in the defaulting pass, so that a
+// CWS enabled through Remote Configuration gets the same value as one enabled in the spec. The
+// resolved value is written back to the spec.
+func Test_cwsFeature_DirectSendFromSystemProbeDefault(t *testing.T) {
+	tests := []struct {
+		name                      string
+		directSendFromSystemProbe *bool
+		want                      bool
+	}{
+		{name: "unset resolves to the default", want: defaultDirectSendFromSystemProbe},
+		{name: "explicit false is kept", directSendFromSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true is kept", directSendFromSystemProbe: ptr.To(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true), DirectSendFromSystemProbe: tt.directSendFromSystemProbe},
+					},
+				},
+			}
+
+			f := &cwsFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.want, f.directSendFromSystemProbe)
+			require.NotNil(t, dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+			assert.Equal(t, tt.want, *dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+		})
+	}
 }
