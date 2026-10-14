@@ -1976,7 +1976,7 @@
                       "type": "boolean"
                     },
                     "runAsRoot": {
-                      "description": "RunAsRoot runs the Host Profiler container as root. When false, the container runs as the\ndd-agent user with runAsNonRoot set.\nDefault: true",
+                      "description": "RunAsRoot runs the Host Profiler container as root. When false, the container runs as the\ndd-agent user.\nDefault: true",
                       "type": "boolean"
                     },
                     "seLinuxType": {
