@@ -1787,6 +1787,7 @@ spec:
                   x-kubernetes-list-type: map
                 replicas:
                   format: int32
+                  minimum: 0
                   type: integer
                 resources:
                   properties:
