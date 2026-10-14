@@ -47,6 +47,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentationcrd"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/jemalloc"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
