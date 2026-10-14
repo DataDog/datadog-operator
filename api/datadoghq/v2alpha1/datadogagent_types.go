@@ -533,7 +533,6 @@ type CSIAPMConfig struct {
 	// PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
 	// libraries from private registries. Propagated to the managed DatadogCSIDriver as
 	// spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-	// Not supported on GKE Autopilot.
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
@@ -1499,6 +1498,15 @@ type AdmissionControllerFeatureConfig struct {
 	// Registry defines an image registry for the admission controller.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// RegistryAllowList restricts which registries can be used for APM library injection.
+	// When non-empty, the admission controller only injects libraries from the listed
+	// registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+	// by the operator. An empty list allows all registries.
+	// (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
 
 	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
 	// +optional

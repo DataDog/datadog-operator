@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -78,6 +79,8 @@ const (
 	// clusterProviderGateRequeue is how often the reconcile re-checks while the
 	// provider gate is holding.
 	clusterProviderGateRequeue = 2 * time.Second
+
+	ddaOperationName = "datadogagent.reconcile"
 )
 
 // ProviderReader exposes the cluster-provider detection result to the reconciler
@@ -170,6 +173,9 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var resp reconcile.Result
 	var err error
+
+	span, ctx := trace.StartReconcileSpan(ctx, "DatadogAgent", ddaOperationName, dda)
+	defer trace.FinishSpan(span, &err)
 
 	resp, err = r.internalReconcile(ctx, dda)
 

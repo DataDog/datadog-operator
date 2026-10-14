@@ -268,6 +268,12 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistryAllowList(registries ...string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.RegistryAllowList = registries
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = new(enabled)

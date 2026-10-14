@@ -316,7 +316,7 @@ func TestBuildDaemonSet_SkipRegistryAuthWhenAPMDisabled(t *testing.T) {
 	assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_APM_REGISTRY_AUTH_0")
 }
 
-func TestBuildDaemonSet_SkipRegistryAuthOnAutopilot(t *testing.T) {
+func TestBuildDaemonSet_RegistryAuthOnAutopilot(t *testing.T) {
 	secrets := []corev1.LocalObjectReference{{Name: "apm-registry"}}
 	instance := defaultCSIDriverCR()
 	instance.Annotations = map[string]string{
@@ -326,7 +326,63 @@ func TestBuildDaemonSet_SkipRegistryAuthOnAutopilot(t *testing.T) {
 
 	ds := buildDaemonSet(instance)
 
-	assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_APM_REGISTRY_AUTH_0")
+	assert.Contains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_APM_REGISTRY_AUTH_0")
+}
+
+func TestBuildDaemonSet_RegistryAllowList(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+	}{
+		{name: "default"},
+		{
+			name:        "GKE Autopilot",
+			annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := defaultCSIDriverCR()
+			instance.Annotations = tt.annotations
+			instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+				RegistryAllowList: []string{"public.ecr.aws/datadog", "gcr.io/datadoghq"},
+			}
+
+			ds := buildDaemonSet(instance)
+
+			assert.Contains(t, ds.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "DD_REGISTRY_ALLOW_LIST",
+				Value: "public.ecr.aws/datadog,gcr.io/datadoghq",
+			})
+		})
+	}
+}
+
+func TestBuildDaemonSet_SkipRegistryAllowList(t *testing.T) {
+	tests := []struct {
+		name     string
+		instance func() *v1alpha1.DatadogCSIDriver
+	}{
+		{
+			name:     "no APM config",
+			instance: defaultCSIDriverCR,
+		},
+		{
+			name: "empty list",
+			instance: func() *v1alpha1.DatadogCSIDriver {
+				instance := defaultCSIDriverCR()
+				instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{RegistryAllowList: []string{}}
+				return instance
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := buildDaemonSet(tt.instance())
+
+			assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_REGISTRY_ALLOW_LIST")
+		})
+	}
 }
 
 func envNames(envVars []corev1.EnvVar) []string {

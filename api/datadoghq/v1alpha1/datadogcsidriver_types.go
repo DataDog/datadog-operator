@@ -79,10 +79,18 @@ type DatadogCSIDriverAPMConfig struct {
 	// libraries from private registries. When empty, the CSI driver falls back to
 	// csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored
 	// for APM authentication in that fallback path. Restart the CSI DaemonSet after
-	// rotating these Secrets. Not supported on GKE Autopilot.
+	// rotating these Secrets.
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
+
+	// RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.
+	// An empty list allows all registries. When managed by a DatadogAgent, it is set from
+	// spec.features.admissionController.registryAllowList.
+	// (Requires Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
 }
 
 // DatadogCSIDriverOverride provides override capabilities for the CSI driver DaemonSet.
