@@ -317,7 +317,7 @@ spec:
 : Enables the Host Profiler. Default: false
 
 `features.hostProfiler.runAsRoot`
-: RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user (UID/GID 100) with runAsNonRoot set. Default: true
+: RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user with runAsNonRoot set. Default: true
 
 `features.hostProfiler.seLinuxType`
 : SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t

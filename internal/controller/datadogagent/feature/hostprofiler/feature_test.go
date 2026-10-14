@@ -86,6 +86,37 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests.Run(t, buildHostProfilerFeature)
 }
 
+func TestHasDeprecatedAnnotations(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		want        bool
+	}{
+		{name: "no annotations"},
+		{
+			name: "only the experimental image override",
+			annotations: map[string]string{
+				experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"foo"}}`,
+			},
+		},
+		{
+			name:        "enabled annotation set to false",
+			annotations: map[string]string{featureutils.EnableHostProfilerAnnotation: "false"},
+			want:        true,
+		},
+		{
+			name:        "setting annotation without the enabled annotation",
+			annotations: map[string]string{featureutils.EnableHostProfilerNonRootAnnotation: "true"},
+			want:        true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, HasDeprecatedAnnotations(tt.annotations))
+		})
+	}
+}
+
 func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 	allAnnotations := map[string]string{
 		featureutils.EnableHostProfilerAnnotation:               "true",
@@ -101,13 +132,14 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 		config          *v2alpha1.HostProfilerFeatureConfig
 		wantSeccomp     bool
 		wantLogging     bool
-		wantNonRoot     bool
+		wantRoot        bool
 		wantSELinuxType string
 	}{
 		{
 			name:            "spec only, defaults",
 			config:          &v2alpha1.HostProfilerFeatureConfig{Enabled: ptr.To(true)},
 			wantSeccomp:     true,
+			wantRoot:        true,
 			wantSELinuxType: defaultSELinuxType,
 		},
 		{
@@ -122,14 +154,12 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 				},
 			},
 			wantLogging:     true,
-			wantNonRoot:     true,
 			wantSELinuxType: "spec_t",
 		},
 		{
 			name:            "annotations only",
 			annotations:     allAnnotations,
 			wantLogging:     true,
-			wantNonRoot:     true,
 			wantSELinuxType: "annotation_t",
 		},
 		{
@@ -140,7 +170,6 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 				Seccomp: &v2alpha1.HostProfilerSeccompConfig{},
 			},
 			wantLogging:     true,
-			wantNonRoot:     true,
 			wantSELinuxType: "annotation_t",
 		},
 		{
@@ -155,6 +184,7 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 				},
 			},
 			wantSeccomp:     true,
+			wantRoot:        true,
 			wantSELinuxType: "spec_t",
 		},
 		{
@@ -164,7 +194,6 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 				SELinuxType: ptr.To(""),
 			},
 			wantLogging:     true,
-			wantNonRoot:     true,
 			wantSELinuxType: "annotation_t",
 		},
 	}
@@ -183,7 +212,7 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 
 			assert.Equal(t, tt.wantSeccomp, feat.seccompEnabled, "seccompEnabled")
 			assert.Equal(t, tt.wantLogging, feat.loggingSeccomp, "loggingSeccomp")
-			assert.Equal(t, tt.wantNonRoot, feat.hostProfilerNonRoot, "hostProfilerNonRoot")
+			assert.Equal(t, tt.wantRoot, feat.hostProfilerRoot, "hostProfilerRoot")
 			assert.Equal(t, tt.wantSELinuxType, feat.selinuxType, "selinuxType")
 		})
 	}

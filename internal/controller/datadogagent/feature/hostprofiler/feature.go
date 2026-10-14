@@ -19,8 +19,33 @@ import (
 
 var errHostPIDDisabledManually = errors.New("host PID is required for host profiler")
 
-// SELinux type applied to the host-profiler container unless overridden via the annotation.
+// SELinux type applied to the host-profiler container unless overridden.
 const defaultSELinuxType = "spc_t"
+
+// DeprecatedConfigReplacement is the CRD path that supersedes the host-profiler annotations.
+const DeprecatedConfigReplacement = "spec.features.hostProfiler"
+
+// deprecatedAnnotations are the host-profiler annotations superseded by spec.features.hostProfiler.
+var deprecatedAnnotations = []string{
+	featureutils.EnableHostProfilerAnnotation,
+	featureutils.EnableHostProfilerSeccompAnnotation,
+	featureutils.EnableHostProfilerLoggingSeccompAnnotation,
+	featureutils.EnableHostProfilerNonRootAnnotation,
+	featureutils.HostProfilerSELinuxTypeAnnotation,
+}
+
+// HasDeprecatedAnnotations reports whether any host-profiler annotation is present, whatever
+// its value.
+//
+// It is exported so the reconciler can surface the deprecation on the DatadogAgent status.
+func HasDeprecatedAnnotations(annotations map[string]string) bool {
+	for _, key := range deprecatedAnnotations {
+		if _, ok := annotations[key]; ok {
+			return true
+		}
+	}
+	return false
+}
 
 type hostProfilerFeature struct {
 	owner                   metav1.Object
@@ -28,7 +53,7 @@ type hostProfilerFeature struct {
 	seccompEnabled          bool
 	loggingSeccomp          bool
 	selinuxType             string
-	hostProfilerNonRoot     bool
+	hostProfilerRoot        bool
 
 	logger logr.Logger
 }
@@ -57,6 +82,12 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
 
+	// Warn before the early return below, so that users who disabled the feature through the
+	// spec still hear about annotations that are left over.
+	if HasDeprecatedAnnotations(dda.GetAnnotations()) {
+		o.logger.Info("host profiler: agent.datadoghq.com/host-profiler-* annotations are deprecated; migrate to " + DeprecatedConfigReplacement)
+	}
+
 	// Settings are read from spec.features.hostProfiler first. The deprecated annotations are used
 	// as a fallback for any setting not defined in the spec.
 	// todo (mackjmr): remove annotation fallback once annotation support is removed.
@@ -72,8 +103,6 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	enabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
 	if hpConfig != nil && hpConfig.Enabled != nil {
 		enabled = *hpConfig.Enabled
-	} else if enabled {
-		o.logger.Info("host profiler: enabling via annotation is deprecated, use spec.features.hostProfiler instead", "annotation", featureutils.EnableHostProfilerAnnotation)
 	}
 	if !enabled {
 		return feature.RequiredComponents{}
@@ -101,10 +130,11 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 		o.logger.V(1).Info("host profiler: logging seccomp has no effect when seccomp is disabled")
 	}
 
+	// Runs as root by default.
 	if hpConfig != nil && hpConfig.RunAsRoot != nil {
-		o.hostProfilerNonRoot = !*hpConfig.RunAsRoot
+		o.hostProfilerRoot = *hpConfig.RunAsRoot
 	} else {
-		o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
+		o.hostProfilerRoot = !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
 	}
 
 	// SELinux type defaults to spc_t.
@@ -179,7 +209,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
 
 	sc := hostProfilerContainer.SecurityContext
-	if o.hostProfilerNonRoot {
+	if !o.hostProfilerRoot {
 		sc.RunAsUser = new(common.DDAgentUserID)
 		sc.RunAsGroup = new(common.DDAgentUserID)
 		sc.RunAsNonRoot = new(true)
