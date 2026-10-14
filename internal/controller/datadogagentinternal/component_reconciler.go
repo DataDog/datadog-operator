@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
@@ -185,8 +186,9 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 }
 
 // reconcileComponent reconciles a single component
-func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	var result reconcile.Result
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default deployment
@@ -240,7 +242,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	}
 
 	if r.reconciler.options.RolloutOnConfigMapChangeEnabled {
-		if err := r.reconciler.annotateConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
+		if err = r.reconciler.annotateConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
 			component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s configmap checksum error", component.Name()), err.Error())
 			return result, err
 		}
@@ -265,7 +267,9 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 }
 
 // Cleanup removes the component deployment, associated resources and updates status
-func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 
 	// Apply the name override so we delete the correct deployment
