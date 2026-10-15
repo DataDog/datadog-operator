@@ -49,6 +49,8 @@ type privateActionRunnerFeature struct {
 	splitEnabled              bool
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
+	packetCaptureConfig       packetCaptureConfig
+	packetCaptureConfigErr    error
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
@@ -70,6 +72,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
+		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
 		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
 			image := images.GetLatestAgentImage()
@@ -88,12 +91,16 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			f.nodeConfigData = defaultConfigData
 		}
 
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.PrivateActionRunnerContainerName,
+		}
+		if f.packetCaptureConfig.enabled {
+			containers = append(containers, apicommon.SystemProbeContainerName)
+		}
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.CoreAgentContainerName,
-				apicommon.PrivateActionRunnerContainerName,
-			},
+			Containers: containers,
 		}
 	}
 
@@ -265,6 +272,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	if f.systemdConfigErr != nil {
 		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
 	}
+	if f.packetCaptureConfigErr != nil {
+		return fmt.Errorf("invalid Private Action Runner packet capture configuration: %w", f.packetCaptureConfigErr)
+	}
 
 	configMapName := f.getConfigMapName()
 
@@ -352,6 +362,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	f.systemdConfig.addVolumeMounts(managers)
+	f.packetCaptureConfig.addSocket(managers)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(
