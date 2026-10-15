@@ -44,8 +44,8 @@ func kueueCheckConfig(serviceName, serviceNamespace string, collectWorkloadEvent
 	return fmt.Sprintf(`---
 advanced_ad_identifiers:
   - kube_endpoints:
-      name: %s
-      namespace: %s
+      name: "%s"
+      namespace: "%s"
 cluster_check: true
 init_config:
 instances:
