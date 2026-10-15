@@ -73,8 +73,7 @@ func supportsJemalloc(spec *v2alpha1.DatadogAgentSpec, component v2alpha1.Compon
 	if override := spec.Override[component]; override != nil && override.Image != nil {
 		version = common.GetAgentVersionFromImage(*override.Image)
 	}
-	// Unknown image tags cannot guarantee that the jemalloc library is available.
-	return utils.IsAboveMinVersion(version, minAgentVersion, new(false))
+	return utils.IsAboveMinVersion(version, minAgentVersion, new(true))
 }
 
 func (f *jemallocFeature) ManageDependencies(_ feature.ResourceManagers) error {
@@ -89,7 +88,6 @@ func (f *jemallocFeature) ManageNodeAgent(managers feature.PodTemplateManagers) 
 		apicommon.CoreAgentContainerName,
 		apicommon.SystemProbeContainerName,
 		apicommon.TraceAgentContainerName,
-		apicommon.OtelAgent,
 	)
 }
 
