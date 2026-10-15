@@ -80,7 +80,7 @@ func TestVersionGate(t *testing.T) {
 		{name: "new node old runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.83.0"}, wantNode: true},
 		{name: "version from image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0-jmx"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0"}, wantNode: true},
 		{name: "tag overrides image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0", Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0", Tag: "7.83.0"}, wantNode: true},
-		{name: "unknown versions", nodeImage: &v2alpha1.AgentImageConfig{Tag: "latest"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:custom"}},
+		{name: "unknown versions", nodeImage: &v2alpha1.AgentImageConfig{Tag: "latest"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:custom"}, wantNode: true, wantRunner: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
