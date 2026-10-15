@@ -134,7 +134,7 @@ func TestManageNodeAgent(t *testing.T) {
 	require.NoError(t, f.ManageNodeAgent(feature.NewPodTemplateManagers(pod)))
 	for _, container := range pod.Spec.Containers {
 		switch apicommon.AgentContainerName(container.Name) {
-		case apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName, apicommon.TraceAgentContainerName, apicommon.OtelAgent:
+		case apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName, apicommon.TraceAgentContainerName:
 		default:
 			assert.Empty(t, container.Env)
 			continue

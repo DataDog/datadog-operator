@@ -70,8 +70,10 @@ func (f *jemallocFeature) Configure(dda metav1.Object, spec *v2alpha1.DatadogAge
 
 func supportsJemalloc(spec *v2alpha1.DatadogAgentSpec, component v2alpha1.ComponentName) bool {
 	version := images.AgentLatestVersion
-	if override := spec.Override[component]; override != nil && override.Image != nil {
-		version = common.GetAgentVersionFromImage(*override.Image)
+	if spec != nil {
+		if override := spec.Override[component]; override != nil && override.Image != nil {
+			version = common.GetAgentVersionFromImage(*override.Image)
+		}
 	}
 	return utils.IsAboveMinVersion(version, minAgentVersion, new(true))
 }
