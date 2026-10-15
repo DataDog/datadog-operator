@@ -1,0 +1,19 @@
+# Demo B-FIXED: Optional corrected Demo B. Delete demo-b first so this is checked on CREATE.
+# Run from the repository root after selecting your demo cluster context:
+# kubectl apply -f examples/admission-policy/demo-b-fixed.yaml
+# Reset before another take:
+# kubectl delete -f examples/admission-policy/demo-b-fixed.yaml --ignore-not-found --wait=true
+# Only the credential reference is validated; no real API key or Secret is needed here.
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: demo-b
+  namespace: vap-demo
+  annotations:
+    agent.datadoghq.com/adp-enabled: "true"
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key

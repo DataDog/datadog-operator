@@ -1,0 +1,17 @@
+# Demo C: Valid admission configuration: no warning. The referenced Secret need not exist.
+# Run from the repository root after selecting your demo cluster context:
+# kubectl apply -f examples/admission-policy/demo-c.yaml
+# Reset before another take:
+# kubectl delete -f examples/admission-policy/demo-c.yaml --ignore-not-found --wait=true
+# Only the credential reference is validated; no real API key or Secret is needed here.
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: demo-c
+  namespace: vap-demo
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key

@@ -1,0 +1,11 @@
+# Demo D: Missing credentials: admission warning plus the same error in operator logs. Must use system.
+# Run from the repository root after selecting your demo cluster context:
+# kubectl apply -f examples/admission-policy/demo-d.yaml
+# Reset before another take:
+# kubectl delete -f examples/admission-policy/demo-d.yaml --ignore-not-found --wait=true
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: demo-d
+  namespace: system
+spec: {}

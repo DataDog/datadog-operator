@@ -1,0 +1,15 @@
+# Demo A: admission warns about missing credentials but accepts the object.
+# Run from the repository root after selecting your demo cluster context:
+# kubectl apply -f examples/admission-policy/demo-a.yaml
+# Expected warning: credentials not configured in the DatadogAgent, can't reconcile
+#
+# Credentials are intentionally omitted. No Datadog API key or Secret is needed.
+# The vap-demo namespace must already exist and admission policies must be enabled.
+# For another take, delete this object before applying it again:
+# kubectl delete -f examples/admission-policy/demo-a.yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: demo-a
+  namespace: vap-demo
+spec: {}
