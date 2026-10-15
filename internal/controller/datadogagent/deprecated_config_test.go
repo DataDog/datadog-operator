@@ -16,6 +16,8 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/appsec"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 func ddaWithAnnotations(annotations map[string]string) *datadoghqv2alpha1.DatadogAgent {
@@ -43,6 +45,19 @@ func TestSetDeprecatedConfigStatus(t *testing.T) {
 		assert.Contains(t, cond.Message, "agent.datadoghq.com/appsec.* annotations")
 		assert.Contains(t, cond.Message, appsec.DeprecatedConfigReplacement,
 			"the message must name the replacement so the user knows where to migrate")
+	})
+
+	t.Run("host profiler annotation present sets the condition", func(t *testing.T) {
+		dda := ddaWithAnnotations(map[string]string{featureutils.HostProfilerSELinuxTypeAnnotation: "spc_t"})
+		status := &datadoghqv2alpha1.DatadogAgentStatus{}
+
+		setDeprecatedConfigStatus(dda, status, now)
+
+		cond := meta.FindStatusCondition(status.Conditions, common.DeprecatedConfigInUseConditionType)
+		require.NotNil(t, cond, "condition must be set while a deprecated surface is in use")
+		assert.Equal(t, metav1.ConditionTrue, cond.Status)
+		assert.Contains(t, cond.Message, "agent.datadoghq.com/host-profiler-* annotations")
+		assert.Contains(t, cond.Message, hostprofiler.DeprecatedConfigReplacement)
 	})
 
 	t.Run("no deprecated config leaves no condition behind", func(t *testing.T) {

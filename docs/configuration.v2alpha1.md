@@ -192,6 +192,11 @@ spec:
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
+| features.hostProfiler.enabled | Enables the Host Profiler. Default: false |
+| features.hostProfiler.runAsRoot | RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user. Default: true |
+| features.hostProfiler.seLinuxType | SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t |
+| features.hostProfiler.seccomp.enabled | Applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node. When disabled, the Host Profiler container runs with an Unconfined seccomp profile. Default: true |
+| features.hostProfiler.seccomp.loggingEnabled | LoggingEnabled uses the logging seccomp profile instead of the default one. Has no effect when the seccomp profile is disabled. Default: false |
 | features.kubeStateMetricsCore.collectCrMetrics | `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
