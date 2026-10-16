@@ -36,7 +36,7 @@ func TestEvictStandalone(t *testing.T) {
 	}
 	stuckPod := func() *corev1.Pod {
 		return &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{Name: "blocker", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "blocker", Namespace: "default", OwnerReferences: controllerOwnerRefs()},
 			Spec:       corev1.PodSpec{NodeName: "ip-stuck"},
 		}
 	}
@@ -160,7 +160,7 @@ func TestEvictStandaloneCordonsAllBeforeDraining(t *testing.T) {
 		}
 	}
 	pod1 := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default", OwnerReferences: controllerOwnerRefs()},
 		Spec:       corev1.PodSpec{NodeName: "ip-1"},
 	}
 	client := fake.NewClientset(ec2Node("ip-1", "eu-west-3a", "i-aaa"), ec2Node("ip-2", "eu-west-3b", "i-bbb"), pod1)
