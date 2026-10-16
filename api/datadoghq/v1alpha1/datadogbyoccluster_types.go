@@ -261,10 +261,12 @@ type DatadogBYOCClusterComponentsSpec struct {
 	ReadOnlyMetastore *DatadogBYOCClusterMetastoreComponentSpec `json:"readOnlyMetastore,omitempty"`
 
 	// Indexer configures the Indexer workload.
+	// When Resources is specified, its memory limit is required for node configuration sizing.
 	// +kubebuilder:validation:Required
 	Indexer *DatadogBYOCClusterStatefulComponentSpec `json:"indexer,omitempty"`
 
 	// Searcher configures the Searcher workload.
+	// When Resources is specified, its memory limit is required for node configuration sizing.
 	// +kubebuilder:validation:Required
 	Searcher *DatadogBYOCClusterStatefulComponentSpec `json:"searcher,omitempty"`
 
@@ -304,7 +306,6 @@ type DatadogBYOCClusterPipelineSpec struct {
 }
 
 // DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.
-// When Resources is specified, its memory limit is required for worker buffer sizing.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterPipelineComponentSpec struct {
 	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`
@@ -328,7 +329,9 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterComponentSpec struct {
 	// Replicas is the desired replica count.
+	// Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Env contains additional environment variables for the component container.
@@ -416,7 +419,6 @@ type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 }
 
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.
-// When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterStatefulComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`

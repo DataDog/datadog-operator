@@ -19,10 +19,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	storagev1 "k8s.io/api/storage/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,6 +48,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/admissionpolicy"
 	"github.com/DataDog/datadog-operator/pkg/celvalidation"
@@ -58,6 +60,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/introspection"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -73,6 +76,7 @@ const (
 	defaultDatadogMonitorRequeuePeriod                   = 60 * time.Second
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
+	defaultComponentHealthSnapshotInterval               = 60 * time.Second
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
 )
 
@@ -112,6 +116,7 @@ type options struct {
 	metricsAddr      string
 	secureMetrics    bool
 	profilingEnabled bool
+	tracingEnabled   bool
 	logLevel         *zapcore.Level
 	logEncoder       string
 	printVersion     bool
@@ -138,6 +143,7 @@ type options struct {
 	managedAgentInstallationEnabled     bool
 	datadogDashboardEnabled             bool
 	datadogGenericResourceEnabled       bool
+	datadogBYOCClusterEnabled           bool
 	datadogGenericResourceMaxWorkers    int
 	datadogGenericResourceRequeuePeriod time.Duration
 	datadogCSIDriverEnabled             bool
@@ -146,6 +152,8 @@ type options struct {
 	rolloutOnConfigMapChangeEnabled     bool
 	defaultDataPlaneLinuxEnabled        bool
 	componentHealthEnabled              bool
+	componentHealthIntakeEnabled        bool
+	componentHealthSnapshotInterval     time.Duration
 	admissionPolicyEnabled              bool
 
 	// Secret Backend options
@@ -161,6 +169,7 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
 	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
+	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", false, "Enable Datadog APM tracing in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
@@ -192,6 +201,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.managedAgentInstallationEnabled, "managedAgentInstallationEnabled", false, "Enable managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.BoolVar(&opts.datadogBYOCClusterEnabled, "datadogBYOCClusterEnabled", false, "Enable the DatadogBYOCCluster controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
 	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", defaultDatadogGenericResourceRequeuePeriod, "DatadogGenericResource status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
@@ -203,6 +213,10 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.defaultDataPlaneLinuxEnabled, "defaultDataPlaneLinuxEnabled", false, "Enable the Agent Data Plane by default on Linux")
 	flag.BoolVar(&opts.componentHealthEnabled, "componentHealthEnabled", false,
 		"Enable the ComponentHealth controller, which monitors the managed cluster-level components (cluster-agent, cluster-checks-runner) for Kubernetes health issues (OOMKills, crash loops, scheduling failures, image-pull failures) (beta). Retains Pod status in the cache, increasing the operator's memory usage.")
+	flag.BoolVar(&opts.componentHealthIntakeEnabled, "componentHealthIntakeEnabled", false,
+		"Requires --componentHealthEnabled. When set, the ComponentHealth controller reports current-state HealthReport snapshots to the Datadog agenthealth intake on a fixed cadence, instead of only logging them.")
+	flag.DurationVar(&opts.componentHealthSnapshotInterval, "componentHealthSnapshotInterval", defaultComponentHealthSnapshotInterval,
+		"Cadence at which the ComponentHealth controller emits current-state snapshots (log or intake), for example 60s.")
 	flag.BoolVar(&opts.admissionPolicyEnabled, "admissionPolicyEnabled", false,
 		"Create ValidatingAdmissionPolicy objects that run the DatadogAgent and DatadogAgentProfile validation rules at admission time, so errors surface at kubectl apply (requires Kubernetes 1.30+). The policies only warn; they never reject a request, and the operator evaluates the same rules at reconcile either way (experimental).")
 
@@ -215,6 +229,7 @@ func (opts *options) Parse() {
 		stringEnv(&opts.metricsAddr, "DD_METRICS_ADDR"),
 		boolEnv(&opts.secureMetrics, "DD_METRICS_SECURE"),
 		boolEnv(&opts.profilingEnabled, "DD_PROFILING_ENABLED"),
+		boolEnv(&opts.tracingEnabled, "DD_TRACING_ENABLED"),
 		boolEnv(&opts.pprofActive, "DD_PPROF_ENABLED"),
 		boolEnv(&opts.enableLeaderElection, "DD_LEADER_ELECTION_ENABLED"),
 		durationEnv(&opts.leaderElectionLeaseDuration, "DD_LEADER_ELECTION_LEASE_DURATION"),
@@ -233,12 +248,15 @@ func (opts *options) Parse() {
 		boolEnv(&opts.managedAgentInstallationEnabled, "DD_MANAGED_AGENT_INSTALLATION_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogBYOCClusterEnabled, "DD_BYOC_CLUSTER_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
 		durationEnv(&opts.datadogGenericResourceRequeuePeriod, "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"),
 		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
+		boolEnv(&opts.componentHealthIntakeEnabled, "DD_COMPONENT_HEALTH_INTAKE_ENABLED"),
+		durationEnv(&opts.componentHealthSnapshotInterval, "DD_COMPONENT_HEALTH_SNAPSHOT_INTERVAL"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
@@ -298,6 +316,14 @@ func durationEnv(dst *time.Duration, envVar string) envOption {
 	return envOptionFor(dst, envVar, time.ParseDuration)
 }
 
+// ddServiceName returns the service name reported to Datadog APM.
+func ddServiceName() string {
+	if svc := os.Getenv("DD_SERVICE"); svc != "" {
+		return svc
+	}
+	return "datadog-operator"
+}
+
 func main() {
 	var opts options
 	opts.Parse()
@@ -349,6 +375,18 @@ func run(opts *options) error {
 		defer profiler.Stop()
 	}
 
+	if opts.tracingEnabled {
+		setupLog.Info("Starting datadog APM tracer")
+		if err := trace.Start(
+			tracer.WithService(ddServiceName()),
+			tracer.WithServiceVersion(version.Version),
+		); err != nil {
+			setupLog.Error(err, "Unable to start datadog APM tracer, continuing without tracing")
+		} else {
+			defer trace.Stop()
+		}
+	}
+
 	// Dispatch CLI flags to each package
 	if err := configureSecretBackend(opts); err != nil {
 		setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
@@ -398,6 +436,9 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator/" + version.Version
+	if trace.Enabled() {
+		restConfig.Wrap(trace.WrapTransport)
+	}
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
@@ -550,6 +591,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:         opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:            opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled:      opts.datadogGenericResourceEnabled,
+		DatadogBYOCClusterEnabled:          opts.datadogBYOCClusterEnabled,
 		DatadogGenericResourceMaxWorkers:   opts.datadogGenericResourceMaxWorkers,
 		DatadogGenericResourceRequeue:      opts.datadogGenericResourceRequeuePeriod,
 		DatadogCSIDriverEnabled:            opts.datadogCSIDriverEnabled,
@@ -558,7 +600,10 @@ func run(opts *options) error {
 		RolloutOnConfigMapChangeEnabled:    opts.rolloutOnConfigMapChangeEnabled,
 		DefaultDataPlaneLinuxEnabled:       opts.defaultDataPlaneLinuxEnabled,
 		ComponentHealthEnabled:             opts.componentHealthEnabled,
+		ComponentHealthIntakeEnabled:       opts.componentHealthIntakeEnabled,
+		ComponentHealthSnapshotInterval:     opts.componentHealthSnapshotInterval,
 		ClusterProviderDetector:            providerDetector,
+		BYOCImageResolver:                  byocimage.NewOCIImageResolver(),
 		DatadogAgentValidationRules:        ddaValidationRules,
 		DatadogAgentProfileValidationRules: dapValidationRules,
 	}

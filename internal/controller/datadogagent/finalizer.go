@@ -24,16 +24,16 @@ const (
 
 func (r *Reconciler) deleteResource(reqLogger logr.Logger) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-		return r.finalizeDad(reqLogger, k8sObj)
+		return r.finalizeDad(ctx, reqLogger, k8sObj)
 	}
 }
 
-func (r *Reconciler) finalizeDad(reqLogger logr.Logger, obj client.Object) error {
+func (r *Reconciler) finalizeDad(ctx context.Context, reqLogger logr.Logger, obj client.Object) error {
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(obj)
 	}
 
-	if err := r.profilesCleanup(); err != nil {
+	if err := r.profilesCleanup(ctx); err != nil {
 		return err
 	}
 
@@ -44,9 +44,9 @@ func (r *Reconciler) finalizeDad(reqLogger logr.Logger, obj client.Object) error
 // profilesCleanup performs the cleanups required for the profiles feature. The
 // only thing that we need to do is to ensure that no nodes are left with the
 // profile label.
-func (r *Reconciler) profilesCleanup() error {
+func (r *Reconciler) profilesCleanup(ctx context.Context) error {
 	nodeList := corev1.NodeList{}
-	if err := r.client.List(context.TODO(), &nodeList); err != nil {
+	if err := r.client.List(ctx, &nodeList); err != nil {
 		return err
 	}
 
@@ -69,7 +69,7 @@ func (r *Reconciler) profilesCleanup() error {
 		modifiedNode := node.DeepCopy()
 		modifiedNode.Labels = newLabels
 
-		err := r.client.Patch(context.TODO(), modifiedNode, client.MergeFrom(&node))
+		err := r.client.Patch(ctx, modifiedNode, client.MergeFrom(&node))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}

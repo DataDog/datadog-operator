@@ -88,7 +88,8 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			Name:      "test-dda",
 			Namespace: "default",
 			Annotations: map[string]string{
-				"agent.datadoghq.com/private-action-runner-enabled": "true",
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "false",
 				"agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
 	enabled: true
     private_key: some-key
@@ -161,8 +162,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
 			Name:      "test-dda",
 			Namespace: "default",
 			Annotations: map[string]string{
-				"agent.datadoghq.com/private-action-runner-enabled":       "true",
-				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+				"agent.datadoghq.com/private-action-runner-enabled": "true",
 				"agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
   enabled: true
   task_concurrency: 7
@@ -274,65 +274,61 @@ func Test_privateActionRunnerFeature_ManageNodeAgentMonolithicMode(t *testing.T)
 	}
 }
 
-func Test_privateActionRunnerFeature_RejectsSplitModeOnOldAgent(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				"agent.datadoghq.com/private-action-runner-enabled":       "true",
-				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
-			},
-		},
-		Spec: v2alpha1.DatadogAgentSpec{
-			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Tag: "7.83.0"},
-				},
-			},
-		},
+func Test_privateActionRunnerFeature_SplitModeSelection(t *testing.T) {
+	tests := []struct {
+		name       string
+		tag        string
+		annotation string
+		wantSplit  bool
+	}{
+		{name: "default image", wantSplit: true},
+		{name: "old agent", tag: "7.83.0"},
+		{name: "old agent with explicit enable", tag: "7.83.0", annotation: "true"},
+		{name: "minimum version", tag: "7.84.0", wantSplit: true},
+		{name: "prerelease", tag: "7.84.0-rc.1", wantSplit: true},
+		{name: "unknown version", tag: "dev-private-action-runner-5705e0d8", wantSplit: true},
+		{name: "explicit enable", tag: "7.84.0", annotation: "true", wantSplit: true},
+		{name: "explicit opt-out", tag: "7.84.0", annotation: "false"},
+		{name: "unknown version with opt-out", tag: "dev", annotation: "false"},
 	}
-	f := buildPrivateActionRunnerFeature(nil)
-	f.Configure(dda, &dda.Spec, nil)
-
-	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
-	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
-}
-
-func Test_privateActionRunnerFeature_AllowsSplitModeOnUnknownAgentVersion(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				"agent.datadoghq.com/private-action-runner-enabled":       "true",
-				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
-			},
-		},
-		Spec: v2alpha1.DatadogAgentSpec{
-			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Tag: "dev-private-action-runner-5705e0d8"},
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-dda",
+					Annotations: map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled": "true",
+					},
 				},
-			},
-		},
+			}
+			if tt.annotation != "" {
+				dda.Annotations["agent.datadoghq.com/private-action-runner-split-enabled"] = tt.annotation
+			}
+			if tt.tag != "" {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.tag}},
+				}
+			}
+			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+			f.Configure(dda, &dda.Spec, nil)
+			assert.Equal(t, tt.wantSplit, f.splitEnabled)
+		})
 	}
-	f := buildPrivateActionRunnerFeature(nil)
-	f.Configure(dda, &dda.Spec, nil)
-
-	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
-	require.NoError(t, err)
 }
 
 func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 	tests := []struct {
-		name         string
-		image        v2alpha1.AgentImageConfig
-		experimental string
-		wantVersion  string
-		wantError    bool
+		name           string
+		image          v2alpha1.AgentImageConfig
+		experimental   string
+		wantVersion    string
+		wantMonolithic bool
 	}{
 		{
 			name:         "older PAR override",
 			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
 			experimental: `{"private-action-runner":{"tag":"7.83.0"}}`,
-			wantVersion:  "7.83.0", wantError: true,
+			wantVersion:  "7.83.0", wantMonolithic: true,
 		},
 		{
 			name:         "newer PAR override",
@@ -344,7 +340,7 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			name:         "full image name takes precedence over tag",
 			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
 			experimental: `{"private-action-runner":{"name":"example.com/agent:7.83.0","tag":"7.84.0"}}`,
-			wantVersion:  "7.83.0", wantError: true,
+			wantVersion:  "7.83.0", wantMonolithic: true,
 		},
 		{
 			name:         "name-only override inherits component tag",
@@ -356,7 +352,7 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			name:         "unrelated container override",
 			image:        v2alpha1.AgentImageConfig{Tag: "7.83.0"},
 			experimental: `{"agent":{"tag":"7.84.0"}}`,
-			wantVersion:  "7.83.0", wantError: true,
+			wantVersion:  "7.83.0", wantMonolithic: true,
 		},
 		{
 			name:         "malformed override is ignored",
@@ -371,10 +367,10 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			wantVersion:  "dev",
 		},
 		{
-			name:        "partial component override inherits default version",
-			image:       v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
-			wantVersion: images.AgentLatestVersion,
-			wantError:   !pkgutils.IsAboveMinVersion(images.AgentLatestVersion, privateActionRunnerSplitMinVersion, new(false)),
+			name:           "partial component override inherits default version",
+			image:          v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
+			wantVersion:    images.AgentLatestVersion,
+			wantMonolithic: !pkgutils.IsAboveMinVersion(images.AgentLatestVersion, privateActionRunnerSplitMinVersion, new(false)),
 		},
 		{
 			name:         "partial component override with newer PAR",
@@ -390,9 +386,8 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-dda",
 					Annotations: map[string]string{
-						"agent.datadoghq.com/private-action-runner-enabled":       "true",
-						"agent.datadoghq.com/private-action-runner-split-enabled": "true",
-						"experimental.agent.datadoghq.com/image-override-config":  tt.experimental,
+						"agent.datadoghq.com/private-action-runner-enabled":      "true",
+						"experimental.agent.datadoghq.com/image-override-config": tt.experimental,
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -405,17 +400,17 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			f.Configure(dda, &dda.Spec, nil)
 			managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{Containers: []corev1.Container{{
-					Name:  string(apicommon.PrivateActionRunnerContainerName),
-					Image: images.GetLatestAgentImage(),
+					Name:    string(apicommon.PrivateActionRunnerContainerName),
+					Image:   images.GetLatestAgentImage(),
+					Command: []string{"privateactionrunner", "run"},
 				}}},
 			})
 
 			err := f.ManageNodeAgent(managers)
-			if tt.wantError {
-				require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
-				require.ErrorContains(t, err, "got "+tt.wantVersion)
+			require.NoError(t, err)
+			if tt.wantMonolithic {
+				assert.Equal(t, []string{"privateactionrunner", "run"}, managers.PodTemplateSpec().Spec.Containers[0].Command)
 			} else {
-				require.NoError(t, err)
 				assert.Equal(t, []string{privateActionRunnerEntrypoint}, managers.PodTemplateSpec().Spec.Containers[0].Command)
 			}
 

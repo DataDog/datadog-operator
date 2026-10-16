@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func sendProfileEnabledMetric(enabled bool) {
@@ -54,7 +55,10 @@ func setProfileCondition(profile *v1alpha1.DatadogAgentProfile, conditionType st
 // - returns a list of profiles that should be applied (including the default profile)
 // - configures node labels based on the profiles that are applied
 // - applies profile status updates in k8s
-func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) ([]*v1alpha1.DatadogAgentProfile, error) {
+func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) (_ []*v1alpha1.DatadogAgentProfile, err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	logger := ctrl.LoggerFrom(ctx)
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
@@ -67,7 +71,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 	// list and sort profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
-	if err := r.client.List(ctx, &profilesList); err != nil {
+	if err = r.client.List(ctx, &profilesList); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to list DatadogAgentProfiles: %w", err)
 	}
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
@@ -361,7 +365,7 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		}
 		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
 	}
-	// todo (mackjmr): Remove this once Host Profiler is moved to CRD/ annotation support is removed.
+	// todo (mackjmr): Remove this once Host Profiler annotation support is removed (superseded by spec.features.hostProfiler).
 	// Propagate the host-profiler experimental annotations from the profile onto the DDAI
 	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
 	// of the DDA-level annotation.

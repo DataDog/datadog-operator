@@ -30,6 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common"
 )
 
 // Clients holds all AWS and Kubernetes client instances needed for
@@ -144,17 +146,24 @@ func GetClusterNameFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (s
 // cluster name from the kubeconfig context. Returns an error when neither
 // source provides a name so callers do not have to repeat the same fallback
 // boilerplate in every cobra command.
+// It also rejects names longer than [common.MaxClusterNameLength], before any command creates or changes anything.
 func ResolveClusterName(configFlags *genericclioptions.ConfigFlags, explicit string) (string, error) {
-	if explicit != "" {
-		return explicit, nil
-	}
-	name, err := GetClusterNameFromKubeconfig(configFlags)
-	if err != nil {
-		return "", err
-	}
+	name := explicit
 	if name == "" {
-		return "", errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
+		var err error
+		name, err = GetClusterNameFromKubeconfig(configFlags)
+		if err != nil {
+			return "", err
+		}
+		if name == "" {
+			return "", errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
+		}
 	}
+
+	if len(name) > common.MaxClusterNameLength {
+		return "", fmt.Errorf("cluster name %q is %d characters long; the maximum supported by this plugin is %d", name, len(name), common.MaxClusterNameLength)
+	}
+
 	return name, nil
 }
 
