@@ -674,6 +674,14 @@
                       "description": "Registry defines an image registry for the admission controller.",
                       "type": "string"
                     },
+                    "registryAllowList": {
+                      "description": "RegistryAllowList restricts which registries can be used for APM library injection.\nWhen non-empty, the admission controller only injects libraries from the listed\nregistries, for all injection modes. It is also enforced by the DatadogCSIDriver managed\nby the operator. An empty list allows all registries.\n(Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "set"
+                    },
                     "serviceName": {
                       "description": "ServiceName corresponds to the webhook service name.",
                       "type": "string"
@@ -1959,6 +1967,40 @@
                   },
                   "type": "object"
                 },
+                "hostProfiler": {
+                  "additionalProperties": false,
+                  "description": "HostProfiler configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Host Profiler.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "runAsRoot": {
+                      "description": "RunAsRoot runs the Host Profiler container as root. When false, the container runs as the\ndd-agent user.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "seLinuxType": {
+                      "description": "SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.\nDefault: spc_t",
+                      "type": "string"
+                    },
+                    "seccomp": {
+                      "additionalProperties": false,
+                      "description": "Seccomp configures the seccomp profile applied to the Host Profiler container.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.\nWhen disabled, the Host Profiler container runs with an Unconfined seccomp profile.\nDefault: true",
+                          "type": "boolean"
+                        },
+                        "loggingEnabled": {
+                          "description": "LoggingEnabled uses the logging seccomp profile instead of the default one.\nHas no effect when the seccomp profile is disabled.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
                 "kubeStateMetricsCore": {
                   "additionalProperties": false,
                   "description": "KubeStateMetricsCore check configuration.",
@@ -3145,7 +3187,7 @@
                       "description": "APM configures APM/Single Step Instrumentation settings for the managed CSI driver.",
                       "properties": {
                         "pullSecrets": {
-                          "description": "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM\nlibraries from private registries. Propagated to the managed DatadogCSIDriver as\nspec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.\nNot supported on GKE Autopilot.",
+                          "description": "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM\nlibraries from private registries. Propagated to the managed DatadogCSIDriver as\nspec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.",
                           "items": {
                             "additionalProperties": false,
                             "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",

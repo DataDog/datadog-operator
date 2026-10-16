@@ -728,6 +728,17 @@ spec:
                         registry:
                           description: Registry defines an image registry for the admission controller.
                           type: string
+                        registryAllowList:
+                          description: |-
+                            RegistryAllowList restricts which registries can be used for APM library injection.
+                            When non-empty, the admission controller only injects libraries from the listed
+                            registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+                            by the operator. An empty list allows all registries.
+                            (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: set
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
@@ -1962,6 +1973,42 @@ spec:
                             Default: {}
                           type: object
                       type: object
+                    hostProfiler:
+                      description: HostProfiler configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Host Profiler.
+                            Default: false
+                          type: boolean
+                        runAsRoot:
+                          description: |-
+                            RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+                            dd-agent user.
+                            Default: true
+                          type: boolean
+                        seLinuxType:
+                          description: |-
+                            SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+                            Default: spc_t
+                          type: string
+                        seccomp:
+                          description: Seccomp configures the seccomp profile applied to the Host Profiler container.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+                                When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+                                Default: true
+                              type: boolean
+                            loggingEnabled:
+                              description: |-
+                                LoggingEnabled uses the logging seccomp profile instead of the default one.
+                                Has no effect when the seccomp profile is disabled.
+                                Default: false
+                              type: boolean
+                          type: object
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
@@ -3074,7 +3121,6 @@ spec:
                                 PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
                                 libraries from private registries. Propagated to the managed DatadogCSIDriver as
                                 spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-                                Not supported on GKE Autopilot.
                               items:
                                 description: |-
                                   LocalObjectReference contains enough information to let you locate the
@@ -10259,6 +10305,17 @@ spec:
                             registry:
                               description: Registry defines an image registry for the admission controller.
                               type: string
+                            registryAllowList:
+                              description: |-
+                                RegistryAllowList restricts which registries can be used for APM library injection.
+                                When non-empty, the admission controller only injects libraries from the listed
+                                registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+                                by the operator. An empty list allows all registries.
+                                (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
                             serviceName:
                               description: ServiceName corresponds to the webhook service name.
                               type: string
@@ -11491,6 +11548,42 @@ spec:
                                 ValuesAsTags collects Helm values from a release and uses them as tags
                                 (Requires Agent and Cluster Agent 7.40.0+).
                                 Default: {}
+                              type: object
+                          type: object
+                        hostProfiler:
+                          description: HostProfiler configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Host Profiler.
+                                Default: false
+                              type: boolean
+                            runAsRoot:
+                              description: |-
+                                RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+                                dd-agent user.
+                                Default: true
+                              type: boolean
+                            seLinuxType:
+                              description: |-
+                                SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+                                Default: spc_t
+                              type: string
+                            seccomp:
+                              description: Seccomp configures the seccomp profile applied to the Host Profiler container.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+                                    When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+                                    Default: true
+                                  type: boolean
+                                loggingEnabled:
+                                  description: |-
+                                    LoggingEnabled uses the logging seccomp profile instead of the default one.
+                                    Has no effect when the seccomp profile is disabled.
+                                    Default: false
+                                  type: boolean
                               type: object
                           type: object
                         kubeStateMetricsCore:

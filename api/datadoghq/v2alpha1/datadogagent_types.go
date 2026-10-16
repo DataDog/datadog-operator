@@ -96,6 +96,9 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// HostProfiler configuration.
+	// +optional
+	HostProfiler *HostProfilerFeatureConfig `json:"hostProfiler,omitempty"`
 	// DataPlane configuration for the Agent Data Plane.
 	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
 	// +optional
@@ -535,7 +538,6 @@ type CSIAPMConfig struct {
 	// PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
 	// libraries from private registries. Propagated to the managed DatadogCSIDriver as
 	// spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-	// Not supported on GKE Autopilot.
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
@@ -1371,6 +1373,45 @@ type MetricStateSet struct {
 	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
 }
 
+// HostProfilerFeatureConfig contains the Host Profiler configuration.
+// Host Profiler runs as a dedicated container in the node Agent pod and requires host PID.
+type HostProfilerFeatureConfig struct {
+	// Enabled enables the Host Profiler.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Seccomp configures the seccomp profile applied to the Host Profiler container.
+	// +optional
+	Seccomp *HostProfilerSeccompConfig `json:"seccomp,omitempty"`
+
+	// RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+	// dd-agent user.
+	// Default: true
+	// +optional
+	RunAsRoot *bool `json:"runAsRoot,omitempty"`
+
+	// SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+	// Default: spc_t
+	// +optional
+	SELinuxType *string `json:"seLinuxType,omitempty"`
+}
+
+// HostProfilerSeccompConfig contains the seccomp configuration of the Host Profiler.
+type HostProfilerSeccompConfig struct {
+	// Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+	// When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// LoggingEnabled uses the logging seccomp profile instead of the default one.
+	// Has no effect when the seccomp profile is disabled.
+	// Default: false
+	// +optional
+	LoggingEnabled *bool `json:"loggingEnabled,omitempty"`
+}
+
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
 // +k8s:openapi-gen=true
 type OtelCollectorFeatureConfig struct {
@@ -1501,6 +1542,15 @@ type AdmissionControllerFeatureConfig struct {
 	// Registry defines an image registry for the admission controller.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// RegistryAllowList restricts which registries can be used for APM library injection.
+	// When non-empty, the admission controller only injects libraries from the listed
+	// registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+	// by the operator. An empty list allows all registries.
+	// (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
 
 	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
 	// +optional

@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
@@ -183,6 +184,10 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 }
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+	span, ctx := trace.StartSpan(ctx)
+	var updateErr error
+	defer trace.FinishSpan(span, &updateErr)
+
 	logger := ctrl.LoggerFrom(ctx)
 	if currentError == nil {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
@@ -201,6 +206,7 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *
 				return reconcile.Result{RequeueAfter: time.Second}, nil
 			}
 			logger.Error(err, "unable to update DatadogAgent status")
+			updateErr = err
 			return reconcile.Result{}, err
 		}
 	}

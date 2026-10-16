@@ -243,7 +243,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2026-08-04 20:33:01"
+    createdAt: "2026-10-08 13:46:30"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -251,7 +251,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.29.0
+    containerImage: gcr.io/datadoghq/operator:1.31.0
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -260,12 +260,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.29.0'
+    olm.skipRange: '>=1.7.0 <1.31.0'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.29.0
+  name: datadog-operator.v1.31.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -315,12 +315,12 @@ spec:
       - kind: DatadogPodAutoscalerClusterProfile
         name: datadogpodautoscalerclusterprofiles.datadoghq.com
         version: v1alpha2
-      - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
+      - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API.
         displayName: Datadog Pod Autoscaler
         kind: DatadogPodAutoscaler
         name: datadogpodautoscalers.datadoghq.com
         version: v1alpha1
-      - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
+      - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API.
         displayName: Datadog Pod Autoscaler
         kind: DatadogPodAutoscaler
         name: datadogpodautoscalers.datadoghq.com
@@ -624,7 +624,6 @@ spec:
                 - datadogmonitors/finalizers
                 - datadogslos
                 - datadogslos/finalizers
-                - extendeddaemonsets
               verbs:
                 - create
                 - delete
@@ -659,7 +658,6 @@ spec:
                 - datadoghq.com
               resources:
                 - datadoginstrumentations
-                - extendeddaemonsetreplicasets
                 - watermarkpodautoscalers
               verbs:
                 - get
@@ -722,6 +720,18 @@ spec:
             - apiGroups:
                 - gateway.networking.k8s.io
               resources:
+                - backendtlspolicies
+                - grpcroutes
+                - listenersets
+                - tcproutes
+                - tlsroutes
+                - udproutes
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - gateway.networking.k8s.io
+              resources:
                 - gatewayclasses
                 - gateways
                 - httproutes
@@ -733,21 +743,29 @@ spec:
             - apiGroups:
                 - gateway.networking.k8s.io
               resources:
-                - grpcroutes
-                - listenersets
-                - tlsroutes
-              verbs:
-                - list
-                - watch
-            - apiGroups:
-                - gateway.networking.k8s.io
-              resources:
                 - referencegrants
               verbs:
                 - create
                 - delete
                 - get
+                - list
                 - patch
+                - watch
+            - apiGroups:
+                - inference.networking.k8s.io
+              resources:
+                - inferencepools
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - inference.networking.x-k8s.io
+              resources:
+                - inferencepoolimports
+                - inferencepools
+              verbs:
+                - list
+                - watch
             - apiGroups:
                 - k8s.nginx.org
               resources:
@@ -769,6 +787,13 @@ spec:
                 - update
                 - watch
             - apiGroups:
+                - kubeai.org
+              resources:
+                - models
+              verbs:
+                - list
+                - watch
+            - apiGroups:
                 - kustomize.toolkit.fluxcd.io
               resources:
                 - kustomizations
@@ -781,6 +806,14 @@ spec:
                 - kcm/metrics
                 - ksh/metrics
               verbs:
+                - get
+            - apiGroups:
+                - networking.gke.io
+              resources:
+                - gcptrafficextensions
+              verbs:
+                - create
+                - delete
                 - get
             - apiGroups:
                 - networking.istio.io
@@ -838,6 +871,19 @@ spec:
                 - update
                 - watch
             - apiGroups:
+                - nvidia.com
+              resources:
+                - dynamocheckpoints
+                - dynamocomponentdeployments
+                - dynamographdeploymentrequests
+                - dynamographdeployments
+                - dynamographdeploymentscalingadapters
+                - dynamomodels
+                - dynamoworkermetadatas
+              verbs:
+                - list
+                - watch
+            - apiGroups:
                 - policy
               resources:
                 - poddisruptionbudgets
@@ -856,6 +902,16 @@ spec:
               verbs:
                 - get
                 - list
+            - apiGroups:
+                - ray.io
+              resources:
+                - rayclusters
+                - raycronjobs
+                - rayjobs
+                - rayservices
+              verbs:
+                - list
+                - watch
             - apiGroups:
                 - rbac.authorization.k8s.io
               resources:
@@ -891,6 +947,24 @@ spec:
                 - securitycontextconstraints
               verbs:
                 - use
+            - apiGroups:
+                - serving.kserve.io
+              resources:
+                - clusterservingruntimes
+                - clusterstoragecontainers
+                - inferencegraphs
+                - inferenceservices
+                - llminferenceserviceconfigs
+                - llminferenceservices
+                - localmodelcaches
+                - localmodelnamespacecaches
+                - localmodelnodegroups
+                - localmodelnodes
+                - servingruntimes
+                - trainedmodels
+              verbs:
+                - list
+                - watch
             - apiGroups:
                 - source.toolkit.fluxcd.io
               resources:
@@ -991,6 +1065,10 @@ spec:
                         valueFrom:
                           fieldRef:
                             fieldPath: metadata.name
+                      - name: POD_NAMESPACE
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.namespace
                       - name: WATCH_NAMESPACE
                         valueFrom:
                           fieldRef:
@@ -1001,7 +1079,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.29.0
+                    image: gcr.io/datadoghq/operator:1.31.0
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1104,5 +1182,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.29.0
-  replaces: datadog-operator.v1.28.0
+  version: 1.31.0
+  replaces: datadog-operator.v1.30.0

@@ -214,7 +214,7 @@ func Test_ssaMergeCRD(t *testing.T) {
 		logger := logf.Log.WithName("Test_ssaMergeCRD")
 		eventBroadcaster := record.NewBroadcaster()
 		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_ssaMergeCRD"})
-		fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+		fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
 		assert.NoError(t, err)
 
 		t.Run(tt.name, func(t *testing.T) {
@@ -317,7 +317,7 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 	logger := logf.Log.WithName("Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields")
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields"})
-	fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+	fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
 	assert.NoError(t, err)
 
 	r := &Reconciler{
