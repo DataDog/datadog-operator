@@ -55,7 +55,10 @@ func TestRender_Jemalloc(t *testing.T) {
 				dda.Annotations[component.EnableJemallocAnnotation] = value
 			}
 			if tt.comprehensive {
-				dda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{Enabled: new(true)}
+				dda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{
+					Enabled:          new(true),
+					RunInSystemProbe: new(false),
+				}
 			}
 			objects, _, err := Render(Options{DDA: dda})
 			require.NoError(t, err)
