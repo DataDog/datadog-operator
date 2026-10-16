@@ -1342,7 +1342,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: cc996d3108aeb816e385407c3a1ae1b7
+    agent.datadoghq.com/agentspechash: 11dfb3e0b0169fb444090a596b313eeb
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1657,6 +1657,8 @@ spec:
         - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1901,6 +1903,8 @@ spec:
         - mountPath: /host/proc
           name: procdir
           readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
         - mountPath: /host/sys/fs/cgroup
@@ -2063,7 +2067,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 03013d2b45bf350f1181cd0e8eb99a59
+    agent.datadoghq.com/agentspechash: aedbb529188c3f20e556fa987d45cde1
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2287,14 +2291,14 @@ spec:
           name: datadog-agent-auth
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
         - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
           name: ksm-core-config
           readOnly: true
         - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
           name: orchestrator-explorer-config
           readOnly: true
-        - mountPath: /opt/datadog-agent/run/
-          name: datadogrun
       serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
@@ -2310,11 +2314,11 @@ spec:
         name: datadog-agent-auth
       - emptyDir: {}
         name: tmpdir
+      - emptyDir: {}
+        name: datadogrun
       - configMap:
           name: datadog-agent-kube-state-metrics-core-config
         name: ksm-core-config
       - configMap:
           name: datadog-agent-orchestrator-explorer-config
         name: orchestrator-explorer-config
-      - emptyDir: {}
-        name: datadogrun
