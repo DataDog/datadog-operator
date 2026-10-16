@@ -1,0 +1,169 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: system
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: ddot
+    kubelet:
+      tlsVerify: false
+  override:
+    nodeAgent:
+      updateStrategy:
+        rollingUpdate:
+          maxUnavailable: 50%
+        type: RollingUpdate
+      containers:
+        otel-agent:
+          env:
+            # Set by the operator in standalone mode only.
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+  features:
+    otelCollector:
+      enabled: true
+      conf:
+        configData: |-
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+            # DDOT self-metrics.
+            prometheus:
+              config:
+                scrape_configs:
+                  - job_name: otelcol
+                    scrape_interval: 60s
+                    static_configs:
+                      - targets: ["0.0.0.0:8888"]
+            kubeletstats:
+              collection_interval: 15s
+              auth_type: serviceAccount
+              endpoint: https://${env:DD_KUBERNETES_KUBELET_HOST}:10250
+              node: ${env:K8S_NODE_NAME}
+              insecure_skip_verify: true
+              metric_groups: [node, pod, container, volume]
+            # cAdvisor container metrics from the kubelet.
+            prometheus/cadvisor:
+              config:
+                scrape_configs:
+                  - job_name: kubelet-cadvisor
+                    scheme: https
+                    metrics_path: /metrics/cadvisor
+                    scrape_interval: 15s
+                    honor_labels: true
+                    authorization:
+                      type: Bearer
+                      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                    tls_config:
+                      insecure_skip_verify: true
+                    static_configs:
+                      - targets: ["${env:DD_KUBERNETES_KUBELET_HOST}:10250"]
+                    metric_relabel_configs:
+                      - source_labels: [__name__]
+                        regex: container_(cpu_usage_seconds_total|cpu_cfs_throttled_seconds_total|memory_working_set_bytes|memory_rss|fs_reads_bytes_total|fs_writes_bytes_total)
+                        action: keep
+                      - source_labels: [container]
+                        regex: ^(POD)?$
+                        action: drop
+          processors:
+            memory_limiter:
+              check_interval: 5s
+              limit_percentage: 75
+              spike_limit_percentage: 15
+            # Tags from the core Agent tagger.
+            infraattributes:
+              cardinality: 2
+            # k8s.cluster.name and k8s.node.name on every signal.
+            resource/k8s:
+              attributes:
+                - key: k8s.cluster.name
+                  value: ${env:DD_CLUSTER_NAME}
+                  action: upsert
+                - key: k8s.node.name
+                  value: ${env:K8S_NODE_NAME}
+                  action: insert
+                # Report all signals on the host the core Agent would use (<node>-<cluster>
+                # when a cluster name is set); SDKs set host.name to the pod name.
+                - key: datadog.host.name
+                  value: ${env:K8S_NODE_NAME}-${env:DD_CLUSTER_NAME}
+                  action: upsert
+            transform/cadvisor:
+              metric_statements:
+                - context: datapoint
+                  statements:
+                    - set(attributes["k8s.pod.name"], attributes["pod"]) where attributes["pod"] != nil
+                    - set(attributes["k8s.namespace.name"], attributes["namespace"]) where attributes["namespace"] != nil
+                    - set(attributes["k8s.container.name"], attributes["container"]) where attributes["container"] != nil
+                    - delete_key(attributes, "pod")
+                    - delete_key(attributes, "namespace")
+                    - delete_key(attributes, "container")
+                    - delete_key(attributes, "id")
+                    - delete_key(attributes, "name")
+                    - delete_key(attributes, "image")
+                - context: resource
+                  statements:
+                    - delete_key(attributes, "service.name")
+                    - delete_key(attributes, "service.instance.id")
+            groupbyattrs/cadvisor:
+              keys: [k8s.pod.name, k8s.namespace.name, k8s.container.name]
+            filter/drop-prometheus-internal-metrics:
+              metrics:
+                exclude:
+                  match_type: regexp
+                  metric_names: ["^scrape_.*$", "^up$", "^promhttp_metric_handler_errors_total$"]
+          connectors:
+            datadog/connector:
+              traces:
+                compute_top_level_by_span_kind: true
+                peer_tags_aggregation: true
+                compute_stats_by_span_kind: true
+          exporters:
+            datadog:
+              api:
+                key: ${env:DD_API_KEY}
+                site: ${env:DD_SITE}
+              metrics:
+                resource_attributes_as_tags: true
+              sending_queue:
+                batch:
+                  flush_timeout: 10s
+          service:
+            pipelines:
+              traces:
+                receivers: [otlp]
+                processors: [memory_limiter, infraattributes, resource/k8s]
+                exporters: [datadog, datadog/connector]
+              metrics:
+                receivers: [otlp, datadog/connector]
+                processors: [memory_limiter, infraattributes, resource/k8s]
+                exporters: [datadog]
+              metrics/node:
+                receivers: [kubeletstats]
+                processors: [memory_limiter, infraattributes, resource/k8s]
+                exporters: [datadog]
+              metrics/cadvisor:
+                receivers: [prometheus/cadvisor]
+                processors: [memory_limiter, filter/drop-prometheus-internal-metrics, transform/cadvisor, groupbyattrs/cadvisor, infraattributes, resource/k8s]
+                exporters: [datadog]
+              metrics/self:
+                receivers: [prometheus]
+                processors: [memory_limiter, filter/drop-prometheus-internal-metrics, resource/k8s]
+                exporters: [datadog]
+              logs:
+                receivers: [otlp]
+                processors: [memory_limiter, infraattributes, resource/k8s]
+                exporters: [datadog]
