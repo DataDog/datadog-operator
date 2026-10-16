@@ -41,6 +41,7 @@ README.md                                       @DataDog/container-platform
 /internal/controller/datadogagent/feature/helmcheck                 @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/hostprofiler              @DataDog/profiling-full-host    @DataDog/container-platform
 /internal/controller/datadogagent/feature/kubernetesstatecore       @DataDog/container-integrations @DataDog/container-platform
+/internal/controller/datadogagent/feature/kueue                     @DataDog/accelerator-telemetry  @DataDog/container-platform
 /internal/controller/datadogagent/feature/livecontainer             @DataDog/container-experiences  @DataDog/container-platform
 /internal/controller/datadogagent/feature/liveprocess               @DataDog/container-experiences  @DataDog/container-platform
 /internal/controller/datadogagent/feature/logcollection             @DataDog/agent-log-pipelines    @DataDog/container-platform
