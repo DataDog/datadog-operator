@@ -300,7 +300,7 @@ func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []cor
 		})
 	}
 
-	return envVars
+	return append(envVars, component.JemallocEnvVars(dda, component.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName))...)
 }
 
 // DefaultAffinity returns the pod anti affinity of the cluster checks runners
