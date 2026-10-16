@@ -1,0 +1,210 @@
+# DatadogBYOCCluster
+
+## Provider and Metastore database
+
+`spec.provider` is required. Configure AWS through `spec.provider.aws` as shown
+in the [complete sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml).
+
+The Metastore requires `spec.components.metastore.database.uriSecretRef` to
+reference a Secret containing its PostgreSQL connection URI. When
+`spec.components.readOnlyMetastore` is configured, its `database.uriSecretRef`
+is also required.
+
+## Configuration validation
+
+The controller applies its defaults, then checks cross-field configuration before
+resolving images or applying resources. Invalid configurations are stored by Kubernetes but report
+`Reconciled=False` and `Available=False` with reason `InvalidConfiguration`.
+The condition message lists the affected field paths. Existing resources remain
+unchanged until the configuration is corrected; cluster deletion still proceeds.
+
+Specify `release` or `imageOverrides`, and configure `provider.aws`. A release
+requires exactly one of `tag` or `digest`, even when fully specified image
+overrides allow release fetching to be skipped. Each image override permits
+at most one of `tag` or `digest`. When `release` is omitted, both the BYOC and
+Worker image overrides must specify a non-empty `repository` and exactly one
+non-empty `tag` or `digest`. Missing or incomplete overrides are reported as
+`InvalidConfiguration` before image resolution. Partial overrides remain valid
+when a release supplies the missing image settings.
+
+Global and component Pod disruption budgets permit at most one of `minAvailable`
+or `maxUnavailable`; an empty object disables the budget. For the Indexer and
+Searcher, setting `resources` requires `resources.limits.memory`, which sizes the
+node configuration. For every BYOC component other than the pipelines, setting
+`resources` also requires a CPU request or limit. For the Indexer, Searcher, and
+each Pipeline, setting `storage` requires exactly one of `emptyDir` or
+`volumeClaimTemplate`, and autoscaling bounds must be at least 1 with
+`minReplicas` not above `maxReplicas`. Omitting `resources` or `storage` retains
+the component defaults.
+
+The `config` and `data` volume names and the `/quickwit`, `/quickwit/node.yaml`,
+and `/quickwit/qwdata` mount paths are reserved for the built-in volumes of the
+BYOC components and are rejected in `spec.global` and in component settings.
+
+## Pipelines
+
+Configure one or more workers in `spec.components.pipelines`. Each entry requires
+a unique DNS label `name` of at most 10 characters, a `pipelineID`, and source `ports`. Replica counts,
+autoscaling, resources, storage, and environment variables are configured per entry.
+The controller creates a `DatadogObservabilityPipelinesWorker` named
+`<cluster-name>-pipeline-<pipeline-name>` for each entry. The resulting resource
+name must be a valid Service name of at most 63 characters.
+
+The [complete sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml)
+defines `logs` and `audit` pipelines with different source ports and replica counts.
+
+Reordering the list preserves the workers. Removing an entry deletes its worker;
+changing its name creates a new worker and deletes the previous one. Changing
+`pipelineID` with the same name updates the existing worker. The image selected
+by the release or image override applies to every worker.
+
+`status.pipelines` maps each entry's `name` to its `workerName`. Refer to the
+worker resource for replica counts, conditions, and failure details.
+The cluster's `Reconciled` condition reports whether the shared resources and
+worker resources have been applied and obsolete resources have been removed.
+The cluster's `Available` condition requires the shared BYOC workloads to be
+available and every worker to report `Available=True` for its current generation.
+Workers with a missing or outdated availability condition, or pending deletion,
+are treated as unavailable. The Worker controller determines worker availability,
+including the StatefulSet's current replica target when autoscaling is enabled.
+
+If a worker resource cannot be applied, the controller stops and reports
+`Reconciled=False` on the cluster, with reason `Conflict` when a worker with the
+same name exists and is not controlled by the cluster, or `ApplyFailed` otherwise.
+A failure within the Worker controller affects the cluster's `Available`
+condition without changing its `Reconciled` condition. Obsolete-worker cleanup
+waits until all desired workers have been successfully applied; while an obsolete
+worker is being deleted, the cluster reports `Reconciled=False` with reason
+`CleanupInProgress`. Cluster deletion waits for all owned workers to be deleted
+before deleting the Indexer.
+
+## ServiceAccount identity
+
+By default, the controller creates and owns a ServiceAccount with the same name
+and namespace as the cluster, with `automountServiceAccountToken: false`. BYOC
+workloads use this account; each Observability Pipelines Worker uses its own
+dedicated account named `<cluster-name>-pipeline-<pipeline-name>`.
+
+Set `spec.identity.serviceAccountName` to use an existing ServiceAccount for the
+BYOC workloads. The controller references it without creating, updating, or
+taking ownership of it. The account must already exist in the cluster's
+namespace. `spec.provider.aws.irsaRoleARN` only configures the automatically
+created BYOC account; configure IAM annotations on an existing account yourself.
+
+Each pipeline keeps its dedicated, automatically managed account and does not
+inherit the BYOC identity or IRSA role. A standalone worker can use an existing
+account through its own `spec.identity.serviceAccountName`; see
+[ServiceAccount identity](observability_pipelines_worker.md#serviceaccount-identity).
+Omitting the account name keeps automatic ServiceAccount creation.
+
+## Image overrides
+
+For pipeline ports and automatically generated source addresses, see
+[Observability Pipelines Worker ports](observability_pipelines_worker.md).
+
+By default, `spec.release` selects an OCI release artifact containing the BYOC and Observability Pipelines Worker images. Use `spec.imageOverrides` to mirror images into private registries or deploy compatible hotfix images without publishing a new release artifact.
+
+The examples below are partial specifications; retain your existing component and other cluster settings. See the [complete sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml).
+
+## Mirror images while retaining release versions
+
+```yaml
+spec:
+  release:
+    tag: "0.1.32"
+  imageOverrides:
+    byoc:
+      repository: registry.example.com/datadog/byoc
+      imagePullSecrets:
+        - name: workload-registry-credentials
+    observabilityPipelinesWorker:
+      repository: registry.example.com/datadog/observability-pipelines-worker
+      imagePullSecrets:
+        - name: workload-registry-credentials
+```
+
+A repository-only override retains the tag and digest selected by the release. When the release provides a digest, it takes precedence over its tag. The mirror must serve the image at that same digest; merely copying a tag to a different manifest digest is not sufficient.
+
+## Fully specify images without resolving a release
+
+```yaml
+spec:
+  imageOverrides:
+    byoc:
+      repository: registry.example.com/datadog/byoc
+      tag: hotfix-123
+      imagePullSecrets:
+        - name: workload-registry-credentials
+    observabilityPipelinesWorker:
+      repository: registry.example.com/datadog/observability-pipelines-worker
+      digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      imagePullSecrets:
+        - name: workload-registry-credentials
+```
+
+When **both** images specify a repository and either a tag or digest, the Operator does not fetch the release artifact. `spec.release` may be omitted or left in place for later recovery. This mode works even when the release repository is unavailable.
+
+Both logical images must be fully specified to skip release resolution, regardless of which workloads are currently enabled. If either image needs values from a release, `spec.release` is required and must resolve successfully. There is no implicit fallback on resolution failure.
+
+## Override rules
+
+Each image override supports:
+
+| Field | Behavior |
+| --- | --- |
+| `repository` | Replaces the image repository. If omitted, the release image repository is retained. |
+| `tag` | Replaces the release version and clears its digest. If `repository` is omitted, the release repository is retained. Mutually exclusive with `digest`. |
+| `digest` | Replaces the release version and clears its tag. If `repository` is omitted, the release repository is retained. Mutually exclusive with `tag`. |
+| `pullPolicy` | Replaces the image pull policy, which defaults to `IfNotPresent`. |
+| `imagePullSecrets` | Names of Secrets in the DatadogBYOCCluster namespace, added to Pods that use this workload image. |
+
+When a release is provided, an empty override object is a no-op. A secrets-only override is allowed and retains the release-selected image reference. Secret entries are unique by name. Workload pull secrets are not used for fetching the release artifact; `spec.release.imagePullSecrets` is not supported.
+
+The BYOC override applies to all enabled BYOC components, including the optional read-only Metastore and Compactor. It does not replace user-specified init container images. Pull secrets are Kubernetes Pod-level settings, so they can also be used for init containers in those Pods.
+
+The Observability Pipelines Worker override applies to every pipeline worker and participates in image resolution and the release-skip decision. Worker pull secrets are not added to BYOC Pods.
+
+## Status and recovery
+
+`status.conditions` reports image resolution, including overrides, through the existing `ReleaseResolved` condition:
+
+| Status / Reason | Meaning |
+| --- | --- |
+| `True / Resolved` | The workload images were resolved successfully, from the release artifact, overrides, or both. |
+| `False / ResolutionFailed` | A required release artifact could not be resolved. |
+
+There is no separate `ImageOverridesActive` condition. Image resolution does not imply that the workload rollout has completed. The generated `IMAGE_NAME` and `IMAGE_TAG` telemetry environment variables use the effective BYOC image values, rather than stale release values. A digest override has no tag.
+
+Overrides persist when `spec.release` changes. To return to release-managed images, remove the overrides and ensure a valid `spec.release` is present. Removing an override also removes its explicitly configured Pod pull secrets. Restore the intended release version before removing overrides if the release reference changed during the incident.
+
+Image changes use the existing Deployment and StatefulSet rollout strategies; they do not guarantee zero downtime or safe rollback across incompatible data-format changes. Hotfix images must support the existing arguments, configuration, probes, and security settings. Use immutable digests or unique tags: pushing a new image under an unchanged tag does not itself trigger a rollout, and the default `IfNotPresent` pull policy keeps using an image already present on the node.
+
+## Indexer split store sizing
+
+The split store is a local cache. With PVC storage, the Operator generates
+`indexer.split_store_max_num_bytes` as 70% of the requested PVC capacity minus
+the Operator-calculated default `ingest_api.max_queue_disk_usage`, in integer
+bytes. Overrides in `spec.nodeConfigOverrides` are passed through without parsing their
+byte-size values; overriding the queue does not recalculate the split store
+size. If the result is zero or negative, the Operator sets the cache capacity to
+zero. This prevents split caching on that PVC; it does not reduce the queue size.
+
+The default PVC capacity is 30Gi. With the default Indexer memory limit of 16Gi,
+the queue uses approximately 9.6Gi, leaving approximately 11.4Gi for the split
+store. With a 3Gi memory limit, the queue uses approximately 1.8Gi and the split
+store receives approximately 19.2Gi.
+
+With `emptyDir` storage, intended for testing, the Operator omits
+`split_store_max_num_bytes` regardless of `sizeLimit`, leaving Pomsky's default of
+100GiB in effect. The Operator keeps `split_store_max_num_splits` at 10000 unless
+overridden; it does not disable the split store for `emptyDir`.
+
+An explicit `spec.nodeConfigOverrides.indexer.split_store_max_num_bytes` takes precedence
+for either storage type and overrides the automatically calculated value. For example:
+
+```yaml
+spec:
+  nodeConfigOverrides:
+    indexer:
+      split_store_max_num_bytes: 10GiB
+```

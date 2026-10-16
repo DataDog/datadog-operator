@@ -1,0 +1,122 @@
+# Observability Pipelines Worker
+
+## Configuration validation
+
+After applying defaults and before applying resources, the controller checks that
+`spec.image` specifies `repository` and exactly one of `tag` or `digest`.
+It also checks that `spec.storage` selects exactly one of `emptyDir` or
+`volumeClaimTemplate` when specified, that autoscaling bounds are at least 1 with
+`minReplicas` not above `maxReplicas`, and that `spec.podDisruptionBudget` does not
+set both `minAvailable` and `maxUnavailable`. Omitted resources and storage use
+the Worker defaults; an empty Pod disruption budget disables the budget.
+
+The `api` port name and TCP port 8686 are reserved for the Worker API, and two
+ports cannot share the same number and protocol. The `worker` init container
+name, the `data` volume name, and the `/var/lib/observability-pipelines-worker`
+mount path are reserved for the built-in container and volume.
+
+Invalid configurations report `Reconciled=False` and `Available=False` with
+reason `InvalidConfiguration` and the affected field paths in the condition
+message. Correcting the configuration resumes reconciliation.
+
+## ServiceAccount identity
+
+By default, the controller creates and owns a dedicated ServiceAccount with the
+same name and namespace as the worker, with `automountServiceAccountToken: false`.
+To use an existing ServiceAccount, set `spec.identity.serviceAccountName` on a
+standalone `DatadogObservabilityPipelinesWorker`:
+
+```yaml
+spec:
+  identity:
+    serviceAccountName: pipeline-worker
+```
+
+This example is a partial specification. Create the referenced ServiceAccount
+in the CR's namespace before using it, including any required IAM annotations
+or RBAC bindings. The controller does not create, update, or take ownership of
+referenced ServiceAccounts. An omitted identity, or an identity without
+`serviceAccountName`, uses the automatically managed account.
+
+For a worker managed by `DatadogBYOCCluster`, the controller automatically creates
+a dedicated account named `<cluster-name>-pipeline-<pipeline-name>`. The worker does not inherit
+`spec.identity` or `spec.provider.aws.irsaRoleARN` from the BYOC cluster.
+
+## Ports
+
+Configure worker ports using `spec.ports` on a `DatadogObservabilityPipelinesWorker`,
+or `spec.components.pipelines[].ports` on a `DatadogBYOCCluster`. At least one port
+must be specified, and each entry requires an explicit port number.
+
+The controller exposes these ports on the worker container and Service. For
+the names listed below, it also generates the source's address environment
+variable with the value `0.0.0.0:<port>`.
+
+| Port name | Address environment variable |
+| --- | --- |
+| `otlp-grpc` | `DD_OP_SOURCE_OTEL_GRPC_ADDRESS` |
+| `otlp-http` | `DD_OP_SOURCE_OTEL_HTTP_ADDRESS` |
+| `datadog-agent` | `DD_OP_SOURCE_DATADOG_AGENT_ADDRESS` |
+| `splunk-tcp` | `DD_OP_SOURCE_SPLUNK_TCP_ADDRESS` |
+| `splunk-hec` | `DD_OP_SOURCE_SPLUNK_HEC_ADDRESS` |
+| `http-server` | `DD_OP_SOURCE_HTTP_SERVER_ADDRESS` |
+| `fluent` | `DD_OP_SOURCE_FLUENT_ADDRESS` |
+| `logstash` | `DD_OP_SOURCE_LOGSTASH_ADDRESS` |
+| `syslog` | `DD_OP_SOURCE_SYSLOG_ADDRESS` |
+| `socket` | `DD_OP_SOURCE_SOCKET_ADDRESS` |
+| `aws-firehose` | `DD_OP_SOURCE_AWS_DATA_FIREHOSE_ADDRESS` |
+| `sumo-logic` | `DD_OP_SOURCE_SUMO_LOGIC_ADDRESS` |
+| `prom-pushgw` | `DD_OP_SOURCE_PROMETHEUS_PUSHGATEWAY_ADDRESS` |
+| `prom-rem-write` | `DD_OP_SOURCE_PROMETHEUS_REMOTE_WRITE_ADDRESS` |
+
+The abbreviated names fit Kubernetes' 15-character limit for container port
+names. Other names expose a port without generating an environment variable;
+configure any custom source address keys through `env` or `envFrom`.
+
+For example, the following BYOC configuration exposes the OTLP source on custom
+ports and generates both address variables:
+
+```yaml
+spec:
+  components:
+    pipelines:
+      - name: logs
+        pipelineID: 11111111-2222-3333-4444-555555555555
+        ports:
+          - name: otlp-grpc
+            port: 14317
+          - name: otlp-http
+            port: 14318
+```
+
+Port declarations do not create sources in the remote pipeline configuration.
+Configure the corresponding source in the pipeline identified by `pipelineID`.
+The OP OpenTelemetry source requires both its gRPC and HTTP addresses; declare
+both ports explicitly. Neither OTLP port implicitly adds the other, and `otlp`
+is not a recognized name for environment generation.
+
+The `protocol` field controls the container and Service protocol; it defaults to
+TCP. For UDP-capable sources such as `syslog` or `socket`, set `protocol: UDP`
+and configure the same transport in the remote pipeline.
+
+## Override generated addresses
+
+The controller merges generated addresses with explicit `env` entries. Explicit
+values, including `valueFrom` entries and empty values, override generated
+addresses. No additional ConfigMap is created.
+
+Kubernetes gives `env` precedence over `envFrom`. A generated address therefore
+takes precedence over the same variable supplied through `envFrom`. To override
+it with a ConfigMap or Secret value, use an explicit `env` entry with `valueFrom`.
+
+For a BYOC cluster, configure overrides through `spec.components.pipelines[].env`;
+the corresponding field is `spec.env` on a standalone worker. Keep any
+overridden listening port consistent with the
+declared port. For example, use `[::]:14317` to change the binding address for
+an `otlp-grpc` port declared as `14317`.
+
+Changing ports updates the StatefulSet's environment and container ports,
+triggering the normal StatefulSet rollout.
+
+See the [standalone worker sample](../config/samples/datadoghq_v1alpha1_datadogobservabilitypipelinesworker.yaml)
+and [BYOC sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml).
