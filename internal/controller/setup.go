@@ -18,6 +18,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -31,6 +33,7 @@ const (
 	profileControllerName         = "DatadogAgentProfile"
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
+	byocClusterControllerName     = "DatadogBYOCCluster"
 	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
@@ -50,6 +53,8 @@ type SetupOptions struct {
 	OtelAgentEnabled                  bool
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
+	DatadogBYOCClusterEnabled         bool
+	BYOCImageResolver                 byocimage.ImageResolver
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
@@ -58,6 +63,9 @@ type SetupOptions struct {
 	UntaintControllerWaitForCSIDriver bool
 	RolloutOnConfigMapChangeEnabled   bool
 	DefaultDataPlaneLinuxEnabled      bool
+	ComponentHealthEnabled            bool
+	ComponentHealthIntakeEnabled      bool
+	ComponentHealthSnapshotInterval   time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
 
@@ -71,8 +79,10 @@ var controllerStarters = map[string]starterFunc{
 	profileControllerName:         startDatadogAgentProfiles,
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
+	byocClusterControllerName:     startDatadogBYOCCluster,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
+	componentHealthControllerName: startComponentHealth,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -135,7 +145,6 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 			SupportCilium:                   options.SupportCilium,
 			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
 			UntaintControllerEnabled:        options.UntaintControllerEnabled,
-			DatadogCSIDriverEnabled:         options.DatadogCSIDriverEnabled,
 			RolloutOnConfigMapChangeEnabled: options.RolloutOnConfigMapChangeEnabled,
 			DefaultDataPlaneLinuxEnabled:    options.DefaultDataPlaneLinuxEnabled,
 			APIReader:                       mgr.GetAPIReader(),
@@ -204,6 +213,20 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	return genericResourceReconciler.SetupWithManager(mgr)
 }
 
+func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", byocClusterControllerName)
+		return nil
+	}
+
+	return (&datadogbyoccluster.Reconciler{
+		Client:        mgr.GetClient(),
+		APIReader:     mgr.GetAPIReader(),
+		Scheme:        mgr.GetScheme(),
+		ImageResolver: options.BYOCImageResolver,
+	}).SetupWithManager(mgr)
+}
+
 func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
@@ -235,6 +258,35 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 	if err != nil {
 		return fmt.Errorf("untaint controller setup: %w", err)
 	}
+	return reconciler.SetupWithManager(mgr)
+}
+
+func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.ComponentHealthEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", componentHealthControllerName)
+		return nil
+	}
+
+	log := ctrl.Log.WithName("controllers").WithName(componentHealthControllerName)
+	reconciler := NewComponentHealthReconciler(mgr.GetClient(), log)
+
+	// Override the default snapshot cadence when configured; a non-positive value
+	// keeps the built-in default.
+	if options.ComponentHealthSnapshotInterval > 0 {
+		reconciler.snapshotInterval = options.ComponentHealthSnapshotInterval
+	}
+
+	// When the intake is enabled, swap the default logging emitter for the
+	// production emitter that POSTs current-state HealthReport snapshots to the
+	// agenthealth intake.
+	if options.ComponentHealthIntakeEnabled {
+		if options.CredsManager == nil {
+			return fmt.Errorf("%s: intake emitter requires a credentials manager", componentHealthControllerName)
+		}
+		reconciler.emitter = newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
+		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake", "controller", componentHealthControllerName)
+	}
+
 	return reconciler.SetupWithManager(mgr)
 }
 

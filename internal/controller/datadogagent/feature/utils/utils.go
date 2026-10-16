@@ -28,19 +28,10 @@ const (
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
 	// DefaultDataPlaneMinAgentVersion is the minimum Agent version that receives the Operator-level Data Plane default.
 	// Explicit Data Plane configuration remains available for older versions.
-	DefaultDataPlaneMinAgentVersion = "7.83.0-0"
-	EnableADPAnnotation             = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz   = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation    = "agent.datadoghq.com/host-profiler-enabled"
-	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
-	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
-	// set to "false" to disable both the seccomp profile and its setup init container.
-	EnableHostProfilerSeccompAnnotation        = "agent.datadoghq.com/host-profiler-seccomp-enabled"
-	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
-	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
-	HostProfilerSELinuxTypeAnnotation   = "agent.datadoghq.com/host-profiler-selinux-type"
-	EnableHostProfilerNonRootAnnotation = "agent.datadoghq.com/host-profiler-non-root-enabled"
-	EnableKSMApiServerCacheAnnotation   = "agent.datadoghq.com/ksm-use-apiserver-cache"
+	DefaultDataPlaneMinAgentVersion   = "7.84.0-0"
+	EnableADPAnnotation               = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz     = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
@@ -66,6 +57,28 @@ const (
 	ClusterAgentPrivateActionRunnerK8sRemediationEnabled = "cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"
 
 	EnableCheckRunnerAnnotation = "agent.datadoghq.com/check-runner-enabled"
+)
+
+// Host Profiler annotations are deprecated in favor of spec.features.hostProfiler and will be removed
+// in a future release. Until then, spec.features.hostProfiler takes precedence and the annotations
+// are still read as a fallback for settings not defined in the spec.
+const (
+	// Deprecated: use spec.features.hostProfiler.enabled.
+	EnableHostProfilerAnnotation = "agent.datadoghq.com/host-profiler-enabled"
+	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
+	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
+	// set to "false" to disable both the seccomp profile and its setup init container.
+	//
+	// Deprecated: use spec.features.hostProfiler.seccomp.enabled.
+	EnableHostProfilerSeccompAnnotation = "agent.datadoghq.com/host-profiler-seccomp-enabled"
+	// Deprecated: use spec.features.hostProfiler.seccomp.loggingEnabled.
+	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
+	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
+	//
+	// Deprecated: use spec.features.hostProfiler.seLinuxType.
+	HostProfilerSELinuxTypeAnnotation = "agent.datadoghq.com/host-profiler-selinux-type"
+	// Deprecated: use spec.features.hostProfiler.runAsRoot (inverted: "true" here means runAsRoot: false).
+	EnableHostProfilerNonRootAnnotation = "agent.datadoghq.com/host-profiler-non-root-enabled"
 )
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {

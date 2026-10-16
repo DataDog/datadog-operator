@@ -6,12 +6,15 @@
 package checkrunner
 
 import (
+	"errors"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
@@ -28,6 +31,7 @@ func buildCheckRunnerFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		f.logger = options.Logger
+		f.defaultDataPlaneEnabled = options.DefaultDataPlaneEnabled
 	}
 
 	return f
@@ -36,7 +40,9 @@ func buildCheckRunnerFeature(options *feature.Options) feature.Feature {
 type checkRunnerFeature struct {
 	logger logr.Logger
 
-	enabled bool
+	enabled                 bool
+	defaultDataPlaneEnabled bool
+	dataPlaneEnabled        bool
 }
 
 // ID returns the ID of the Feature
@@ -45,7 +51,7 @@ func (f *checkRunnerFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *checkRunnerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (f *checkRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableCheckRunnerAnnotation)
 
 	var reqComp feature.RequiredComponents
@@ -55,6 +61,8 @@ func (f *checkRunnerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAge
 			IsRequired: &f.enabled,
 			Containers: []apicommon.AgentContainerName{apicommon.AgentCheckRunnerContainerName},
 		}
+
+		f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultDataPlaneEnabled)
 	}
 
 	return reqComp
@@ -62,6 +70,12 @@ func (f *checkRunnerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAge
 
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *checkRunnerFeature) ManageDependencies(_ feature.ResourceManagers) error {
+	// ACR sends check events to the Data Plane Checks IPC endpoint. Without the
+	// agent-data-plane container nothing serves it.
+	if f.enabled && !f.dataPlaneEnabled {
+		f.logger.Info("The checkrunner feature requires the dataPlane feature: set spec.features.dataPlane.enabled=true.")
+		return errors.New("checkrunner feature requires the dataPlane feature")
+	}
 	return nil
 }
 
@@ -77,8 +91,7 @@ func (f *checkRunnerFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 		return nil
 	}
 
-	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
-
+	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName)
 	return nil
 }
 
@@ -88,37 +101,38 @@ func (f *checkRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		return nil
 	}
 
-	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentCheckRunnerContainerName)
-
+	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName)
 	return nil
 }
 
-// configureNodeAgent configures the Core Agent and Check Runner (ACR) containers of the Node Agent.
-// In SingleContainerStrategy, coreAgentContainer and checkRunnerContainer are the same container.
-func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer, checkRunnerContainer apicommon.AgentContainerName) {
-	// Core Agent envs
-	// Enable the Check Runner by setting the DD_CHECK_RUNNER_ENABLED environment variable, which is then
-	// retrieved by ACR over RAR.
+// configureNodeAgent configures the Core Agent, Check Runner (ACR) and Agent Data Plane (ADP)
+// containers of the Node Agent. In SingleContainerStrategy, all three containers are the same container.
+func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer apicommon.AgentContainerName) {
+	// ACR configuration
+	// Enable the Check Runner.
 	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEnabled,
 		Value: "true",
 	})
-
-	// ACR envs
 	// Force sub-agent of the Core Agent mode and configure communication with the Data Plane.
-	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerStandaloneMode,
 		Value: "false",
 	})
-
-	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEnabled,
 		Value: "true",
 	})
-
-	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEndpoint,
 		Value: "http://localhost:5105",
+	})
+
+	// ADP configuration
+	// Enable Checks IPC source (the endpoint ACR sends events to)
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneChecksEnabled,
+		Value: "true",
 	})
 }
 

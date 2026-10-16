@@ -140,6 +140,60 @@ func Test_isEKSProvider(t *testing.T) {
 	}
 }
 
+func Test_IsOpenShiftProvider(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		want     bool
+	}{
+		{
+			// The form ClusterProviderFromNodeLabels produces in production.
+			name:     "detected openshift-rhcos",
+			provider: "openshift-rhcos",
+			want:     true,
+		},
+		{
+			// What CRC reports.
+			name:     "detected openshift-rhel",
+			provider: "openshift-rhel",
+			want:     true,
+		},
+		{
+			// Documented annotation value (docs/providers.md).
+			name:     "bare openshift from the provider annotation",
+			provider: OpenshiftProvider,
+			want:     true,
+		},
+		{
+			// Guards the trailing "-" in the prefix test.
+			name:     "unrelated provider sharing the prefix",
+			provider: "openshiftfoo",
+			want:     false,
+		},
+		{
+			name:     "eks",
+			provider: EKSCloudProvider,
+			want:     false,
+		},
+		{
+			name:     "default",
+			provider: DefaultProvider,
+			want:     false,
+		},
+		{
+			name:     "empty",
+			provider: "",
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsOpenShiftProvider(tt.provider))
+		})
+	}
+}
+
 func Test_ShouldUseDefaultDaemonset(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -420,5 +474,62 @@ func providerNode(labels map[string]string, osImage string) *corev1.Node {
 		Status: corev1.NodeStatus{
 			NodeInfo: corev1.NodeSystemInfo{OSImage: osImage},
 		},
+	}
+}
+
+func Test_ProviderFamily(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		want     string
+	}{
+		{
+			// Every openshift-<os_id> collapses to one key.
+			name:     "openshift-rhcos collapses",
+			provider: "openshift-rhcos",
+			want:     OpenshiftProvider,
+		},
+		{
+			name:     "openshift-rhel collapses",
+			provider: "openshift-rhel",
+			want:     OpenshiftProvider,
+		},
+		{
+			name:     "bare openshift is already the family",
+			provider: OpenshiftProvider,
+			want:     OpenshiftProvider,
+		},
+		{
+			// gke-cos names a node image; collapsing it to "gke" would misapply rules.
+			name:     "gke-cos is unchanged",
+			provider: GKECosProvider,
+			want:     GKECosProvider,
+		},
+		{
+			name:     "eks hostname-from-file variant is unchanged",
+			provider: EKSEC2UseHostnameFromFileProvider,
+			want:     EKSEC2UseHostnameFromFileProvider,
+		},
+		{
+			name:     "gke-autopilot is unchanged",
+			provider: GKEAutopilotProvider,
+			want:     GKEAutopilotProvider,
+		},
+		{
+			name:     "eks is unchanged",
+			provider: EKSCloudProvider,
+			want:     EKSCloudProvider,
+		},
+		{
+			name:     "empty is unchanged",
+			provider: "",
+			want:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ProviderFamily(tt.provider))
+		})
 	}
 }

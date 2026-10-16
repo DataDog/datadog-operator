@@ -57,8 +57,165 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
 		},
+		{
+			Name: "host profiler enabled via spec",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithHostProfilerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+		},
+		{
+			Name: "host profiler disabled via spec takes precedence over annotation",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
+				WithHostProfilerEnabled(false).
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "host profiler enabled via spec takes precedence over annotation",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "false"}).
+				WithHostProfilerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
+}
+
+func TestHasDeprecatedAnnotations(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		want        bool
+	}{
+		{name: "no annotations"},
+		{
+			name: "only the experimental image override",
+			annotations: map[string]string{
+				experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"foo"}}`,
+			},
+		},
+		{
+			name:        "enabled annotation set to false",
+			annotations: map[string]string{featureutils.EnableHostProfilerAnnotation: "false"},
+			want:        true,
+		},
+		{
+			name:        "setting annotation without the enabled annotation",
+			annotations: map[string]string{featureutils.EnableHostProfilerNonRootAnnotation: "true"},
+			want:        true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, HasDeprecatedAnnotations(tt.annotations))
+		})
+	}
+}
+
+func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
+	allAnnotations := map[string]string{
+		featureutils.EnableHostProfilerAnnotation:               "true",
+		featureutils.EnableHostProfilerSeccompAnnotation:        "false",
+		featureutils.EnableHostProfilerLoggingSeccompAnnotation: "true",
+		featureutils.EnableHostProfilerNonRootAnnotation:        "true",
+		featureutils.HostProfilerSELinuxTypeAnnotation:          "annotation_t",
+	}
+
+	tests := []struct {
+		name            string
+		annotations     map[string]string
+		config          *v2alpha1.HostProfilerFeatureConfig
+		wantSeccomp     bool
+		wantLogging     bool
+		wantRoot        bool
+		wantSELinuxType string
+	}{
+		{
+			name:            "spec only, defaults",
+			config:          &v2alpha1.HostProfilerFeatureConfig{Enabled: ptr.To(true)},
+			wantSeccomp:     true,
+			wantRoot:        true,
+			wantSELinuxType: defaultSELinuxType,
+		},
+		{
+			name: "spec only, all settings",
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:     ptr.To(true),
+				RunAsRoot:   ptr.To(false),
+				SELinuxType: ptr.To("spec_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(false),
+					LoggingEnabled: ptr.To(true),
+				},
+			},
+			wantLogging:     true,
+			wantSELinuxType: "spec_t",
+		},
+		{
+			name:            "annotations only",
+			annotations:     allAnnotations,
+			wantLogging:     true,
+			wantSELinuxType: "annotation_t",
+		},
+		{
+			name:        "spec enabled, unset settings fall back to annotations",
+			annotations: allAnnotations,
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled: ptr.To(true),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{},
+			},
+			wantLogging:     true,
+			wantSELinuxType: "annotation_t",
+		},
+		{
+			name:        "spec settings take precedence over annotations",
+			annotations: allAnnotations,
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				RunAsRoot:   ptr.To(true),
+				SELinuxType: ptr.To("spec_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(true),
+					LoggingEnabled: ptr.To(false),
+				},
+			},
+			wantSeccomp:     true,
+			wantRoot:        true,
+			wantSELinuxType: "spec_t",
+		},
+		{
+			name:        "empty spec selinux type falls back to annotation",
+			annotations: allAnnotations,
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				SELinuxType: ptr.To(""),
+			},
+			wantLogging:     true,
+			wantSELinuxType: "annotation_t",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().WithAnnotations(tt.annotations).Build()
+			if dda.Spec.Features == nil {
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{}
+			}
+			dda.Spec.Features.HostProfiler = tt.config
+
+			feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+			reqComp := feat.Configure(dda, &dda.Spec, nil)
+			require.True(t, reqComp.IsEnabled())
+
+			assert.Equal(t, tt.wantSeccomp, feat.seccompEnabled, "seccompEnabled")
+			assert.Equal(t, tt.wantLogging, feat.loggingSeccomp, "loggingSeccomp")
+			assert.Equal(t, tt.wantRoot, feat.hostProfilerRoot, "hostProfilerRoot")
+			assert.Equal(t, tt.wantSELinuxType, feat.selinuxType, "selinuxType")
+		})
+	}
 }
 
 func Test_hostProfilerFeature_InvalidSeccompAnnotation(t *testing.T) {
@@ -248,6 +405,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMount), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMount))
 
 				assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
+				assert.Equal(t, map[string]string{corev1.LabelOSStable: string(corev1.Linux)}, mgr.Tpl.Spec.NodeSelector)
 
 				// IPC env vars
 				coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
@@ -552,4 +710,32 @@ func TestDefaultCapabilities(t *testing.T) {
 	assert.True(t, capSet["PERFMON"], "host-profiler requires PERFMON for perf_event_open")
 	assert.True(t, capSet["CHECKPOINT_RESTORE"], "host-profiler requires CHECKPOINT_RESTORE for /proc/<pid>/map_files access")
 	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
+}
+
+func Test_ManageNodeAgent_LinuxNodeSelectorPreservesExistingKeys(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithName("datadog-agent").
+		WithAnnotations(map[string]string{
+			"agent.datadoghq.com/host-profiler-enabled": "true",
+		}).
+		Build()
+
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			NodeSelector: map[string]string{"disk": "ssd"},
+			Containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
+				{Name: string(apicommon.HostProfiler), Image: "gcr.io/datadoghq/agent:7.99.0"},
+			},
+		},
+	})
+
+	feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+	feat.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, feat.ManageNodeAgent(manager))
+
+	assert.Equal(t, map[string]string{
+		"disk":               "ssd",
+		corev1.LabelOSStable: string(corev1.Linux),
+	}, manager.PodTemplateSpec().Spec.NodeSelector)
 }

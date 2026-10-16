@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -264,10 +265,13 @@ func clusterAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAg
 	var errs []error
 	serviceAccountName := constants.GetClusterAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(ddaMeta)
+	provider := ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey]
 
-	// Service account
-	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
-		errs = append(errs, err)
+	// Service account. The bundle-managed account is bound below but not created here.
+	if !openshift.IsBundleManagedServiceAccount(provider, serviceAccountName) {
+		if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	// Role Creation
@@ -303,9 +307,11 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	// not reachable (e.g. GKE Autopilot), to support DD_KUBELET_USE_API_SERVER=true.
 	kubeletUseAPIServer := autopilotEnabled
 
-	// Service account
-	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
-		errs = append(errs, err)
+	// Service account. The bundle-managed account is bound below but not created here.
+	if !openshift.IsBundleManagedServiceAccount(ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey], serviceAccountName) {
+		if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	// ClusterRole creation

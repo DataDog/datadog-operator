@@ -728,6 +728,17 @@ spec:
                         registry:
                           description: Registry defines an image registry for the admission controller.
                           type: string
+                        registryAllowList:
+                          description: |-
+                            RegistryAllowList restricts which registries can be used for APM library injection.
+                            When non-empty, the admission controller only injects libraries from the listed
+                            registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+                            by the operator. An empty list allows all registries.
+                            (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: set
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
@@ -845,6 +856,13 @@ spec:
                                 <Library>: <Version>
                                 ex: "java": "v1.18.0"
                               type: object
+                            onDemand:
+                              description: |-
+                                OnDemand keeps the SSI admission webhook available for runtime workload
+                                selection (annotations and Remote Config) when cluster-wide
+                                instrumentation is disabled.
+                                Default: true
+                              type: boolean
                             targets:
                               description: |-
                                 Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
@@ -1955,6 +1973,42 @@ spec:
                             Default: {}
                           type: object
                       type: object
+                    hostProfiler:
+                      description: HostProfiler configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Host Profiler.
+                            Default: false
+                          type: boolean
+                        runAsRoot:
+                          description: |-
+                            RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+                            dd-agent user.
+                            Default: true
+                          type: boolean
+                        seLinuxType:
+                          description: |-
+                            SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+                            Default: spc_t
+                          type: string
+                        seccomp:
+                          description: Seccomp configures the seccomp profile applied to the Host Profiler container.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+                                When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+                                Default: true
+                              type: boolean
+                            loggingEnabled:
+                              description: |-
+                                LoggingEnabled uses the logging seccomp profile instead of the default one.
+                                Has no effect when the seccomp profile is disabled.
+                                Default: false
+                              type: boolean
+                          type: object
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
@@ -2972,7 +3026,6 @@ spec:
                                 PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
                                 libraries from private registries. Propagated to the managed DatadogCSIDriver as
                                 spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-                                Not supported on GKE Autopilot.
                               items:
                                 description: |-
                                   LocalObjectReference contains enough information to let you locate the
@@ -3011,6 +3064,54 @@ spec:
                             (e.g. from the Datadog CSI driver Helm chart).
                             Default: false
                           type: boolean
+                        image:
+                          description: |-
+                            Image overrides the container image configuration of the managed CSI driver container.
+                            Propagated to the managed DatadogCSIDriver as spec.csiDriverImage. The registry defaults
+                            to `global.registry`. It does not apply to the csi-node-driver-registrar sidecar.
+                            When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
+                            authenticate APM library downloads.
+                          properties:
+                            name:
+                              description: |-
+                                Defines the CSI driver image name. You can provide this as:
+                                * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`.
+                                * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored.
+                                * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+                              type: string
+                            pullPolicy:
+                              description: |-
+                                The Kubernetes pull policy:
+                                Use `Always`, `Never`, or `IfNotPresent`.
+                              type: string
+                            pullSecrets:
+                              description: |-
+                                It is possible to specify Docker registry credentials.
+                                See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                              items:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    default: ""
+                                    description: |-
+                                      Name of the referent.
+                                      This field is effectively required, but due to backwards compatibility is
+                                      allowed to be empty. Instances of this type with an empty value here are
+                                      almost certainly wrong.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            tag:
+                              description: |-
+                                Define the image tag to use.
+                                To be used if the `Name` field does not correspond to a full image string.
+                              type: string
+                          type: object
                         nodeAffinity:
                           description: NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
                           properties:
@@ -3948,7 +4049,8 @@ spec:
                       type: object
                     registry:
                       description: |-
-                        Registry is the image registry to use for all Agent images.
+                        Registry is the image registry to use for all Datadog images: the Agent images, the
+                        Single Step Instrumentation injection images, and the Datadog CSI driver image.
                         Use 'public.ecr.aws/datadog' for AWS ECR.
                         Use 'datadoghq.azurecr.io' for Azure Container Registry.
                         Use 'gcr.io/datadoghq' for Google Container Registry.
@@ -9303,9 +9405,48 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                currentRevision:
+                  description: |-
+                    CurrentRevision names the ControllerRevision that snapshots the currently
+                    observed raw DatadogAgent spec plus selected Datadog annotations.
+                  type: string
+                currentRevisionObservedAnnotationsHash:
+                  description: |-
+                    CurrentRevisionObservedAnnotationsHash records DatadogAnnotationsHash over
+                    the annotations that participate in the revision snapshot. Generation does
+                    not change for metadata-only updates, so this closes annotation-only races.
+                  pattern: ^[a-f0-9]{64}$
+                  type: string
+                currentRevisionObservedGeneration:
+                  description: |-
+                    CurrentRevisionObservedGeneration records the metadata.generation for which
+                    CurrentRevision is valid.
+                  format: int64
+                  minimum: 0
+                  type: integer
                 experiment:
                   description: Experiment tracks the state of an active or recent Fleet Automation experiment.
                   properties:
+                    checkpoint:
+                      description: |-
+                        Checkpoint holds the baseline and expected live experiment snapshot.
+                        Required while Phase is "running"; retained on terminal phases for audit.
+                      properties:
+                        expectedSpecHash:
+                          description: |-
+                            ExpectedSpecHash is sha256 hex over the canonical revision snapshot of
+                            the raw experiment spec plus selected raw Datadog annotations.
+                          pattern: ^[a-f0-9]{64}$
+                          type: string
+                        rollbackTargetRevision:
+                          description: RollbackTargetRevision is the pre-experiment baseline ControllerRevision.
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                      required:
+                        - expectedSpecHash
+                        - rollbackTargetRevision
+                      type: object
                     id:
                       description: ID is the RC task ID that triggered this experiment state.
                       type: string
@@ -9338,8 +9479,14 @@ spec:
                       type: string
                     terminationReason:
                       description: |-
-                        TerminationReason distinguishes why the experiment was terminated.
-                        Only set when Phase is "terminated".
+                        TerminationReason records why a terminal experiment ended.
+                        Set when Phase is "terminated" or "aborted" and a cause should be reported.
+                      enum:
+                        - stopped
+                        - timed_out
+                        - manual_spec_change
+                        - baseline_missing
+                        - baseline_not_found
                       type: string
                   type: object
                 otelAgentGateway:
@@ -10063,6 +10210,17 @@ spec:
                             registry:
                               description: Registry defines an image registry for the admission controller.
                               type: string
+                            registryAllowList:
+                              description: |-
+                                RegistryAllowList restricts which registries can be used for APM library injection.
+                                When non-empty, the admission controller only injects libraries from the listed
+                                registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+                                by the operator. An empty list allows all registries.
+                                (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
                             serviceName:
                               description: ServiceName corresponds to the webhook service name.
                               type: string
@@ -10180,6 +10338,13 @@ spec:
                                     <Library>: <Version>
                                     ex: "java": "v1.18.0"
                                   type: object
+                                onDemand:
+                                  description: |-
+                                    OnDemand keeps the SSI admission webhook available for runtime workload
+                                    selection (annotations and Remote Config) when cluster-wide
+                                    instrumentation is disabled.
+                                    Default: true
+                                  type: boolean
                                 targets:
                                   description: |-
                                     Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
@@ -11288,6 +11453,42 @@ spec:
                                 ValuesAsTags collects Helm values from a release and uses them as tags
                                 (Requires Agent and Cluster Agent 7.40.0+).
                                 Default: {}
+                              type: object
+                          type: object
+                        hostProfiler:
+                          description: HostProfiler configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Host Profiler.
+                                Default: false
+                              type: boolean
+                            runAsRoot:
+                              description: |-
+                                RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+                                dd-agent user.
+                                Default: true
+                              type: boolean
+                            seLinuxType:
+                              description: |-
+                                SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+                                Default: spc_t
+                              type: string
+                            seccomp:
+                              description: Seccomp configures the seccomp profile applied to the Host Profiler container.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+                                    When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+                                    Default: true
+                                  type: boolean
+                                loggingEnabled:
+                                  description: |-
+                                    LoggingEnabled uses the logging seccomp profile instead of the default one.
+                                    Has no effect when the seccomp profile is disabled.
+                                    Default: false
+                                  type: boolean
                               type: object
                           type: object
                         kubeStateMetricsCore:

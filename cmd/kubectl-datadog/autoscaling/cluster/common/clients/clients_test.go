@@ -1,13 +1,17 @@
 package clients
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common"
 )
 
 func TestGetAccountIDFromKubeconfig(t *testing.T) {
@@ -148,4 +152,116 @@ users:
 			assert.Equal(t, tt.wantAccountID, got)
 		})
 	}
+}
+
+func TestResolveClusterName(t *testing.T) {
+	longName := strings.Repeat("a", common.MaxClusterNameLength+1)
+	limitName := strings.Repeat("b", common.MaxClusterNameLength)
+
+	tests := []struct {
+		name           string
+		explicit       string
+		kubeconfigName string // cluster of the current kubeconfig context
+		want           string
+		wantErr        string
+	}{
+		{
+			name:           "explicit name",
+			explicit:       "my-cluster",
+			kubeconfigName: "other-cluster",
+			want:           "my-cluster",
+			wantErr:        "",
+		},
+		{
+			name:           "explicit name at the limit",
+			explicit:       limitName,
+			kubeconfigName: "other-cluster",
+			want:           limitName,
+			wantErr:        "",
+		},
+		{
+			name:           "explicit name over the limit",
+			explicit:       longName,
+			kubeconfigName: "other-cluster",
+			want:           "",
+			wantErr:        "maximum supported by this plugin",
+		},
+		{
+			name:           "name from the kubeconfig",
+			explicit:       "",
+			kubeconfigName: "my-cluster",
+			want:           "my-cluster",
+			wantErr:        "",
+		},
+		{
+			name:           "name from the kubeconfig at the limit",
+			explicit:       "",
+			kubeconfigName: limitName,
+			want:           limitName,
+			wantErr:        "",
+		},
+		{
+			name:           "name from the kubeconfig over the limit",
+			explicit:       "",
+			kubeconfigName: longName,
+			want:           "",
+			wantErr:        "maximum supported by this plugin",
+		},
+		{
+			name:           "no usable name keeps the existing error",
+			explicit:       "",
+			kubeconfigName: "not:a-cluster-name",
+			want:           "",
+			wantErr:        "cluster name must be specified",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kubeconfig := fmt.Sprintf(`
+apiVersion: v1
+kind: Config
+current-context: ctx
+contexts:
+- name: ctx
+  context:
+    cluster: %s
+    user: user
+clusters:
+- name: %s
+  cluster:
+    server: https://example.eks.amazonaws.com
+users:
+- name: user
+  user: {}
+`, tt.kubeconfigName, tt.kubeconfigName)
+			kubeconfigPath := filepath.Join(t.TempDir(), "kubeconfig")
+			require.NoError(t, os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0o600))
+
+			flags := genericclioptions.NewConfigFlags(false)
+			flags.KubeConfig = &kubeconfigPath
+
+			got, err := ResolveClusterName(flags, tt.explicit)
+
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestResolveClusterNameKubeconfigError(t *testing.T) {
+	kubeconfigPath := filepath.Join(t.TempDir(), "kubeconfig")
+	require.NoError(t, os.WriteFile(kubeconfigPath, []byte("not: [valid"), 0o600))
+
+	flags := genericclioptions.NewConfigFlags(false)
+	flags.KubeConfig = &kubeconfigPath
+
+	got, err := ResolveClusterName(flags, "")
+
+	require.ErrorContains(t, err, "failed to get raw kubeconfig")
+	assert.Empty(t, got)
 }

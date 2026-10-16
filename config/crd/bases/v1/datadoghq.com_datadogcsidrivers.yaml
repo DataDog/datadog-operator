@@ -62,7 +62,7 @@ spec:
                         libraries from private registries. When empty, the CSI driver falls back to
                         csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored
                         for APM authentication in that fallback path. Restart the CSI DaemonSet after
-                        rotating these Secrets. Not supported on GKE Autopilot.
+                        rotating these Secrets.
                       items:
                         description: |-
                           LocalObjectReference contains enough information to let you locate the
@@ -81,6 +81,16 @@ spec:
                         x-kubernetes-map-type: atomic
                       type: array
                       x-kubernetes-list-type: atomic
+                    registryAllowList:
+                      description: |-
+                        RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.
+                        An empty list allows all registries. When managed by a DatadogAgent, it is set from
+                        spec.features.admissionController.registryAllowList.
+                        (Requires Datadog CSI Driver 1.3.0+)
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
                   type: object
                 apmSocketPath:
                   description: |-
@@ -99,7 +109,9 @@ spec:
                   type: object
                   x-kubernetes-map-type: granular
                 csiDriverImage:
-                  description: CSIDriverImage is the image configuration for the main CSI node driver container.
+                  description: |-
+                    CSIDriverImage is the image configuration for the main CSI node driver container.
+                    A full registry/name:tag in `name` takes precedence over spec.registry.
                   properties:
                     jmxEnabled:
                       description: |-
@@ -4571,6 +4583,14 @@ spec:
                         To be used if the `Name` field does not correspond to a full image string.
                       type: string
                   type: object
+                registry:
+                  description: |-
+                    Registry is the image registry to use for the Datadog CSI driver image, propagated from
+                    spec.global.registry on the parent DatadogAgent. It does not apply to the
+                    csi-node-driver-registrar sidecar, an upstream Kubernetes image always pulled from
+                    registry.k8s.io/sig-storage. Forced to GCR on GKE Autopilot.
+                    Default: 'registry.datadoghq.com'
+                  type: string
               type: object
             status:
               description: DatadogCSIDriverStatus defines the observed state of DatadogCSIDriver

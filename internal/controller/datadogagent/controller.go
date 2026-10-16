@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -17,8 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -76,6 +79,8 @@ const (
 	// clusterProviderGateRequeue is how often the reconcile re-checks while the
 	// provider gate is holding.
 	clusterProviderGateRequeue = 2 * time.Second
+
+	ddaOperationName = "datadogagent.reconcile"
 )
 
 // ProviderReader exposes the cluster-provider detection result to the reconciler
@@ -102,6 +107,15 @@ type ReconcilerOptions struct {
 	// ClusterProviderDetector supplies the detected cluster provider. Nil disables
 	// provider detection (reconcile behaves as before: empty provider).
 	ClusterProviderDetector ProviderReader
+	// SCCAuthorizer answers whether a ServiceAccount may use a SecurityContextConstraints,
+	// for the OpenShift node-agent ServiceAccount wiring. Nil installs the live
+	// SubjectAccessReview implementation; tests and the golden renderer inject a stub so
+	// they never issue a real authorization call.
+	SCCAuthorizer openshift.SCCAuthorizer
+	// APIReader is an uncached, direct-to-apiserver reader used to validate
+	// experiment rollback targets. A cached/informer-backed client's stale
+	// NotFound could be mistaken for a permanently-lost baseline revision.
+	APIReader client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -129,6 +143,10 @@ func (r *Reconciler) initializeComponentRegistry() {
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
+	if options.APIReader == nil {
+		return nil, fmt.Errorf("ReconcilerOptions.APIReader must not be nil")
+	}
+
 	r := &Reconciler{
 		options:      options,
 		client:       client,
@@ -137,6 +155,12 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		log:          log,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
+	}
+
+	// Default to the live SubjectAccessReview authorizer. Tests and the golden renderer
+	// inject a stub instead, so they never issue a real authorization call.
+	if r.options.SCCAuthorizer == nil {
+		r.options.SCCAuthorizer = openshift.NewSARAuthorizer(client)
 	}
 
 	// Initialize component registry
@@ -149,6 +173,9 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var resp reconcile.Result
 	var err error
+
+	span, ctx := trace.StartReconcileSpan(ctx, "DatadogAgent", ddaOperationName, dda)
+	defer trace.FinishSpan(span, &err)
 
 	resp, err = r.internalReconcile(ctx, dda)
 

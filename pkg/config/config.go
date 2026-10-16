@@ -14,9 +14,12 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -54,6 +57,7 @@ var (
 	agentObj           = &datadoghqv2alpha1.DatadogAgent{}
 	dashboardObj       = &datadoghqv1alpha1.DatadogDashboard{}
 	genericResourceObj = &datadoghqv1alpha1.DatadogGenericResource{}
+	byocClusterObj     = &datadoghqv1alpha1.DatadogBYOCCluster{}
 	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
@@ -62,6 +66,16 @@ var (
 	csiDaemonSetObj    = &appsv1.DaemonSet{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
+
+	byocOwnedObjs = []client.Object{
+		&corev1.ConfigMap{},
+		&corev1.ServiceAccount{},
+		&corev1.Service{},
+		&appsv1.Deployment{},
+		&appsv1.StatefulSet{},
+		&autoscalingv2.HorizontalPodAutoscaler{},
+		&policyv1.PodDisruptionBudget{},
+	}
 )
 
 type WatchOptions struct {
@@ -72,11 +86,19 @@ type WatchOptions struct {
 	IntrospectionEnabled              bool
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
+	DatadogBYOCClusterEnabled         bool
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
 	ManagedAgentInstallationEnabled   bool
 	ManagedAgentInstallationNamespace string
+	// ComponentHealthEnabled, when true, caches Pod status for the managed
+	// cluster-level components (cluster-agent, cluster-checks-runner) so the
+	// operator can derive component health signals (restarts, OOMKills,
+	// scheduling failures, ...). Off by default: retaining Pod status in cache
+	// increases the operator's memory footprint, so it is opt-in while the
+	// impact is evaluated on large clusters.
+	ComponentHealthEnabled bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -111,6 +133,19 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
+	if opts.DatadogBYOCClusterEnabled {
+		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
+		logger.Info("DatadogBYOCCluster Enabled", "watching namespaces", slices.Collect(maps.Keys(byocClusterNamespaces)))
+		byObject[byocClusterObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
+		// Resources owned by DatadogBYOCCluster live in its namespace, which may differ from the agent
+		// namespace covered by DefaultNamespaces. Merge both so neither controller loses its cache coverage.
+		for _, obj := range byocOwnedObjs {
+			ownedNamespaces := maps.Clone(agentNamespaces)
+			maps.Copy(ownedNamespaces, byocClusterNamespaces)
+			byObject[obj] = cache.ByObject{Namespaces: ownedNamespaces}
+		}
+	}
+
 	if opts.DatadogMonitorEnabled {
 		monitorNamespaces := GetWatchNamespacesFromEnv(logger, monitorWatchNamespaceEnvVar)
 		logger.Info("DatadogMonitor Enabled", "watching namespaces", slices.Collect(maps.Keys(monitorNamespaces)))
@@ -138,10 +173,13 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
-	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
-		// For the profiles feature and untaint controller we need to list agent pods.
+	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled || opts.ComponentHealthEnabled {
+		// For the profiles feature, untaint controller, and component-health
+		// monitoring we need to list agent pods.
 		// The profiles feature needs node name and labels; the untaint controller also needs
-		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
+		// Status.Conditions to check readiness; component health additionally needs the
+		// container statuses / phase / scheduling conditions of the cluster-level components.
+		// Pods are watched in DatadogAgent namespace(s).
 		// When untaint is configured to wait for CSI, widen to merged agent+CSI
 		// namespaces and drop the pod informer label filter so CSI node-server pods
 		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
@@ -154,10 +192,32 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 			logger.Info("Pod cache enabled for untaint with wait-for-CSI",
 				"watching Pods in namespaces", slices.Collect(maps.Keys(podNamespaces)))
 		} else {
-			podLabel = labels.SelectorFromSet(map[string]string{
-				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-			})
-			logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
+			// Cache only the components each enabled feature needs, expressed as an
+			// `agent.datadoghq.com/component in (...)` selector. Profiles/untaint need the
+			// node Agent; component health needs the cluster-level components.
+			components := map[string]struct{}{}
+			if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
+				components[constants.DefaultAgentResourceSuffix] = struct{}{}
+			}
+			if opts.ComponentHealthEnabled {
+				components[constants.DefaultClusterAgentResourceSuffix] = struct{}{}
+				components[constants.DefaultClusterChecksRunnerResourceSuffix] = struct{}{}
+			}
+			componentValues := slices.Collect(maps.Keys(components))
+			slices.Sort(componentValues)
+			req, err := labels.NewRequirement(common.AgentDeploymentComponentLabelKey, selection.In, componentValues)
+			if err != nil {
+				// componentValues are static, known-valid label values, so this is not
+				// expected; fail closed to the node-Agent selector rather than caching
+				// every Pod in the namespace (which would defeat the memory stripping).
+				logger.Error(err, "failed to build Pod component selector, falling back to node Agent only")
+				podLabel = labels.SelectorFromSet(map[string]string{
+					common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+				})
+			} else {
+				podLabel = labels.NewSelector().Add(*req)
+			}
+			logger.Info("Pod cache enabled", "components", componentValues, "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		}
 		podByObject := cache.ByObject{
 			Namespaces: podNamespaces,
@@ -182,6 +242,26 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				if opts.UntaintControllerEnabled {
 					newPod.Status.Conditions = pod.Status.Conditions
 					newPod.Status.StartTime = pod.Status.StartTime
+				}
+
+				// Component health monitoring derives issues from the managed components'
+				// pod status: container statuses (restart counts, OOMKill/crash reasons,
+				// waiting reasons like ImagePullBackOff), scheduling conditions, phase, and
+				// termination context, plus DeletionTimestamp so the reconciler can treat a
+				// pod that is terminating (but not yet gone from the API) like a gone pod.
+				// Retaining these fields is what increases cache memory, which is why this is
+				// gated behind ComponentHealthEnabled and restricted to the managed component
+				// pods (DCA/CLC), even when the wait-for-CSI branch above widened the
+				// informer to cache every Pod in the merged namespaces.
+				if opts.ComponentHealthEnabled && isManagedComponentHealthPod(pod) {
+					newPod.DeletionTimestamp = pod.DeletionTimestamp
+					newPod.Status.Phase = pod.Status.Phase
+					newPod.Status.Reason = pod.Status.Reason
+					newPod.Status.Message = pod.Status.Message
+					newPod.Status.Conditions = pod.Status.Conditions
+					newPod.Status.StartTime = pod.Status.StartTime
+					newPod.Status.ContainerStatuses = pod.Status.ContainerStatuses
+					newPod.Status.InitContainerStatuses = pod.Status.InitContainerStatuses
 				}
 
 				return newPod, nil
@@ -262,6 +342,20 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		DefaultNamespaces: agentNamespaces,
 		DefaultTransform:  cache.TransformStripManagedFields(),
 		ByObject:          byObject,
+	}
+}
+
+// isManagedComponentHealthPod reports whether pod is one of the cluster-level
+// components watched by component health (cluster-agent, cluster-checks-runner).
+// It is checked from the Pod's own labels, independent of any informer-level
+// label selector, since that selector is dropped when the wait-for-CSI branch
+// widens the Pod cache to include CSI driver pods.
+func isManagedComponentHealthPod(pod *corev1.Pod) bool {
+	switch pod.Labels[common.AgentDeploymentComponentLabelKey] {
+	case constants.DefaultClusterAgentResourceSuffix, constants.DefaultClusterChecksRunnerResourceSuffix:
+		return true
+	default:
+		return false
 	}
 }
 

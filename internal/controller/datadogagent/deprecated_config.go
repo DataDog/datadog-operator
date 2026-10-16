@@ -14,6 +14,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/appsec"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 )
 
@@ -40,6 +41,13 @@ var deprecatedConfigChecks = []deprecatedConfigCheck{
 		replacement: appsec.DeprecatedConfigReplacement,
 		inUse: func(dda *datadoghqv2alpha1.DatadogAgent) bool {
 			return appsec.HasDeprecatedAnnotations(dda.GetAnnotations())
+		},
+	},
+	{
+		name:        "agent.datadoghq.com/host-profiler-* annotations",
+		replacement: hostprofiler.DeprecatedConfigReplacement,
+		inUse: func(dda *datadoghqv2alpha1.DatadogAgent) bool {
+			return hostprofiler.HasDeprecatedAnnotations(dda.GetAnnotations())
 		},
 	},
 }

@@ -268,6 +268,12 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistryAllowList(registries ...string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.RegistryAllowList = registries
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = new(enabled)
@@ -1280,6 +1286,20 @@ func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *Data
 	builder.initGPUMonitoring()
 	builder.datadogAgent.Spec.Features.GPU.Enabled = new(enabled)
 	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = new(enabled)
+	return builder
+}
+
+// HostProfiler
+
+func (builder *DatadogAgentBuilder) initHostProfiler() {
+	if builder.datadogAgent.Spec.Features.HostProfiler == nil {
+		builder.datadogAgent.Spec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHostProfilerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHostProfiler()
+	builder.datadogAgent.Spec.Features.HostProfiler.Enabled = new(enabled)
 	return builder
 }
 

@@ -207,11 +207,11 @@ func Test_buildSnapshot(t *testing.T) {
 	if snapshot.Revision != 2 {
 		t.Errorf("Revision = %v, want 2", snapshot.Revision)
 	}
-	if snapshot.ProvidedValuesYAML == "" {
-		t.Error("ProvidedValuesYAML empty")
+	if len(snapshot.ProvidedValues) == 0 {
+		t.Error("ProvidedValues empty")
 	}
-	if snapshot.FullValuesYAML == "" {
-		t.Error("FullValuesYAML empty")
+	if len(snapshot.FullValues) == 0 {
+		t.Error("FullValues empty")
 	}
 	if snapshot.Release == nil {
 		t.Error("Release reference nil")

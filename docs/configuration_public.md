@@ -82,6 +82,9 @@ spec:
 `features.admissionController.registry`
 : Defines an image registry for the admission controller.
 
+`features.admissionController.registryAllowList`
+: RegistryAllowList restricts which registries can be used for APM library injection. When non-empty, the admission controller only injects libraries from the listed registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed by the operator. An empty list allows all registries. (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+
 `features.admissionController.serviceName`
 : ServiceName corresponds to the webhook service name.
 
@@ -310,6 +313,21 @@ spec:
 `features.helmCheck.valuesAsTags`
 : ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}
 
+`features.hostProfiler.enabled`
+: Enables the Host Profiler. Default: false
+
+`features.hostProfiler.runAsRoot`
+: RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user. Default: true
+
+`features.hostProfiler.seLinuxType`
+: SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t
+
+`features.hostProfiler.seccomp.enabled`
+: Applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node. When disabled, the Host Profiler container runs with an Unconfined seccomp profile. Default: true
+
+`features.hostProfiler.seccomp.loggingEnabled`
+: LoggingEnabled uses the logging seccomp profile instead of the default one. Has no effect when the seccomp profile is disabled. Default: false
+
 `features.kubeStateMetricsCore.collectCrMetrics`
 : `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md
 
@@ -512,13 +530,25 @@ spec:
 : Path to the container runtime socket (if different from Docker).
 
 `global.csi.apm.pullSecrets`
-: PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.
+: PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
 
 `global.csi.autoManage`
 : AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true
 
 `global.csi.enabled`
 : Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false
+
+`global.csi.image.name`
+: Defines the CSI driver image name. You can provide this as: * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`. * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored. * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+
+`global.csi.image.pullPolicy`
+: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
+
+`global.csi.image.pullSecrets`
+: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+
+`global.csi.image.tag`
+: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
 
 `global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`
 : The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
@@ -620,7 +650,7 @@ spec:
 : Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 
 `global.registry`
-: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
+: Is the image registry to use for all Datadog images: the Agent images, the Single Step Instrumentation injection images, and the Datadog CSI driver image. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
 
 `global.secretBackend.args`
 : List of arguments to pass to the command (space-separated strings).

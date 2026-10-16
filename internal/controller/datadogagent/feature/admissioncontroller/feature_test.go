@@ -37,25 +37,17 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "Admission Controller enabled with basic setup",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAdmissionControllerEnabled(true).
-				Build(),
-			FeatureOptions: &feature.Options{DatadogCSIDriverEnabled: true},
-			WantConfigure:  true,
-			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(false, false, "", "", false)),
-			WantDependenciesFunc: assertCSIDriverRBAC,
-		},
-		{
-			Name: "Admission Controller enabled with CSI driver disabled",
+			Name: "Admission Controller enabled grants CSI driver RBAC unconditionally",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				admissionControllerWantFunc(false, false, "", "", false)),
-			WantDependenciesFunc: assertNoCSIDriverRBAC,
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				assertCSIDriverRBAC(t, sc)
+				assertSidecarSecretRBAC(t, sc, false)
+			},
 		},
 		{
 			Name: "Admission Controller enabled with validation and mutation enabled",
@@ -101,6 +93,34 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				admissionControllerWantFunc(false, false, "", "featureRegistry", false)),
 		},
 		{
+			Name: "Admission Controller enabled with registry allow list",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerRegistryAllowList("public.ecr.aws/datadog", "gcr.io/datadoghq").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					want := append(getACEnvVars(false, false, "", "", false), &corev1.EnvVar{
+						Name:  DDAdmissionControllerRegistryAllowList,
+						Value: "public.ecr.aws/datadog,gcr.io/datadoghq",
+					})
+					assert.ElementsMatch(t, dcaEnvVars, want, "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+				}),
+		},
+		{
+			Name: "Admission Controller enabled with empty registry allow list",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerRegistryAllowList().
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc(false, false, "", "", false)),
+		},
+		{
 			Name: "Admission Controller enabled with apm uds",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
@@ -130,6 +150,9 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false, nil, nil)),
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				assertSidecarSecretRBAC(t, sc, true)
+			},
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global registry",
@@ -287,17 +310,23 @@ func assertCSIDriverRBAC(t testing.TB, sc store.StoreClient) {
 	})
 }
 
-func assertNoCSIDriverRBAC(t testing.TB, sc store.StoreClient) {
+func assertSidecarSecretRBAC(t testing.TB, sc store.StoreClient, expected bool) {
 	crObj, found := sc.Get(kubernetes.ClusterRolesKind, "", "-cluster-agent")
 	assert.True(t, found, "Cluster Agent ClusterRole should be created")
 
 	cr, ok := crObj.(*rbacv1.ClusterRole)
 	assert.True(t, ok, "Cluster Agent ClusterRole should have the expected type")
 
-	for _, rule := range cr.Rules {
-		for _, resource := range rule.Resources {
-			assert.NotEqual(t, rbac.CSIDriversResource, resource, "Cluster Agent ClusterRole should not grant csidrivers RBAC when CSI driver is disabled")
-		}
+	rule := rbacv1.PolicyRule{
+		APIGroups:     []string{rbac.CoreAPIGroup},
+		Resources:     []string{rbac.SecretsResource},
+		ResourceNames: []string{defaultAgentSidecarSecretName},
+		Verbs:         []string{rbac.GetVerb},
+	}
+	if expected {
+		assert.Contains(t, cr.Rules, rule)
+	} else {
+		assert.NotContains(t, cr.Rules, rule)
 	}
 }
 

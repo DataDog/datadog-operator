@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
+	clustercommon "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
@@ -90,6 +91,8 @@ func (s *autoscalingSuite) extractClusterInfo() {
 	s.kubeconfigPath = kubeconfigFile.Name()
 
 	s.clusterName = s.Env().KubernetesCluster.ClusterName
+	require.Lenf(t, s.clusterName, clustercommon.MaxClusterNameLength,
+		"cluster name %q is not the longest supported length; check longClusterStackName()", s.clusterName)
 
 	cfg, err := config.LoadDefaultConfig(t.Context())
 	require.NoError(t, err, "Failed to load AWS config")
@@ -146,7 +149,7 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:  "pause",
-						Image: "registry.k8s.io/pause",
+						Image: "registry.k8s.io/pause:3.10",
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),

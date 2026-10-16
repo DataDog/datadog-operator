@@ -96,6 +96,9 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// HostProfiler configuration.
+	// +optional
+	HostProfiler *HostProfilerFeatureConfig `json:"hostProfiler,omitempty"`
 	// DataPlane configuration for the Agent Data Plane.
 	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
 	// +optional
@@ -355,6 +358,13 @@ type SingleStepInstrumentation struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// OnDemand keeps the SSI admission webhook available for runtime workload
+	// selection (annotations and Remote Config) when cluster-wide
+	// instrumentation is disabled.
+	// Default: true
+	// +optional
+	OnDemand *bool `json:"onDemand,omitempty"`
+
 	// EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.
 	// +optional
 	// +listType=set
@@ -468,6 +478,14 @@ type CSIConfig struct {
 	// +optional
 	APM *CSIAPMConfig `json:"apm,omitempty"`
 
+	// Image overrides the container image configuration of the managed CSI driver container.
+	// Propagated to the managed DatadogCSIDriver as spec.csiDriverImage. The registry defaults
+	// to `global.registry`. It does not apply to the csi-node-driver-registrar sidecar.
+	// When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
+	// authenticate APM library downloads.
+	// +optional
+	Image *CSIImageConfig `json:"image,omitempty"`
+
 	// Tolerations configure the CSI driver DaemonSet pod tolerations.
 	// +optional
 	// +listType=atomic
@@ -482,13 +500,42 @@ type CSIConfig struct {
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 }
 
+// CSIImageConfig defines the image configuration of the CSI driver container. It deliberately
+// does not reuse AgentImageConfig, whose `jmxEnabled` only applies to the Agent image: there is
+// no `csi-driver:<tag>-jmx`.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type CSIImageConfig struct {
+	// Defines the CSI driver image name. You can provide this as:
+	// * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`.
+	// * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored.
+	// * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Define the image tag to use.
+	// To be used if the `Name` field does not correspond to a full image string.
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// The Kubernetes pull policy:
+	// Use `Always`, `Never`, or `IfNotPresent`.
+	// +optional
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
+
+	// It is possible to specify Docker registry credentials.
+	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+	// +optional
+	// +listType=atomic
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
+}
+
 // CSIAPMConfig configures APM/SSI-related settings for the CSI driver managed by the Operator.
 // +k8s:openapi-gen=true
 type CSIAPMConfig struct {
 	// PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
 	// libraries from private registries. Propagated to the managed DatadogCSIDriver as
 	// spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-	// Not supported on GKE Autopilot.
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
@@ -1324,6 +1371,45 @@ type MetricStateSet struct {
 	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
 }
 
+// HostProfilerFeatureConfig contains the Host Profiler configuration.
+// Host Profiler runs as a dedicated container in the node Agent pod and requires host PID.
+type HostProfilerFeatureConfig struct {
+	// Enabled enables the Host Profiler.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Seccomp configures the seccomp profile applied to the Host Profiler container.
+	// +optional
+	Seccomp *HostProfilerSeccompConfig `json:"seccomp,omitempty"`
+
+	// RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+	// dd-agent user.
+	// Default: true
+	// +optional
+	RunAsRoot *bool `json:"runAsRoot,omitempty"`
+
+	// SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+	// Default: spc_t
+	// +optional
+	SELinuxType *string `json:"seLinuxType,omitempty"`
+}
+
+// HostProfilerSeccompConfig contains the seccomp configuration of the Host Profiler.
+type HostProfilerSeccompConfig struct {
+	// Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+	// When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// LoggingEnabled uses the logging seccomp profile instead of the default one.
+	// Has no effect when the seccomp profile is disabled.
+	// Default: false
+	// +optional
+	LoggingEnabled *bool `json:"loggingEnabled,omitempty"`
+}
+
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
 // +k8s:openapi-gen=true
 type OtelCollectorFeatureConfig struct {
@@ -1454,6 +1540,15 @@ type AdmissionControllerFeatureConfig struct {
 	// Registry defines an image registry for the admission controller.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// RegistryAllowList restricts which registries can be used for APM library injection.
+	// When non-empty, the admission controller only injects libraries from the listed
+	// registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+	// by the operator. An empty list allows all registries.
+	// (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
 
 	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
 	// +optional
@@ -2027,7 +2122,8 @@ type GlobalConfig struct {
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 
-	// Registry is the image registry to use for all Agent images.
+	// Registry is the image registry to use for all Datadog images: the Agent images, the
+	// Single Step Instrumentation injection images, and the Datadog CSI driver image.
 	// Use 'public.ecr.aws/datadog' for AWS ECR.
 	// Use 'datadoghq.azurecr.io' for Azure Container Registry.
 	// Use 'gcr.io/datadoghq' for Google Container Registry.
@@ -2705,6 +2801,42 @@ const (
 	ExperimentSignalPromote = "promote"
 )
 
+// ExperimentTerminationReason distinguishes why a terminal experiment ended.
+// +kubebuilder:validation:Enum=stopped;timed_out;manual_spec_change;baseline_missing;baseline_not_found
+type ExperimentTerminationReason string
+
+const (
+	// ExperimentTerminationReasonStopped means an explicit Fleet rollback completed.
+	ExperimentTerminationReasonStopped ExperimentTerminationReason = "stopped"
+	// ExperimentTerminationReasonTimedOut means an automatic timeout rollback completed.
+	ExperimentTerminationReasonTimedOut ExperimentTerminationReason = "timed_out"
+	// ExperimentTerminationReasonManualSpecChange means the live DDA no longer
+	// matches the experiment checkpoint, so the user edit stands.
+	ExperimentTerminationReasonManualSpecChange ExperimentTerminationReason = "manual_spec_change"
+	// ExperimentTerminationReasonBaselineMissing means no checkpoint was
+	// recorded, usually old in-flight preview state or a malformed start signal.
+	ExperimentTerminationReasonBaselineMissing ExperimentTerminationReason = "baseline_missing"
+	// ExperimentTerminationReasonBaselineNotFound means a checkpoint was
+	// recorded, but the named owned ControllerRevision is absent from the API server.
+	ExperimentTerminationReasonBaselineNotFound ExperimentTerminationReason = "baseline_not_found"
+)
+
+// ExperimentCheckpoint is recorded exactly once when an experiment enters
+// phase=running. Both fields are required when the checkpoint is present, so
+// that "half a checkpoint" is never a valid in-flight state.
+// +k8s:openapi-gen=true
+type ExperimentCheckpoint struct {
+	// RollbackTargetRevision is the pre-experiment baseline ControllerRevision.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	RollbackTargetRevision string `json:"rollbackTargetRevision"`
+
+	// ExpectedSpecHash is sha256 hex over the canonical revision snapshot of
+	// the raw experiment spec plus selected raw Datadog annotations.
+	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
+	ExpectedSpecHash string `json:"expectedSpecHash"`
+}
+
 // ExperimentStatus defines the state of a Fleet Automation experiment.
 // +k8s:openapi-gen=true
 type ExperimentStatus struct {
@@ -2730,10 +2862,14 @@ type ExperimentStatus struct {
 	// experimentConfigVersion.
 	// +optional
 	StartTaskID string `json:"startTaskID,omitempty"`
-	// TerminationReason distinguishes why the experiment was terminated.
-	// Only set when Phase is "terminated".
+	// TerminationReason records why a terminal experiment ended.
+	// Set when Phase is "terminated" or "aborted" and a cause should be reported.
 	// +optional
-	TerminationReason string `json:"terminationReason,omitempty"`
+	TerminationReason ExperimentTerminationReason `json:"terminationReason,omitempty"`
+	// Checkpoint holds the baseline and expected live experiment snapshot.
+	// Required while Phase is "running"; retained on terminal phases for audit.
+	// +optional
+	Checkpoint *ExperimentCheckpoint `json:"checkpoint,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.
@@ -2771,6 +2907,21 @@ type DatadogAgentStatus struct {
 	// means no provider was detected or configured.
 	// +optional
 	ClusterProvider string `json:"clusterProvider,omitempty"`
+	// CurrentRevision names the ControllerRevision that snapshots the currently
+	// observed raw DatadogAgent spec plus selected Datadog annotations.
+	// +optional
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	// CurrentRevisionObservedGeneration records the metadata.generation for which
+	// CurrentRevision is valid.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	CurrentRevisionObservedGeneration int64 `json:"currentRevisionObservedGeneration,omitempty"`
+	// CurrentRevisionObservedAnnotationsHash records DatadogAnnotationsHash over
+	// the annotations that participate in the revision snapshot. Generation does
+	// not change for metadata-only updates, so this closes annotation-only races.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
+	CurrentRevisionObservedAnnotationsHash string `json:"currentRevisionObservedAnnotationsHash,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

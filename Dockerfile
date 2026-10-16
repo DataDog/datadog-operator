@@ -1,8 +1,12 @@
 #
 ARG FIPS_ENABLED=false
+ARG SGC_VERSION=7.84.0
+ARG SGC_TAG_SUFFIX
+
+FROM datadog/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
 
 # Build the manager binary
-FROM golang:1.26.7 AS builder
+FROM golang:1.26.9 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -56,14 +60,15 @@ LABEL maintainer="Datadog Inc."
 COPY --from=certs /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-bundle.crt
 
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder --chown=:0 /workspace/manager .
+COPY --from=sgc --chmod=755 /secret-generic-connector /usr/local/bin/secret-generic-connector
 
-COPY --from=builder --chmod=550 /workspace/helpers .
+COPY --from=builder --chown=:0 /workspace/helpers .
 COPY --chmod=550 scripts/readsecret.sh .
 
-COPY --from=builder --chmod=550 /workspace/yaml-mapper .
+COPY --from=builder --chown=:0 /workspace/yaml-mapper .
 
-COPY --chmod=755 ./LICENSE ./LICENSE-3rdparty.csv /licenses/
+COPY --chmod=644 --chown=:0 ./LICENSE ./LICENSE-3rdparty.csv /licenses/
 
 USER 1001
 

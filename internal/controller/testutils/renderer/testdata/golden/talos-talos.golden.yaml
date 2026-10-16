@@ -646,6 +646,21 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - storage.k8s.io
+  resourceNames:
+  - k8s.csi.datadoghq.com
+  resources:
+  - csidrivers
+  verbs:
+  - get
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - list
+  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
@@ -1161,7 +1176,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: talos
-    agent.datadoghq.com/ddaispechash: 20d067d3e296140be10e6836103e018e
+    agent.datadoghq.com/ddaispechash: c0dc7ca712c3b44c3d5d5dbb7b5a4115
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1220,7 +1235,6 @@ spec:
       hostBenchmarks:
         enabled: true
     cws:
-      directSendFromSystemProbe: false
       enabled: true
       enforcement:
         enabled: true
@@ -2110,7 +2124,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 2378b308c2787c7009b294ed147245cb
+    agent.datadoghq.com/agentspechash: aedbb529188c3f20e556fa987d45cde1
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2251,6 +2265,8 @@ spec:
           value: /var/run/datadog/apm.socket
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS

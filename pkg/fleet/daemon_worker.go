@@ -173,7 +173,22 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 			return true, nil
 		}
 	case pendingIntentStop:
-		return isTerminalPhase(phase), nil
+		// Only a landed rollback is what stop asked for. Every other terminal
+		// phase means stop's revert-to-baseline intent was not achieved:
+		// manual_spec_change leaves the user's own edit live, baseline_missing
+		// and baseline_not_found leave the experiment config stranded live
+		// (worse than before the stop was issued), and promoted means the
+		// experiment spec became the stable spec. Reporting DONE for any of
+		// those would tell FA the cluster is back on its baseline when it is
+		// not, so they surface as errors carrying the specific reason.
+		if phase == v2alpha1.ExperimentPhaseTerminated {
+			return true, nil
+		}
+		if isTerminalPhase(phase) {
+			return true, fmt.Errorf("stop did not roll back to the baseline: experiment %q ended in phase %q (reason %q)",
+				task.experimentID, phase, snapshot.experiment.TerminationReason)
+		}
+		return false, nil
 	case pendingIntentPromote:
 		if phase == v2alpha1.ExperimentPhasePromoted {
 			return true, nil
@@ -261,21 +276,36 @@ func methodForIntent(intent pendingIntent) string {
 // driving the transition:
 //   - Phase=Terminated, terminationReason="timed_out": experiment exceeded
 //     the timeout while running.
-//   - Phase=Aborted: a manual spec change was detected while the experiment
-//     was running.
+//   - Phase=Aborted: the reconciler refused or gave up on the experiment —
+//     the live spec diverged from what Fleet pinned, or the pinned baseline
+//     was absent or unresolvable.
 //
 // Phase=Terminated/stopped and Phase=Promoted are excluded because those
 // transitions are driven by Fleet tasks (stop/promote), whose task lifecycle
 // is already reported via evaluatePendingTask + finishPendingOperation.
+//
+// Each abort reason gets its own message rather than a blanket "manual spec
+// change": the reasons are operationally different (a user edit that stays
+// live vs. a baseline the controller could not find), and FA surfaces this
+// string verbatim to whoever is watching the deployment.
 func localTerminationReason(exp *v2alpha1.ExperimentStatus) string {
 	if exp == nil {
 		return ""
 	}
 	switch {
-	case exp.Phase == v2alpha1.ExperimentPhaseTerminated && exp.TerminationReason == "timed_out":
+	case exp.Phase == v2alpha1.ExperimentPhaseTerminated && exp.TerminationReason == v2alpha1.ExperimentTerminationReasonTimedOut:
 		return fmt.Sprintf("experiment %s timed out", exp.ID)
 	case exp.Phase == v2alpha1.ExperimentPhaseAborted:
-		return fmt.Sprintf("experiment %s aborted (manual spec change)", exp.ID)
+		switch exp.TerminationReason {
+		case v2alpha1.ExperimentTerminationReasonManualSpecChange:
+			return fmt.Sprintf("experiment %s aborted (manual spec change)", exp.ID)
+		case v2alpha1.ExperimentTerminationReasonBaselineMissing:
+			return fmt.Sprintf("experiment %s aborted (rollback baseline missing, cannot safely start)", exp.ID)
+		case v2alpha1.ExperimentTerminationReasonBaselineNotFound:
+			return fmt.Sprintf("experiment %s aborted (rollback baseline not found)", exp.ID)
+		default:
+			return fmt.Sprintf("experiment %s aborted (reason %q)", exp.ID, exp.TerminationReason)
+		}
 	default:
 		return ""
 	}

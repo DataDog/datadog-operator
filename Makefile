@@ -22,6 +22,7 @@ PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
 FIPS_ENABLED?=false
+SGC_TAG_SUFFIX?=$(if $(filter true,$(FIPS_ENABLED)),-fips,)
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -156,7 +157,9 @@ manifests: generate-manifests patch-crds ## Generate manifests e.g. CRD, RBAC et
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+	pkgs=$$(go list ./internal/controller/... | grep -v /internal/controller/datadogbyoccluster) || { echo "failed to list controller packages" >&2; exit 1; }; \
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." $$(printf 'paths=%s ' $$pkgs) output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) rbac:roleName=manager-byoc-role paths="./internal/controller/datadogbyoccluster/..." output:rbac:artifacts:config=config/rbac/byoc
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
@@ -173,7 +176,7 @@ docker-build: generate docker-build-ci docker-build-check-ci
 # For local use
 .PHONY: docker-build-ci
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg SGC_TAG_SUFFIX="${SGC_TAG_SUFFIX}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
 # For local use
 .PHONY: docker-build-check-ci
@@ -184,7 +187,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg SGC_TAG_SUFFIX="${SGC_TAG_SUFFIX}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
@@ -226,6 +229,7 @@ golden-update: ## Regenerate operator-render golden files (review the diff befor
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/pkg/fleet/... -coverprofile cover_integration_fleet.out
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
@@ -424,7 +428,7 @@ bin/$(PLATFORM)/operator-sdk: Makefile
 
 bin/$(PLATFORM)/go-licenses:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses/v2@v2.0.1
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0

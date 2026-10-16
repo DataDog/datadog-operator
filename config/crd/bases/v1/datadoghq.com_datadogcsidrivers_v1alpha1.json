@@ -26,7 +26,7 @@
               "type": "boolean"
             },
             "pullSecrets": {
-              "description": "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM\nlibraries from private registries. When empty, the CSI driver falls back to\ncsiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored\nfor APM authentication in that fallback path. Restart the CSI DaemonSet after\nrotating these Secrets. Not supported on GKE Autopilot.",
+              "description": "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM\nlibraries from private registries. When empty, the CSI driver falls back to\ncsiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored\nfor APM authentication in that fallback path. Restart the CSI DaemonSet after\nrotating these Secrets.",
               "items": {
                 "additionalProperties": false,
                 "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",
@@ -42,6 +42,14 @@
               },
               "type": "array",
               "x-kubernetes-list-type": "atomic"
+            },
+            "registryAllowList": {
+              "description": "RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.\nAn empty list allows all registries. When managed by a DatadogAgent, it is set from\nspec.features.admissionController.registryAllowList.\n(Requires Datadog CSI Driver 1.3.0+)",
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "x-kubernetes-list-type": "set"
             }
           },
           "type": "object"
@@ -60,7 +68,7 @@
         },
         "csiDriverImage": {
           "additionalProperties": false,
-          "description": "CSIDriverImage is the image configuration for the main CSI node driver container.",
+          "description": "CSIDriverImage is the image configuration for the main CSI node driver container.\nA full registry/name:tag in `name` takes precedence over spec.registry.",
           "properties": {
             "jmxEnabled": {
               "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
@@ -4036,6 +4044,10 @@
             }
           },
           "type": "object"
+        },
+        "registry": {
+          "description": "Registry is the image registry to use for the Datadog CSI driver image, propagated from\nspec.global.registry on the parent DatadogAgent. It does not apply to the\ncsi-node-driver-registrar sidecar, an upstream Kubernetes image always pulled from\nregistry.k8s.io/sig-storage. Forced to GCR on GKE Autopilot.\nDefault: 'registry.datadoghq.com'",
+          "type": "string"
         }
       },
       "type": "object"

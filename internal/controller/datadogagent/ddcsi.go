@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -106,8 +107,8 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		if annotations == nil {
 			annotations = map[string]string{}
 		}
-		// Stamp the provider annotation so the CSI controller can skip registry
-		// authentication env vars that are not covered by the WorkloadAllowlist.
+		// Stamp the provider annotation so the CSI controller forces the GCR image
+		// required by the WorkloadAllowlist.
 		annotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
 	}
 
@@ -131,12 +132,31 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		maps.Copy(ddcsi.Spec.CommonLabels, instance.Spec.Global.CommonLabels)
 	}
 
+	// `instance` is the defaulted DDA copy (see reconcile.go), so Registry is set here -
+	// including the GCR value ensureGCRAutopilotRegistry forces on GKE Autopilot.
+	if instance.Spec.Global != nil && instance.Spec.Global.Registry != nil {
+		registry := *instance.Spec.Global.Registry
+		ddcsi.Spec.Registry = &registry
+	}
+
+	if registryAllowList := registryAllowListFromDDA(instance); len(registryAllowList) > 0 {
+		ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+			RegistryAllowList: slices.Clone(registryAllowList),
+		}
+	}
+
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
 		if csiConfig.APM != nil && len(csiConfig.APM.PullSecrets) > 0 {
-			ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
-				PullSecrets: append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...),
+			if ddcsi.Spec.APM == nil {
+				ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{}
 			}
+			ddcsi.Spec.APM.PullSecrets = append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...)
+		}
+
+		// Tag, pull policy and pull secrets for the driver container.
+		if csiConfig.Image != nil {
+			ddcsi.Spec.CSIDriverImage = csiDriverImageConfig(csiConfig.Image)
 		}
 
 		override := &v1alpha1.DatadogCSIDriverOverride{}
@@ -156,6 +176,22 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 	return ddcsi, nil
 }
 
+// csiDriverImageConfig maps the DDA's CSI image configuration onto the AgentImageConfig the
+// DatadogCSIDriver spec takes, leaving JMXEnabled unset (see CSIImageConfig). DeepCopy detaches
+// the pointer/slice fields from the DDA spec so the built object never aliases it.
+func csiDriverImageConfig(image *v2alpha1.CSIImageConfig) *v2alpha1.AgentImageConfig {
+	copied := image.DeepCopy()
+	imageConfig := &v2alpha1.AgentImageConfig{
+		Name:       copied.Name,
+		Tag:        copied.Tag,
+		PullPolicy: copied.PullPolicy,
+	}
+	if len(copied.PullSecrets) > 0 {
+		imageConfig.PullSecrets = &copied.PullSecrets
+	}
+	return imageConfig
+}
+
 // apmSocketPathFromDDA returns the APM UDS path configured on the DDA, or nil if unset.
 func apmSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 	if instance.Spec.Features == nil || instance.Spec.Features.APM == nil ||
@@ -163,6 +199,15 @@ func apmSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 		return nil
 	}
 	return instance.Spec.Features.APM.UnixDomainSocketConfig.Path
+}
+
+// registryAllowListFromDDA returns the admission controller registry allow list configured on
+// the DDA, or nil if unset.
+func registryAllowListFromDDA(instance *v2alpha1.DatadogAgent) []string {
+	if instance.Spec.Features == nil || instance.Spec.Features.AdmissionController == nil {
+		return nil
+	}
+	return instance.Spec.Features.AdmissionController.RegistryAllowList
 }
 
 // dsdSocketPathFromDDA returns the DogStatsD UDS path configured on the DDA, or nil if unset.

@@ -641,6 +641,21 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - storage.k8s.io
+  resourceNames:
+  - k8s.csi.datadoghq.com
+  resources:
+  - csidrivers
+  verbs:
+  - get
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - list
+  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
@@ -1958,7 +1973,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 2518576abae53750128baf14b3b6aeb9
+    agent.datadoghq.com/agentspechash: 54fbecbcee7b1dc436e28f8c447b179e
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2097,6 +2112,8 @@ spec:
           value: datadog-webhook
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -2208,7 +2225,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 1ac0bc4ac5a5686c6c6632c10abbb26c
+    agent.datadoghq.com/agentspechash: 1599f22d83e2db278142df633d3216fd
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2285,6 +2302,8 @@ spec:
               fieldPath: metadata.name
         - name: DD_USE_DOGSTATSD
           value: "false"
+        - name: DD_DISCOVERY_ENABLED
+          value: "false"
         - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
           value: "false"
         - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
@@ -2332,7 +2351,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.83.0
+        image: gcr.io/datadoghq/agent:7.84.1
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2387,7 +2406,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.83.0
+        image: gcr.io/datadoghq/agent:7.84.1
         name: init-config
         resources: {}
         volumeMounts:
@@ -2416,7 +2435,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.83.0
+        image: gcr.io/datadoghq/agent:7.84.1
         name: init-copy-check-assets
         resources: {}
         securityContext:
