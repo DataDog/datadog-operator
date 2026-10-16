@@ -74,7 +74,7 @@ func TestVolumesForAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			volumes := volumesForAgent(tt.dda, tt.requiredContainers)
+			volumes := newPodBuild(tt.dda, tt.requiredContainers).buildVolumes()
 
 			installVol := findVolume(volumes, common.InstallInfoVolumeName)
 			assert.NotNil(t, installVol, "install-info volume should exist")
@@ -372,10 +372,10 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 func TestHostProfilerContainer(t *testing.T) {
 	dda := &metav1.ObjectMeta{Name: "foo", Namespace: "default", Labels: map[string]string{}}
 
-	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+	containers := newPodBuild(dda, []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
 		apicommon.HostProfiler,
-	})
+	}).buildContainers()
 	assert.Len(t, containers, 2)
 
 	c := containers[1]
@@ -394,10 +394,10 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 		Namespace: "default",
 	}
 
-	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+	containers := newPodBuild(dda, []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
 		apicommon.PrivateActionRunnerContainerName,
-	})
+	}).buildContainers()
 
 	assert.Len(t, containers, 2)
 

@@ -12,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
@@ -29,6 +30,8 @@ type hostProfilerFeature struct {
 	loggingSeccomp          bool
 	selinuxType             string
 	hostProfilerNonRoot     bool
+	// standalone is true when the node Agent runs without the core Agent.
+	standalone bool
 
 	logger logr.Logger
 }
@@ -85,13 +88,16 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		o.selinuxType = str
 	}
 
+	policy := composition.PolicyOf(dda)
+	o.standalone = !policy.AllowsNodeAgentContainer(apicommon.CoreAgentContainerName)
+
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: new(true),
-			Containers: []apicommon.AgentContainerName{
+			Containers: policy.NodeAgentContainers(
 				apicommon.CoreAgentContainerName,
 				apicommon.HostProfiler,
-			},
+			),
 		},
 	}
 }
@@ -211,6 +217,12 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
+
+	// Standalone runs without the core Agent: no IPC to fetch config from.
+	// TODO(standalone): configure the standalone host profiler runtime here.
+	if o.standalone {
+		return nil
+	}
 
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.

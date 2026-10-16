@@ -11,6 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
@@ -45,16 +46,23 @@ func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 	trueValue := true
 	f.owner = dda
 
-	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{
+	var reqComp feature.RequiredComponents
+	policy := composition.PolicyOf(dda)
+	if policy.ClusterAgent {
+		reqComp.ClusterAgent = feature.RequiredComponent{
 			IsRequired: &trueValue,
 			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
-		},
-		Agent: feature.RequiredComponent{
-			IsRequired: &trueValue,
-			Containers: []apicommon.AgentContainerName{},
-		},
+		}
 	}
+	// The core Agent is the base node Agent container. Without it, the node Agent
+	// is only required by features contributing containers the mode allows.
+	if policy.AllowsNodeAgentContainer(apicommon.CoreAgentContainerName) {
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: &trueValue,
+			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+		}
+	}
+	return reqComp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

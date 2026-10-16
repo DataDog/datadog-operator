@@ -64,6 +64,8 @@ const (
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
 	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
+	// NodeAgentModeFeaturesDroppedConditionType reports enabled features dropped because the node Agent mode disallows what they require
+	NodeAgentModeFeaturesDroppedConditionType = "NodeAgentModeFeaturesDropped"
 	// OpenShiftSCCConditionType reports whether the node agent's ServiceAccount may use the
 	// SecurityContextConstraints it needs to be admitted on OpenShift. Only set on OpenShift.
 	OpenShiftSCCConditionType = "OpenShiftSCC"

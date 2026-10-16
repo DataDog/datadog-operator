@@ -33,7 +33,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = feature.RegisterDDASharedDependencies(feature.DogstatsdIDType, applyDogstatsdDDASharedDependencies)
+	err = feature.RegisterDDASharedDependencies(feature.DogstatsdIDType, apicommon.CoreAgentContainerName, applyDogstatsdDDASharedDependencies)
 	if err != nil {
 		panic(err)
 	}

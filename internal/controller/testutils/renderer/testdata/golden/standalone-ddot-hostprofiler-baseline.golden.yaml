@@ -1,0 +1,657 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: datadog-agent
+    uid: ""
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-agent
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  - nodes/metrics
+  - nodes/proxy
+  - nodes/spec
+  - nodes/stats
+  verbs:
+  - get
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+- apiGroups:
+  - metrics.eks.amazonaws.com
+  resources:
+  - kcm/metrics
+  - ksh/metrics
+  verbs:
+  - get
+- nonResourceURLs:
+  - /metrics
+  - /metrics/slis
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: datadog-agent-agent
+subjects:
+- kind: ServiceAccount
+  name: datadog-agent-agent
+---
+apiVersion: v1
+data:
+  token: Z29sZGVuLWZpeGVkLWNsdXN0ZXItYWdlbnQtdG9rZW4tMDAwMDAwMDAwMA==
+kind: Secret
+metadata:
+  annotations:
+    checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-dda-controller: "true"
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-token
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+---
+apiVersion: v1
+data:
+  install_info: |
+    ---
+    install_method:
+      tool: datadog-operator
+      tool_version: unknown
+      installer_version: 0.0.0
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-dda-controller: "true"
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-install-info
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+---
+apiVersion: v1
+data:
+  otel-config.yaml: |2-
+
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: "otelcol"
+              scrape_interval: 60s
+              static_configs:
+                - targets: ["0.0.0.0:8888"]
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE}
+        sending_queue:
+          batch:
+           flush_timeout: 10s
+    processors:
+      infraattributes:
+        cardinality: 2
+      filter/drop-prometheus-internal-metrics:
+        metrics:
+          exclude:
+            match_type: regexp
+            metric_names:
+              - ^scrape_.*$
+              - ^up$
+              - ^promhttp_metric_handler_errors_total$
+    connectors:
+      datadog/connector:
+        traces:
+          compute_top_level_by_span_kind: true
+          peer_tags_aggregation: true
+          compute_stats_by_span_kind: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [infraattributes]
+          exporters: [datadog, datadog/connector]
+        metrics:
+          receivers: [otlp, datadog/connector]
+          processors: [infraattributes]
+          exporters: [datadog]
+        metrics/prometheus:
+          receivers: [prometheus]
+          processors: [filter/drop-prometheus-internal-metrics, infraattributes]
+          exporters: [datadog]
+        logs:
+          receivers: [otlp]
+          processors: [infraattributes]
+          exporters: [datadog]
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-otel-config
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: datadog-agent
+    uid: ""
+---
+apiVersion: v1
+data:
+  install_id: ""
+  install_time: "-62135596800"
+  install_type: k8s_manual
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-dda-controller: "true"
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-apm-telemetry-kpi
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-dda-controller: "true"
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+spec:
+  internalTrafficPolicy: Local
+  ports:
+  - appProtocol: kubernetes.io/h2c
+    name: otlpgrpcport
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: otlphttpport
+    port: 4318
+    protocol: TCP
+    targetPort: 4318
+  selector:
+    agent.datadoghq.com/component: agent
+    app.kubernetes.io/part-of: -datadog--agent
+  type: ClusterIP
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  annotations:
+    agent.datadoghq.com/ddaispechash: 2090f1b8d12e9a86d6afa7883c604a33
+    agent.datadoghq.com/host-profiler-enabled: "true"
+    experimental.agent.datadoghq.com/node-agent-mode: standalone
+  finalizers:
+  - finalizer.datadoghq.com/datadogagentinternal
+  labels:
+    agent.datadoghq.com/datadogagent: datadog-agent
+  name: datadog-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+spec:
+  features:
+    admissionController:
+      cwsInstrumentation:
+        enabled: false
+      enabled: true
+      kubernetesAdmissionEvents:
+        enabled: false
+      mutateUnlabelled: false
+      mutation:
+        enabled: true
+      serviceName: datadog-admission-controller
+      validation:
+        enabled: true
+    apm:
+      enabled: true
+      errorTrackingStandalone:
+        enabled: false
+      hostPortConfig:
+        enabled: false
+        hostPort: 8126
+      instrumentation:
+        enabled: false
+        injector: {}
+        languageDetection:
+          enabled: true
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/apm.socket
+    asm:
+      iast:
+        enabled: false
+      sca:
+        enabled: false
+      threats:
+        enabled: false
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: false
+    controlPlaneMonitoring:
+      enabled: true
+    cspm:
+      enabled: false
+    cws:
+      enabled: false
+    dataPlane:
+      dogstatsd:
+        enabled: true
+    dogstatsd:
+      hostPortConfig:
+        enabled: false
+      nonLocalTraffic: true
+      originDetectionEnabled: false
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
+    ebpfCheck:
+      enabled: false
+    eventCollection:
+      collectKubernetesEvents: true
+    externalMetricsServer:
+      enabled: false
+    gpu:
+      enabled: false
+    helmCheck:
+      enabled: false
+    kubeStateMetricsCore:
+      enabled: true
+    liveContainerCollection:
+      enabled: true
+    liveProcessCollection:
+      enabled: false
+    logCollection:
+      enabled: false
+    npm:
+      enabled: false
+    oomKill:
+      enabled: false
+    orchestratorExplorer:
+      enabled: true
+      scrubContainers: true
+    otelCollector:
+      enabled: true
+    otlp:
+      receiver:
+        protocols:
+          grpc:
+            enabled: false
+            endpoint: 0.0.0.0:4317
+          http:
+            enabled: false
+            endpoint: 0.0.0.0:4318
+    processDiscovery:
+      enabled: true
+    prometheusScrape:
+      enabled: false
+    remoteConfiguration:
+      enabled: true
+    serviceDiscovery: {}
+    tcpQueueLength:
+      enabled: false
+    usm:
+      enabled: false
+  global:
+    clusterAgentTokenSecret:
+      keyName: token
+      secretName: datadog-agent-token
+    clusterName: test-cluster
+    containerStrategy: optimized
+    credentials:
+      apiSecret:
+        keyName: api-key
+        secretName: datadog-secret
+      appSecret:
+        keyName: app-key
+        secretName: datadog-secret
+    fips:
+      enabled: false
+    kubelet:
+      podResourcesSocketPath: /var/lib/kubelet/pod-resources/
+      tlsVerify: false
+    logLevel: info
+    registry: registry.datadoghq.com
+    site: datadoghq.com
+    useFIPSAgent: false
+  override:
+    clusterAgent:
+      annotations:
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      image:
+        tag: 7.80.0
+    nodeAgent:
+      annotations:
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      image:
+        tag: 7.80.0
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    agent.datadoghq.com/agentspechash: 27fa5fff0db0891b4ae46174ff6baf83
+  labels:
+    agent.datadoghq.com/component: agent
+    agent.datadoghq.com/name: datadog-agent
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/instance: datadog-agent-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+  name: datadog-agent-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: datadog-agent
+    uid: ""
+spec:
+  selector:
+    matchLabels:
+      agent.datadoghq.com/component: agent
+      app.kubernetes.io/instance: datadog-agent-agent
+  template:
+    metadata:
+      annotations:
+        agent.datadoghq.com/configmapshash: 1e5d10b2f066defb
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+        container.apparmor.security.beta.kubernetes.io/host-profiler: unconfined
+      labels:
+        agent.datadoghq.com/component: agent
+        agent.datadoghq.com/name: datadog-agent
+        app.kubernetes.io/component: agent
+        app.kubernetes.io/instance: datadog-agent-agent
+        app.kubernetes.io/managed-by: datadog-operator
+        app.kubernetes.io/name: datadog-agent-deployment
+        app.kubernetes.io/part-of: -datadog--agent
+        app.kubernetes.io/version: ""
+    spec:
+      containers:
+      - command:
+        - host-profiler
+        env:
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        image: registry.datadoghq.com/agent:7.84.1
+        name: host-profiler
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - BPF
+            - PERFMON
+            - SYS_PTRACE
+            - SYS_RESOURCE
+            - DAC_READ_SEARCH
+            - SYSLOG
+            - CHECKPOINT_RESTORE
+            - IPC_LOCK
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          seLinuxOptions:
+            type: spc_t
+          seccompProfile:
+            localhostProfile: host-profiler-1f3d0521
+            type: Localhost
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+          readOnly: true
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
+        - mountPath: /sys/kernel/tracing
+          name: tracingfs
+          readOnly: true
+      - args:
+        - --config=/etc/otel-agent/otel-config.yaml
+        command:
+        - otel-agent
+        env:
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        - name: DD_OTELCOLLECTOR_INSTALLATION_METHOD
+          value: kubernetes
+        - name: DD_OTEL_STANDALONE
+          value: "false"
+        image: registry.datadoghq.com/ddot-collector:7.80.0
+        name: otel-agent
+        ports:
+        - containerPort: 4317
+          hostPort: 4317
+          name: otel-grpc
+          protocol: TCP
+        - containerPort: 4318
+          hostPort: 4318
+          name: otel-http
+          protocol: TCP
+        resources: {}
+        securityContext:
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
+        - mountPath: /etc/otel-agent
+          name: otelconfig
+          readOnly: true
+      hostPID: true
+      initContainers:
+      - args:
+        - cp -vnr /etc/datadog-agent /opt
+        command:
+        - bash
+        - -c
+        image: registry.datadoghq.com/ddot-collector:7.80.0
+        name: init-volume
+        resources: {}
+        volumeMounts:
+        - mountPath: /opt/datadog-agent
+          name: config
+      - command:
+        - cp
+        - /etc/dd-host-profiler/seccomp.json
+        - /host/var/lib/kubelet/seccomp/host-profiler-1f3d0521
+        image: registry.datadoghq.com/agent:7.84.1
+        name: host-profiler-seccomp-setup
+        resources: {}
+        securityContext:
+          seLinuxOptions:
+            type: spc_t
+        volumeMounts:
+        - mountPath: /host/var/lib/kubelet/seccomp
+          name: seccomp-root
+      nodeSelector:
+        kubernetes.io/os: linux
+      securityContext:
+        runAsUser: 0
+      serviceAccountName: datadog-agent-agent
+      volumes:
+      - emptyDir: {}
+        name: logdatadog
+      - emptyDir: {}
+        name: config
+      - emptyDir: {}
+        name: datadog-agent-auth
+      - emptyDir: {}
+        name: tmpdir
+      - emptyDir: {}
+        name: datadogrun
+      - hostPath:
+          path: /var/lib/kubelet/seccomp
+        name: seccomp-root
+      - hostPath:
+          path: /sys/kernel/tracing
+        name: tracingfs
+      - configMap:
+          name: datadog-agent-otel-config
+        name: otelconfig
+  updateStrategy: {}

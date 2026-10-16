@@ -1081,7 +1081,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 			requiredComponents := feature.RequiredComponents{
 				ClusterAgent: reqComp,
-				Agent:        reqComp,
+				Agent: feature.RequiredComponent{
+					IsRequired: ptr.To(true),
+					Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+				},
 			}
 			ApplyGlobalComponentDependencies(logger, tt.dda.GetObjectMeta(), &tt.dda.Spec, &tt.dda.Status, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp, false)
 			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda.GetObjectMeta(), &tt.dda.Spec, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)

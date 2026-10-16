@@ -8,6 +8,7 @@ package datadogagentinternal
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
@@ -63,9 +65,11 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, r.reconcilerOptionsToFeatureOptions(ctx, instance))
+	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures, droppedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, r.reconcilerOptionsToFeatureOptions(ctx, instance))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
+
+	r.reportModeDroppedFeatures(logger, instance, droppedFeatures, newStatus, now)
 
 	// Provider-support gate. An enabled feature the provider rejects blocks the whole reconcile
 	// (mirrors Helm's install-time fail) before any dependency/resource is created; a degraded
@@ -180,6 +184,26 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.FeatureNotSupportedOnProviderConditionType, metav1.ConditionFalse, "AllFeaturesSupportedOnProvider", "All enabled features are supported on the provider", false)
 	return false
+}
+
+// reportModeDroppedFeatures surfaces the enabled features BuildFeatures dropped because the node
+// Agent mode disallows what they require. It does not block the reconcile. When nothing is
+// dropped, a prior NodeAgentModeFeaturesDropped condition is cleared to False.
+func (r *Reconciler) reportModeDroppedFeatures(logger logr.Logger, instance *v1alpha1.DatadogAgentInternal, dropped []feature.DroppedFeature, newStatus *v1alpha1.DatadogAgentInternalStatus, now metav1.Time) {
+	mode := composition.ModeOf(instance)
+	if len(dropped) == 0 {
+		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.NodeAgentModeFeaturesDroppedConditionType, metav1.ConditionFalse, "NoFeaturesDropped", "No enabled feature is dropped by the node Agent mode", false)
+		return
+	}
+
+	details := make([]string, 0, len(dropped))
+	for _, d := range dropped {
+		details = append(details, fmt.Sprintf("%s (requires %s)", d.ID, strings.Join(d.Reasons, ", ")))
+	}
+	msg := fmt.Sprintf("Node Agent mode %q drops enabled features: %s", mode, strings.Join(details, "; "))
+	logger.Info(msg, "mode", mode)
+	r.recorder.Event(instance, corev1.EventTypeWarning, "FeaturesDroppedByNodeAgentMode", msg)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.NodeAgentModeFeaturesDroppedConditionType, metav1.ConditionTrue, "FeaturesDroppedByNodeAgentMode", msg, false)
 }
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {

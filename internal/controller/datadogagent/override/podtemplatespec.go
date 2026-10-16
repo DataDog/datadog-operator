@@ -23,6 +23,16 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
+// withoutJMX returns a copy of the image override without JMX: the ddot-collector image has no -jmx variant.
+func withoutJMX(image *v2alpha1.AgentImageConfig) *v2alpha1.AgentImageConfig {
+	return &v2alpha1.AgentImageConfig{
+		Name:       image.Name,
+		Tag:        image.Tag,
+		PullPolicy: image.PullPolicy,
+		JMXEnabled: false,
+	}
+}
+
 func getAgentContainersMap() map[apicommon.AgentContainerName]string {
 	return map[apicommon.AgentContainerName]string{
 		apicommon.UnprivilegedSingleAgentContainerName: "",
@@ -63,15 +73,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 				// OtelAgent uses a different image (ddot-collector) that doesn't support JMX suffix,
 				// so we need to apply overrides without JMX-related changes
 				if containerName == apicommon.OtelAgent {
-					// Create a copy of the override without JMX settings for OtelAgent
-					otelOverride := &v2alpha1.AgentImageConfig{
-						Name:       override.Image.Name,
-						Tag:        override.Image.Tag,
-						PullPolicy: override.Image.PullPolicy,
-						// Explicitly disable JMX for OtelAgent (ddot-collector doesn't support -jmx suffix)
-						JMXEnabled: false,
-					}
-					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
+					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, withoutJMX(override.Image))
 				} else if containerName != apicommon.HostProfiler {
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				}
@@ -83,7 +85,10 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image.
-			if apicommon.AgentContainerName(initContainer.Name) != apicommon.HostProfilerSeccompSetupContainerName {
+			// init-volume runs the ddot-collector image when the core Agent does not run.
+			if images.IsDdotCollectorImage(initContainer.Image) {
+				manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, withoutJMX(override.Image))
+			} else if apicommon.AgentContainerName(initContainer.Name) != apicommon.HostProfilerSeccompSetupContainerName {
 				manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
 			}
 			if override.Image.PullPolicy != nil {

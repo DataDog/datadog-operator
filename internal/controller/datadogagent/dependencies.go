@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -68,9 +69,12 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	}
 
 	// DCA service
-	service := clusteragent.GetClusterAgentService(instance)
-	if err := resourceManagers.ServiceManager().AddService(service.Name, service.Namespace, service.Spec.Selector, service.Spec.Ports, service.Spec.InternalTrafficPolicy); err != nil {
-		return err
+	// TODO(DAP): derive from the default DDAI once profiles can set the node Agent mode.
+	if composition.PolicyOf(instance).ClusterAgent {
+		service := clusteragent.GetClusterAgentService(instance)
+		if err := resourceManagers.ServiceManager().AddService(service.Name, service.Namespace, service.Spec.Selector, service.Spec.Ports, service.Spec.InternalTrafficPolicy); err != nil {
+			return err
+		}
 	}
 
 	// Dependencies that can get configs from DDA and DDAI

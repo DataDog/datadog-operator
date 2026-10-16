@@ -45,7 +45,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = feature.RegisterDDASharedDependencies(feature.APMIDType, applyAPMDDASharedDependencies)
+	err = feature.RegisterDDASharedDependencies(feature.APMIDType, apicommon.TraceAgentContainerName, applyAPMDDASharedDependencies)
 	if err != nil {
 		panic(err)
 	}

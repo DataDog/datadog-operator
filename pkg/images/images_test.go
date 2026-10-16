@@ -852,3 +852,11 @@ func Test_FIPSVersionError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsDdotCollectorImage(t *testing.T) {
+	assert.True(t, IsDdotCollectorImage("gcr.io/datadoghq/ddot-collector:7.80.0"))
+	assert.True(t, IsDdotCollectorImage("ddot-collector"))
+	assert.True(t, IsDdotCollectorImage("registry:5000/datadoghq/ddot-collector@sha256:abc"))
+	assert.False(t, IsDdotCollectorImage("gcr.io/datadoghq/agent:7.80.0"))
+	assert.False(t, IsDdotCollectorImage("gcr.io/datadoghq/ddot-collector-custom:7.80.0"))
+}

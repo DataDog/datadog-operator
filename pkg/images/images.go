@@ -286,6 +286,15 @@ func IsJMXImage(imageConfig *v2alpha1.AgentImageConfig) bool {
 	return img.isJMX || img.isFull
 }
 
+// IsDdotCollectorImage returns true if the image string references the DDOT collector image.
+// Unlike FromString, it accepts images without a tag.
+func IsDdotCollectorImage(image string) bool {
+	name := image[strings.LastIndex(image, "/")+1:]
+	name, _, _ = strings.Cut(name, "@")
+	name, _, _ = strings.Cut(name, ":")
+	return name == DefaultDdotCollectorImageName
+}
+
 // FromString translates a string Image in the format registry/name:tag to an Image object
 func FromString(stringImage string) *Image {
 	splitImg := strings.Split(stringImage, "/")

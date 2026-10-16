@@ -19,6 +19,7 @@ import (
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -130,4 +131,25 @@ func findServicePortByName(ports []corev1.ServicePort, name string) *corev1.Serv
 		}
 	}
 	return nil
+}
+
+func TestAddDDASharedDependenciesStandaloneOnlyServesRunningContainers(t *testing.T) {
+	dda := testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+		WithAPMEnabled(true).
+		WithOTelCollectorEnabled(true).
+		BuildWithDefaults()
+	ddai := testDDAIWithSpec("datadog", dda.Namespace, &dda.Spec)
+	ddai.Annotations = map[string]string{composition.ModeAnnotationKey: string(composition.ModeStandalone)}
+
+	depsStore := newDependencyTestStore(dda)
+	managers := feature.NewResourceManagers(depsStore)
+
+	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{ddai}, managers)
+	require.NoError(t, err)
+
+	obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+	require.True(t, found)
+	service := obj.(*corev1.Service)
+	assert.Nil(t, findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName), "trace-agent does not run in standalone mode")
+	assert.NotNil(t, findServicePortByName(service.Spec.Ports, "otlpgrpcport"), "otel-agent runs in standalone mode")
 }

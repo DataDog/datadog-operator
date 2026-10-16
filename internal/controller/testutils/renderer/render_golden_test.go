@@ -126,6 +126,17 @@ func TestRender_Golden(t *testing.T) {
 			golden:  "testdata/golden/minimal-baseline.golden.yaml",
 		},
 		{
+			// Node Agent without the core Agent: otel-agent only, no Cluster Agent or Cluster Checks Runner.
+			name:    "standalone ddot dda, baseline (no provider)",
+			ddaFile: "testdata/standalone-ddot-dda.yaml",
+			golden:  "testdata/golden/standalone-ddot-baseline.golden.yaml",
+		},
+		{
+			name:    "standalone ddot and host profiler dda, baseline (no provider)",
+			ddaFile: "testdata/standalone-ddot-hostprofiler-dda.yaml",
+			golden:  "testdata/golden/standalone-ddot-hostprofiler-baseline.golden.yaml",
+		},
+		{
 			// A user override re-adds volumes GKE Autopilot strips. Pre-refactor the
 			// overrides applied last and were stripped; post-refactor removals run
 			// before overrides, so override content survives — a reviewed diff.

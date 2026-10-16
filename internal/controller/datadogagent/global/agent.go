@@ -7,6 +7,7 @@ package global
 
 import (
 	"path/filepath"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -25,7 +26,7 @@ import (
 // crash-looping system-probe/trace-agent/process-agent.
 const remoteAgentRegistryVSockMinVersion = "7.83.0-0"
 
-func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, singleContainerStrategyEnabled bool) {
+func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, singleContainerStrategyEnabled bool, agentContainers []apicommon.AgentContainerName) {
 	config := ddaSpec.Global
 
 	if apiutils.BoolValue(config.UseVSock) {
@@ -83,18 +84,18 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 				)
 				manager.Volume().AddVolume(&kubeletVol)
 			} else {
-				manager.VolumeMount().AddVolumeMountToContainers(
-					&kubeletVolMount,
-					[]apicommon.AgentContainerName{
-						apicommon.CoreAgentContainerName,
-						apicommon.ProcessAgentContainerName,
-						apicommon.TraceAgentContainerName,
-						apicommon.SecurityAgentContainerName,
-						apicommon.AgentDataPlaneContainerName,
-						apicommon.AgentCheckRunnerContainerName,
-					},
-				)
-				manager.Volume().AddVolume(&kubeletVol)
+				kubeletCAContainers := []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
+					apicommon.ProcessAgentContainerName,
+					apicommon.TraceAgentContainerName,
+					apicommon.SecurityAgentContainerName,
+					apicommon.AgentDataPlaneContainerName,
+					apicommon.AgentCheckRunnerContainerName,
+				}
+				if hasAnyContainer(agentContainers, kubeletCAContainers) {
+					manager.VolumeMount().AddVolumeMountToContainers(&kubeletVolMount, kubeletCAContainers)
+					manager.Volume().AddVolume(&kubeletVol)
+				}
 			}
 			// If the HostCAPath is overridden, set the environment variable `DD_KUBELET_CLIENT_CA`. The default value in the Agent is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -142,17 +143,24 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			)
 			manager.Volume().AddVolume(&runtimeVol)
 		} else {
-			manager.VolumeMount().AddVolumeMountToContainers(
-				&runtimeVolMount,
-				[]apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.ProcessAgentContainerName,
-					apicommon.TraceAgentContainerName,
-					apicommon.SecurityAgentContainerName,
-					apicommon.AgentDataPlaneContainerName,
-				},
-			)
-			manager.Volume().AddVolume(&runtimeVol)
+			runtimeContainers := []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.ProcessAgentContainerName,
+				apicommon.TraceAgentContainerName,
+				apicommon.SecurityAgentContainerName,
+				apicommon.AgentDataPlaneContainerName,
+			}
+			if hasAnyContainer(agentContainers, runtimeContainers) {
+				manager.VolumeMount().AddVolumeMountToContainers(&runtimeVolMount, runtimeContainers)
+				manager.Volume().AddVolume(&runtimeVol)
+			}
 		}
 	}
+}
+
+// hasAnyContainer returns true if the pod runs one of the containers, so a volume only they mount is not left unused.
+func hasAnyContainer(agentContainers, names []apicommon.AgentContainerName) bool {
+	return slices.ContainsFunc(agentContainers, func(c apicommon.AgentContainerName) bool {
+		return slices.Contains(names, c)
+	})
 }

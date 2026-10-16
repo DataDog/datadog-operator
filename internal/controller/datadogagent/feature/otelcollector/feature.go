@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
@@ -43,7 +44,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = feature.RegisterDDASharedDependencies(feature.OtelAgentIDType, applyOTelCollectorDDASharedDependencies)
+	err = feature.RegisterDDASharedDependencies(feature.OtelAgentIDType, apicommon.OtelAgent, applyOTelCollectorDDASharedDependencies)
 	if err != nil {
 		panic(err)
 	}
@@ -69,6 +70,9 @@ type otelCollectorFeature struct {
 	incompatibleImage bool
 
 	otelGatewayEnabled bool
+
+	// standalone is true when the node Agent runs without the core Agent.
+	standalone bool
 
 	logger logr.Logger
 }
@@ -134,15 +138,18 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.ports = ddaSpec.Features.OtelCollector.Ports
 	}
 
+	policy := composition.PolicyOf(dda)
+	o.standalone = !policy.AllowsNodeAgentContainer(apicommon.CoreAgentContainerName)
+
 	var reqComp feature.RequiredComponents
 	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
-				Containers: []apicommon.AgentContainerName{
+				Containers: policy.NodeAgentContainers(
 					apicommon.CoreAgentContainerName,
 					apicommon.OtelAgent,
-				},
+				),
 			},
 		}
 
@@ -364,6 +371,36 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
+	// Standalone runs without the core Agent: no IPC or core config to share.
+	// TODO(standalone): configure the standalone DDOT runtime here.
+	if !o.standalone {
+		o.manageCoreAgentIntegration(managers)
+	}
+
+	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
+	// Users must explicitly add infraattributes and prometheus if needed.
+	if o.otelGatewayEnabled {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+			Name:  DDOtelCollectorConverterFeatures,
+			Value: "health_check,zpages,pprof,ddflare",
+		})
+	}
+
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+		Name:  DDOtelCollectorInstallationMethod,
+		Value: "kubernetes",
+	})
+
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+		Name:  DDOtelStandalone,
+		Value: "false",
+	})
+
+	return nil
+}
+
+// manageCoreAgentIntegration configures the otel-agent and core Agent containers to share config over IPC.
+func (o *otelCollectorFeature) manageCoreAgentIntegration(managers feature.PodTemplateManagers) {
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.
 	agentIpcPortEnvVar := &corev1.EnvVar{
@@ -412,27 +449,6 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 			Value: *o.coreAgentConfig.extensionURL,
 		})
 	}
-
-	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
-	// Users must explicitly add infraattributes and prometheus if needed.
-	if o.otelGatewayEnabled {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
-			Name:  DDOtelCollectorConverterFeatures,
-			Value: "health_check,zpages,pprof,ddflare",
-		})
-	}
-
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
-		Name:  DDOtelCollectorInstallationMethod,
-		Value: "kubernetes",
-	})
-
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
-		Name:  DDOtelStandalone,
-		Value: "false",
-	})
-
-	return nil
 }
 
 func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {

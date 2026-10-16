@@ -1108,6 +1108,28 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "ddot-collector init container should not get JMX suffix when JMXEnabled is true",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{
+					{Name: "init-volume", Image: "gcr.io/datadoghq/ddot-collector:7.72.1"},
+					{Name: "init-config", Image: "gcr.io/datadoghq/agent:7.72.1"},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{
+					Tag:        "7.73.0",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				initContainers := manager.PodTemplateSpec().Spec.InitContainers
+				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.73.0", initContainers[0].Image, "ddot-collector init container should not have JMX suffix")
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.73.0-jmx", initContainers[1].Image, "agent init container should have JMX suffix")
+			},
+		},
+		{
 			name: "AppArmor annotation in override.Annotations for existing container is added",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})

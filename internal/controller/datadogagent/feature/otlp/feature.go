@@ -38,7 +38,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = feature.RegisterDDASharedDependencies(feature.OTLPIDType, applyOTLPDDASharedDependencies)
+	err = feature.RegisterDDASharedDependencies(feature.OTLPIDType, apicommon.CoreAgentContainerName, applyOTLPDDASharedDependencies)
 	if err != nil {
 		panic(err)
 	}

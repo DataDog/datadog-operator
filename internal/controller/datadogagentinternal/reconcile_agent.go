@@ -7,11 +7,13 @@ package datadogagentinternal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -22,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
@@ -32,6 +35,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+var errNoNodeAgentContainers = errors.New("no node Agent container to run")
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (reconcile.Result, error) {
@@ -58,6 +63,20 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, requiredComponents.Agent, component.GetAgentName(ddai))
 	objLogger := daemonsetLogger.WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
+
+	// A composed node Agent mode can leave no container to run, e.g. standalone without DDOT or host profiler.
+	if len(daemonset.Spec.Template.Spec.Containers) == 0 {
+		mode := composition.ModeOf(ddai)
+		msg := fmt.Sprintf("Node Agent mode %q resolves to no container; not deploying the node Agent DaemonSet", mode)
+		objLogger.Error(errNoNodeAgentContainers, msg, "mode", mode)
+		r.recorder.Event(ddai, corev1.EventTypeWarning, "NoNodeAgentContainers", msg)
+		if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
+			return reconcile.Result{}, err
+		}
+		deleteStatusWithAgent(newStatus)
+		return reconcile.Result{}, nil
+	}
+
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default daemonset
@@ -228,7 +247,7 @@ func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *d
 func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
 	err := r.client.Delete(ctx, ds)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return err

@@ -11,7 +11,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 )
 
 // ProfileSharedConfigOverlayFunc lets a feature lift profile config into shared
@@ -39,9 +41,16 @@ type DDASharedDependenciesFunc func(dda metav1.Object, ddaSpec *v2alpha1.Datadog
 // through RegisterProfileSharedConfigOverlay.
 var profileSharedConfigOverlays = map[IDType]ProfileSharedConfigOverlayFunc{}
 
+// ddaSharedDependency is a DDA shared dependency hook and the node Agent
+// container serving the dependency.
+type ddaSharedDependency struct {
+	container apicommon.AgentContainerName
+	apply     DDASharedDependenciesFunc
+}
+
 // ddaSharedDependencies is populated by feature package init functions through
 // RegisterDDASharedDependencies.
-var ddaSharedDependencies = map[IDType]DDASharedDependenciesFunc{}
+var ddaSharedDependencies = map[IDType]ddaSharedDependency{}
 
 // RegisterProfileSharedConfigOverlay registers profile shared-component merge
 // logic for a feature.
@@ -54,11 +63,13 @@ func RegisterProfileSharedConfigOverlay(id IDType, overlay ProfileSharedConfigOv
 }
 
 // RegisterDDASharedDependencies registers DDA shared dependency logic for a feature.
-func RegisterDDASharedDependencies(id IDType, dependency DDASharedDependenciesFunc) error {
+// container is the node Agent container serving the dependency: the hook is skipped
+// for DDAIs whose node Agent mode does not run it.
+func RegisterDDASharedDependencies(id IDType, container apicommon.AgentContainerName, dependency DDASharedDependenciesFunc) error {
 	if _, found := ddaSharedDependencies[id]; found {
 		return fmt.Errorf("DDA shared dependencies %s is registered already", id)
 	}
-	ddaSharedDependencies[id] = dependency
+	ddaSharedDependencies[id] = ddaSharedDependency{container: container, apply: dependency}
 	return nil
 }
 
@@ -98,8 +109,13 @@ func ApplyDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 	}
 	slices.Sort(sortedKeys)
 
+	policy := composition.PolicyOf(ddai)
 	for _, id := range sortedKeys {
-		if err := ddaSharedDependencies[id](dda, ddaSpec, ddai, ddaiSpec, managers); err != nil {
+		dependency := ddaSharedDependencies[id]
+		if !policy.AllowsNodeAgentContainer(dependency.container) {
+			continue
+		}
+		if err := dependency.apply(dda, ddaSpec, ddai, ddaiSpec, managers); err != nil {
 			return fmt.Errorf("%s DDA shared dependencies failed: %w", id, err)
 		}
 	}

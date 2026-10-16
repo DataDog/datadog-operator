@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/composition"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -60,7 +61,7 @@ func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.
 func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec,
 	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
-	applyNodeAgentResources(manager, ddaSpec, singleContainerStrategyEnabled)
+	applyNodeAgentResources(manager, ddaSpec, singleContainerStrategyEnabled, requiredComponents.Agent.Containers)
 }
 
 // ValidateFIPSVersions checks all containers in the pod template for FIPS version compatibility.
@@ -306,7 +307,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// If Helm migration is enabled, set the ClusterAgent URL
-	if helm.IsHelmMigration(ddaMeta) {
+	if helm.IsHelmMigration(ddaMeta) && composition.PolicyOf(ddaMeta).ClusterAgent {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  common.DDClusterAgentURL,
 			Value: componentdca.GetClusterAgentServiceURL(ddaMeta),
