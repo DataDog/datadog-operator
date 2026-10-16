@@ -69,8 +69,6 @@ const (
 	OTLPIDType = "otlp"
 	// RemoteConfigurationIDType Remote Config feature
 	RemoteConfigurationIDType = "remote_config"
-	// JemallocIDType jemalloc allocator feature.
-	JemallocIDType = "jemalloc"
 	// SBOMIDType SBOM collection feature
 	SBOMIDType = "sbom"
 	// HelmCheckIDType Helm Check feature.

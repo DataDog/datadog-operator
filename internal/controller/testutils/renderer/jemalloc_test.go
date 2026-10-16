@@ -15,7 +15,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -31,8 +31,8 @@ func TestRender_Jemalloc(t *testing.T) {
 		{name: "disabled", enabled: new(false)},
 		{name: "enabled", enabled: new(true)},
 		{name: "optional containers", enabled: new(true), comprehensive: true},
-		{name: "runners feature omitted", comprehensive: true},
-		{name: "runners feature disabled", enabled: new(false), comprehensive: true},
+		{name: "runners annotation omitted", comprehensive: true},
+		{name: "runners annotation disabled", enabled: new(false), comprehensive: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			path := "testdata/minimal-dda.yaml"
@@ -52,7 +52,7 @@ func TestRender_Jemalloc(t *testing.T) {
 				if *tt.enabled {
 					value = "true"
 				}
-				dda.Annotations[featureutils.EnableJemallocAnnotation] = value
+				dda.Annotations[component.EnableJemallocAnnotation] = value
 			}
 			if tt.comprehensive {
 				dda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{Enabled: new(true)}
@@ -88,7 +88,7 @@ func TestRender_Jemalloc(t *testing.T) {
 			for _, c := range node.Spec.Template.Spec.Containers {
 				var want []corev1.EnvVar
 				switch c.Name {
-				case "agent", "system-probe", "trace-agent", "otel-agent":
+				case "agent", "system-probe", "trace-agent":
 					want = expected
 				}
 				assertAllocatorEnvironment(t, []corev1.Container{c}, want)
@@ -120,7 +120,7 @@ func TestRender_JemallocVersionGate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dda, err := LoadDDA("testdata/comprehensive-dda.yaml")
 			require.NoError(t, err)
-			dda.Annotations = map[string]string{featureutils.EnableJemallocAnnotation: "true"}
+			dda.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: tt.nodeTag}},
 				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.runnerTag}},
@@ -165,7 +165,7 @@ func TestRender_JemallocVersionGate(t *testing.T) {
 func TestRender_JemallocWindowsProfile(t *testing.T) {
 	dda, err := LoadDDA("testdata/minimal-dda.yaml")
 	require.NoError(t, err)
-	dda.Annotations = map[string]string{featureutils.EnableJemallocAnnotation: "true"}
+	dda.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
 	profiles, err := LoadDAPs([]string{"testdata/linux-profile.yaml"})
 	require.NoError(t, err)
 	profiles[0].Name = "windows-profile"
@@ -186,7 +186,7 @@ func TestRender_JemallocWindowsProfile(t *testing.T) {
 func TestRender_JemallocOverrides(t *testing.T) {
 	dda, err := LoadDDA("testdata/minimal-dda.yaml")
 	require.NoError(t, err)
-	dda.Annotations = map[string]string{featureutils.EnableJemallocAnnotation: "true"}
+	dda.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
 	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
 	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {

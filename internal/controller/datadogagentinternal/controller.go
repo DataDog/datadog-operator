@@ -41,7 +41,6 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/jemalloc"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
