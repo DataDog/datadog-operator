@@ -18,9 +18,9 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
@@ -40,7 +40,7 @@ func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
 			ddai.Spec.Global = &v2alpha1.GlobalConfig{Credentials: &v2alpha1.DatadogCredentials{
 				APISecret: &v2alpha1.SecretConfig{SecretName: "datadog-secret", KeyName: "api-key"},
 			}}
-			ddai.Annotations = map[string]string{featureutils.EnableJemallocAnnotation: "true"}
+			ddai.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
 			if tt.override {
 				ddai.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
@@ -67,9 +67,9 @@ func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
 				require.Len(t, allocatorEnv(c.Env), 2, c.Name)
 			}
 			if tt.removed {
-				delete(ddai.Annotations, featureutils.EnableJemallocAnnotation)
+				delete(ddai.Annotations, component.EnableJemallocAnnotation)
 			} else {
-				ddai.Annotations[featureutils.EnableJemallocAnnotation] = "false"
+				ddai.Annotations[component.EnableJemallocAnnotation] = "false"
 			}
 			after := reconcile()
 			for _, c := range after.Spec.Template.Spec.Containers {
