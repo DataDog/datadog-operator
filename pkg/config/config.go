@@ -58,6 +58,7 @@ var (
 	dashboardObj       = &datadoghqv1alpha1.DatadogDashboard{}
 	genericResourceObj = &datadoghqv1alpha1.DatadogGenericResource{}
 	byocClusterObj     = &datadoghqv1alpha1.DatadogBYOCCluster{}
+	workerObj          = &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
 	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
@@ -137,8 +138,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
 		logger.Info("DatadogBYOCCluster Enabled", "watching namespaces", slices.Collect(maps.Keys(byocClusterNamespaces)))
 		byObject[byocClusterObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
-		// Resources owned by DatadogBYOCCluster live in its namespace, which may differ from the agent
-		// namespace covered by DefaultNamespaces. Merge both so neither controller loses its cache coverage.
+		byObject[workerObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
+		// Resources owned by DatadogBYOCCluster and DatadogObservabilityPipelinesWorker live in their namespace, which may
+		// differ from the agent namespace covered by DefaultNamespaces. Merge both so no controller loses its cache coverage.
 		for _, obj := range byocOwnedObjs {
 			ownedNamespaces := maps.Clone(agentNamespaces)
 			maps.Copy(ownedNamespaces, byocClusterNamespaces)

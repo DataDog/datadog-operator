@@ -59,16 +59,26 @@ rules:
   - datadoghq.com
   resources:
   - datadogbyocclusters/finalizers
+  - datadogobservabilitypipelinesworkers/finalizers
   verbs:
   - update
 - apiGroups:
   - datadoghq.com
   resources:
   - datadogbyocclusters/status
+  - datadogobservabilitypipelinesworkers/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogobservabilitypipelinesworkers
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - policy
   resources:

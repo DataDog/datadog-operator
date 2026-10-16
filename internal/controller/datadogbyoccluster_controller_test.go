@@ -371,6 +371,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
 				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Reconciled")).To(BeTrue())
 				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Reason).To(Equal("Conflict"))
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Message).To(Equal("apply *v1.ConfigMap " + namespace.Name + "/byoc: exists and is not controlled by DatadogBYOCCluster byoc"))
 			}, timeout, interval).Should(Succeed())
 
 			By("keeping the unowned ConfigMap unchanged")
@@ -429,7 +430,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		})
 
 		It("reports the failure without retrying", func() {
-			terminalErrorsBefore := byocTerminalReconcileErrors()
+			terminalErrorsBefore := terminalReconcileErrors("datadogbyoccluster")
 			createKubernetesObject(k8sClient, cluster)
 
 			Eventually(func(g Gomega) {
@@ -438,7 +439,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Reconciled")).To(BeTrue())
 				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Reason).To(Equal("InvalidConfiguration"))
 				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Available")).To(BeTrue())
-				g.Expect(byocTerminalReconcileErrors()).To(BeNumerically(">", terminalErrorsBefore))
+				g.Expect(terminalReconcileErrors("datadogbyoccluster")).To(BeNumerically(">", terminalErrorsBefore))
 			}, timeout, interval).Should(Succeed())
 		})
 	})
@@ -669,8 +670,8 @@ func waitForBYOCTestDeletion(object client.Object) {
 	}, timeout, interval).Should(BeTrue())
 }
 
-// byocTerminalReconcileErrors returns the number of reconcile errors that controller-runtime did not retry.
-func byocTerminalReconcileErrors() float64 {
+// terminalReconcileErrors returns the number of reconcile errors of the controller that controller-runtime did not retry.
+func terminalReconcileErrors(controller string) float64 {
 	families, err := metrics.Registry.Gather()
 	Expect(err).NotTo(HaveOccurred())
 	for _, family := range families {
@@ -679,7 +680,7 @@ func byocTerminalReconcileErrors() float64 {
 		}
 		for _, metric := range family.GetMetric() {
 			for _, label := range metric.GetLabel() {
-				if label.GetName() == "controller" && label.GetValue() == "datadogbyoccluster" {
+				if label.GetName() == "controller" && label.GetValue() == controller {
 					return metric.GetCounter().GetValue()
 				}
 			}
