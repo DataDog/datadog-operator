@@ -115,6 +115,8 @@ const (
 	envOTelTracesSamplerArg           = "OTEL_TRACES_SAMPLER_ARG"
 	envImageName                      = "IMAGE_NAME"
 	envImageTag                       = "IMAGE_TAG"
+
+	envPipelineDestinationEndpoint = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
 )
 
 const (
