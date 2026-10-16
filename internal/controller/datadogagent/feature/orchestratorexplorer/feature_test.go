@@ -150,6 +150,26 @@ instances:
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
 		},
 		{
+			Name: "orchestrator explorer enabled in mixed mode (kube runner groups, no default CCR)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("datadog").
+				WithOrchestratorExplorerEnabled(true).
+				WithOrchestratorExplorerScrubContainers(true).
+				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
+				WithOrchestratorExplorerDDUrl("https://foo.bar").
+				WithOrchestratorExplorerCustomConfigData(customConfData).
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithKubeChecksRunnerDefault().
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
+				Build(),
+			WantConfigure:        true,
+			ClusterAgent:         orchestratorExplorerClusterAgentWantFunc(),
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
+			ClusterChecksRunner:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
+			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-orch-exp-ccr", "datadog-cluster-checks-runner"),
+		},
+		{
 			Name: "orchestrator explorer enabled on version requiring process agent",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).

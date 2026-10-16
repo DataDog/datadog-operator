@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -211,5 +212,26 @@ func verifyFeatures(t *testing.T, tt FeatureTest, features []feature.Feature, go
 
 	if gotConfigure.IsConfigured() != tt.WantConfigure {
 		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsConfigured(), tt.WantConfigure)
+	}
+}
+
+// WantClusterRoleBindingSubject returns a WantDependenciesFunc asserting that
+// the named ClusterRoleBinding exists and binds the given ServiceAccount.
+func WantClusterRoleBindingSubject(bindingName, serviceAccountName string) func(testing.TB, store.StoreClient) {
+	return func(t testing.TB, store store.StoreClient) {
+		obj, found := store.Get(kubernetes.ClusterRoleBindingKind, "", bindingName)
+		if !found {
+			t.Fatalf("expected ClusterRoleBinding %q", bindingName)
+		}
+		binding, ok := obj.(*rbacv1.ClusterRoleBinding)
+		if !ok {
+			t.Fatalf("expected a ClusterRoleBinding, got %T", obj)
+		}
+		for _, subject := range binding.Subjects {
+			if subject.Name == serviceAccountName {
+				return
+			}
+		}
+		t.Errorf("ClusterRoleBinding %q does not bind ServiceAccount %q, subjects: %v", bindingName, serviceAccountName, binding.Subjects)
 	}
 }

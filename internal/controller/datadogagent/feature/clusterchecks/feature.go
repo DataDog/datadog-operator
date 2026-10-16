@@ -6,6 +6,9 @@
 package clusterchecks
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -33,13 +36,20 @@ func init() {
 
 type clusterChecksFeature struct {
 	useClusterCheckRunners bool
-	owner                  metav1.Object
+	// ccrFamilyEnabled is true when any runner Deployment exists: the default
+	// CCR and/or experimental runner groups (which don't need the default CCR).
+	ccrFamilyEnabled bool
+	owner            metav1.Object
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+
+	// runnerGroups is the Cluster Agent's cluster_checks.runner_groups value:
+	// the JSON map of each runner group to the checks it claims.
+	runnerGroups string
 
 	logger logr.Logger
 }
@@ -71,6 +81,14 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 		f.useClusterCheckRunners = apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
+		runnerGroups, err := v2alpha1.GetEffectiveClusterChecksRunnerGroups(dda)
+		if err != nil {
+			f.logger.Error(err, "ignoring experimental cluster checks runner groups")
+		}
+		f.ccrFamilyEnabled = f.useClusterCheckRunners || len(runnerGroups) > 0
+		if f.runnerGroups, err = runnerGroupsJSON(runnerGroups); err != nil {
+			f.logger.Error(err, "cannot pass the cluster checks runner groups to the Cluster Agent")
+		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
@@ -81,6 +99,9 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 			ClusterChecksRunner: feature.RequiredComponent{
+				// Runners-only: in mixed mode the default CCR Deployment is NOT
+				// created; the DDAI reconciler materializes the group Deployments
+				// and the CCR SA/RBAC dependencies instead.
 				IsRequired: &f.useClusterCheckRunners,
 				Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 			},
@@ -172,6 +193,19 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		},
 	)
 
+	// The Cluster Agent dispatches each claimed check only to its group, and
+	// every other check only to general workers (node agents, default CCR).
+	// Changing the groups rolls the Cluster Agent, not the node agents.
+	if f.runnerGroups != "" {
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  DDClusterChecksRunnerGroups,
+				Value: f.runnerGroups,
+			},
+		)
+	}
+
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
@@ -215,7 +249,8 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 }
 
 func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	if f.useClusterCheckRunners {
+	// Applies to the default CCR and runner groups alike.
+	if f.ccrFamilyEnabled {
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
@@ -234,6 +269,25 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	}
 
 	return nil
+}
+
+// runnerGroupsJSON returns the groups as the Cluster Agent's
+// cluster_checks.runner_groups value: a JSON object mapping each group to
+// the checks it claims, or "" without groups. Map keys are marshalled sorted,
+// so the value is stable across reconciles.
+func runnerGroupsJSON(groups []v2alpha1.ClusterChecksRunnerGroup) (string, error) {
+	if len(groups) == 0 {
+		return "", nil
+	}
+	claims := make(map[string][]string, len(groups))
+	for _, group := range groups {
+		claims[group.Name] = group.ChecksInclude
+	}
+	raw, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("cannot encode cluster checks runner groups: %w", err)
+	}
+	return string(raw), nil
 }
 
 func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
