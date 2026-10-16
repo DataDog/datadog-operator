@@ -162,6 +162,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, err, now)
 	}
 	ddais = append(ddais, ddai)
+	defaultDDAI := ddai
 
 	// Profiles
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
@@ -176,8 +177,8 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		// Profiles normally render their own DDAIs from the base DDAI. Shared
 		// component config contributed by profiles is accumulated on the default
 		// DDAI, because there is only one Cluster Agent/CCR for the cluster.
-		defaultDDAI := ddai.DeepCopy()
-		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
+		defaultDDAI = ddai.DeepCopy()
+		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI, &rawSpec)
 		if e != nil {
 			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
@@ -189,7 +190,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	}
 
 	// Manage dependencies after DDAIs are computed to include profile changes
-	err = r.manageDDADependenciesWithDDAI(ctx, instance, newDDAStatus, ddais)
+	err = r.manageDDADependenciesWithDDAI(ctx, instance, newDDAStatus, ddais, &defaultDDAI.Spec)
 	if err != nil {
 		return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, err, now)
 	}

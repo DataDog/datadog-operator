@@ -1,0 +1,18 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: apm-hostport-profile
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: kubernetes.io/os
+        operator: In
+        values:
+          - linux
+  config:
+    features:
+      apm:
+        enabled: true
+        hostPortConfig:
+          enabled: true
+          hostPort: 9126

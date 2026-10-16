@@ -331,8 +331,8 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	return nil
 }
 
-func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
-	ports := apmLocalAgentServicePorts(ddai, ddaiSpec)
+func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec, sharedSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports := apmLocalAgentServicePorts(ddai, withSharedServicePort(ddaiSpec, sharedSpec))
 	if len(ports) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
