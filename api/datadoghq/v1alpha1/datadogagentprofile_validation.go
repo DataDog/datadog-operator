@@ -19,8 +19,9 @@ import (
 // DatadogAgentProfileFeatureAllowlist is the set of spec.config.features fields a
 // DatadogAgentProfile may set.
 var DatadogAgentProfileFeatureAllowlist = map[string]struct{}{
-	"gpu": {},
-	"apm": {},
+	"gpu":          {},
+	"apm":          {},
+	"hostProfiler": {},
 }
 
 // DatadogAgentProfileComponentOverrideAllowlist is the set of component override
@@ -53,6 +54,7 @@ var DatadogAgentProfileSupportedContainers = map[common.AgentContainerName]struc
 	common.OtelAgent:                     {},
 	common.AgentDataPlaneContainerName:   {},
 	common.AgentCheckRunnerContainerName: {},
+	common.HostProfiler:                  {},
 }
 
 // Object paths the rules inspect. Guards use full paths rather than policy
