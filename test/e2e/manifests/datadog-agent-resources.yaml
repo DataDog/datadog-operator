@@ -1,0 +1,27 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-resources
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-minimum
+spec:
+  global:
+    kubelet:
+      tlsVerify: false
+  features:
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true
+    logCollection:
+      enabled: true
+    liveContainerCollection:
+      enabled: true
+  override:
+    nodeAgent:
+      containers:
+        agent:
+          resources:
+            limits:
+              cpu: "0.25"
+
