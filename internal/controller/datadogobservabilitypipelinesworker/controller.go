@@ -22,7 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -158,7 +160,9 @@ func setCondition(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker,
 // SetupWithManager creates the DatadogObservabilityPipelinesWorker controller and its owned-resource watches.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}).
+		// Status updates do not bump the generation, so this skips requeues caused by the controller's own status writes.
+		// Owned resources stay unfiltered: workload status changes drive availability and drift must still be detected.
+		For(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
