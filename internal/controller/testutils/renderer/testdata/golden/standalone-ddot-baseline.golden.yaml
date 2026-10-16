@@ -27,6 +27,36 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
+  name: -datadog-agent-otel-agent-standalone
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
   name: datadog-agent-agent
 rules:
 - apiGroups:
@@ -57,6 +87,25 @@ rules:
   - /metrics/slis
   verbs:
   - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: -datadog-agent-otel-agent-standalone
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: -datadog-agent-otel-agent-standalone
+subjects:
+- kind: ServiceAccount
+  name: datadog-agent-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -155,8 +204,36 @@ data:
           batch:
            flush_timeout: 10s
     processors:
-      infraattributes:
-        cardinality: 2
+      k8s_attributes:
+        auth_type: serviceAccount
+        passthrough: false
+        filter:
+          node_from_env_var: K8S_NODE_NAME
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.statefulset.name
+            - k8s.daemonset.name
+            - k8s.cronjob.name
+            - k8s.job.name
+            - k8s.container.name
+            - container.id
+            - container.image.name
+            - container.image.tag
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: connection
       filter/drop-prometheus-internal-metrics:
         metrics:
           exclude:
@@ -175,19 +252,19 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [infraattributes]
+          processors: [k8s_attributes]
           exporters: [datadog, datadog/connector]
         metrics:
           receivers: [otlp, datadog/connector]
-          processors: [infraattributes]
+          processors: [k8s_attributes]
           exporters: [datadog]
         metrics/prometheus:
           receivers: [prometheus]
-          processors: [filter/drop-prometheus-internal-metrics, infraattributes]
+          processors: [filter/drop-prometheus-internal-metrics, k8s_attributes]
           exporters: [datadog]
         logs:
           receivers: [otlp]
-          processors: [infraattributes]
+          processors: [k8s_attributes]
           exporters: [datadog]
 kind: ConfigMap
 metadata:
@@ -428,7 +505,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 6957e5c7866a43fcee2818ed0141ab50
+    agent.datadoghq.com/agentspechash: 599b16542de68451d58df29c45d0c2b3
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -454,7 +531,7 @@ spec:
   template:
     metadata:
       annotations:
-        agent.datadoghq.com/configmapshash: 1e5d10b2f066defb
+        agent.datadoghq.com/configmapshash: 14fb3d7067973160
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       labels:
         agent.datadoghq.com/component: agent
@@ -500,10 +577,36 @@ spec:
               name: datadog-secret
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
+        - name: DD_OTELCOLLECTOR_ENABLED
+          value: "true"
+        - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+          value: health_check,zpages,pprof,datadog
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: DD_CMD_PORT
+          value: "0"
+        - name: DD_AGENT_IPC_PORT
+          value: "0"
+        - name: DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL
+          value: "0"
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "false"
+        - name: DD_ENABLE_METADATA_COLLECTION
+          value: "false"
+        - name: DD_INVENTORIES_ENABLED
+          value: "false"
+        - name: DD_PROCESS_AGENT_ENABLED
+          value: "false"
         - name: DD_OTELCOLLECTOR_INSTALLATION_METHOD
           value: kubernetes
         - name: DD_OTEL_STANDALONE
-          value: "false"
+          value: "true"
         image: registry.datadoghq.com/ddot-collector:7.80.0
         name: otel-agent
         ports:

@@ -12,4 +12,12 @@ const (
 	DDOtelCollectorConverterFeatures          = "DD_OTELCOLLECTOR_CONVERTER_FEATURES"
 	DDOtelCollectorInstallationMethod         = "DD_OTELCOLLECTOR_INSTALLATION_METHOD"
 	DDOtelStandalone                          = "DD_OTEL_STANDALONE"
+
+	DDCmdPort                    = "DD_CMD_PORT"
+	DDRemoteConfigurationEnabled = "DD_REMOTE_CONFIGURATION_ENABLED"
+	DDEnableMetadataCollection   = "DD_ENABLE_METADATA_COLLECTION"
+	DDInventoriesEnabled         = "DD_INVENTORIES_ENABLED"
+	DDProcessAgentEnabled        = "DD_PROCESS_AGENT_ENABLED"
+	// K8sNodeName is read by the k8s_attributes processor of the default config without the core Agent.
+	K8sNodeName = "K8S_NODE_NAME"
 )

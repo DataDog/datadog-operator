@@ -72,7 +72,8 @@ type otelCollectorFeature struct {
 	otelGatewayEnabled bool
 
 	// standalone is true when the node Agent runs without the core Agent.
-	standalone bool
+	standalone         bool
+	serviceAccountName string
 
 	logger logr.Logger
 }
@@ -140,6 +141,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 
 	policy := composition.PolicyOf(dda)
 	o.standalone = !policy.AllowsNodeAgentContainer(apicommon.CoreAgentContainerName)
+	o.serviceAccountName = constants.GetAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	var reqComp feature.RequiredComponents
 	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
@@ -201,6 +203,9 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 		} else {
 			defaultConfig = defaultconfig.DefaultOtelCollectorConfig
 		}
+		if o.standalone {
+			defaultConfig = defaultconfig.WithoutCoreAgent(defaultConfig)
+		}
 		if grpcPort != 4317 {
 			defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(grpcPort), 1)
 		}
@@ -222,6 +227,15 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 		}
 	}
 
+	if o.standalone {
+		return managers.RBACManager().AddClusterPolicyRulesByComponent(
+			o.owner.GetNamespace(),
+			getStandaloneRBACResourceName(o.owner),
+			o.serviceAccountName,
+			standaloneRBACPolicyRules,
+			string(v2alpha1.NodeAgentComponentName),
+		)
+	}
 	return nil
 }
 
@@ -371,15 +385,15 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
-	// Standalone runs without the core Agent: no IPC or core config to share.
-	// TODO(standalone): configure the standalone DDOT runtime here.
-	if !o.standalone {
+	if o.standalone {
+		o.manageStandaloneRuntime(managers)
+	} else {
 		o.manageCoreAgentIntegration(managers)
 	}
 
 	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
 	// Users must explicitly add infraattributes and prometheus if needed.
-	if o.otelGatewayEnabled {
+	if o.otelGatewayEnabled && !o.standalone {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
 			Name:  DDOtelCollectorConverterFeatures,
 			Value: "health_check,zpages,pprof,ddflare",
@@ -393,10 +407,36 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
 		Name:  DDOtelStandalone,
-		Value: "false",
+		Value: apiutils.BoolToString(&o.standalone),
 	})
 
 	return nil
+}
+
+// manageStandaloneRuntime configures otel-agent to run without the core Agent: it disables the
+// IPC and core Agent features it would otherwise reach, and takes the hostname from the node.
+func (o *otelCollectorFeature) manageStandaloneRuntime(managers feature.PodTemplateManagers) {
+	// infraattributes and ddflare rely on the core Agent.
+	converterFeatures := "health_check,zpages,pprof,datadog"
+	if o.otelGatewayEnabled {
+		converterFeatures = "health_check,zpages,pprof"
+	}
+	envVars := []*corev1.EnvVar{
+		{Name: DDOtelCollectorCoreConfigEnabled, Value: "true"},
+		{Name: DDOtelCollectorConverterFeatures, Value: converterFeatures},
+		{Name: constants.DDHostName, ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: common.FieldPathSpecNodeName}}},
+		{Name: K8sNodeName, ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: common.FieldPathSpecNodeName}}},
+		{Name: DDCmdPort, Value: "0"},
+		{Name: common.DDAgentIpcPort, Value: "0"},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "0"},
+		{Name: DDRemoteConfigurationEnabled, Value: "false"},
+		{Name: DDEnableMetadataCollection, Value: "false"},
+		{Name: DDInventoriesEnabled, Value: "false"},
+		{Name: DDProcessAgentEnabled, Value: "false"},
+	}
+	for _, envVar := range envVars {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, envVar)
+	}
 }
 
 // manageCoreAgentIntegration configures the otel-agent and core Agent containers to share config over IPC.
