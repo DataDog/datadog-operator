@@ -16,8 +16,9 @@ import (
 )
 
 var datadogAgentProfileFeatureAllowlist = map[string]struct{}{
-	"gpu": {},
-	"apm": {},
+	"gpu":          {},
+	"apm":          {},
+	"hostProfiler": {},
 }
 
 var datadogAgentProfileComponentOverrideAllowlist = map[string]struct{}{
@@ -119,6 +120,7 @@ func validateContainerOverride(name common.AgentContainerName, override *v2alpha
 		common.OtelAgent:                     {},
 		common.AgentDataPlaneContainerName:   {},
 		common.AgentCheckRunnerContainerName: {},
+		common.HostProfiler:                  {},
 	}
 	if _, ok := supportedContainers[name]; !ok {
 		return unsupportedError(fmt.Sprintf("container %s", name))

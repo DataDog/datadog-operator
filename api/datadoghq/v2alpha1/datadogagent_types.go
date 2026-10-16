@@ -96,6 +96,9 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// HostProfiler configuration.
+	// +optional
+	HostProfiler *HostProfilerFeatureConfig `json:"hostProfiler,omitempty"`
 	// DataPlane configuration for the Agent Data Plane.
 	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
 	// +optional
@@ -1368,6 +1371,45 @@ type MetricStateSet struct {
 	// ValueFrom is the subpath to compare the list to.
 	// +optional
 	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
+}
+
+// HostProfilerFeatureConfig contains the Host Profiler configuration.
+// Host Profiler runs as a dedicated container in the node Agent pod and requires host PID.
+type HostProfilerFeatureConfig struct {
+	// Enabled enables the Host Profiler.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Seccomp configures the seccomp profile applied to the Host Profiler container.
+	// +optional
+	Seccomp *HostProfilerSeccompConfig `json:"seccomp,omitempty"`
+
+	// RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+	// dd-agent user.
+	// Default: true
+	// +optional
+	RunAsRoot *bool `json:"runAsRoot,omitempty"`
+
+	// SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+	// Default: spc_t
+	// +optional
+	SELinuxType *string `json:"seLinuxType,omitempty"`
+}
+
+// HostProfilerSeccompConfig contains the seccomp configuration of the Host Profiler.
+type HostProfilerSeccompConfig struct {
+	// Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+	// When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// LoggingEnabled uses the logging seccomp profile instead of the default one.
+	// Has no effect when the seccomp profile is disabled.
+	// Default: false
+	// +optional
+	LoggingEnabled *bool `json:"loggingEnabled,omitempty"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
