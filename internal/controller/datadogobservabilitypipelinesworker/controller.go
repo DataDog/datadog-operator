@@ -161,12 +161,13 @@ func setCondition(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker,
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		// Status updates do not bump the generation, so this skips requeues caused by the controller's own status writes.
-		// Owned resources stay unfiltered: workload status changes drive availability and drift must still be detected.
+		// Workload status changes drive availability, and the other owned resources do not bump the generation on
+		// changes, so their watches stay unfiltered. HPA and PDB status is not read, so only their spec changes requeue.
 		For(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
-		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
-		Owns(&policyv1.PodDisruptionBudget{}).
+		Owns(&autoscalingv2.HorizontalPodAutoscaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&policyv1.PodDisruptionBudget{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
