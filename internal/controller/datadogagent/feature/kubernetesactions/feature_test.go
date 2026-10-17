@@ -63,12 +63,49 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
 		},
+		{
+			Name: "KubernetesActions enabled with RC and PAR",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithKubernetesActionsCommunication(true, true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
+		},
+		{
+			Name: "KubernetesActions enabled with PAR only",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithKubernetesActionsCommunication(false, true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsPAROnlyClusterAgentWantFunc),
+		},
+		{
+			Name: "KubernetesActions enabled with no communication channel",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithKubernetesActionsCommunication(false, false).
+				Build(),
+			WantConfigure: false,
+		},
 	}
 
 	tests.Run(t, buildKubernetesActionsFeature)
 }
 
 func kubernetesActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	assertKubernetesActionsEnvVars(t, mgrInterface, "true")
+}
+
+func kubernetesActionsPAROnlyClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	assertKubernetesActionsEnvVars(t, mgrInterface, "false")
+}
+
+func assertKubernetesActionsEnvVars(t testing.TB, mgrInterface feature.PodTemplateManagers, rcEnabled string) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
@@ -76,6 +113,10 @@ func kubernetesActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.Po
 		{
 			Name:  DDKubeActionsEnabled,
 			Value: "true",
+		},
+		{
+			Name:  DDKubeActionsRemoteConfigEnabled,
+			Value: rcEnabled,
 		},
 	}
 	assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))

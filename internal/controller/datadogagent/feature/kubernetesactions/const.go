@@ -18,6 +18,10 @@ const (
 	// product in the Cluster Agent.
 	DDKubeActionsEnabled = "DD_KUBEACTIONS_ENABLED"
 
+	// DDKubeActionsRemoteConfigEnabled is the env var that controls whether the
+	// Cluster Agent receives Kubernetes actions through Remote Configuration.
+	DDKubeActionsRemoteConfigEnabled = "DD_KUBEACTIONS_REMOTE_CONFIG_ENABLED"
+
 	// ClusterAgentMinVersion is the minimum Cluster Agent version that supports
 	// the Kubernetes Actions product.
 	ClusterAgentMinVersion = "7.79.0"

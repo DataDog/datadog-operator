@@ -207,3 +207,26 @@ func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, contain
 		}
 	}
 }
+
+// IsKubernetesActionsRCEnabled returns whether Kubernetes Actions should be delivered to the
+// Cluster Agent through Remote Configuration. Defaults to true when unset.
+func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec == nil || ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil {
+		return false
+	}
+	ka := ddaSpec.Features.KubernetesActions
+	if !apiutils.BoolValue(ka.Enabled) {
+		return false
+	}
+	return ka.Communication == nil || ka.Communication.RC == nil || *ka.Communication.RC
+}
+
+// IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the
+// Cluster Agent through the Cluster Agent Private Action Runner. Defaults to false when unset.
+func IsKubernetesActionsPAREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec == nil || ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil {
+		return false
+	}
+	ka := ddaSpec.Features.KubernetesActions
+	return apiutils.BoolValue(ka.Enabled) && ka.Communication != nil && apiutils.BoolValue(ka.Communication.PAR)
+}

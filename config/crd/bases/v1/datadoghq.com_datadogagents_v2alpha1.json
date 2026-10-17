@@ -2297,6 +2297,21 @@
               "additionalProperties": false,
               "description": "KubernetesActions configuration.",
               "properties": {
+                "communication": {
+                  "additionalProperties": false,
+                  "description": "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.\nAt least one channel must be enabled; both can be enabled at the same time.",
+                  "properties": {
+                    "par": {
+                      "description": "PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "rc": {
+                      "description": "RC enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "enabled": {
                   "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
                   "type": "boolean"
@@ -11380,6 +11395,21 @@
                   "additionalProperties": false,
                   "description": "KubernetesActions configuration.",
                   "properties": {
+                    "communication": {
+                      "additionalProperties": false,
+                      "description": "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.\nAt least one channel must be enabled; both can be enabled at the same time.",
+                      "properties": {
+                        "par": {
+                          "description": "PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "rc": {
+                          "description": "RC enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
                       "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
                       "type": "boolean"
