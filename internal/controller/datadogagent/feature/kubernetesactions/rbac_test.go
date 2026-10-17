@@ -15,7 +15,7 @@ import (
 
 func TestKubernetesActionsRBACPolicyRules(t *testing.T) {
 	rules := kubernetesActionsRBACPolicyRules
-	assert.Len(t, rules, 3, "expected pods, deployments, deployments/status rules")
+	assert.Len(t, rules, 5, "expected pods, deployments, deployments/status, daemonsets+statefulsets, replicasets rules")
 
 	byResource := map[string]int{}
 	for i, r := range rules {
@@ -35,4 +35,14 @@ func TestKubernetesActionsRBACPolicyRules(t *testing.T) {
 	statusRule := rules[byResource["deployments/status"]]
 	assert.Equal(t, []string{rbac.AppsAPIGroup}, statusRule.APIGroups)
 	assert.ElementsMatch(t, []string{rbac.GetVerb}, statusRule.Verbs)
+
+	for _, res := range []string{rbac.DaemonsetsResource, rbac.StatefulsetsResource} {
+		rule := rules[byResource[res]]
+		assert.Equal(t, []string{rbac.AppsAPIGroup}, rule.APIGroups)
+		assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.PatchVerb}, rule.Verbs, res)
+	}
+
+	rsRule := rules[byResource[rbac.ReplicasetsResource]]
+	assert.Equal(t, []string{rbac.AppsAPIGroup}, rsRule.APIGroups)
+	assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.ListVerb}, rsRule.Verbs)
 }
