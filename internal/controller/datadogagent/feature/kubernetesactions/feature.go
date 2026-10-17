@@ -6,6 +6,8 @@
 package kubernetesactions
 
 import (
+	"strconv"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -53,6 +56,7 @@ type kubernetesActionsFeature struct {
 	owner              metav1.Object
 	serviceAccountName string
 	rbacSuffix         string
+	rcEnabled          bool
 	logger             logr.Logger
 }
 
@@ -64,6 +68,12 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	f.owner = dda
 
 	if ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil || !apiutils.BoolValue(ddaSpec.Features.KubernetesActions.Enabled) {
+		return reqComp
+	}
+
+	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
+	if !f.rcEnabled && !featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
+		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.rc and communication.par are false; the feature will not be configured")
 		return reqComp
 	}
 
@@ -92,6 +102,10 @@ func (f *kubernetesActionsFeature) ManageClusterAgent(managers feature.PodTempla
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDKubeActionsEnabled,
 		Value: "true",
+	})
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  DDKubeActionsRemoteConfigEnabled,
+		Value: strconv.FormatBool(f.rcEnabled),
 	})
 	return nil
 }
