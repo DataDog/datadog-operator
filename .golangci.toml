@@ -23,6 +23,7 @@ disable = [
   'errcheck',
   'exhaustive',
   'exhaustruct',
+  'exhaustruct_v5',
   'forcetypeassert',
   'funcorder',
   'funlen',
@@ -35,6 +36,7 @@ disable = [
   'godoclint',
   'godot',
   'godox',
+  'gomodguard',
   'gosec',
   'inamedparam',
   'interfacebloat',
@@ -90,12 +92,17 @@ exclude = [
 ]
 
 [linters.settings.govet]
+# Defer new modernization suggestions introduced by the linter upgrade.
+disable = ['inline']
 enable = [
   'shadow'
 ]
 
 [linters.settings.misspell]
 locale = 'US'
+
+[linters.settings.modernize]
+disable = ['errorsastype', 'stringscut']
 
 [linters.settings.staticcheck]
 # Keep large or breaking style/deprecation backlogs deferred until dedicated migrations are planned.
