@@ -173,7 +173,8 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		if f.clusterConfig.SelfEnroll {
+		// Provision enrollment permissions unless explicitly disabled; the Agent owns the default.
+		if f.clusterConfig.SelfEnroll == nil || *f.clusterConfig.SelfEnroll {
 			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),

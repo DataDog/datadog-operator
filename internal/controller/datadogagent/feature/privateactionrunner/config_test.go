@@ -29,7 +29,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			wantErr: false,
 			expectedConfig: &PrivateActionRunnerConfig{
 				Enabled:            true,
-				SelfEnroll:         true,
+				SelfEnroll:         ptr.To(true),
 				IdentitySecretName: "my-secret",
 			},
 		},
@@ -46,7 +46,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			wantErr: false,
 			expectedConfig: &PrivateActionRunnerConfig{
 				Enabled:    true,
-				SelfEnroll: false,
+				SelfEnroll: ptr.To(false),
 				URN:        "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
 				PrivateKey: "secret-key",
 				ActionsAllowlist: []string{
@@ -79,7 +79,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			wantErr: false,
 			expectedConfig: &PrivateActionRunnerConfig{
 				Enabled:              true,
-				SelfEnroll:           false,
+				SelfEnroll:           ptr.To(false),
 				IdentityUseK8sSecret: ptr.To(true),
 				IdentitySecretName:   "custom-secret",
 				IdentityFilePath:     "/path/to/identity",
@@ -98,40 +98,35 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "omitted self-enroll defaults to true",
+			name: "omitted self-enroll leaves default to the Agent",
 			configData: `private_action_runner:
   enabled: true
   identity_secret_name: my-secret`,
 			expectedConfig: &PrivateActionRunnerConfig{
 				Enabled:            true,
-				SelfEnroll:         true,
 				IdentitySecretName: "my-secret",
 			},
 		},
 		{
-			name: "null self-enroll uses default",
+			name: "null self-enroll leaves default to the Agent",
 			configData: `private_action_runner:
   enabled: true
   self_enroll: null`,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    true,
-				SelfEnroll: true,
+				Enabled: true,
 			},
 		},
 		{
-			name:       "empty private_action_runner mapping",
-			configData: `private_action_runner: {}`,
-			expectedConfig: &PrivateActionRunnerConfig{
-				SelfEnroll: true,
-			},
+			name:           "empty private_action_runner mapping",
+			configData:     `private_action_runner: {}`,
+			expectedConfig: &PrivateActionRunnerConfig{},
 		},
 		{
 			name:       "empty config",
 			configData: ``,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    false,
-				SelfEnroll: true,
+				Enabled: false,
 			},
 		},
 		{
@@ -139,8 +134,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: `private_action_runner: null`,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    false,
-				SelfEnroll: true,
+				Enabled: false,
 			},
 		},
 		{
@@ -148,8 +142,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: "private_action_runner:\n",
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    false,
-				SelfEnroll: true,
+				Enabled: false,
 			},
 		},
 		{
@@ -157,8 +150,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: `some_other_key: value`,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    false,
-				SelfEnroll: true,
+				Enabled: false,
 			},
 		},
 		{
@@ -171,8 +163,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: defaultConfigData,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    true,
-				SelfEnroll: true,
+				Enabled: true,
 			},
 		},
 	}
@@ -251,10 +242,10 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			},
 			expectedEnvVars: map[string]string{
 				DDPAREnabled:              "true",
-				DDPARSelfEnroll:           "false",
 				DDPARIdentityUseK8sSecret: "true",
 			},
 			notExpectedVars: []string{
+				DDPARSelfEnroll,
 				DDPARURN,
 				DDPARPrivateKey,
 				DDPARIdentitySecretName,
@@ -265,7 +256,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "self-enroll with custom secret name",
 			config: &PrivateActionRunnerConfig{
 				Enabled:            true,
-				SelfEnroll:         true,
+				SelfEnroll:         ptr.To(true),
 				IdentitySecretName: "my-custom-secret",
 			},
 			expectedEnvVars: map[string]string{
@@ -283,7 +274,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "manual enrollment with URN and private key",
 			config: &PrivateActionRunnerConfig{
 				Enabled:            true,
-				SelfEnroll:         false,
+				SelfEnroll:         ptr.To(false),
 				URN:                "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
 				PrivateKey:         "base64-encoded-key",
 				IdentitySecretName: "par-identity",
@@ -301,7 +292,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "with actions allowlist",
 			config: &PrivateActionRunnerConfig{
 				Enabled:    true,
-				SelfEnroll: true,
+				SelfEnroll: ptr.To(true),
 				ActionsAllowlist: []string{
 					"com.datadoghq.http.request",
 					"com.datadoghq.kubernetes.core.*",
@@ -319,7 +310,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "with task configuration",
 			config: &PrivateActionRunnerConfig{
 				Enabled:            true,
-				SelfEnroll:         true,
+				SelfEnroll:         ptr.To(true),
 				TaskConcurrency:    ptr.To[int32](10),
 				TaskTimeoutSeconds: ptr.To[int32](120),
 			},
@@ -335,7 +326,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "with HTTP configuration",
 			config: &PrivateActionRunnerConfig{
 				Enabled:            true,
-				SelfEnroll:         false,
+				SelfEnroll:         ptr.To(false),
 				HTTPTimeoutSeconds: ptr.To[int32](45),
 				HTTPAllowlist: []string{
 					"*.datadoghq.com",
@@ -356,7 +347,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "identity use k8s secret explicitly false",
 			config: &PrivateActionRunnerConfig{
 				Enabled:              true,
-				SelfEnroll:           false,
+				SelfEnroll:           ptr.To(false),
 				IdentityUseK8sSecret: ptr.To(false),
 				IdentityFilePath:     "/path/to/identity.json",
 			},
@@ -371,7 +362,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "complete configuration",
 			config: &PrivateActionRunnerConfig{
 				Enabled:               true,
-				SelfEnroll:            false,
+				SelfEnroll:            ptr.To(false),
 				IdentityUseK8sSecret:  ptr.To(true),
 				IdentitySecretName:    "custom-secret",
 				URN:                   "urn:dd:apps:on-prem-runner:us1:1:runner-xyz",
@@ -404,7 +395,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			name: "disabled config should not set enabled env var",
 			config: &PrivateActionRunnerConfig{
 				Enabled:    false,
-				SelfEnroll: true,
+				SelfEnroll: ptr.To(true),
 			},
 			expectedEnvVars: map[string]string{
 				DDPARSelfEnroll:           "true",
