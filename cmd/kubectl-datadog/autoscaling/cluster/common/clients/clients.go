@@ -230,8 +230,7 @@ func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterNam
 		})
 		if err != nil {
 			wrapped := fmt.Errorf("failed to describe EKS cluster %s: %w", clusterName, err)
-			var notFound *ekstypes.ResourceNotFoundException
-			if errors.As(err, &notFound) {
+			if _, ok := errors.AsType[*ekstypes.ResourceNotFoundException](err); ok {
 				return &ClusterLookupUnavailableError{Err: wrapped}
 			}
 			return wrapped
