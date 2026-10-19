@@ -1,0 +1,32 @@
+# Demo F: GPU node profile with an unsupported per-profile log collection setting.
+# Run: kubectl apply -f examples/admission-policy/demo-f.yaml
+# Expected: "logCollection override is not supported"; Warn still accepts the object.
+# GPU monitoring and Agent resources are supported profile overrides.
+# Configure log collection on the parent DatadogAgent instead.
+# Admission-only demo: no GPU nodes, running Agent, or real credentials are needed.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: demo-f-gpu
+  namespace: vap-demo
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: nvidia.com/gpu.present
+        operator: In
+        values:
+          - "true"
+  config:
+    features:
+      gpu:
+        enabled: true
+      logCollection:
+        enabled: true
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 500m
+                memory: 512Mi

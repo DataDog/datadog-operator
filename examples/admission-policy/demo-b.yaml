@@ -1,16 +1,13 @@
-# Demo B: Invalid annotation: must be exactly "true" or "false".
-# Run from the repository root after selecting your demo cluster context:
-# kubectl apply -f examples/admission-policy/demo-b.yaml
-# Reset before another take:
-# kubectl delete -f examples/admission-policy/demo-b.yaml --ignore-not-found --wait=true
-# Only the credential reference is validated; no real API key or Secret is needed here.
+# Demo B:
+#   invalid annotation: must be exactly "true" or "false"
+
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: demo-b
   namespace: vap-demo
   annotations:
-    agent.datadoghq.com/adp-enabled: "yes"
+    agent.datadoghq.com/adp-enabled: "truee"
 spec:
   global:
     credentials:

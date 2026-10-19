@@ -1,0 +1,31 @@
+# Demo F corrected: GPU monitoring and resources, without the unsupported override.
+# Run: kubectl apply -f examples/admission-policy/demo-f-fixed.yaml
+# Expected: no admission validation warning.
+# Uses the same name as demo-f.yaml; removing logCollection changes the spec,
+# so validation runs on UPDATE too. No delete is needed between bad and fixed.
+# Reset: kubectl delete -f examples/admission-policy/demo-f.yaml --ignore-not-found
+# This demonstrates admission validation, not deployment of a working GPU Agent.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: demo-f-gpu
+  namespace: vap-demo
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: nvidia.com/gpu.present
+        operator: In
+        values:
+          - "true"
+  config:
+    features:
+      gpu:
+        enabled: true
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 500m
+                memory: 512Mi

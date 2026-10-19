@@ -1,8 +1,6 @@
-# Demo E: Empty profile: profileAffinity must be defined; config must be defined.
-# Run from the repository root after selecting your demo cluster context:
-# kubectl apply -f examples/admission-policy/demo-e.yaml
-# Reset before another take:
-# kubectl delete -f examples/admission-policy/demo-e.yaml --ignore-not-found --wait=true
+# Demo E:
+#   empty profile: profileAffinity must be defined; config must be defined
+
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentProfile
 metadata:
