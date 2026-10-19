@@ -98,11 +98,40 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "omitted self-enroll defaults to true",
+			configData: `private_action_runner:
+  enabled: true
+  identity_secret_name: my-secret`,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled:            true,
+				SelfEnroll:         true,
+				IdentitySecretName: "my-secret",
+			},
+		},
+		{
+			name: "null self-enroll uses default",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: null`,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled:    true,
+				SelfEnroll: true,
+			},
+		},
+		{
+			name:       "empty private_action_runner mapping",
+			configData: `private_action_runner: {}`,
+			expectedConfig: &PrivateActionRunnerConfig{
+				SelfEnroll: true,
+			},
+		},
+		{
 			name:       "empty config",
 			configData: ``,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: false,
+				Enabled:    false,
+				SelfEnroll: true,
 			},
 		},
 		{
@@ -110,7 +139,8 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: `private_action_runner: null`,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: false,
+				Enabled:    false,
+				SelfEnroll: true,
 			},
 		},
 		{
@@ -118,7 +148,8 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: "private_action_runner:\n",
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: false,
+				Enabled:    false,
+				SelfEnroll: true,
 			},
 		},
 		{
@@ -126,7 +157,8 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: `some_other_key: value`,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: false,
+				Enabled:    false,
+				SelfEnroll: true,
 			},
 		},
 		{
@@ -139,7 +171,8 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			configData: defaultConfigData,
 			wantErr:    false,
 			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: true,
+				Enabled:    true,
+				SelfEnroll: true,
 			},
 		},
 	}

@@ -42,7 +42,7 @@ type PrivateActionRunnerConfig struct {
 	// Enabled controls whether the Private Action Runner is enabled
 	Enabled bool `yaml:"enabled"`
 
-	// SelfEnroll controls whether the runner should automatically enroll with Datadog
+	// SelfEnroll controls whether the runner should automatically enroll with Datadog (defaults to true).
 	// When true, the runner will automatically register and obtain credentials
 	// When false, urn and private_key must be provided
 	SelfEnroll bool `yaml:"self_enroll"`
@@ -104,13 +104,13 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 	config := struct {
 		PrivateActionRunner *PrivateActionRunnerConfig `yaml:"private_action_runner"`
 	}{
-		PrivateActionRunner: &PrivateActionRunnerConfig{},
+		PrivateActionRunner: &PrivateActionRunnerConfig{SelfEnroll: true},
 	}
 	if err := yaml.Unmarshal([]byte(configData), &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
 	if config.PrivateActionRunner == nil {
-		config.PrivateActionRunner = &PrivateActionRunnerConfig{}
+		config.PrivateActionRunner = &PrivateActionRunnerConfig{SelfEnroll: true}
 	}
 	return config.PrivateActionRunner, nil
 }
