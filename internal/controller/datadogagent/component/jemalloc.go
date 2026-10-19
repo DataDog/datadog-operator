@@ -25,6 +25,9 @@ func JemallocEnvVars(dda metav1.Object, image *v2alpha1.AgentImageConfig) []core
 	if dda.GetAnnotations()[EnableJemallocAnnotation] != "true" {
 		return nil
 	}
+	if dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.GKEAutopilotProvider {
+		return nil
+	}
 	// Windows profiles are transformed after defaults are built.
 	if dda.GetLabels()[constants.ProfileLabelKey] != "" && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
 		return nil

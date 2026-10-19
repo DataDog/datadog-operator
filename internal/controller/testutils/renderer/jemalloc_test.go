@@ -16,6 +16,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -158,6 +159,45 @@ func TestRender_JemallocVersionGate(t *testing.T) {
 				}
 				assertAllocatorEnvironment(t, pod.Containers, expected)
 				assertAllocatorEnvironment(t, pod.InitContainers, nil)
+			}
+			require.True(t, nodeFound)
+			require.True(t, runnerFound)
+		})
+	}
+}
+
+func TestRender_JemallocAutopilot(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		key   string
+		value string
+	}{
+		{"provider annotation", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider},
+		{"experimental annotation", experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey, "true"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dda, err := LoadDDA("testdata/comprehensive-dda.yaml")
+			require.NoError(t, err)
+			dda.Annotations = map[string]string{
+				component.EnableJemallocAnnotation: "true",
+				tt.key:                             tt.value,
+			}
+			objects, _, err := Render(Options{DDA: dda})
+			require.NoError(t, err)
+			var nodeFound, runnerFound bool
+			for _, object := range objects {
+				switch obj := object.(type) {
+				case *appsv1.DaemonSet:
+					nodeFound = true
+					assertAllocatorEnvironment(t, obj.Spec.Template.Spec.Containers, nil)
+					assertAllocatorEnvironment(t, obj.Spec.Template.Spec.InitContainers, nil)
+				case *appsv1.Deployment:
+					if obj.Labels[apicommon.AgentDeploymentComponentLabelKey] == constants.DefaultClusterChecksRunnerResourceSuffix {
+						runnerFound = true
+					}
+					assertAllocatorEnvironment(t, obj.Spec.Template.Spec.Containers, nil)
+					assertAllocatorEnvironment(t, obj.Spec.Template.Spec.InitContainers, nil)
+				}
 			}
 			require.True(t, nodeFound)
 			require.True(t, runnerFound)
