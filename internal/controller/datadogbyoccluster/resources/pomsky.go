@@ -58,7 +58,7 @@ const (
 const (
 	pomskyUserID                 int64 = 1005
 	startupProbePath                   = "/health/readyz"
-	startupProbeFailureThreshold int32 = 60 // 5m budget: non-metastore pods wait for the metastore on cold start
+	startupProbeFailureThreshold int32 = 60
 	startupProbePeriodSeconds    int32 = 5
 	livenessProbePath                  = "/health/livez"
 	livenessProbeTimeoutSeconds  int32 = 5
