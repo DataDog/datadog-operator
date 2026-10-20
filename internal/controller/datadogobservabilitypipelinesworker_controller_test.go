@@ -220,6 +220,61 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(service), service)).To(Succeed())
 	})
 
+	It("switches between Remote Config and a local pipeline", func() {
+		configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: worker.Name + "-pipeline", Namespace: worker.Namespace}}
+		setPipelineConfig := func(config *string) {
+			Eventually(func() error {
+				current := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current); err != nil {
+					return err
+				}
+				current.Spec.PipelineConfig = config
+				return k8sClient.Update(context.Background(), current)
+			}, timeout, interval).Should(Succeed())
+		}
+		statefulSet := func(g Gomega) *appsv1.StatefulSet {
+			current := &appsv1.StatefulSet{}
+			g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current)).To(Succeed())
+			return current
+		}
+
+		By("rendering the local pipeline")
+		setPipelineConfig(ptr.To("sources: {}\n"))
+		var checksum string
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), configMap)).To(Succeed())
+			g.Expect(configMap.Data).To(Equal(map[string]string{"pipeline.yaml": "sources: {}\n"}))
+			g.Expect(metav1.IsControlledBy(configMap, workerWithUID(g, worker))).To(BeTrue())
+			template := statefulSet(g).Spec.Template
+			g.Expect(template.Spec.Containers[0].Args).To(Equal([]string{"run", "--pipeline-config=/etc/observability-pipelines-worker/pipeline/pipeline.yaml", "--skip-key-validation"}))
+			checksum = template.Annotations["checksum/pipeline"]
+			g.Expect(checksum).NotTo(BeEmpty())
+		}, timeout, interval).Should(Succeed())
+
+		By("rolling the pods when the pipeline changes")
+		setPipelineConfig(ptr.To("sources: {}\nsinks: {}\n"))
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), configMap)).To(Succeed())
+			g.Expect(configMap.Data["pipeline.yaml"]).To(Equal("sources: {}\nsinks: {}\n"))
+			g.Expect(statefulSet(g).Spec.Template.Annotations["checksum/pipeline"]).NotTo(BeElementOf("", checksum))
+		}, timeout, interval).Should(Succeed())
+
+		By("removing the local pipeline when switching back to Remote Config")
+		setPipelineConfig(nil)
+		Eventually(func(g Gomega) {
+			g.Expect(apierrors.IsNotFound(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), &corev1.ConfigMap{}))).To(BeTrue())
+			template := statefulSet(g).Spec.Template
+			g.Expect(template.Annotations).NotTo(HaveKey("checksum/pipeline"))
+			g.Expect(template.Spec.Containers[0].Args).To(Equal([]string{"run"}))
+			for _, volume := range template.Spec.Volumes {
+				g.Expect(volume.Name).NotTo(Equal("pipeline-config"))
+			}
+			for _, mount := range template.Spec.Containers[0].VolumeMounts {
+				g.Expect(mount.Name).NotTo(Equal("pipeline-config"))
+			}
+		}, timeout, interval).Should(Succeed())
+	})
+
 	Context("when an unowned object has a managed name", func() {
 		var (
 			conflicting    *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
@@ -277,3 +332,10 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 		})
 	})
 })
+
+// workerWithUID reads the Worker back so owner checks can compare its UID.
+func workerWithUID(g Gomega, worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+	current := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+	g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current)).To(Succeed())
+	return current
+}
