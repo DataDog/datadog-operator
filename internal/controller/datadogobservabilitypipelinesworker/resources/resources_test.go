@@ -90,13 +90,16 @@ func TestResources_Objects(t *testing.T) {
 func TestResources_ObsoleteObjects(t *testing.T) {
 	ports := testWorker().Spec.Ports
 	metadata := metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"}
+	// The pipeline ConfigMap is named after the Worker plus a suffix, unlike the other resources.
+	pipelineConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline-pipeline", Namespace: "testing"}}
 	tests := []struct {
-		name        string
-		ports       []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort
-		identity    *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
-		autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
-		budget      *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
-		want        []client.Object
+		name           string
+		ports          []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort
+		identity       *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		autoscaling    *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		budget         *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		pipelineConfig *string
+		want           []client.Object
 	}{
 		{
 			name:  "disabled autoscaling and budget",
@@ -104,6 +107,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			want: []client.Object{
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
+				pipelineConfigMap,
 			},
 		},
 		{
@@ -111,6 +115,14 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			ports:       ports,
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
 			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			want:        []client.Object{pipelineConfigMap},
+		},
+		{
+			name:           "local pipeline keeps its ConfigMap",
+			ports:          ports,
+			autoscaling:    &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
+			budget:         &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			pipelineConfig: ptr.To("sources: {}"),
 		},
 		{
 			name:        "no ports and existing ServiceAccount",
@@ -120,6 +132,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			want: []client.Object{
 				&corev1.Service{ObjectMeta: metadata},
 				&corev1.ServiceAccount{ObjectMeta: metadata},
+				pipelineConfigMap,
 			},
 		},
 		{
@@ -128,6 +141,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			identity:    &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("byoc-pipeline")},
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
 			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			want:        []client.Object{pipelineConfigMap},
 		},
 	}
 
@@ -138,6 +152,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			worker.Spec.Identity = tt.identity
 			worker.Spec.Autoscaling = tt.autoscaling
 			worker.Spec.PodDisruptionBudget = tt.budget
+			worker.Spec.PipelineConfig = tt.pipelineConfig
 			resources, err := BuildResources(worker)
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
