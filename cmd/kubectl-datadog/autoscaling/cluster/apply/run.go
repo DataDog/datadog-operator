@@ -115,6 +115,14 @@ func DDKarpenterStackName(clusterName string) string {
 	return "dd-karpenter-" + clusterName + "-dd-karpenter"
 }
 
+// KarpenterControllerRoleName returns the name of the IAM role assumed by the
+// Karpenter controller, through IRSA in fargate mode and through EKS Pod
+// Identity in existing-nodes mode. It must match the RoleName declared in
+// assets/dd-karpenter-fargate.yaml and assets/dd-karpenter.yaml.
+func KarpenterControllerRoleName(clusterName string) string {
+	return clusterName + "-karpenter"
+}
+
 // InstallModeTagKey is the CloudFormation stack tag tracking the deployment's
 // install-mode. Stacks created before this tag was introduced have no tag and
 // are treated as install-mode=existing-nodes.
