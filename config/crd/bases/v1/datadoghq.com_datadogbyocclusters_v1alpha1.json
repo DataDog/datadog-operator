@@ -23668,7 +23668,6 @@
                 },
                 "required": [
                   "name",
-                  "pipelineID",
                   "ports"
                 ],
                 "type": "object"

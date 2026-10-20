@@ -327,8 +327,9 @@ type DatadogBYOCClusterPipelineSpec struct {
 type DatadogBYOCClusterPipelineComponentSpec struct {
 	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`
 
-	// PipelineID identifies an existing Observability Pipeline to use.
-	// +kubebuilder:validation:Required
+	// PipelineID identifies an existing Observability Pipeline to use. It must be a UUID.
+	// A Worker requires it unless pipelineConfig is set; a DatadogBYOCCluster pipeline always requires it.
+	// +optional
 	// +kubebuilder:validation:MinLength=1
 	PipelineID *string `json:"pipelineID,omitempty"`
 

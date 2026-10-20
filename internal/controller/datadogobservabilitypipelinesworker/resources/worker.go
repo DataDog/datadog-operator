@@ -23,6 +23,14 @@ const (
 	DataDirectory        = "/var/lib/observability-pipelines-worker"
 )
 
+// Local mode mounts spec.pipelineConfig from an owned ConfigMap and rolls pods when it changes.
+const (
+	pipelineConfigVolumeName   = "pipeline-config"
+	pipelineConfigDir          = "/etc/observability-pipelines-worker/pipeline"
+	pipelineConfigFileName     = "pipeline.yaml"
+	pipelineChecksumAnnotation = "checksum/pipeline"
+)
+
 const (
 	probeInitialDelaySeconds       int32 = 15
 	probeTimeoutSeconds            int32 = 15
