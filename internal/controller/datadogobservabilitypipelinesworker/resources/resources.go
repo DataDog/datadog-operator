@@ -19,6 +19,7 @@ import (
 
 // Resources is the complete set of Kubernetes resources rendered for a Worker.
 type Resources struct {
+	ConfigMap           *corev1.ConfigMap
 	Service             *corev1.Service
 	ServiceAccount      *corev1.ServiceAccount
 	StatefulSet         *appsv1.StatefulSet
@@ -35,6 +36,9 @@ func (r *Resources) Objects() []client.Object {
 	}
 	if r.Service != nil {
 		objects = append(objects, r.Service)
+	}
+	if r.ConfigMap != nil {
+		objects = append(objects, r.ConfigMap)
 	}
 	objects = append(objects, r.StatefulSet)
 	if r.HPA != nil {
@@ -66,6 +70,9 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	r := &Resources{
 		StatefulSet:         newStatefulSet(objectMeta(worker), selectorLabels(worker), newPodTemplate(worker, image), worker.Name, &worker.Spec.DatadogBYOCClusterStatefulComponentSpec),
 		PodDisruptionBudget: podDisruptionBudget,
+	}
+	if worker.Spec.PipelineConfig != nil {
+		r.ConfigMap = newPipelineConfigMap(worker)
 	}
 	if autoscaling := worker.Spec.Autoscaling; autoscaling != nil {
 		r.HPA = newHPA(objectMeta(worker), autoscaling)

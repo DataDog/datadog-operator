@@ -14939,7 +14939,6 @@ spec:
                             x-kubernetes-list-type: map
                         required:
                           - name
-                          - pipelineID
                           - ports
                         type: object
                       minItems: 1
