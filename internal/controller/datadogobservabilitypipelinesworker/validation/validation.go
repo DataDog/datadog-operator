@@ -15,9 +15,11 @@ package validation
 import (
 	"cmp"
 	"path"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
@@ -31,6 +33,7 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 	errs := byocvalidation.ValidateStatefulComponent(&spec.DatadogBYOCClusterStatefulComponentSpec, path)
 	errs = append(errs, validatePorts(spec.Ports, path.Child("ports"))...)
 	errs = append(errs, validateReservedNames(spec, path)...)
+	errs = append(errs, validatePipeline(spec, path)...)
 	if spec.Datadog != nil && spec.Datadog.APIKeySecretRef != nil && spec.Datadog.APIKeySecretRef.Name == "" {
 		errs = append(errs, field.Required(path.Child("datadog", "apiKeySecretRef", "name"), "name must be specified"))
 	}
@@ -47,6 +50,29 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 		errs = append(errs, field.Required(imagePath.Child("digest"), "digest must be non-empty"))
 	}
 	return errs
+}
+
+// validatePipeline requires a pipeline source and checks that a local pipeline is a single YAML mapping.
+func validatePipeline(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec, fieldPath *field.Path) field.ErrorList {
+	if spec.PipelineConfig == nil {
+		if spec.PipelineID == nil {
+			return field.ErrorList{field.Required(fieldPath.Child("pipelineID"), "pipelineID or pipelineConfig must be specified")}
+		}
+		return nil
+	}
+	configPath := fieldPath.Child("pipelineConfig")
+	// sigs.k8s.io/yaml decodes only the first document, so later documents would be silently dropped.
+	if strings.Contains(*spec.PipelineConfig, "\n---") {
+		return field.ErrorList{field.Invalid(configPath, nil, "must contain a single YAML document")}
+	}
+	var pipeline map[string]any
+	if err := yaml.Unmarshal([]byte(*spec.PipelineConfig), &pipeline); err != nil {
+		return field.ErrorList{field.Invalid(configPath, nil, "must be a YAML mapping: "+err.Error())}
+	}
+	if len(pipeline) == 0 {
+		return field.ErrorList{field.Invalid(configPath, nil, "must be a non-empty YAML mapping")}
+	}
+	return nil
 }
 
 // validatePorts rejects ports that collide with the Worker API port or with each other.
