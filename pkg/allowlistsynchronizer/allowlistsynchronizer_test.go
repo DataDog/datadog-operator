@@ -57,12 +57,12 @@ func TestResolveCSIWorkloadAllowlistVersion(t *testing.T) {
 
 func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
-	assert.Equal(t, "v1.0.6", DefaultWorkloadAllowlistVersion)
+	assert.Equal(t, "v1.0.7", DefaultWorkloadAllowlistVersion)
 }
 
 func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
-	assert.Equal(t, "v1.1.1", DefaultCSIWorkloadAllowlistVersion)
+	assert.Equal(t, "v1.1.2", DefaultCSIWorkloadAllowlistVersion)
 }
 
 func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
@@ -77,7 +77,7 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 		{
 			name:       "default version",
 			version:    DefaultWorkloadAllowlistVersion,
-			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.6.yaml",
+			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
 		},
 		{
 			name:       "user override",
@@ -117,15 +117,15 @@ func TestApplyCSIAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 			name:    "default version retains previous version",
 			version: DefaultCSIWorkloadAllowlistVersion,
 			expectPaths: []string{
-				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
 				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.1.yaml",
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.2.yaml",
 			},
 		},
 		{
 			name:    "previous version override is not duplicated",
 			version: previousCSIWorkloadAllowlistVersion,
 			expectPaths: []string{
-				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.1.yaml",
 			},
 		},
 		{
@@ -216,8 +216,8 @@ func TestApplyCSIAllowlistSynchronizerResource_UpdatesExistingResource(t *testin
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
 	assert.Equal(t, []string{
-		"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
 		"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.1.yaml",
+		"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.2.yaml",
 	}, got.Spec.AllowlistPaths)
 	assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
 	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])

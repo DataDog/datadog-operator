@@ -18,3 +18,9 @@ rules:
   - datadogagents/status
   verbs:
   - get
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogagentinternals
+  verbs:
+  - list

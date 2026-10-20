@@ -47,7 +47,6 @@ type privateActionRunnerFeature struct {
 	nodeEnabled               bool
 	nodeConfigData            string
 	splitEnabled              bool
-	splitConfigErr            error
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
 	clusterConfig             *PrivateActionRunnerConfig
@@ -71,18 +70,15 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
-		if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
+		// Split mode is the default unless explicitly disabled or the image is known to be too old.
+		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
 			image := images.GetLatestAgentImage()
 			if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
 				image = images.OverrideAgentImage(image, override.Image)
 			}
 			image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
 			version := common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
-			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(false)) {
-				f.splitEnabled = true
-			} else {
-				f.splitConfigErr = fmt.Errorf("private action runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)
-			}
+			f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
 		}
 
 		// Use config data from annotation directly, or fall back to default
@@ -268,9 +264,6 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	}
 	if f.systemdConfigErr != nil {
 		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
-	}
-	if f.splitConfigErr != nil {
-		return f.splitConfigErr
 	}
 
 	configMapName := f.getConfigMapName()

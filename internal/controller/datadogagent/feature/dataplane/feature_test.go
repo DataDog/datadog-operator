@@ -86,7 +86,7 @@ func Test_dataPlaneFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithDataPlaneDogstatsdEnabled(true).
-				WithNodeAgentImage("agent:7.83.0-rc.5").
+				WithNodeAgentImage("agent:7.84.0-rc.5").
 				BuildWithDefaults(),
 			FeatureOptions: &feature.Options{
 				DefaultDataPlaneEnabled: true,

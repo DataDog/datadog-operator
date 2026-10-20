@@ -37,6 +37,15 @@ func TestContainer(t *testing.T) {
 	systemProbeContainer := &corev1.Container{
 		Name: string(apicommon.SystemProbeContainerName),
 	}
+	hostProfilerContainer := &corev1.Container{
+		Name: string(apicommon.HostProfiler),
+		SecurityContext: &corev1.SecurityContext{
+			SeccompProfile: &corev1.SeccompProfile{
+				Type:             corev1.SeccompProfileTypeLocalhost,
+				LocalhostProfile: ptr.To("host-profiler-seccomp"),
+			},
+		},
+	}
 	tests := []struct {
 		name            string
 		containerName   apicommon.AgentContainerName
@@ -869,6 +878,63 @@ func TestContainer(t *testing.T) {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
 							ReadOnlyRootFilesystem: ptr.To(false),
+						},
+						container.SecurityContext)
+				})
+			},
+		},
+		{
+			name:          "custom security context preserves operator seccomp profile",
+			containerName: apicommon.HostProfiler,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*hostProfilerContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SecurityContext: &corev1.SecurityContext{
+					RunAsUser: ptr.To[int64](12345),
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							RunAsUser:                ptr.To[int64](12345),
+							ReadOnlyRootFilesystem:   ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
+							SeccompProfile: &corev1.SeccompProfile{
+								Type:             corev1.SeccompProfileTypeLocalhost,
+								LocalhostProfile: ptr.To("host-profiler-seccomp"),
+							},
+						},
+						container.SecurityContext)
+				})
+			},
+		},
+		{
+			name:          "custom seccomp profile takes precedence",
+			containerName: apicommon.HostProfiler,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*hostProfilerContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SecurityContext: &corev1.SecurityContext{
+					SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							ReadOnlyRootFilesystem: ptr.To(true),
+							SeccompProfile:         &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
 						},
 						container.SecurityContext)
 				})

@@ -56,16 +56,6 @@ const (
 var managedAgentInstallationDeletePollInterval = time.Second
 var managedAgentInstallationDeleteTimeout = 3 * time.Minute
 
-var allowedManagedAgentInstallationSites = map[string]struct{}{
-	"datadoghq.com":     {},
-	"datadoghq.eu":      {},
-	"us3.datadoghq.com": {},
-	"us5.datadoghq.com": {},
-	"ddog-gov.com":      {},
-	"ap1.datadoghq.com": {},
-	"ap2.datadoghq.com": {},
-}
-
 type datadogAgentManagedAgentInstallationConfig struct {
 	Spec *v2alpha1.DatadogAgentSpec `json:"spec"`
 }

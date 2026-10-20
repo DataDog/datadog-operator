@@ -265,6 +265,10 @@ type DatadogAgentReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (ctrl.Result, error) {
+	// Get the logger from context (already has namespace, name, reconcileID from controller-runtime)
+	// Add our controller name - this enriched logger will be available to all downstream functions
+	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogAgent")
+	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, dda)
 }
 
@@ -341,6 +345,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).Complete(or); err != nil {
 		return err
 	}
+
+	r.Options.APIReader = mgr.GetAPIReader()
 
 	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
 	if err != nil {

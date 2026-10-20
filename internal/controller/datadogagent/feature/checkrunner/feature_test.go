@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -38,7 +39,14 @@ func Test_checkRunnerFeature(t *testing.T) {
 		Name:  ddCheckRunnerEndpointsIPCEndpoint,
 		Value: "http://localhost:5105",
 	}
-	checkRunnerEnvVars := []*corev1.EnvVar{standaloneModeEnvVar, ipcEnabledEnvVar, ipcEndpointEnvVar}
+	checkRunnerEnvVars := []*corev1.EnvVar{checkRunnerEnabledEnvVar, standaloneModeEnvVar, ipcEnabledEnvVar, ipcEndpointEnvVar}
+	// ADP-side counterpart: without this ADP never serves the Checks IPC endpoint ACR sends to.
+	dataPlaneChecksEnabledEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneChecksEnabled,
+		Value: "true",
+	}
+
+	allEnvVars := append(append([]*corev1.EnvVar{}, checkRunnerEnvVars...), dataPlaneChecksEnabledEnvVar)
 
 	tests := test.FeatureTestSuite{
 		{
@@ -50,9 +58,32 @@ func Test_checkRunnerFeature(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.NotContains(t, agentEnvVars, checkRunnerEnabledEnvVar, "DD_CHECK_RUNNER_ENABLED should not be set when the Check Runner is not enabled")
+					for _, e := range allEnvVars {
+						assert.NotContains(t, agentEnvVars, e, "%s should not be set when the Check Runner is not enabled", e.Name)
+					}
 				},
 			),
+		},
+		{
+			Name: "check runner enabled via annotation, data plane disabled (default)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{
+					featureutils.EnableCheckRunnerAnnotation: "true",
+				}).
+				BuildWithDefaults(),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
+		},
+		{
+			Name: "check runner enabled via annotation, data plane explicitly disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{
+					featureutils.EnableCheckRunnerAnnotation: "true",
+				}).
+				WithDataPlaneEnabled(false).
+				BuildWithDefaults(),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
 		},
 		{
 			Name: "check runner enabled via annotation",
@@ -60,31 +91,25 @@ func Test_checkRunnerFeature(t *testing.T) {
 				WithAnnotations(map[string]string{
 					featureutils.EnableCheckRunnerAnnotation: "true",
 				}).
+				WithDataPlaneEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-					// The Core Agent owns check_runner.enabled and publishes it to ACR over RAR.
+					// Everything is set on the Core Agent: it publishes them over ConfigStream.
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, checkRunnerEnabledEnvVar, "DD_CHECK_RUNNER_ENABLED should be set on the core agent")
-					for _, e := range checkRunnerEnvVars {
-						assert.NotContains(t, agentEnvVars, e, "%s is ACR's own config and should not be set on the core agent", e.Name)
+					for _, e := range allEnvVars {
+						assert.Contains(t, agentEnvVars, e, "%s should be set on the core agent", e.Name)
 					}
 
-					// ACR's own settings.
-					crEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentCheckRunnerContainerName]
-					for _, e := range checkRunnerEnvVars {
-						assert.Contains(t, crEnvVars, e, "%s should be set on the check runner", e.Name)
-					}
-					assert.NotContains(t, crEnvVars, checkRunnerEnabledEnvVar, "DD_CHECK_RUNNER_ENABLED is a core agent setting and should not be set on the check runner")
-
-					// No adapter is configured by the operator: which adapters ACR loads is
-					// left to spec.override.nodeAgent.containers.agent-check-runner.env so it
-					// can be flipped without an operator release.
-					for _, e := range crEnvVars {
-						assert.NotContains(t, e.Name, "ADAPTERS", "the operator should not pin an adapter; got %s", e.Name)
+					// Nothing is set directly on the ACR or ADP containers
+					for _, container := range []apicommon.AgentContainerName{apicommon.AgentCheckRunnerContainerName, apicommon.AgentDataPlaneContainerName} {
+						envVars := mgr.EnvVarMgr.EnvVarsByC[container]
+						for _, e := range allEnvVars {
+							assert.NotContains(t, envVars, e, "%s should not be set directly on %s; it flows through RAR", e.Name, container)
+						}
 					}
 				},
 			),
@@ -95,21 +120,16 @@ func Test_checkRunnerFeature(t *testing.T) {
 				WithAnnotations(map[string]string{
 					featureutils.EnableCheckRunnerAnnotation: "true",
 				}).
+				WithDataPlaneEnabled(true).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			// Under the single container strategy ACR runs as an s6 service inside the one
-			// container, so both env vars must land there. Targeting the optimized-mode
-			// container names instead would be silently dropped (this is the ADP bug we do
-			// not reproduce). The suite dispatches to ManageSingleContainerNodeAgent on its
-			// own once BuildFeatures collapses the required containers.
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 					singleEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName]
-					assert.Contains(t, singleEnvVars, checkRunnerEnabledEnvVar, "DD_CHECK_RUNNER_ENABLED should be set on the single agent container")
-					for _, e := range checkRunnerEnvVars {
+					for _, e := range allEnvVars {
 						assert.Contains(t, singleEnvVars, e, "%s should be set on the single agent container", e.Name)
 					}
 				},

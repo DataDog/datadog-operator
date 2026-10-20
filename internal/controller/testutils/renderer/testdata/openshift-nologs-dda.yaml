@@ -1,0 +1,26 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: test-cluster
+    # Fixed so the generated cluster-agent token Secret is deterministic for golden files.
+    clusterAgentToken: golden-fixed-cluster-agent-token-0000000000
+  features:
+    apm:
+      enabled: true
+    # Log collection explicitly disabled. Guards that spc_t is still injected: the
+    # node agent needs the super-privileged type for /proc, /sys/fs/cgroup, the
+    # runtime socket and the system-probe seccomp profile, not for reading pod logs.
+    logCollection:
+      enabled: false
+    liveProcessCollection:
+      enabled: true

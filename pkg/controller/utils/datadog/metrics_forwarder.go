@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"maps"
+	"math/rand/v2"
 	"os"
 	"strings"
 	"sync"
@@ -103,6 +104,30 @@ func hashKeys(apiKey string) uint64 {
 	return h.Sum64()
 }
 
+// jitteredDelay returns a random duration in [0, d), used to stagger forwarder
+// start times so a bulk-created batch of CRs doesn't tick in lockstep.
+func jitteredDelay(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	return rand.N(d)
+}
+
+// jitteredInterval returns a duration in [90% of d, 110% of d), keeping the
+// average send cadence close to d while preventing forwarders that complete at
+// the same time from remaining in lockstep.
+func jitteredInterval(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+
+	spread := d / 10
+	if spread == 0 {
+		return d
+	}
+	return d - spread + rand.N(2*spread)
+}
+
 // metricsForwarder sends metrics directly to Datadog using the public API
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
@@ -175,9 +200,30 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 // it starts sending deployment metrics once the connection is validated
 // designed to run a separate goroutine and stopped using the stop method
 func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
+	mf.startWithDelays(wg, jitteredDelay, jitteredInterval)
+}
+
+// startWithDelays contains the forwarder run loop. Delay functions are passed
+// in so timer behavior can be tested deterministically with a fake clock.
+func (mf *metricsForwarder) startWithDelays(wg *sync.WaitGroup, initialDelay, recurringDelay func(time.Duration) time.Duration) {
 	defer wg.Done()
 
 	mf.logger.Info("Starting Datadog metrics forwarder")
+
+	// Delay initialization by a random amount so a batch of CRs created
+	// together don't all issue their credential-validation call and
+	// CR-detected event to the Datadog API in the same instant; the
+	// periodic-send jitter below only takes effect afterward, once this
+	// initial connection has already succeeded.
+	startupTimer := time.NewTimer(initialDelay(mf.sendMetricsInterval))
+	defer startupTimer.Stop()
+	select {
+	case <-startupTimer.C:
+	case <-mf.stopChan:
+		// stopChan was closed while waiting to start initializing
+		mf.logger.Info("Datadog metrics forwarder shut down before initialization started")
+		return
+	}
 
 	// Create a context that gets cancelled when stopChan is closed
 	ctx := wait.ContextForChannel(mf.stopChan)
@@ -205,8 +251,13 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		mf.logger.Error(err, "an error occurred while sending event")
 	}
 
-	metricsTicker := time.NewTicker(mf.sendMetricsInterval)
-	defer metricsTicker.Stop()
+	// The first send is spread across the full interval. Subsequent sends use a
+	// slightly jittered interval and are scheduled only after the previous send
+	// finishes, avoiding the immediate catch-up send that a queued ticker tick
+	// can cause after a slow request.
+	metricsTimer := time.NewTimer(initialDelay(mf.sendMetricsInterval))
+	defer metricsTimer.Stop()
+
 	for {
 		select {
 		case <-mf.stopChan:
@@ -221,10 +272,11 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 			}
 			mf.logger.Info("Datadog metrics forwarder shut down after sending final metrics")
 			return
-		case <-metricsTicker.C:
+		case <-metricsTimer.C:
 			if err := mf.forwardMetrics(); err != nil {
 				mf.logger.Error(err, "an error occurred while sending metrics")
 			}
+			metricsTimer.Reset(recurringDelay(mf.sendMetricsInterval))
 		case reconcileErr := <-mf.errorChan:
 			if err := mf.processReconcileError(reconcileErr); err != nil {
 				mf.logger.Error(err, "an error occurred while processing reconcile metrics")
