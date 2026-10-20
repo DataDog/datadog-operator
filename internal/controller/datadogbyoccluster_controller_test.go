@@ -116,6 +116,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Finalizers: []string{"finalizer.datadoghq.com/datadogbyoccluster"},
 				},
 				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs),
 					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
 						Tag: ptr.To(byocSuccessReleaseTag),
 					},
@@ -463,6 +464,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Finalizers: []string{"finalizer.datadoghq.com/datadogbyoccluster"},
 				},
 				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs),
 					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
 						Tag: ptr.To(byocFailureReleaseTag),
 					},
