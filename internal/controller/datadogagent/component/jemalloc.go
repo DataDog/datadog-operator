@@ -11,6 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -25,7 +26,7 @@ func JemallocEnvVars(dda metav1.Object, image *v2alpha1.AgentImageConfig) []core
 	if dda.GetAnnotations()[EnableJemallocAnnotation] != "true" {
 		return nil
 	}
-	if dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.GKEAutopilotProvider {
+	if experimental.IsAutopilotEnabled(dda) {
 		return nil
 	}
 	// Windows profiles are transformed after defaults are built.
