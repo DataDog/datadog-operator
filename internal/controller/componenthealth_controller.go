@@ -133,12 +133,8 @@ type ComponentHealthReconciler struct {
 	reported map[componentIssueKey]*componentIssueState
 	resolved map[componentIssueKey]resolvedIssue
 
-	// seeded is closed by the startup resolve sweep (see Start) once seeding has
-	// completed. Reconcile defers (requeues) until it is closed so the authoritative
-	// watch stream never applies a pod update concurrently with — and then loses to —
-	// the seed replaying a staler listed version of the same pod. After it is closed,
-	// every reconcile runs on top of the seeded state with fresh cache data, so the
-	// newest observation always wins.
+	// seeded is closed after startup initializes issue state from existing pods.
+	// Reconcile waits for it so startup cannot overwrite a newer pod observation.
 	seeded chan struct{}
 }
 
@@ -161,11 +157,7 @@ func NewComponentHealthReconciler(c client.Client, log logr.Logger) *ComponentHe
 // Reconcile evaluates a single managed component pod and folds its detected
 // issues into the component-level state, emitting only the resulting transitions.
 func (r *ComponentHealthReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// Defer reconciliation until the startup resolve sweep has seeded state. This
-	// serializes the two concurrent, leader-elected runnables: without it a reconcile
-	// of the current (recovered) pod can be overwritten by the seed replaying a staler
-	// listed version, leaving a healthy component stuck reporting an ACTIVE issue. The
-	// enqueued event is preserved by the requeue and reprocessed once seeding is done.
+	// Retry after startup has initialized issue state.
 	select {
 	case <-r.seeded:
 	default:
@@ -389,9 +381,8 @@ func sortIssues(issues []componenthealth.ComponentIssue) {
 // active-issue set to the emitter. It implements manager.Runnable and is
 // registered with the manager in SetupWithManager.
 //
-// Before entering the loop it runs a one-shot startup resolve sweep
-// (seedAndSweep) to close the restart resolve-gap, then emits an initial snapshot
-// so any stale issue is cleared promptly rather than waiting a full interval.
+// Before the loop it runs seedAndSweep once, then emits an initial snapshot so
+// recovered issues clear promptly instead of waiting a full interval.
 func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
 	r.log.Info("Starting component health snapshot loop", "interval", r.snapshotInterval)
 
@@ -400,9 +391,8 @@ func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
 		// pre-restart issue that cleared during downtime falls back to backend TTL.
 		r.log.Error(err, "component health startup resolve sweep failed; pre-restart issues that cleared during downtime will clear via backend TTL instead")
 	}
-	// Release deferred reconciles: seeding is done (or failed), so the watch stream
-	// may now apply updates on top of the seeded state. Closed even on sweep error so
-	// reconciliation never stays blocked.
+	// Release deferred reconciles. Closed even on sweep error so reconciliation
+	// never stays blocked.
 	close(r.seeded)
 	r.emitSnapshot(ctx)
 
@@ -418,28 +408,12 @@ func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
 	}
 }
 
-// seedAndSweep closes the restart resolve-gap. State is in-memory, so an issue
-// that was active before an operator restart and cleared while the operator was
-// down leaves no in-memory state: no present->absent transition ever fires and
-// the backend would only clear it via TTL.
+// seedAndSweep loads active issues from existing component pods, then queues
+// RESOLVED signals for the remaining issue types. This clears issues that
+// recovered while the operator was stopped.
 //
-// It runs once at startup, after the cache has synced (leader-elected runnables
-// start post-sync), and does two things under a deterministic view of the current
-// pods rather than relying on a timer:
-//
-//  1. Seeds in-memory state by folding every managed pod currently in the cache
-//     through reconcilePod, so the active set is accurate before anything is
-//     resolved — avoiding a spurious resolve/re-declare flap for issues that are
-//     still active but not yet re-observed.
-//  2. Queues an explicit RESOLVED signal for every catalog issue type that is not
-//     active on an observed component. Because the pre-restart state is gone,
-//     detection can't tell a genuinely-cleared issue apart from one that was never
-//     active, so it resolves the whole catalog for each observed component; the
-//     backend treats a RESOLVED for an issue it isn't tracking as a no-op.
-//
-// The sweep is scoped to components whose pods are observed now, so an issue for a
-// component whose pods were all deleted during downtime is not swept and falls
-// back to backend TTL.
+// Components with no remaining pods are skipped; their previous issues expire
+// through the backend TTL.
 func (r *ComponentHealthReconciler) seedAndSweep(ctx context.Context) error {
 	ls := managedComponentLabelSelector()
 	sel, err := metav1.LabelSelectorAsSelector(&ls)
@@ -487,9 +461,7 @@ func (r *ComponentHealthReconciler) sweepResolved(observed map[componentScope]st
 			if _, pending := r.resolved[key]; pending {
 				continue
 			}
-			// firstSeen/lastSeen are unknown for a blind resolve; only resolvedAt is
-			// meaningful. The genuinely-stuck issue this clears is matched by the
-			// backend on identity, not timestamps.
+			// Only resolvedAt is known here; the backend matches on issue identity.
 			r.resolved[key] = resolvedIssue{resolvedAt: now}
 		}
 	}
