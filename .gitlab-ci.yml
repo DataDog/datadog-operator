@@ -248,17 +248,22 @@ prepare_e2e_plugins:
     - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
   script:
     - |
-      # Resolve the Go program's dependencies so Pulumi can discover plugins.
-      # Go modules/build outputs stay in this pod; only plugins are artifacts.
+      # Build E2E packages once, independently of core checks and image builds.
+      # Match the consumers' coverage instrumentation and cap parallel linking
+      # to stay within the pod memory limit. No E2E tests are executed here.
       pushd test/e2e
       GOWORK=off go mod download
+      GOWORK=off go test -p 2 ./... -count=1 --tags=e2e -cover -run '^$'
       GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
       popd
       tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
+      # Only E2E jobs download this pipeline's module and build caches.
+      tar c --use-compress-program="xz -T${KUBERNETES_CPU_REQUEST}" -f "$CI_PROJECT_DIR/e2e_go_cache.tar.xz" -C "$CI_PROJECT_DIR" .go/pkg/mod .cache/go-build
   artifacts:
     expire_in: 1 day
     paths:
       - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
+      - $CI_PROJECT_DIR/e2e_go_cache.tar.xz
 
 .on_run_e2e_base:
   - *skip_e2e_on_release_bundle_branch
@@ -319,7 +324,9 @@ prepare_e2e_plugins:
     E2E_KEY_PAIR_NAME: ci.datadog-operator
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   before_script:
-    # Extract the plugins artifact prepared once for this pipeline.
+    # Restore the Go caches and plugins prepared once for this pipeline.
+    - tar xJf e2e_go_cache.tar.xz -C "$CI_PROJECT_DIR"
+    - rm -f e2e_go_cache.tar.xz
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
     - rm -f pulumi_plugins.tar.xz
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
@@ -350,7 +357,9 @@ prepare_e2e_plugins:
     E2E_KEY_PAIR_NAME: ci.datadog-operator
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   before_script:
-    # Extract the plugins artifact prepared once for this pipeline.
+    # Restore the Go caches and plugins prepared once for this pipeline.
+    - tar xJf e2e_go_cache.tar.xz -C "$CI_PROJECT_DIR"
+    - rm -f e2e_go_cache.tar.xz
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
     - rm -f pulumi_plugins.tar.xz
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
@@ -624,6 +633,8 @@ e2e_untaint:
 
 publish_public_main:
   stage: release
+  # Images are read from the registry; do not download E2E preparation artifacts.
+  dependencies: []
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
@@ -644,6 +655,8 @@ publish_public_main_fips:
 
 publish_public_tag:
   stage: release
+  # Images are read from the registry; do not download E2E preparation artifacts.
+  dependencies: []
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -666,6 +679,8 @@ publish_public_tag_fips:
 
 publish_redhat_public_tag:
   stage: release
+  # Images are read from the registry; do not download E2E preparation artifacts.
+  dependencies: []
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
