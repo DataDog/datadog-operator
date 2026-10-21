@@ -39,7 +39,7 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 		return err
 	}
 
-	if err := r.profilesCleanup(ctx); err != nil {
+	if err := r.profilesCleanup(ctx, obj.GetLabels()[constants.ProfileLabelKey]); err != nil {
 		return err
 	}
 
@@ -47,26 +47,26 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 	return nil
 }
 
-// profilesCleanup performs the cleanups required for the profiles feature. The
-// only thing that we need to do is to ensure that no nodes are left with the
-// profile label.
-func (r *Reconciler) profilesCleanup(ctx context.Context) error {
+// profilesCleanup removes the profile label from the nodes of the profile whose
+// DDAI is deleted. The default DDAI has no profile name, so it cleans no nodes.
+func (r *Reconciler) profilesCleanup(ctx context.Context, profileName string) error {
 	nodeList := corev1.NodeList{}
 	if err := r.client.List(ctx, &nodeList); err != nil {
 		return err
 	}
 
 	for _, node := range nodeList.Items {
-		_, profileLabelExists := node.Labels[constants.ProfileLabelKey]
+		profileLabelValue, profileLabelExists := node.Labels[constants.ProfileLabelKey]
 		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
-		if !profileLabelExists && !oldProfileLabelExists {
+		removeProfileLabel := profileLabelExists && profileLabelValue == profileName
+		if !removeProfileLabel && !oldProfileLabelExists {
 			continue
 		}
 
 		newLabels := map[string]string{}
 		for k, v := range node.Labels {
 			// Remove profile labels from nodes
-			if k == agentprofile.OldProfileLabelKey || k == constants.ProfileLabelKey {
+			if k == agentprofile.OldProfileLabelKey || (k == constants.ProfileLabelKey && removeProfileLabel) {
 				continue
 			}
 			newLabels[k] = v
