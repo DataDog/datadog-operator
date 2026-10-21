@@ -226,7 +226,16 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 			for _, payload := range payloads {
 				totalContainers += len(payload.Containers)
 			}
-			assert.Greater(c, totalContainers, 0, "expected fake intake-ingested live containers to not be empty")
+			// The process check also collects containers and replaces the standalone
+			// container check when process collection or service discovery is enabled.
+			processPayloads, err := s.Env().FakeIntake.Client().GetProcesses()
+			if !assert.NoError(c, err) {
+				return
+			}
+			for _, payload := range processPayloads {
+				totalContainers += len(payload.Containers)
+			}
+			assert.Greater(c, totalContainers, 0, "expected fake intake-ingested live containers to not be empty (container payloads: %d, process payloads: %d)", len(payloads), len(processPayloads))
 		}, 5*time.Minute, 30*time.Second, "could not validate GKE Autopilot live containers in time")
 	})
 	if s.T().Failed() {
