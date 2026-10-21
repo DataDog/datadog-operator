@@ -2289,21 +2289,29 @@ spec:
                             Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
                             At least one channel must be enabled; both can be enabled at the same time.
                           properties:
-                            par:
-                              description: |-
-                                PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
-                                When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
-                                configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
-                                Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
-                                are not allowed in the Private Action Runner even if it is enabled for other workflows.
-                                Default: false
-                              type: boolean
-                            rc:
-                              description: |-
-                                RC enables delivery of Kubernetes actions through Remote Configuration.
-                                Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
-                                Default: true
-                              type: boolean
+                            privateActionRunner:
+                              description: PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+                                    When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+                                    configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+                                    Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+                                    are not allowed in the Private Action Runner even if it is enabled for other workflows.
+                                    Default: false
+                                  type: boolean
+                              type: object
+                            remoteConfiguration:
+                              description: RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables delivery of Kubernetes actions through Remote Configuration.
+                                    Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+                                    Default: true
+                                  type: boolean
+                              type: object
                           type: object
                         enabled:
                           description: |-
@@ -11802,21 +11810,29 @@ spec:
                                 Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
                                 At least one channel must be enabled; both can be enabled at the same time.
                               properties:
-                                par:
-                                  description: |-
-                                    PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
-                                    When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
-                                    configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
-                                    Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
-                                    are not allowed in the Private Action Runner even if it is enabled for other workflows.
-                                    Default: false
-                                  type: boolean
-                                rc:
-                                  description: |-
-                                    RC enables delivery of Kubernetes actions through Remote Configuration.
-                                    Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
-                                    Default: true
-                                  type: boolean
+                                privateActionRunner:
+                                  description: PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+                                        When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+                                        configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+                                        Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+                                        are not allowed in the Private Action Runner even if it is enabled for other workflows.
+                                        Default: false
+                                      type: boolean
+                                  type: object
+                                remoteConfiguration:
+                                  description: RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables delivery of Kubernetes actions through Remote Configuration.
+                                        Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+                                        Default: true
+                                      type: boolean
+                                  type: object
                               type: object
                             enabled:
                               description: |-

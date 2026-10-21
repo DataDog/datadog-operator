@@ -2305,13 +2305,27 @@
                   "additionalProperties": false,
                   "description": "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.\nAt least one channel must be enabled; both can be enabled at the same time.",
                   "properties": {
-                    "par": {
-                      "description": "PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: false",
-                      "type": "boolean"
+                    "privateActionRunner": {
+                      "additionalProperties": false,
+                      "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     },
-                    "rc": {
-                      "description": "RC enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
-                      "type": "boolean"
+                    "remoteConfiguration": {
+                      "additionalProperties": false,
+                      "description": "RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"
@@ -11260,13 +11274,27 @@
                       "additionalProperties": false,
                       "description": "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.\nAt least one channel must be enabled; both can be enabled at the same time.",
                       "properties": {
-                        "par": {
-                          "description": "PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: false",
-                          "type": "boolean"
+                        "privateActionRunner": {
+                          "additionalProperties": false,
+                          "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         },
-                        "rc": {
-                          "description": "RC enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
-                          "type": "boolean"
+                        "remoteConfiguration": {
+                          "additionalProperties": false,
+                          "description": "RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         }
                       },
                       "type": "object"

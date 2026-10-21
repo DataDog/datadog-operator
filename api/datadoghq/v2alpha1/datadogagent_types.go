@@ -150,20 +150,37 @@ type KubernetesActionsFeatureConfig struct {
 // KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.
 // +k8s:openapi-gen=true
 type KubernetesActionsCommunicationConfig struct {
-	// RC enables delivery of Kubernetes actions through Remote Configuration.
+	// RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+	// +optional
+	RemoteConfiguration *KubernetesActionsRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
+
+	// PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// +optional
+	PrivateActionRunner *KubernetesActionsPrivateActionRunnerConfig `json:"privateActionRunner,omitempty"`
+}
+
+// KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.
+// +k8s:openapi-gen=true
+type KubernetesActionsRemoteConfigurationConfig struct {
+	// Enabled enables delivery of Kubernetes actions through Remote Configuration.
 	// Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
 	// Default: true
 	// +optional
-	RC *bool `json:"rc,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
+}
 
-	// PAR enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+// KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent
+// Private Action Runner.
+// +k8s:openapi-gen=true
+type KubernetesActionsPrivateActionRunnerConfig struct {
+	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
 	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
 	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
 	// Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
 	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
 	// Default: false
 	// +optional
-	PAR *bool `json:"par,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.

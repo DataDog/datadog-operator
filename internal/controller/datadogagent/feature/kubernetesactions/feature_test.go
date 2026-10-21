@@ -132,6 +132,18 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
 		},
 		{
+			// Remote Configuration disabled globally: the feature is still configured (the
+			// Cluster Agent refuses to start, which is intended) and the operator logs why.
+			Name: "KubernetesActions enabled with Remote Configuration disabled globally",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithRemoteConfigEnabled(false).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
+		},
+		{
 			Name: "KubernetesActions enabled with no communication channel",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").

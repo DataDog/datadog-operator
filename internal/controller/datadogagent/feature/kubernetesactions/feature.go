@@ -60,17 +60,23 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 		return reqComp
 	}
 
+	// The Cluster Agent refuses to start with Kubernetes Actions enabled and Remote Configuration
+	// disabled (both delivery channels need it). Keep that behavior, but say why up front.
+	if rc := ddaSpec.Features.RemoteConfiguration; rc != nil && rc.Enabled != nil && !*rc.Enabled {
+		f.logger.Error(nil, "Kubernetes Actions is enabled but features.remoteConfiguration.enabled is false; the Cluster Agent will not start until Remote Configuration is enabled")
+	}
+
 	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
 	parRequested := featureutils.IsKubernetesActionsPARRequested(ddaSpec)
 	if !f.rcEnabled && !parRequested {
-		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.rc and communication.par are false; the feature will not be configured")
+		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.remoteConfiguration.enabled and communication.privateActionRunner.enabled are false; the feature will not be configured")
 		return reqComp
 	}
 
 	// The private action runner feature enables the runner under the same condition.
 	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
 	if parRequested && !f.parEnabled {
-		f.logger.Error(nil, "Kubernetes Actions communication.par=true requires a newer Cluster Agent; the Private Action Runner is not enabled", "min", featureutils.KubernetesActionsPARMinVersion)
+		f.logger.Error(nil, "Kubernetes Actions communication.privateActionRunner.enabled=true requires a newer Cluster Agent; the Private Action Runner is not enabled", "min", featureutils.KubernetesActionsPARMinVersion)
 	}
 
 	dcaVersion := featureutils.ClusterAgentVersion(ddaSpec)
@@ -83,7 +89,7 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	if !f.rcEnabled && !f.channelToggles {
 		// Older Cluster Agents always use Remote Configuration; ignore the setting rather than
 		// passing an environment variable they do not understand.
-		f.logger.Error(nil, "Kubernetes Actions communication.rc=false requires a newer Cluster Agent; Remote Configuration stays enabled", "min", ClusterAgentChannelTogglesMinVersion)
+		f.logger.Error(nil, "Kubernetes Actions communication.remoteConfiguration.enabled=false requires a newer Cluster Agent; Remote Configuration stays enabled", "min", ClusterAgentChannelTogglesMinVersion)
 		f.rcEnabled = true
 	}
 

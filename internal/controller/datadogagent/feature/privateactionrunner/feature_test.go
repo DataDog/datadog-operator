@@ -676,7 +676,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			name: "cluster agent enabled by kubernetes actions PAR communication",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(true),
-				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
 			wantClusterAgentEnabled:   true,
 			wantSelfEnroll:            true,
@@ -692,7 +692,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			},
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(true),
-				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
 			wantClusterAgentEnabled: true,
 			wantSelfEnroll:          true,
@@ -714,7 +714,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			name: "kubernetes actions PAR communication ignored on a cluster agent without the bundle",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(true),
-				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
 			clusterAgentTag:         "7.82.0",
 			wantClusterAgentEnabled: false,
@@ -723,7 +723,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			name: "kubernetes actions PAR communication enables the runner at the minimum cluster agent version",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(true),
-				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
 			clusterAgentTag:           "7.83.0",
 			wantClusterAgentEnabled:   true,
@@ -734,7 +734,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			name: "kubernetes actions PAR communication ignored when feature disabled",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(false),
-				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
 			wantClusterAgentEnabled: false,
 		},

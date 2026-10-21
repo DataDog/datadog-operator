@@ -218,7 +218,10 @@ func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if !apiutils.BoolValue(ka.Enabled) {
 		return false
 	}
-	return ka.Communication == nil || ka.Communication.RC == nil || *ka.Communication.RC
+	if ka.Communication == nil || ka.Communication.RemoteConfiguration == nil || ka.Communication.RemoteConfiguration.Enabled == nil {
+		return true
+	}
+	return *ka.Communication.RemoteConfiguration.Enabled
 }
 
 // KubernetesActionsPARMinVersion is the minimum Cluster Agent version whose Private Action Runner
@@ -245,7 +248,8 @@ func IsKubernetesActionsPARRequested(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 		return false
 	}
 	ka := ddaSpec.Features.KubernetesActions
-	return apiutils.BoolValue(ka.Enabled) && ka.Communication != nil && apiutils.BoolValue(ka.Communication.PAR)
+	return apiutils.BoolValue(ka.Enabled) && ka.Communication != nil && ka.Communication.PrivateActionRunner != nil &&
+		apiutils.BoolValue(ka.Communication.PrivateActionRunner.Enabled)
 }
 
 // IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the

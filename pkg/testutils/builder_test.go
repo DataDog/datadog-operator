@@ -38,10 +38,12 @@ func TestDatadogAgentBuilder_WithKubernetesActionsCommunication(t *testing.T) {
 	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions)
 	communication := builder.datadogAgent.Spec.Features.KubernetesActions.Communication
 	require.NotNil(t, communication)
-	require.NotNil(t, communication.RC)
-	require.NotNil(t, communication.PAR)
-	assert.False(t, *communication.RC)
-	assert.True(t, *communication.PAR)
+	require.NotNil(t, communication.RemoteConfiguration)
+	require.NotNil(t, communication.RemoteConfiguration.Enabled)
+	require.NotNil(t, communication.PrivateActionRunner)
+	require.NotNil(t, communication.PrivateActionRunner.Enabled)
+	assert.False(t, *communication.RemoteConfiguration.Enabled)
+	assert.True(t, *communication.PrivateActionRunner.Enabled)
 }
 
 func TestDatadogAgentBuilder_WithCSPMRunInSystemProbe(t *testing.T) {
