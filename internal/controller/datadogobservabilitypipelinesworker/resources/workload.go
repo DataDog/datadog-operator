@@ -97,7 +97,7 @@ func workerArgs(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) [
 		return []string{"run"}
 	}
 	// --skip-key-validation stops startup from checking the pipeline ID against Remote Config.
-	return []string{"run", "--pipeline-config=" + pipelineConfigDir + "/" + pipelineConfigFileName, "--skip-key-validation"}
+	return []string{"run", "--pipeline-config=" + PipelineConfigDirectory + "/" + pipelineConfigFileName, "--skip-key-validation"}
 }
 
 // pipelineID falls back to the Worker UID in local mode, which is a UUID unique to the Worker.
@@ -114,7 +114,7 @@ func workerVolumes(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 		return volumes
 	}
 	return controllerutils.MergeVolumes(volumes, []corev1.Volume{{
-		Name: pipelineConfigVolumeName,
+		Name: PipelineConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: pipelineConfigMapName(worker)},
 		}},
@@ -124,7 +124,7 @@ func workerVolumes(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 func workerVolumeMounts(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) []corev1.VolumeMount {
 	mounts := []corev1.VolumeMount{{Name: DataVolumeName, MountPath: DataDirectory}}
 	if worker.Spec.PipelineConfig != nil {
-		mounts = append(mounts, corev1.VolumeMount{Name: pipelineConfigVolumeName, MountPath: pipelineConfigDir, ReadOnly: true})
+		mounts = append(mounts, corev1.VolumeMount{Name: PipelineConfigVolumeName, MountPath: PipelineConfigDirectory, ReadOnly: true})
 	}
 	return mounts
 }
