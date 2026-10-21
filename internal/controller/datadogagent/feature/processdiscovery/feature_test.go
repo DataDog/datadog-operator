@@ -81,6 +81,20 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
 		},
 		{
+			Name: "host passwd on supported core agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, "/host/etc/passwd"),
+		},
+		{
+			Name: "host passwd on supported unprivileged single agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, "/host/etc/passwd"),
+		},
+		{
 			Name:          "process discovery on Windows",
 			DDA:           windowsProfile,
 			WantConfigure: true,
@@ -90,7 +104,11 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, expectedPasswdPaths ...string) *test.ComponentTest {
+	expectedPath := common.PasswdMountPath
+	if len(expectedPasswdPaths) > 0 {
+		expectedPath = expectedPasswdPaths[0]
+	}
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -99,7 +117,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      common.PasswdVolumeName,
-					MountPath: common.PasswdMountPath,
+					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
 				{

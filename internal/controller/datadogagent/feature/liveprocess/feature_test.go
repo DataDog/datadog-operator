@@ -83,6 +83,20 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false),
 		},
 		{
+			Name: "host passwd on supported core agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithLiveProcessEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false, "/host/etc/passwd"),
+		},
+		{
+			Name: "host passwd on supported unprivileged single agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithLiveProcessEnabled(true).WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false, "/host/etc/passwd"),
+		},
+		{
 			Name:          "live process collection on Windows",
 			DDA:           windowsProfile,
 			WantConfigure: true,
@@ -93,7 +107,11 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 	tests.Run(t, buildLiveProcessFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, ScrubStripArgs bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, ScrubStripArgs bool, expectedPasswdPaths ...string) *test.ComponentTest {
+	expectedPath := common.PasswdMountPath
+	if len(expectedPasswdPaths) > 0 {
+		expectedPath = expectedPasswdPaths[0]
+	}
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -102,7 +120,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      common.PasswdVolumeName,
-					MountPath: common.PasswdMountPath,
+					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
 				{
