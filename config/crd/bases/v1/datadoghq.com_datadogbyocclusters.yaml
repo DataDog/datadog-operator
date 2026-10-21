@@ -21739,6 +21739,12 @@ spec:
                     tag:
                       type: string
                   type: object
+                signal:
+                  default: logs
+                  enum:
+                    - logs
+                    - traces
+                  type: string
               required:
                 - components
                 - datadog

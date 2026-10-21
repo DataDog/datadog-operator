@@ -256,6 +256,8 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 		maxNumConcurrentSplitSearches int64
 		partialRequestCacheCapacity   any
 		splitFooterCacheCapacity      any
+		createLogsIndex               bool
+		createTracesIndex             bool
 	}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
@@ -268,10 +270,10 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			"health":                map[string]any{"listen_port": 7284},
 			"cloudprem": map[string]any{
 				"mtls_header":              "X-Amzn-Mtls-Clientcert",
-				"create_dd_logs_index":     true,
+				"create_dd_logs_index":     values.createLogsIndex,
 				"create_dd_metrics_index":  false,
 				"create_dd_sketches_index": false,
-				"create_dd_traces_index":   false,
+				"create_dd_traces_index":   values.createTracesIndex,
 			},
 			"docs_clustering": []any{
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
@@ -329,6 +331,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 				maxNumConcurrentSplitSearches: 50,
 				partialRequestCacheCapacity:   int64(268435456),
 				splitFooterCacheCapacity:      int64(536870912),
+				createLogsIndex:               true,
 			},
 		},
 		{
@@ -349,6 +352,7 @@ ingest_api:
 				maxNumConcurrentSplitSearches: 50,
 				partialRequestCacheCapacity:   int64(268435456),
 				splitFooterCacheCapacity:      int64(536870912),
+				createLogsIndex:               true,
 			},
 		},
 		{
@@ -370,6 +374,7 @@ ingest_api:
 				maxNumConcurrentSplitSearches: 100,
 				partialRequestCacheCapacity:   int64(536870912),
 				splitFooterCacheCapacity:      int64(1073741824),
+				createLogsIndex:               true,
 			},
 		},
 		{
@@ -391,6 +396,61 @@ ingest_api:
 				maxNumConcurrentSplitSearches: 33,
 				partialRequestCacheCapacity:   int64(176160768),
 				splitFooterCacheCapacity:      int64(352321536),
+				createLogsIndex:               true,
+			},
+		},
+		{
+			name: "logs signal",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs)
+			},
+			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         12240656794,
+				maxQueueDiskUsage:             int64(10307921510),
+				maxQueueMemoryUsage:           int64(5153960755),
+				aggregationMemoryLimit:        "500M",
+				fastFieldCacheCapacity:        int64(6979321856),
+				maxNumConcurrentSplitSearches: 50,
+				partialRequestCacheCapacity:   int64(268435456),
+				splitFooterCacheCapacity:      int64(536870912),
+				createLogsIndex:               true,
+			},
+		},
+		{
+			name: "traces signal",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
+			},
+			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         12240656794,
+				maxQueueDiskUsage:             int64(10307921510),
+				maxQueueMemoryUsage:           int64(5153960755),
+				aggregationMemoryLimit:        "500M",
+				fastFieldCacheCapacity:        int64(6979321856),
+				maxNumConcurrentSplitSearches: 50,
+				partialRequestCacheCapacity:   int64(268435456),
+				splitFooterCacheCapacity:      int64(536870912),
+				createTracesIndex:             true,
+			},
+		},
+		{
+			name: "traces signal with node config override",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cloudprem:
+  create_dd_logs_index: true`)}
+			},
+			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         12240656794,
+				maxQueueDiskUsage:             int64(10307921510),
+				maxQueueMemoryUsage:           int64(5153960755),
+				aggregationMemoryLimit:        "500M",
+				fastFieldCacheCapacity:        int64(6979321856),
+				maxNumConcurrentSplitSearches: 50,
+				partialRequestCacheCapacity:   int64(268435456),
+				splitFooterCacheCapacity:      int64(536870912),
+				createLogsIndex:               true,
+				createTracesIndex:             true,
 			},
 		},
 	}
