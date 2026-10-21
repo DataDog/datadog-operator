@@ -154,8 +154,7 @@ func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 				break
 			}
 			logger.Error(err, "Failed to reconcile managed Agent installation intent", "resourceVersion", snapshot.resourceVersion)
-			var stateErr *stateDoesntMatchError
-			if errors.As(err, &stateErr) {
+			if _, ok := errors.AsType[*stateDoesntMatchError](err); ok {
 				break
 			}
 			timer := time.NewTimer(managedAgentInstallationRetryInterval)

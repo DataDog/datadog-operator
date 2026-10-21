@@ -1356,7 +1356,7 @@ func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
 					},
 					StartupProbe: &corev1.Probe{
 						ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}},
-						FailureThreshold: 12,
+						FailureThreshold: 60,
 						PeriodSeconds:    5,
 					},
 					LivenessProbe: &corev1.Probe{
