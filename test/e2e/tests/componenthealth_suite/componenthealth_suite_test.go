@@ -19,6 +19,7 @@ package componenthealthsuite
 import (
 	"context"
 	_ "embed"
+	"slices"
 	"strings"
 	"time"
 
@@ -47,8 +48,9 @@ import (
 const (
 	// ddaName is the DatadogAgent the faults are applied to.
 	ddaName = "datadog"
-	// operatorPodSelector selects the operator manager pod/deployment.
-	operatorPodSelector = "app.kubernetes.io/name=datadog-operator"
+	// The operator Helm chart labels its Deployment and names its container.
+	operatorDeploymentSelector = "app.kubernetes.io/name=datadog-operator"
+	operatorContainerName      = "datadog-operator"
 
 	// agenthealthPath is the fakeintake route that captures agent-health payloads
 	// (matches the operator's agenthealthPath and fakeintake's agentHealthEndpoint).
@@ -56,7 +58,6 @@ const (
 
 	// Env the suite injects onto the operator to redirect the intake at the
 	// fakeintake once its (dynamic) URL is known.
-	envDetectEnabled = "DD_COMPONENT_HEALTH_ENABLED"
 	envIntakeEnabled = "DD_COMPONENT_HEALTH_INTAKE_ENABLED"
 	envIntakeURL     = "DD_COMPONENT_HEALTH_INTAKE_URL"
 
@@ -105,7 +106,6 @@ func (s *componentHealthSuite) SetupSuite() {
 	s.Require().NoError(err, "failed to build DatadogAgent client")
 	s.ddaClient = ddaClient
 
-	s.waitForOperator()
 	s.pointIntakeAtFakeintake()
 }
 
@@ -126,95 +126,59 @@ func buildProvisionerOptions(local bool) []provisioners.KubernetesProvisionerOpt
 	}
 }
 
-// waitForOperator waits until the operator pod is Running.
-func (s *componentHealthSuite) waitForOperator() {
-	s.Require().Eventuallyf(func() bool {
-		pods, err := s.kubeClient.CoreV1().Pods(common.NamespaceName).List(s.T().Context(), metav1.ListOptions{
-			LabelSelector: operatorPodSelector,
-			FieldSelector: "status.phase=Running",
-		})
-		return err == nil && len(pods.Items) >= 1
-	}, 5*time.Minute, 10*time.Second, "operator pod did not reach Running")
-}
-
-// pointIntakeAtFakeintake patches the operator Deployment to enable the intake
-// emitter and target the fakeintake, then waits for the new pod to roll out. The
-// fakeintake URL is only known after provisioning, so it is injected here rather
-// than baked into the static Helm values.
+// pointIntakeAtFakeintake patches the known operator container to enable the
+// intake emitter and target the dynamically provisioned fakeintake, then waits
+// for the updated Deployment to become available.
 func (s *componentHealthSuite) pointIntakeAtFakeintake() {
 	s.Require().NotNil(s.Env().FakeIntake, "fakeintake must be provisioned")
 	url := strings.TrimRight(s.Env().FakeIntake.URL, "/") + agenthealthPath
 	s.T().Logf("Pointing operator agenthealth intake at fakeintake: %s", url)
 
 	deps := s.kubeClient.AppsV1().Deployments(common.NamespaceName)
-	list, err := deps.List(s.T().Context(), metav1.ListOptions{LabelSelector: operatorPodSelector})
+	list, err := deps.List(s.T().Context(), metav1.ListOptions{LabelSelector: operatorDeploymentSelector})
 	s.Require().NoError(err, "list operator deployment")
-	s.Require().NotEmpty(list.Items, "operator deployment not found")
+	s.Require().Len(list.Items, 1, "expected exactly one operator deployment")
 	dep := &list.Items[0]
+	s.Require().True(slices.ContainsFunc(dep.Spec.Template.Spec.Containers, func(c corev1.Container) bool {
+		return c.Name == operatorContainerName
+	}), "operator container not found in %s", dep.Name)
 
-	// Find the operator container (the one carrying DD_COMPONENT_HEALTH_ENABLED
-	// from the Helm values) and add the intake env to it.
-	ci := operatorContainerIndex(dep)
-	s.Require().GreaterOrEqual(ci, 0, "operator container (with %s) not found in %s", envDetectEnabled, dep.Name)
-	setEnv(&dep.Spec.Template.Spec.Containers[ci], envIntakeEnabled, "true")
-	setEnv(&dep.Spec.Template.Spec.Containers[ci], envIntakeURL, url)
+	patch, err := operatorIntakePatch(url)
+	s.Require().NoError(err, "build operator intake patch")
+	dep, err = deps.Patch(s.T().Context(), dep.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	s.Require().NoError(err, "patch operator deployment with intake env")
 
-	_, err = deps.Update(s.T().Context(), dep, metav1.UpdateOptions{})
-	s.Require().NoError(err, "update operator deployment with intake env")
-
-	// Wait for the rolled-out pod (one carrying the new intake URL env) to run.
 	s.Require().Eventuallyf(func() bool {
-		pods, err := s.kubeClient.CoreV1().Pods(common.NamespaceName).List(s.T().Context(), metav1.ListOptions{
-			LabelSelector: operatorPodSelector,
-			FieldSelector: "status.phase=Running",
-		})
-		if err != nil {
-			return false
-		}
-		for i := range pods.Items {
-			if podHasEnv(&pods.Items[i], envIntakeURL) {
-				return true
-			}
-		}
-		return false
-	}, 5*time.Minute, 10*time.Second, "operator did not roll out with the intake URL env")
+		current, err := deps.Get(s.T().Context(), dep.Name, metav1.GetOptions{})
+		return err == nil && operatorRolloutAvailable(current, dep.Generation)
+	}, 5*time.Minute, 10*time.Second, "operator deployment did not become available after the intake patch")
 }
 
-// operatorContainerIndex returns the index of the container carrying the
-// component-health detection env, or -1.
-func operatorContainerIndex(dep *appsv1.Deployment) int {
-	for i := range dep.Spec.Template.Spec.Containers {
-		for _, e := range dep.Spec.Template.Spec.Containers[i].Env {
-			if e.Name == envDetectEnabled {
-				return i
-			}
-		}
-	}
-	return -1
+// operatorIntakePatch changes only the named container's intake env vars.
+// Strategic merge preserves other containers and environment variables by name.
+func operatorIntakePatch(url string) ([]byte, error) {
+	base := &appsv1.Deployment{}
+	updated := base.DeepCopy()
+	updated.Spec.Template.Spec.Containers = []corev1.Container{{
+		Name: operatorContainerName,
+		Env: []corev1.EnvVar{
+			{Name: envIntakeEnabled, Value: "true"},
+			{Name: envIntakeURL, Value: url},
+		},
+	}}
+	return client.StrategicMergeFrom(base).Data(updated)
 }
 
-// setEnv sets (or replaces) an env var on a container.
-func setEnv(c *corev1.Container, name, value string) {
-	for i := range c.Env {
-		if c.Env[i].Name == name {
-			c.Env[i].Value = value
-			c.Env[i].ValueFrom = nil
-			return
-		}
-	}
-	c.Env = append(c.Env, corev1.EnvVar{Name: name, Value: value})
-}
-
-// podHasEnv reports whether any container in the pod declares the given env var.
-func podHasEnv(pod *corev1.Pod, name string) bool {
-	for i := range pod.Spec.Containers {
-		for _, e := range pod.Spec.Containers[i].Env {
-			if e.Name == name {
-				return true
-			}
-		}
-	}
-	return false
+// operatorRolloutAvailable requires availability of the updated replicas, so an
+// old available pod cannot satisfy the wait while the new pod is still starting.
+func operatorRolloutAvailable(dep *appsv1.Deployment, generation int64) bool {
+	replicas := ptr.Deref(dep.Spec.Replicas, 1)
+	return replicas > 0 &&
+		dep.Status.ObservedGeneration >= generation &&
+		dep.Status.ObservedGeneration >= dep.Generation &&
+		dep.Status.UpdatedReplicas == replicas &&
+		dep.Status.Replicas == replicas &&
+		dep.Status.AvailableReplicas == replicas
 }
 
 // registerDatadogResourceCleanup deletes the DatadogAgent/DatadogAgentInternal
