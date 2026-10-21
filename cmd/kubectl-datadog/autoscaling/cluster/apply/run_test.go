@@ -13,19 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
-// TestKarpenterControllerRoleNameMatchesTemplates guards against a drift
-// between KarpenterControllerRoleName, used by uninstall, and the RoleName
-// declared in the CloudFormation templates.
-func TestKarpenterControllerRoleNameMatchesTemplates(t *testing.T) {
-	assert.Equal(t, "my-cluster-karpenter", KarpenterControllerRoleName("my-cluster"))
-	for name, template := range map[string]string{
-		"dd-karpenter.yaml":         DdKarpenterCfn,
-		"dd-karpenter-fargate.yaml": DdKarpenterFargateCfn,
-	} {
-		assert.Containsf(t, template, `RoleName: !Sub "${ClusterName}-karpenter"`, "%s must declare the Karpenter controller role name", name)
-	}
-}
-
 // assertKarpenterCheckConfig parses the JSON body of a Datadog Autodiscovery
 // annotation and asserts it declares the `karpenter` OpenMetrics check on
 // port 8080. Used to keep the assertion robust to whitespace/formatting

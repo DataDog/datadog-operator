@@ -115,14 +115,6 @@ func DDKarpenterStackName(clusterName string) string {
 	return "dd-karpenter-" + clusterName + "-dd-karpenter"
 }
 
-// KarpenterControllerRoleName returns the name of the IAM role assumed by the
-// Karpenter controller, through IRSA in fargate mode and through EKS Pod
-// Identity in existing-nodes mode. It must match the RoleName declared in
-// assets/dd-karpenter-fargate.yaml and assets/dd-karpenter.yaml.
-func KarpenterControllerRoleName(clusterName string) string {
-	return clusterName + "-karpenter"
-}
-
 // InstallModeTagKey is the CloudFormation stack tag tracking the deployment's
 // install-mode. Stacks created before this tag was introduced have no tag and
 // are treated as install-mode=existing-nodes.
@@ -250,9 +242,9 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		if err != nil {
 			return "", fmt.Errorf("failed to get cluster OIDC issuer URL: %w", err)
 		}
-		oidcArn, err := commoneks.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
+		oidcArn, createOIDCProvider, err := resolveOIDCProvider(ctx, cli.IAM, ddStack, issuerURL)
 		if err != nil {
-			return "", fmt.Errorf("failed to ensure OIDC provider: %w", err)
+			return "", err
 		}
 
 		subnets := opts.FargateSubnets
@@ -274,6 +266,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		if err = aws.CreateOrUpdateStackWithExisting(ctx, cli.CloudFormation, ddStackName, DdKarpenterFargateCfn, map[string]string{
 			"ClusterName":           opts.ClusterName,
 			"KarpenterNamespace":    opts.KarpenterNamespace,
+			"CreateOIDCProvider":    strconv.FormatBool(createOIDCProvider),
 			"OIDCProviderArn":       oidcArn,
 			"OIDCProviderURL":       strings.TrimPrefix(issuerURL, "https://"),
 			"FargateSubnets":        strings.Join(subnets, ","),
@@ -299,6 +292,24 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 	default:
 		return "", fmt.Errorf("unsupported install mode %q", opts.InstallMode)
 	}
+}
+
+// resolveOIDCProvider tells whether the fargate stack must create the IAM OIDC
+// provider of the cluster or, if not, the ARN of the pre-existing provider it
+// must use.
+//
+// A provider created by a previous run of the stack is found by the lookup
+// too, so CreateOIDCProvider must stay true once set: switching it to false
+// would make CloudFormation delete the provider.
+func resolveOIDCProvider(ctx context.Context, iamClient commoneks.OIDCProviderAPI, ddStack *aws.Stack, issuerURL string) (arn string, create bool, err error) {
+	if ddStack.ParameterMap()["CreateOIDCProvider"] == "true" {
+		return "", true, nil
+	}
+	arn, err = commoneks.ReuseOIDCProvider(ctx, iamClient, issuerURL)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to look up the OIDC provider: %w", err)
+	}
+	return arn, arn == "", nil
 }
 
 // checkInstallModeTag verifies that an existing CFN stack's install-mode tag

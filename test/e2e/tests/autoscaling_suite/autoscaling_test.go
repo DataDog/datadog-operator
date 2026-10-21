@@ -18,14 +18,11 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	clustercommon "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
-	commoneks "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eks"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
-	"github.com/aws/aws-sdk-go-v2/service/eks"
-	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -700,33 +697,5 @@ func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	s.Assert().NoErrorf(err, "Error checking Helm release")
 	s.Assert().Falsef(exists, "Karpenter Helm release still exists")
 
-	// Verify the OIDC provider created by the fargate install mode. The test
-	// cluster has none of its own, so any provider for its issuer was created
-	// by `install` and must have been deleted by `uninstall`.
-	s.verifyNoOIDCProvider(ctx)
-
 	t.Log("Clean uninstall verified successfully")
-}
-
-// verifyNoOIDCProvider verifies that no IAM OIDC provider is registered for
-// the cluster's OIDC issuer.
-func (s *autoscalingSuite) verifyNoOIDCProvider(ctx context.Context) {
-	describeOut, err := eks.NewFromConfig(s.awsCfg).DescribeCluster(ctx, &eks.DescribeClusterInput{Name: awssdk.String(s.clusterName)})
-	if !s.Assert().NoErrorf(err, "Error describing cluster %s", s.clusterName) {
-		return
-	}
-	issuerURL, err := commoneks.GetClusterOIDCIssuerURL(describeOut.Cluster)
-	if !s.Assert().NoErrorf(err, "Error getting the OIDC issuer of cluster %s", s.clusterName) {
-		return
-	}
-
-	// IAM is eventually consistent: a provider deleted by `uninstall` may
-	// still be listed for a short while.
-	iamClient := iam.NewFromConfig(s.awsCfg)
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		providerArn, _, err := commoneks.FindOIDCProvider(ctx, iamClient, issuerURL)
-		if assert.NoError(c, err, "Error looking up the OIDC provider") {
-			assert.Emptyf(c, providerArn, "OIDC provider %s still exists", providerArn)
-		}
-	}, time.Minute, 5*time.Second)
 }

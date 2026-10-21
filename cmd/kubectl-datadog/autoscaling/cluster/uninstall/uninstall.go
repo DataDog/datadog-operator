@@ -16,8 +16,6 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go-v2/service/eks"
-	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -41,7 +39,6 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
-	commoneks "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eks"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
@@ -189,11 +186,6 @@ func (o *options) run(cmd *cobra.Command) error {
 	if err = deleteCloudFormationStacks(ctx, cli, clusterName); err != nil {
 		log.Printf("Warning: failed to delete CloudFormation stacks: %v", err)
 		errs = append(errs, fmt.Errorf("CloudFormation stack deletion: %w", err))
-	} else if err = deleteOIDCProvider(ctx, cli, clusterName); err != nil {
-		// Only attempted once the stacks are gone, as the Karpenter IRSA role
-		// they hold trusts the OIDC provider.
-		log.Printf("Warning: failed to delete OIDC provider: %v", err)
-		errs = append(errs, fmt.Errorf("OIDC provider deletion: %w", err))
 	}
 
 	if len(errs) > 0 {
@@ -264,7 +256,6 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 	}
 
 	cmd.Println("  • aws-auth ConfigMap role mappings (if applicable)")
-	cmd.Println("  • The IAM OIDC provider (if created by kubectl-datadog and no longer trusted by any IAM role)")
 
 	if len(nodes) > 0 {
 		cmd.Println()
@@ -562,40 +553,6 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 	}
 
 	log.Printf("Cleaned up %d instance profile(s).", len(out.InstanceProfiles))
-	return nil
-}
-
-// deleteOIDCProvider deletes the IAM OIDC provider of the cluster if it was
-// created by `install` in fargate mode and is not trusted by any IAM role
-// anymore. A provider that pre-existed the installation is left untouched.
-func deleteOIDCProvider(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	log.Println("Cleaning up OIDC provider…")
-
-	describeOut, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: awssdk.String(clusterName)})
-	if err != nil {
-		if _, ok := errors.AsType[*ekstypes.ResourceNotFoundException](err); ok {
-			log.Printf("Cluster %s not found, skipping OIDC provider cleanup.", clusterName)
-			return nil
-		}
-		return fmt.Errorf("failed to describe cluster %s: %w", clusterName, err)
-	}
-
-	issuerURL, err := commoneks.GetClusterOIDCIssuerURL(describeOut.Cluster)
-	if err != nil {
-		log.Printf("Skipping OIDC provider cleanup: %v.", err)
-		return nil
-	}
-
-	deletedArn, skipReason, err := commoneks.DeleteOwnedOIDCProvider(ctx, cli.IAM, issuerURL, apply.KarpenterControllerRoleName(clusterName))
-	if err != nil {
-		return err
-	}
-	if deletedArn == "" {
-		log.Printf("Skipping OIDC provider cleanup: %s.", skipReason)
-		return nil
-	}
-
-	log.Printf("Deleted OIDC provider %s.", deletedArn)
 	return nil
 }
 

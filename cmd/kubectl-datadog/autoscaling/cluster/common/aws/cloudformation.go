@@ -27,8 +27,7 @@ const (
 // kubectl-datadog. The pair is also propagated from the stack to its
 // resources (e.g. AWS::EKS::FargateProfile) by CloudFormation's tag
 // inheritance, so downstream code reading those resource tags can rely on
-// the same constants. It is also set on the IAM OIDC provider created
-// outside of CloudFormation by the fargate install mode.
+// the same constants.
 const (
 	ManagedByTag      = "managed-by"
 	ManagedByTagValue = "kubectl-datadog"
