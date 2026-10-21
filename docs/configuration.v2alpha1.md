@@ -92,6 +92,7 @@ spec:
 | features.admissionController.probe.gracePeriod | GracePeriod is the number of seconds to wait at startup before the first probe. Default: 60 |
 | features.admissionController.probe.interval | Is the number of seconds between probe executions. Default: 60 |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
+| features.admissionController.registryAllowList | RegistryAllowList restricts which registries can be used for APM library injection. When non-empty, the admission controller only injects libraries from the listed registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed by the operator. An empty list allows all registries. (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+) |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
@@ -106,6 +107,7 @@ spec:
 | features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
+| features.apm.instrumentation.onDemand | OnDemand keeps the SSI admission webhook available for runtime workload selection (annotations and Remote Config) when cluster-wide instrumentation is disabled. Default: true |
 | features.apm.instrumentation.targets | Is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be used. If no target matches, the auto instrumentation will not be applied. (Requires Cluster Agent 7.64.0+) |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
@@ -143,11 +145,11 @@ spec:
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
 | features.cspm.enabled | Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false |
 | features.cspm.hostBenchmarks.enabled | Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true |
-| features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
+| features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send payloads directly, without using the security-agent. Requires Agent 7.77.0 or above; on older Agents this defaults to false. Default: true |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Is the name of the ConfigMap. |
-| features.cws.directSendFromSystemProbe | DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
+| features.cws.directSendFromSystemProbe | DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. Requires Agent 7.63.0 or above; on older Agents this defaults to false. Default: true |
 | features.cws.enabled | Enables Cloud Workload Security. Default: false |
 | features.cws.enforcement.enabled | Enables Enforcement for Cloud Workload Security. Default: true |
 | features.cws.network.enabled | Enables Cloud Workload Security Network detections. Default: true |
@@ -190,12 +192,18 @@ spec:
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
+| features.hostProfiler.enabled | Enables the Host Profiler. Default: false |
+| features.hostProfiler.runAsRoot | RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user. Default: true |
+| features.hostProfiler.seLinuxType | SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t |
+| features.hostProfiler.seccomp.enabled | Applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node. When disabled, the Host Profiler container runs with an Unconfined seccomp profile. Default: true |
+| features.hostProfiler.seccomp.loggingEnabled | LoggingEnabled uses the logging seccomp profile instead of the default one. Has no effect when the seccomp profile is disabled. Default: false |
 | features.kubeStateMetricsCore.collectCrMetrics | `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enables Kube State Metrics Core. Default: true |
 | features.kubeStateMetricsCore.podCollectionMode | PodCollectionMode controls where the KSM check collects pod metrics.  When set to "node_kubelet" the operator splits the kubernetes_state_core check into two: the cluster-side instance keeps every collector except scheduled pods (only unscheduled pods are kept on that side), and a dedicated pods-only instance is deployed on every node agent to read pods locally from its Kubelet via workloadmeta. In the generated agent check YAML this corresponds to the snake_case check options `pod_collection_mode: cluster_unassigned` on the cluster side and `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the node side; this CRD field itself is the camelCase `podCollectionMode` per Kubernetes API convention.  Useful in large clusters where a single KSM instance is a bottleneck. The cluster-aggregate `.total` metrics (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total) carry a reduced tag set with no host or node, so they cannot be collected correctly by every node agent independently without colliding at ingestion. To avoid this, the operator also enables `cluster_aggregates_enabled` on the cluster-side and node-side instances, which silences those aggregate metrics on both, and schedules a dedicated `cluster_aggregates_only` instance on the cluster-side component to collect them instead. Requires Agent / Cluster Agent 7.82+.  When `features.kubeStateMetricsCore.conf` is also set, the operator deploys the node-side check but does NOT modify the user-supplied cluster-side config. To avoid double pod collection in that case, the user's cluster-side instance must either omit `pods` from its `collectors` list OR set the `pod_collection_mode: cluster_unassigned` check option themselves. Omitting `collectors` entirely falls back to upstream KSM defaults, which include `pods`.  Default behavior is unchanged when this field is unset. |
+| features.kubeStateMetricsCore.shardingEnabled | `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset. |
 | features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Default: false |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
@@ -275,7 +283,7 @@ spec:
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
-| global.csi.apm.pullSecrets | PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot. |
+| global.csi.apm.pullSecrets | PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. |
 | global.csi.autoManage | AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true |
 | global.csi.enabled | Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false |
 | global.csi.image.name | Defines the CSI driver image name. You can provide this as: * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`. * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored. * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored. |

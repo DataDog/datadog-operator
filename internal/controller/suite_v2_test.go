@@ -110,6 +110,8 @@ var _ = BeforeSuite(func(ctx context.Context) {
 		DatadogAgentEnabled:        true,
 		DatadogMonitorEnabled:      true,
 		DatadogAgentProfileEnabled: true,
+		DatadogBYOCClusterEnabled:  true,
+		BYOCImageResolver:          newFakeBYOCImageResolver(),
 		V2APIEnabled:               true,
 		UntaintControllerEnabled:   true,
 	}

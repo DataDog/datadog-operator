@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -20,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -77,6 +79,8 @@ const (
 	// clusterProviderGateRequeue is how often the reconcile re-checks while the
 	// provider gate is holding.
 	clusterProviderGateRequeue = 2 * time.Second
+
+	ddaOperationName = "datadogagent.reconcile"
 )
 
 // ProviderReader exposes the cluster-provider detection result to the reconciler
@@ -108,6 +112,10 @@ type ReconcilerOptions struct {
 	// SubjectAccessReview implementation; tests and the golden renderer inject a stub so
 	// they never issue a real authorization call.
 	SCCAuthorizer openshift.SCCAuthorizer
+	// APIReader is an uncached, direct-to-apiserver reader used to validate
+	// experiment rollback targets. A cached/informer-backed client's stale
+	// NotFound could be mistaken for a permanently-lost baseline revision.
+	APIReader client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -135,6 +143,10 @@ func (r *Reconciler) initializeComponentRegistry() {
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
+	if options.APIReader == nil {
+		return nil, fmt.Errorf("ReconcilerOptions.APIReader must not be nil")
+	}
+
 	r := &Reconciler{
 		options:      options,
 		client:       client,
@@ -161,6 +173,9 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var resp reconcile.Result
 	var err error
+
+	span, ctx := trace.StartReconcileSpan(ctx, "DatadogAgent", ddaOperationName, dda)
+	defer trace.FinishSpan(span, &err)
 
 	resp, err = r.internalReconcile(ctx, dda)
 

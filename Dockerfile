@@ -1,8 +1,12 @@
 #
 ARG FIPS_ENABLED=false
+ARG SGC_VERSION=7.84.0
+ARG SGC_TAG_SUFFIX
+
+FROM datadog/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
 
 # Build the manager binary
-FROM golang:1.26.7 AS builder
+FROM golang:1.26.10 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -42,6 +46,16 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" 
 
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS certs
 
+# Distrust roots used by compromised eMudhra intermediates until UBI ships an updated CA bundle.
+# https://emudhra.we-have-a-problem.com/#linux
+RUN trust extract --overwrite --format=pem-bundle \
+      --filter='pkcs11:object=Comodo%20AAA%20Services%20root;type=cert' \
+      /etc/pki/ca-trust/source/blocklist/Comodo_AAA_Services_root.pem && \
+    trust extract --overwrite --format=pem-bundle \
+      --filter='pkcs11:object=emSign%20ECC%20Root%20CA%20-%20G3;type=cert' \
+      /etc/pki/ca-trust/source/blocklist/emSign_ECC_Root_CA_-_G3.pem && \
+    update-ca-trust
+
 FROM registry.access.redhat.com/ubi10/ubi-micro:latest
 
 LABEL name="datadog/operator"
@@ -57,6 +71,7 @@ COPY --from=certs /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-bundle.crt
 
 WORKDIR /
 COPY --from=builder --chown=:0 /workspace/manager .
+COPY --from=sgc --chmod=755 /secret-generic-connector /usr/local/bin/secret-generic-connector
 
 COPY --from=builder --chown=:0 /workspace/helpers .
 COPY --chmod=550 scripts/readsecret.sh .

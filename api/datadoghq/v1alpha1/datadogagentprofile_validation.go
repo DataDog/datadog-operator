@@ -16,8 +16,9 @@ import (
 )
 
 var datadogAgentProfileFeatureAllowlist = map[string]struct{}{
-	"gpu": {},
-	"apm": {},
+	"gpu":          {},
+	"apm":          {},
+	"hostProfiler": {},
 }
 
 var datadogAgentProfileComponentOverrideAllowlist = map[string]struct{}{
@@ -119,6 +120,7 @@ func validateContainerOverride(name common.AgentContainerName, override *v2alpha
 		common.OtelAgent:                     {},
 		common.AgentDataPlaneContainerName:   {},
 		common.AgentCheckRunnerContainerName: {},
+		common.HostProfiler:                  {},
 	}
 	if _, ok := supportedContainers[name]; !ok {
 		return unsupportedError(fmt.Sprintf("container %s", name))
@@ -135,7 +137,7 @@ func validateContainerOverride(name common.AgentContainerName, override *v2alpha
 // the name is in the allowlist. If not in the list, error
 func validateAllowlistedFields(value any, allowlist map[string]struct{}, unsupportedFieldName func(reflect.StructField) string) error {
 	structValue := reflect.ValueOf(value)
-	if structValue.Kind() == reflect.Ptr {
+	if structValue.Kind() == reflect.Pointer {
 		if structValue.IsNil() {
 			return nil
 		}
@@ -159,7 +161,7 @@ func validateAllowlistedFields(value any, allowlist map[string]struct{}, unsuppo
 
 func isEmptyOverrideValue(value reflect.Value) bool {
 	switch value.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return value.IsNil()
 	default:
 		return value.IsZero()

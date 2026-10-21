@@ -212,6 +212,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 		// the fake client would reject the Create outright). Defaults to denying,
 		// which keeps rendering inert unless a case opts in.
 		SCCAuthorizer: StaticSCCAuthorizer(opts.SCCAllowed),
+		APIReader:     fakeClient,
 	}
 	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, log, recorder, noopForwarder{})
 	if err != nil {
