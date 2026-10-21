@@ -19,6 +19,7 @@ package componenthealthsuite
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 )
@@ -46,6 +48,10 @@ const (
 	ddaName = "datadog"
 	// operatorPodSelector selects the operator manager pod/deployment.
 	operatorPodSelector = "app.kubernetes.io/name=datadog-operator"
+	// operatorContainerName is the operator container in the datadog-operator Helm
+	// chart (the chart templates it as `.Chart.Name`). The intake env is merged into
+	// this container by name.
+	operatorContainerName = "datadog-operator"
 	// fieldManager owns the applied DatadogAgent so that re-applying a manifest
 	// without a given override removes that override (server-side apply).
 	fieldManager = "componenthealth-e2e"
@@ -54,9 +60,15 @@ const (
 	// (matches the operator's agenthealthPath and fakeintake's agentHealthEndpoint).
 	agenthealthPath = "/api/v2/agenthealth"
 
+	// leaderElectionLease is the operator's leader-election Lease name (matches
+	// LeaderElectionID in cmd/main.go). controller-runtime sets the Lease
+	// holderIdentity to "<podname>_<uuid>", so a pod holds it when the identity is
+	// prefixed by the pod name.
+	leaderElectionLease = "datadog-operator-lock"
+
 	// Env the suite injects onto the operator to redirect the intake at the
-	// fakeintake once its (dynamic) URL is known.
-	envDetectEnabled = "DD_COMPONENT_HEALTH_ENABLED"
+	// fakeintake once its (dynamic) URL is known. (Detection itself is enabled via
+	// DD_COMPONENT_HEALTH_ENABLED in the static Helm values.)
 	envIntakeEnabled = "DD_COMPONENT_HEALTH_INTAKE_ENABLED"
 	envIntakeURL     = "DD_COMPONENT_HEALTH_INTAKE_URL"
 
@@ -71,6 +83,7 @@ const (
 
 	detectTimeout  = 5 * time.Minute
 	resolveTimeout = 5 * time.Minute
+	leaderTimeout  = 3 * time.Minute
 	pollInterval   = 10 * time.Second
 )
 
@@ -157,17 +170,21 @@ func (s *componentHealthSuite) pointIntakeAtFakeintake() {
 	s.Require().NotEmpty(list.Items, "operator deployment not found")
 	dep := &list.Items[0]
 
-	// Find the operator container (the one carrying DD_COMPONENT_HEALTH_ENABLED
-	// from the Helm values) and add the intake env to it.
-	ci := operatorContainerIndex(dep)
-	s.Require().GreaterOrEqual(ci, 0, "operator container (with %s) not found in %s", envDetectEnabled, dep.Name)
-	setEnv(&dep.Spec.Template.Spec.Containers[ci], envIntakeEnabled, "true")
-	setEnv(&dep.Spec.Template.Spec.Containers[ci], envIntakeURL, url)
+	// Enable the intake emitter and point it at the fakeintake. The URL is only known
+	// after provisioning, so it is injected here rather than baked into the static
+	// Helm values. Strategic-merge patch so only these env vars change, leaving the
+	// rest of the Deployment untouched.
+	s.Require().True(hasContainer(dep, operatorContainerName), "operator container %q not found in %s", operatorContainerName, dep.Name)
+	patch := envMergePatch(operatorContainerName, []corev1.EnvVar{
+		{Name: envIntakeEnabled, Value: "true"},
+		{Name: envIntakeURL, Value: url},
+	})
+	_, err = deps.Patch(s.T().Context(), dep.Name, k8stypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	s.Require().NoError(err, "patch operator deployment with intake env")
 
-	_, err = deps.Update(s.T().Context(), dep, metav1.UpdateOptions{})
-	s.Require().NoError(err, "update operator deployment with intake env")
-
-	// Wait for the rolled-out pod (one carrying the new intake URL env) to run.
+	// Wait for the rolled-out pod (one carrying the new intake URL env) to run, and
+	// capture its name so we can then confirm it won leadership.
+	var rolledOutPod string
 	s.Require().Eventuallyf(func() bool {
 		pods, err := s.kubeClient.CoreV1().Pods(common.NamespaceName).List(s.T().Context(), metav1.ListOptions{
 			LabelSelector: operatorPodSelector,
@@ -178,36 +195,60 @@ func (s *componentHealthSuite) pointIntakeAtFakeintake() {
 		}
 		for i := range pods.Items {
 			if podHasEnv(&pods.Items[i], envIntakeURL) {
+				rolledOutPod = pods.Items[i].Name
 				return true
 			}
 		}
 		return false
 	}, 5*time.Minute, 10*time.Second, "operator did not roll out with the intake URL env")
+
+	// Running != leader: controller-runtime only emits once it wins the lease
+	// (within LeaseDuration, default ~1m, after the old pod stops renewing). Wait
+	// for this pod to hold the lease before any assertions, so the fakeintake is not
+	// polled during a window where no instance is emitting snapshots.
+	s.waitForLeader(rolledOutPod)
 }
 
-// operatorContainerIndex returns the index of the container carrying the
-// component-health detection env, or -1.
-func operatorContainerIndex(dep *appsv1.Deployment) int {
+// hasContainer reports whether the Deployment's pod template declares a container
+// with the given name.
+func hasContainer(dep *appsv1.Deployment, name string) bool {
 	for i := range dep.Spec.Template.Spec.Containers {
-		for _, e := range dep.Spec.Template.Spec.Containers[i].Env {
-			if e.Name == envDetectEnabled {
-				return i
-			}
+		if dep.Spec.Template.Spec.Containers[i].Name == name {
+			return true
 		}
 	}
-	return -1
+	return false
 }
 
-// setEnv sets (or replaces) an env var on a container.
-func setEnv(c *corev1.Container, name, value string) {
-	for i := range c.Env {
-		if c.Env[i].Name == name {
-			c.Env[i].Value = value
-			c.Env[i].ValueFrom = nil
-			return
+// envMergePatch builds a strategic-merge patch that sets the given env vars on the
+// named container, leaving unrelated containers and env vars intact.
+func envMergePatch(container string, env []corev1.EnvVar) []byte {
+	patch, _ := json.Marshal(map[string]interface{}{
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"containers": []map[string]interface{}{
+						{"name": container, "env": env},
+					},
+				},
+			},
+		},
+	})
+	return patch
+}
+
+// waitForLeader waits until the given pod holds the operator's leader-election
+// lease (holderIdentity is "<podname>_<uuid>").
+func (s *componentHealthSuite) waitForLeader(podName string) {
+	s.Require().NotEmpty(podName, "no operator pod to wait for leadership on")
+	s.T().Logf("Waiting for operator pod %q to acquire leader-election lease %q", podName, leaderElectionLease)
+	s.Require().Eventuallyf(func() bool {
+		lease, err := s.kubeClient.CoordinationV1().Leases(common.NamespaceName).Get(s.T().Context(), leaderElectionLease, metav1.GetOptions{})
+		if err != nil || lease.Spec.HolderIdentity == nil {
+			return false
 		}
-	}
-	c.Env = append(c.Env, corev1.EnvVar{Name: name, Value: value})
+		return strings.HasPrefix(*lease.Spec.HolderIdentity, podName+"_")
+	}, leaderTimeout, pollInterval, "operator pod %q did not acquire the leader-election lease %q", podName, leaderElectionLease)
 }
 
 // podHasEnv reports whether any container in the pod declares the given env var.
