@@ -389,7 +389,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	agentSingleContainer := corev1.Container{
 		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
-		Env:            envVarsForCoreAgent(dda),
+		Env:            append(envVarsForCoreAgent(dda), podNameEnvVar()),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
@@ -443,13 +443,24 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
-		Env:            envVarsForCoreAgent(dda),
+		Env:            append(envVarsForCoreAgent(dda), podNameEnvVar()),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
+func podNameEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: DDPodName,
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: common.FieldPathMetaName,
+			},
 		},
 	}
 }
