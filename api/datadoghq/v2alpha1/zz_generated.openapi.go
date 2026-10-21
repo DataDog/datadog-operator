@@ -1259,6 +1259,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig
 							},
 						},
 					},
+					"collectionMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server. \"poll\" re-opens a watch on every check run. \"watch\" streams events through a single persistent reflector-backed watch, which avoids dropping events in high-churn clusters. Requires Cluster Agent 7.81.1+. Default: unset (the Cluster Agent default, currently poll)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

@@ -1825,6 +1825,14 @@
                       "type": "array",
                       "x-kubernetes-list-type": "atomic"
                     },
+                    "collectionMode": {
+                      "description": "CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.\n\"poll\" re-opens a watch on every check run. \"watch\" streams events through a single\npersistent reflector-backed watch, which avoids dropping events in high-churn clusters.\nRequires Cluster Agent 7.81.1+.\nDefault: unset (the Cluster Agent default, currently poll)",
+                      "enum": [
+                        "poll",
+                        "watch"
+                      ],
+                      "type": "string"
+                    },
                     "unbundleEvents": {
                       "description": "UnbundleEvents enables collection of Kubernetes events as individual events.\nDefault: false",
                       "type": "boolean"
