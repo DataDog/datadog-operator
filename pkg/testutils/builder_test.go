@@ -30,6 +30,20 @@ func TestDatadogAgentBuilder_WithKubernetesActionsEnabled(t *testing.T) {
 	assert.False(t, *builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
 }
 
+func TestDatadogAgentBuilder_WithKubernetesActionsCommunication(t *testing.T) {
+	builder := NewDatadogAgentBuilder()
+
+	returnedBuilder := builder.WithKubernetesActionsCommunication(false, true)
+	require.Same(t, builder, returnedBuilder)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions)
+	communication := builder.datadogAgent.Spec.Features.KubernetesActions.Communication
+	require.NotNil(t, communication)
+	require.NotNil(t, communication.RC)
+	require.NotNil(t, communication.PAR)
+	assert.False(t, *communication.RC)
+	assert.True(t, *communication.PAR)
+}
+
 func TestDatadogAgentBuilder_WithCSPMRunInSystemProbe(t *testing.T) {
 	builder := NewDatadogAgentBuilder()
 	require.Nil(t, builder.datadogAgent.Spec.Features.CSPM)

@@ -17,21 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
-
-func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	if ddaSpec == nil {
-		return images.AgentLatestVersion
-	}
-	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-		if clusterAgent.Image != nil {
-			return common.GetAgentVersionFromImage(*clusterAgent.Image)
-		}
-	}
-	return images.AgentLatestVersion
-}
 
 func init() {
 	err := feature.Register(feature.KubernetesActionsIDType, buildKubernetesActionsFeature)
@@ -74,13 +61,19 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	}
 
 	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
-	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
-	if !f.rcEnabled && !f.parEnabled {
+	parRequested := featureutils.IsKubernetesActionsPARRequested(ddaSpec)
+	if !f.rcEnabled && !parRequested {
 		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.rc and communication.par are false; the feature will not be configured")
 		return reqComp
 	}
 
-	dcaVersion := clusterAgentVersion(ddaSpec)
+	// The private action runner feature enables the runner under the same condition.
+	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
+	if parRequested && !f.parEnabled {
+		f.logger.Error(nil, "Kubernetes Actions communication.par=true requires a newer Cluster Agent; the Private Action Runner is not enabled", "min", featureutils.KubernetesActionsPARMinVersion)
+	}
+
+	dcaVersion := featureutils.ClusterAgentVersion(ddaSpec)
 	if !utils.IsAboveMinVersion(dcaVersion, ClusterAgentMinVersion, nil) {
 		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", ClusterAgentMinVersion)
 		return reqComp

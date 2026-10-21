@@ -221,12 +221,37 @@ func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ka.Communication == nil || ka.Communication.RC == nil || *ka.Communication.RC
 }
 
-// IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the
-// Cluster Agent through the Cluster Agent Private Action Runner. Defaults to false when unset.
-func IsKubernetesActionsPAREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+// KubernetesActionsPARMinVersion is the minimum Cluster Agent version whose Private Action Runner
+// ships the Kubernetes Actions bundle.
+const KubernetesActionsPARMinVersion = "7.83.0-0"
+
+// ClusterAgentVersion returns the Cluster Agent version from the image override, or the
+// latest supported version when the image is not overridden.
+func ClusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if ddaSpec == nil {
+		return images.AgentLatestVersion
+	}
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
+		return common.GetAgentVersionFromImage(*clusterAgent.Image)
+	}
+	return images.AgentLatestVersion
+}
+
+// IsKubernetesActionsPARRequested returns whether the DatadogAgent asks for Kubernetes Actions to be
+// delivered through the Cluster Agent Private Action Runner, regardless of the Cluster Agent version.
+// Defaults to false when unset.
+func IsKubernetesActionsPARRequested(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if ddaSpec == nil || ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil {
 		return false
 	}
 	ka := ddaSpec.Features.KubernetesActions
 	return apiutils.BoolValue(ka.Enabled) && ka.Communication != nil && apiutils.BoolValue(ka.Communication.PAR)
+}
+
+// IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the
+// Cluster Agent through the Cluster Agent Private Action Runner: it is requested and the Cluster
+// Agent is recent enough to ship the Kubernetes Actions bundle.
+func IsKubernetesActionsPAREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return IsKubernetesActionsPARRequested(ddaSpec) &&
+		utils.IsAboveMinVersion(ClusterAgentVersion(ddaSpec), KubernetesActionsPARMinVersion, nil)
 }

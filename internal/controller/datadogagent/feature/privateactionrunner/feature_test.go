@@ -574,6 +574,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		name                      string
 		annotations               map[string]string
 		kubernetesActions         *v2alpha1.KubernetesActionsFeatureConfig
+		clusterAgentTag           string
 		wantClusterAgentEnabled   bool
 		wantNodeAgentEnabled      bool
 		wantK8sRemediationEnabled bool
@@ -708,6 +709,28 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			wantClusterAgentEnabled: false,
 		},
 		{
+			// The Kubernetes Actions bundle ships in Cluster Agent 7.83.0: do not provision an
+			// orphan runner, ConfigMap and RBAC for an older Cluster Agent.
+			name: "kubernetes actions PAR communication ignored on a cluster agent without the bundle",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+			},
+			clusterAgentTag:         "7.82.0",
+			wantClusterAgentEnabled: false,
+		},
+		{
+			name: "kubernetes actions PAR communication enables the runner at the minimum cluster agent version",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PAR: new(true)},
+			},
+			clusterAgentTag:           "7.83.0",
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
 			name: "kubernetes actions PAR communication ignored when feature disabled",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(false),
@@ -725,9 +748,15 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 					Annotations: tt.annotations,
 				},
 			}
-			reqComp := f.Configure(dda, &v2alpha1.DatadogAgentSpec{
+			ddaSpec := &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{KubernetesActions: tt.kubernetesActions},
-			}, nil)
+			}
+			if tt.clusterAgentTag != "" {
+				ddaSpec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.clusterAgentTag}},
+				}
+			}
+			reqComp := f.Configure(dda, ddaSpec, nil)
 
 			assert.Equal(t, tt.wantClusterAgentEnabled, reqComp.ClusterAgent.IsEnabled())
 			assert.Equal(t, tt.wantNodeAgentEnabled, reqComp.Agent.IsEnabled())
