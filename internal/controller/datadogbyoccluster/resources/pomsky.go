@@ -58,7 +58,7 @@ const (
 const (
 	pomskyUserID                 int64 = 1005
 	startupProbePath                   = "/health/readyz"
-	startupProbeFailureThreshold int32 = 12
+	startupProbeFailureThreshold int32 = 60
 	startupProbePeriodSeconds    int32 = 5
 	livenessProbePath                  = "/health/livez"
 	livenessProbeTimeoutSeconds  int32 = 5

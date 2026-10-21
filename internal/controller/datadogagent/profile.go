@@ -365,7 +365,7 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		}
 		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
 	}
-	// todo (mackjmr): Remove this once Host Profiler is moved to CRD/ annotation support is removed.
+	// todo (mackjmr): Remove this once Host Profiler annotation support is removed (superseded by spec.features.hostProfiler).
 	// Propagate the host-profiler experimental annotations from the profile onto the DDAI
 	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
 	// of the DDA-level annotation.

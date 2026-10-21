@@ -5,7 +5,7 @@ subject_pattern: "project_path:DataDog/.*"
 claim_pattern:
   project_id: "1094"
 
-# This token is used by go_e2e_deps to make authenticated requests to download plugins
+# This token is used by prepare_e2e_plugins to authenticate plugin downloads
 # It doesn't even read from the datadog-operator repo but this is our only way to get a token
 permissions:
   contents: read

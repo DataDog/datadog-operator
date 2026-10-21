@@ -683,6 +683,12 @@ func (builder *DatadogAgentBuilder) WithKSMPodCollectionMode(mode v2alpha1.KSMPo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMShardingEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.ShardingEnabled = new(enabled)
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {
@@ -949,6 +955,12 @@ func (builder *DatadogAgentBuilder) WithCSPMEnabled(enabled bool) *DatadogAgentB
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithCSPMRunInSystemProbe(enabled bool) *DatadogAgentBuilder {
+	builder.initCSPM()
+	builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe = new(enabled)
+	return builder
+}
+
 // CWS
 
 func (builder *DatadogAgentBuilder) initCWS() {
@@ -960,6 +972,12 @@ func (builder *DatadogAgentBuilder) initCWS() {
 func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCWS()
 	builder.datadogAgent.Spec.Features.CWS.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithCWSDirectSendFromSystemProbe(enabled bool) *DatadogAgentBuilder {
+	builder.initCWS()
+	builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe = new(enabled)
 	return builder
 }
 
@@ -1286,6 +1304,20 @@ func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *Data
 	builder.initGPUMonitoring()
 	builder.datadogAgent.Spec.Features.GPU.Enabled = new(enabled)
 	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = new(enabled)
+	return builder
+}
+
+// HostProfiler
+
+func (builder *DatadogAgentBuilder) initHostProfiler() {
+	if builder.datadogAgent.Spec.Features.HostProfiler == nil {
+		builder.datadogAgent.Spec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHostProfilerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHostProfiler()
+	builder.datadogAgent.Spec.Features.HostProfiler.Enabled = new(enabled)
 	return builder
 }
 

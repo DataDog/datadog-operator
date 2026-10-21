@@ -400,7 +400,7 @@ func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, erro
 		return "", errors.New("empty version")
 	}
 
-	version := strings.Split(decoded.Version, "_")[0]
+	version, _, _ := strings.Cut(decoded.Version, "_")
 	return strings.TrimLeft(version, "v"), nil
 }
 
