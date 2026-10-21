@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
@@ -34,11 +35,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	k8sclient "k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -46,9 +49,6 @@ const (
 	ddaName = "datadog"
 	// operatorPodSelector selects the operator manager pod/deployment.
 	operatorPodSelector = "app.kubernetes.io/name=datadog-operator"
-	// fieldManager owns the applied DatadogAgent so that re-applying a manifest
-	// without a given override removes that override (server-side apply).
-	fieldManager = "componenthealth-e2e"
 
 	// agenthealthPath is the fakeintake route that captures agent-health payloads
 	// (matches the operator's agenthealthPath and fakeintake's agentHealthEndpoint).
@@ -74,13 +74,6 @@ const (
 	pollInterval   = 10 * time.Second
 )
 
-// datadogAgentGVR is the GroupVersionResource for the DatadogAgent CRD.
-var datadogAgentGVR = schema.GroupVersionResource{
-	Group:    "datadoghq.com",
-	Version:  "v2alpha1",
-	Resource: "datadogagents",
-}
-
 // Operator Helm values live in testdata and are embedded at build time. The
 // ${NAMESPACE} placeholder is substituted with the operator/DDA namespace.
 //
@@ -99,16 +92,18 @@ type componentHealthSuite struct {
 	local bool
 
 	kubeClient k8sclient.Interface
-	dynClient  dynamic.Interface
+	ddaClient  client.Client
 }
 
 func (s *componentHealthSuite) SetupSuite() {
 	s.BaseSuite.SetupSuite()
 
 	s.kubeClient = s.Env().KubernetesCluster.Client()
-	dyn, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
-	s.Require().NoError(err, "failed to build dynamic client")
-	s.dynClient = dyn
+	scheme := runtime.NewScheme()
+	s.Require().NoError(v2alpha1.AddToScheme(scheme))
+	ddaClient, err := client.New(s.Env().KubernetesCluster.KubernetesClient.K8sConfig, client.Options{Scheme: scheme})
+	s.Require().NoError(err, "failed to build DatadogAgent client")
+	s.ddaClient = ddaClient
 
 	s.waitForOperator()
 	s.pointIntakeAtFakeintake()
@@ -239,48 +234,60 @@ func (s *componentHealthSuite) registerDatadogResourceCleanup() {
 	})
 }
 
-// applyDatadogAgent server-side-applies the DatadogAgent with the given override
-// (nil = healthy). Re-applying with a different override removes the previous one
-// because the same field manager owns the object.
-func (s *componentHealthSuite) applyDatadogAgent(override map[string]interface{}) {
-	spec := map[string]interface{}{
-		"global": map[string]interface{}{
-			"registry":    "public.ecr.aws/datadog",
-			"kubelet":     map[string]interface{}{"tlsVerify": false},
-			"credentials": map[string]interface{}{"apiKey": dummyAPIKey, "appKey": dummyAppKey},
-		},
+// applyDatadogAgent creates the test DatadogAgent or patches its Cluster Agent
+// override. A nil override removes the previous fault while preserving defaults
+// and other fields populated by the operator.
+func (s *componentHealthSuite) applyDatadogAgent(override *v2alpha1.DatadogAgentComponentOverride) {
+	ctx := s.T().Context()
+	dda := &v2alpha1.DatadogAgent{}
+	err := s.ddaClient.Get(ctx, types.NamespacedName{Name: ddaName, Namespace: common.NamespaceName}, dda)
+	if apierrors.IsNotFound(err) {
+		dda = &v2alpha1.DatadogAgent{
+			ObjectMeta: metav1.ObjectMeta{Name: ddaName, Namespace: common.NamespaceName},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{
+					Registry:    ptr.To("public.ecr.aws/datadog"),
+					Kubelet:     &v2alpha1.KubeletConfig{TLSVerify: ptr.To(false)},
+					Credentials: &v2alpha1.DatadogCredentials{APIKey: ptr.To(dummyAPIKey), AppKey: ptr.To(dummyAppKey)},
+				},
+			},
+		}
+		if override != nil {
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.ClusterAgentComponentName: override,
+			}
+		}
+		s.Require().NoError(s.ddaClient.Create(ctx, dda), "create DatadogAgent")
+		return
 	}
+	s.Require().NoError(err, "get DatadogAgent")
+
+	before := dda.DeepCopy()
+	delete(dda.Spec.Override, v2alpha1.ClusterAgentComponentName)
 	if override != nil {
-		spec["override"] = override
+		if dda.Spec.Override == nil {
+			dda.Spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
+		}
+		dda.Spec.Override[v2alpha1.ClusterAgentComponentName] = override
 	}
-	obj := &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": "datadoghq.com/v2alpha1",
-		"kind":       "DatadogAgent",
-		"metadata":   map[string]interface{}{"name": ddaName, "namespace": common.NamespaceName},
-		"spec":       spec,
-	}}
-	_, err := s.dynClient.Resource(datadogAgentGVR).Namespace(common.NamespaceName).
-		Apply(s.T().Context(), ddaName, obj, metav1.ApplyOptions{FieldManager: fieldManager, Force: true})
-	s.Require().NoError(err, "apply DatadogAgent")
+	s.Require().NoError(s.ddaClient.Patch(ctx, dda, client.MergeFrom(before)), "patch DatadogAgent override")
 }
 
 // clusterAgentImagePullFault pins the Cluster Agent image to a nonexistent tag
 // (ImagePullBackOff -> image_pull_failure).
-func clusterAgentImagePullFault() map[string]interface{} {
-	return map[string]interface{}{
-		"clusterAgent": map[string]interface{}{
-			"image": map[string]interface{}{"name": "cluster-agent", "tag": imagePullBadTag, "pullPolicy": "Always"},
+func clusterAgentImagePullFault() *v2alpha1.DatadogAgentComponentOverride {
+	return &v2alpha1.DatadogAgentComponentOverride{
+		Image: &v2alpha1.AgentImageConfig{
+			Name: "cluster-agent", Tag: imagePullBadTag, PullPolicy: ptr.To(corev1.PullAlways),
 		},
 	}
 }
 
 // clusterAgentUnschedulableFault pins the Cluster Agent to a nodeSelector no node
 // satisfies (Pending/Unschedulable -> component_unschedulable).
-func clusterAgentUnschedulableFault() map[string]interface{} {
-	return map[string]interface{}{
-		"clusterAgent": map[string]interface{}{
-			"nodeSelector": map[string]interface{}{"componenthealth.datadoghq.com/no-such-node": "true"},
-		},
+func clusterAgentUnschedulableFault() *v2alpha1.DatadogAgentComponentOverride {
+	return &v2alpha1.DatadogAgentComponentOverride{
+		NodeSelector: map[string]string{"componenthealth.datadoghq.com/no-such-node": "true"},
 	}
 }
 
