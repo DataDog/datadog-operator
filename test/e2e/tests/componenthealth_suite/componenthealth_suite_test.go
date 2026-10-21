@@ -19,6 +19,7 @@ package componenthealthsuite
 import (
 	"context"
 	_ "embed"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
@@ -34,21 +36,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	k8sclient "k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	// ddaName is the DatadogAgent the faults are applied to.
 	ddaName = "datadog"
-	// operatorPodSelector selects the operator manager pod/deployment.
-	operatorPodSelector = "app.kubernetes.io/name=datadog-operator"
-	// fieldManager owns the applied DatadogAgent so that re-applying a manifest
-	// without a given override removes that override (server-side apply).
-	fieldManager = "componenthealth-e2e"
+	// The operator Helm chart labels its Deployment and names its container.
+	operatorDeploymentSelector = "app.kubernetes.io/name=datadog-operator"
+	operatorContainerName      = "datadog-operator"
 
 	// agenthealthPath is the fakeintake route that captures agent-health payloads
 	// (matches the operator's agenthealthPath and fakeintake's agentHealthEndpoint).
@@ -56,7 +58,6 @@ const (
 
 	// Env the suite injects onto the operator to redirect the intake at the
 	// fakeintake once its (dynamic) URL is known.
-	envDetectEnabled = "DD_COMPONENT_HEALTH_ENABLED"
 	envIntakeEnabled = "DD_COMPONENT_HEALTH_INTAKE_ENABLED"
 	envIntakeURL     = "DD_COMPONENT_HEALTH_INTAKE_URL"
 
@@ -73,13 +74,6 @@ const (
 	resolveTimeout = 5 * time.Minute
 	pollInterval   = 10 * time.Second
 )
-
-// datadogAgentGVR is the GroupVersionResource for the DatadogAgent CRD.
-var datadogAgentGVR = schema.GroupVersionResource{
-	Group:    "datadoghq.com",
-	Version:  "v2alpha1",
-	Resource: "datadogagents",
-}
 
 // Operator Helm values live in testdata and are embedded at build time. The
 // ${NAMESPACE} placeholder is substituted with the operator/DDA namespace.
@@ -99,18 +93,19 @@ type componentHealthSuite struct {
 	local bool
 
 	kubeClient k8sclient.Interface
-	dynClient  dynamic.Interface
+	ddaClient  client.Client
 }
 
 func (s *componentHealthSuite) SetupSuite() {
 	s.BaseSuite.SetupSuite()
 
 	s.kubeClient = s.Env().KubernetesCluster.Client()
-	dyn, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
-	s.Require().NoError(err, "failed to build dynamic client")
-	s.dynClient = dyn
+	scheme := runtime.NewScheme()
+	s.Require().NoError(v2alpha1.AddToScheme(scheme))
+	ddaClient, err := client.New(s.Env().KubernetesCluster.KubernetesClient.K8sConfig, client.Options{Scheme: scheme})
+	s.Require().NoError(err, "failed to build DatadogAgent client")
+	s.ddaClient = ddaClient
 
-	s.waitForOperator()
 	s.pointIntakeAtFakeintake()
 }
 
@@ -131,95 +126,59 @@ func buildProvisionerOptions(local bool) []provisioners.KubernetesProvisionerOpt
 	}
 }
 
-// waitForOperator waits until the operator pod is Running.
-func (s *componentHealthSuite) waitForOperator() {
-	s.Require().Eventuallyf(func() bool {
-		pods, err := s.kubeClient.CoreV1().Pods(common.NamespaceName).List(s.T().Context(), metav1.ListOptions{
-			LabelSelector: operatorPodSelector,
-			FieldSelector: "status.phase=Running",
-		})
-		return err == nil && len(pods.Items) >= 1
-	}, 5*time.Minute, 10*time.Second, "operator pod did not reach Running")
-}
-
-// pointIntakeAtFakeintake patches the operator Deployment to enable the intake
-// emitter and target the fakeintake, then waits for the new pod to roll out. The
-// fakeintake URL is only known after provisioning, so it is injected here rather
-// than baked into the static Helm values.
+// pointIntakeAtFakeintake patches the known operator container to enable the
+// intake emitter and target the dynamically provisioned fakeintake, then waits
+// for the updated Deployment to become available.
 func (s *componentHealthSuite) pointIntakeAtFakeintake() {
 	s.Require().NotNil(s.Env().FakeIntake, "fakeintake must be provisioned")
 	url := strings.TrimRight(s.Env().FakeIntake.URL, "/") + agenthealthPath
 	s.T().Logf("Pointing operator agenthealth intake at fakeintake: %s", url)
 
 	deps := s.kubeClient.AppsV1().Deployments(common.NamespaceName)
-	list, err := deps.List(s.T().Context(), metav1.ListOptions{LabelSelector: operatorPodSelector})
+	list, err := deps.List(s.T().Context(), metav1.ListOptions{LabelSelector: operatorDeploymentSelector})
 	s.Require().NoError(err, "list operator deployment")
-	s.Require().NotEmpty(list.Items, "operator deployment not found")
+	s.Require().Len(list.Items, 1, "expected exactly one operator deployment")
 	dep := &list.Items[0]
+	s.Require().True(slices.ContainsFunc(dep.Spec.Template.Spec.Containers, func(c corev1.Container) bool {
+		return c.Name == operatorContainerName
+	}), "operator container not found in %s", dep.Name)
 
-	// Find the operator container (the one carrying DD_COMPONENT_HEALTH_ENABLED
-	// from the Helm values) and add the intake env to it.
-	ci := operatorContainerIndex(dep)
-	s.Require().GreaterOrEqual(ci, 0, "operator container (with %s) not found in %s", envDetectEnabled, dep.Name)
-	setEnv(&dep.Spec.Template.Spec.Containers[ci], envIntakeEnabled, "true")
-	setEnv(&dep.Spec.Template.Spec.Containers[ci], envIntakeURL, url)
+	patch, err := operatorIntakePatch(url)
+	s.Require().NoError(err, "build operator intake patch")
+	dep, err = deps.Patch(s.T().Context(), dep.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	s.Require().NoError(err, "patch operator deployment with intake env")
 
-	_, err = deps.Update(s.T().Context(), dep, metav1.UpdateOptions{})
-	s.Require().NoError(err, "update operator deployment with intake env")
-
-	// Wait for the rolled-out pod (one carrying the new intake URL env) to run.
 	s.Require().Eventuallyf(func() bool {
-		pods, err := s.kubeClient.CoreV1().Pods(common.NamespaceName).List(s.T().Context(), metav1.ListOptions{
-			LabelSelector: operatorPodSelector,
-			FieldSelector: "status.phase=Running",
-		})
-		if err != nil {
-			return false
-		}
-		for i := range pods.Items {
-			if podHasEnv(&pods.Items[i], envIntakeURL) {
-				return true
-			}
-		}
-		return false
-	}, 5*time.Minute, 10*time.Second, "operator did not roll out with the intake URL env")
+		current, err := deps.Get(s.T().Context(), dep.Name, metav1.GetOptions{})
+		return err == nil && operatorRolloutAvailable(current, dep.Generation)
+	}, 5*time.Minute, 10*time.Second, "operator deployment did not become available after the intake patch")
 }
 
-// operatorContainerIndex returns the index of the container carrying the
-// component-health detection env, or -1.
-func operatorContainerIndex(dep *appsv1.Deployment) int {
-	for i := range dep.Spec.Template.Spec.Containers {
-		for _, e := range dep.Spec.Template.Spec.Containers[i].Env {
-			if e.Name == envDetectEnabled {
-				return i
-			}
-		}
-	}
-	return -1
+// operatorIntakePatch changes only the named container's intake env vars.
+// Strategic merge preserves other containers and environment variables by name.
+func operatorIntakePatch(url string) ([]byte, error) {
+	base := &appsv1.Deployment{}
+	updated := base.DeepCopy()
+	updated.Spec.Template.Spec.Containers = []corev1.Container{{
+		Name: operatorContainerName,
+		Env: []corev1.EnvVar{
+			{Name: envIntakeEnabled, Value: "true"},
+			{Name: envIntakeURL, Value: url},
+		},
+	}}
+	return client.StrategicMergeFrom(base).Data(updated)
 }
 
-// setEnv sets (or replaces) an env var on a container.
-func setEnv(c *corev1.Container, name, value string) {
-	for i := range c.Env {
-		if c.Env[i].Name == name {
-			c.Env[i].Value = value
-			c.Env[i].ValueFrom = nil
-			return
-		}
-	}
-	c.Env = append(c.Env, corev1.EnvVar{Name: name, Value: value})
-}
-
-// podHasEnv reports whether any container in the pod declares the given env var.
-func podHasEnv(pod *corev1.Pod, name string) bool {
-	for i := range pod.Spec.Containers {
-		for _, e := range pod.Spec.Containers[i].Env {
-			if e.Name == name {
-				return true
-			}
-		}
-	}
-	return false
+// operatorRolloutAvailable requires availability of the updated replicas, so an
+// old available pod cannot satisfy the wait while the new pod is still starting.
+func operatorRolloutAvailable(dep *appsv1.Deployment, generation int64) bool {
+	replicas := ptr.Deref(dep.Spec.Replicas, 1)
+	return replicas > 0 &&
+		dep.Status.ObservedGeneration >= generation &&
+		dep.Status.ObservedGeneration >= dep.Generation &&
+		dep.Status.UpdatedReplicas == replicas &&
+		dep.Status.Replicas == replicas &&
+		dep.Status.AvailableReplicas == replicas
 }
 
 // registerDatadogResourceCleanup deletes the DatadogAgent/DatadogAgentInternal
@@ -239,48 +198,60 @@ func (s *componentHealthSuite) registerDatadogResourceCleanup() {
 	})
 }
 
-// applyDatadogAgent server-side-applies the DatadogAgent with the given override
-// (nil = healthy). Re-applying with a different override removes the previous one
-// because the same field manager owns the object.
-func (s *componentHealthSuite) applyDatadogAgent(override map[string]interface{}) {
-	spec := map[string]interface{}{
-		"global": map[string]interface{}{
-			"registry":    "public.ecr.aws/datadog",
-			"kubelet":     map[string]interface{}{"tlsVerify": false},
-			"credentials": map[string]interface{}{"apiKey": dummyAPIKey, "appKey": dummyAppKey},
-		},
+// applyDatadogAgent creates the test DatadogAgent or patches its Cluster Agent
+// override. A nil override removes the previous fault while preserving defaults
+// and other fields populated by the operator.
+func (s *componentHealthSuite) applyDatadogAgent(override *v2alpha1.DatadogAgentComponentOverride) {
+	ctx := s.T().Context()
+	dda := &v2alpha1.DatadogAgent{}
+	err := s.ddaClient.Get(ctx, types.NamespacedName{Name: ddaName, Namespace: common.NamespaceName}, dda)
+	if apierrors.IsNotFound(err) {
+		dda = &v2alpha1.DatadogAgent{
+			ObjectMeta: metav1.ObjectMeta{Name: ddaName, Namespace: common.NamespaceName},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{
+					Registry:    ptr.To("public.ecr.aws/datadog"),
+					Kubelet:     &v2alpha1.KubeletConfig{TLSVerify: ptr.To(false)},
+					Credentials: &v2alpha1.DatadogCredentials{APIKey: ptr.To(dummyAPIKey), AppKey: ptr.To(dummyAppKey)},
+				},
+			},
+		}
+		if override != nil {
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.ClusterAgentComponentName: override,
+			}
+		}
+		s.Require().NoError(s.ddaClient.Create(ctx, dda), "create DatadogAgent")
+		return
 	}
+	s.Require().NoError(err, "get DatadogAgent")
+
+	before := dda.DeepCopy()
+	delete(dda.Spec.Override, v2alpha1.ClusterAgentComponentName)
 	if override != nil {
-		spec["override"] = override
+		if dda.Spec.Override == nil {
+			dda.Spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
+		}
+		dda.Spec.Override[v2alpha1.ClusterAgentComponentName] = override
 	}
-	obj := &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": "datadoghq.com/v2alpha1",
-		"kind":       "DatadogAgent",
-		"metadata":   map[string]interface{}{"name": ddaName, "namespace": common.NamespaceName},
-		"spec":       spec,
-	}}
-	_, err := s.dynClient.Resource(datadogAgentGVR).Namespace(common.NamespaceName).
-		Apply(s.T().Context(), ddaName, obj, metav1.ApplyOptions{FieldManager: fieldManager, Force: true})
-	s.Require().NoError(err, "apply DatadogAgent")
+	s.Require().NoError(s.ddaClient.Patch(ctx, dda, client.MergeFrom(before)), "patch DatadogAgent override")
 }
 
 // clusterAgentImagePullFault pins the Cluster Agent image to a nonexistent tag
 // (ImagePullBackOff -> image_pull_failure).
-func clusterAgentImagePullFault() map[string]interface{} {
-	return map[string]interface{}{
-		"clusterAgent": map[string]interface{}{
-			"image": map[string]interface{}{"name": "cluster-agent", "tag": imagePullBadTag, "pullPolicy": "Always"},
+func clusterAgentImagePullFault() *v2alpha1.DatadogAgentComponentOverride {
+	return &v2alpha1.DatadogAgentComponentOverride{
+		Image: &v2alpha1.AgentImageConfig{
+			Name: "cluster-agent", Tag: imagePullBadTag, PullPolicy: ptr.To(corev1.PullAlways),
 		},
 	}
 }
 
 // clusterAgentUnschedulableFault pins the Cluster Agent to a nodeSelector no node
 // satisfies (Pending/Unschedulable -> component_unschedulable).
-func clusterAgentUnschedulableFault() map[string]interface{} {
-	return map[string]interface{}{
-		"clusterAgent": map[string]interface{}{
-			"nodeSelector": map[string]interface{}{"componenthealth.datadoghq.com/no-such-node": "true"},
-		},
+func clusterAgentUnschedulableFault() *v2alpha1.DatadogAgentComponentOverride {
+	return &v2alpha1.DatadogAgentComponentOverride{
+		NodeSelector: map[string]string{"componenthealth.datadoghq.com/no-such-node": "true"},
 	}
 }
 

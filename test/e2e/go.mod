@@ -45,7 +45,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/pointer v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/version v0.83.2 // indirect
-	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856 // indirect
+	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.8-0.20260421145859-31a7e515a571 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
@@ -293,7 +293,7 @@ require (
 	k8s.io/streaming v0.37.0 // indirect
 	lukechampine.com/frand v1.5.1 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
-	sigs.k8s.io/controller-runtime v0.25.1 // indirect
+	sigs.k8s.io/controller-runtime v0.25.1
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
