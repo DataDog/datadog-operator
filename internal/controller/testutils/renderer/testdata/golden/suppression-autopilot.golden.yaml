@@ -1306,7 +1306,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 5f58fb94418461600e6d520316a15885
+    agent.datadoghq.com/agentspechash: 9ed02e6940923ba92c19b8fb52f32b68
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1373,6 +1373,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
