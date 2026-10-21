@@ -6,8 +6,6 @@
 package kubernetesactions
 
 import (
-	"strconv"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +55,11 @@ type kubernetesActionsFeature struct {
 	serviceAccountName string
 	rbacSuffix         string
 	rcEnabled          bool
-	logger             logr.Logger
+	parEnabled         bool
+	// channelToggles is true when the Cluster Agent understands the per-channel
+	// settings (DD_KUBEACTIONS_REMOTE_CONFIG_ENABLED / DD_KUBEACTIONS_PRIVATE_ACTION_RUNNER_ENABLED).
+	channelToggles bool
+	logger         logr.Logger
 }
 
 func (f *kubernetesActionsFeature) ID() feature.IDType {
@@ -72,14 +74,24 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	}
 
 	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
-	if !f.rcEnabled && !featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
+	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
+	if !f.rcEnabled && !f.parEnabled {
 		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.rc and communication.par are false; the feature will not be configured")
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil) {
+	dcaVersion := clusterAgentVersion(ddaSpec)
+	if !utils.IsAboveMinVersion(dcaVersion, ClusterAgentMinVersion, nil) {
 		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", ClusterAgentMinVersion)
 		return reqComp
+	}
+
+	f.channelToggles = utils.IsAboveMinVersion(dcaVersion, ClusterAgentChannelTogglesMinVersion, nil)
+	if !f.rcEnabled && !f.channelToggles {
+		// Older Cluster Agents always use Remote Configuration; ignore the setting rather than
+		// passing an environment variable they do not understand.
+		f.logger.Error(nil, "Kubernetes Actions communication.rc=false requires a newer Cluster Agent; Remote Configuration stays enabled", "min", ClusterAgentChannelTogglesMinVersion)
+		f.rcEnabled = true
 	}
 
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
@@ -103,10 +115,20 @@ func (f *kubernetesActionsFeature) ManageClusterAgent(managers feature.PodTempla
 		Name:  DDKubeActionsEnabled,
 		Value: "true",
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  DDKubeActionsRemoteConfigEnabled,
-		Value: strconv.FormatBool(f.rcEnabled),
-	})
+	// Only pass a channel setting when turning that channel off, and only to a Cluster Agent
+	// that understands it: both settings default to true in the agent.
+	if f.channelToggles && !f.rcEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDKubeActionsRemoteConfigEnabled,
+			Value: "false",
+		})
+	}
+	if f.channelToggles && !f.parEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDKubeActionsPAREnabled,
+			Value: "false",
+		})
+	}
 	return nil
 }
 

@@ -22,9 +22,17 @@ const (
 	// Cluster Agent receives Kubernetes actions through Remote Configuration.
 	DDKubeActionsRemoteConfigEnabled = "DD_KUBEACTIONS_REMOTE_CONFIG_ENABLED"
 
+	// DDKubeActionsPAREnabled is the env var that controls whether the Cluster
+	// Agent accepts Kubernetes actions through its Private Action Runner.
+	DDKubeActionsPAREnabled = "DD_KUBEACTIONS_PRIVATE_ACTION_RUNNER_ENABLED"
+
 	// ClusterAgentMinVersion is the minimum Cluster Agent version that supports
 	// the Kubernetes Actions product.
 	ClusterAgentMinVersion = "7.79.0"
+
+	// ClusterAgentChannelTogglesMinVersion is the minimum Cluster Agent version that
+	// understands DDKubeActionsRemoteConfigEnabled and DDKubeActionsPAREnabled.
+	ClusterAgentChannelTogglesMinVersion = "7.86.0-0"
 )
 
 func getRBACResourceName(owner metav1.Object, suffix string) string {

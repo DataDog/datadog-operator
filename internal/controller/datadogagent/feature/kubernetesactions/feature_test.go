@@ -74,14 +74,49 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
 		},
 		{
+			// Older Cluster Agents always use Remote Configuration: rc=false is ignored and
+			// no channel setting is passed.
+			Name: "KubernetesActions enabled with PAR only on a cluster agent without channel settings",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithKubernetesActionsCommunication(false, true).
+				WithClusterAgentTag("7.85.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
+		},
+		{
 			Name: "KubernetesActions enabled with PAR only",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithKubernetesActionsEnabled(true).
 				WithKubernetesActionsCommunication(false, true).
+				WithClusterAgentTag("7.86.0").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsPAROnlyClusterAgentWantFunc),
+		},
+		{
+			Name: "KubernetesActions enabled with RC only",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithClusterAgentTag("7.86.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsRCOnlyClusterAgentWantFunc),
+		},
+		{
+			Name: "KubernetesActions enabled with RC and PAR on a cluster agent with channel settings",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithKubernetesActionsCommunication(true, true).
+				WithClusterAgentTag("7.86.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
 		},
 		{
 			Name: "KubernetesActions enabled with no communication channel",
@@ -97,28 +132,30 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 	tests.Run(t, buildKubernetesActionsFeature)
 }
 
+// kubernetesActionsClusterAgentWantFunc expects only the feature switch: both channels are on
+// (the agent default), or the Cluster Agent predates the channel settings.
 func kubernetesActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	assertKubernetesActionsEnvVars(t, mgrInterface, "true")
+	assertKubernetesActionsEnvVars(t, mgrInterface)
 }
 
 func kubernetesActionsPAROnlyClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	assertKubernetesActionsEnvVars(t, mgrInterface, "false")
+	assertKubernetesActionsEnvVars(t, mgrInterface, &corev1.EnvVar{Name: DDKubeActionsRemoteConfigEnabled, Value: "false"})
 }
 
-func assertKubernetesActionsEnvVars(t testing.TB, mgrInterface feature.PodTemplateManagers, rcEnabled string) {
+func kubernetesActionsRCOnlyClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	assertKubernetesActionsEnvVars(t, mgrInterface, &corev1.EnvVar{Name: DDKubeActionsPAREnabled, Value: "false"})
+}
+
+func assertKubernetesActionsEnvVars(t testing.TB, mgrInterface feature.PodTemplateManagers, channelEnvVars ...*corev1.EnvVar) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
-	want := []*corev1.EnvVar{
+	want := append([]*corev1.EnvVar{
 		{
 			Name:  DDKubeActionsEnabled,
 			Value: "true",
 		},
-		{
-			Name:  DDKubeActionsRemoteConfigEnabled,
-			Value: rcEnabled,
-		},
-	}
+	}, channelEnvVars...)
 	assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 }
 
