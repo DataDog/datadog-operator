@@ -21,12 +21,12 @@ const (
 	APIPort        int32 = 8686
 	DataVolumeName       = "data"
 	DataDirectory        = "/var/lib/observability-pipelines-worker"
+	// Local mode mounts spec.pipelineConfig from an owned ConfigMap at PipelineConfigDirectory.
+	PipelineConfigVolumeName = "pipeline-config"
+	PipelineConfigDirectory  = "/etc/observability-pipelines-worker/pipeline"
 )
 
-// Local mode mounts spec.pipelineConfig from an owned ConfigMap and rolls pods when it changes.
 const (
-	pipelineConfigVolumeName   = "pipeline-config"
-	pipelineConfigDir          = "/etc/observability-pipelines-worker/pipeline"
 	pipelineConfigFileName     = "pipeline.yaml"
 	pipelineChecksumAnnotation = "checksum/pipeline"
 )

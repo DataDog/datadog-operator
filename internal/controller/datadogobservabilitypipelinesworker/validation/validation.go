@@ -108,15 +108,26 @@ func validateReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelines
 			errs = append(errs, field.Invalid(fieldPath.Child("initContainers").Index(i).Child("name"), container.Name, "is reserved for the Worker container"))
 		}
 	}
+	// Only local mode reserves the pipeline names, so existing Remote Config Workers that use them keep working.
+	local := spec.PipelineConfig != nil
 	for i, volume := range spec.Volumes {
-		if volume.Name == workerresources.DataVolumeName {
+		if volume.Name == workerresources.DataVolumeName || local && volume.Name == workerresources.PipelineConfigVolumeName {
 			errs = append(errs, field.Invalid(fieldPath.Child("volumes").Index(i).Child("name"), volume.Name, "is reserved for a built-in volume"))
 		}
 	}
 	for i, volumeMount := range spec.VolumeMounts {
-		if path.Clean(volumeMount.MountPath) == workerresources.DataDirectory {
+		mountPath := path.Clean(volumeMount.MountPath)
+		if mountPath == workerresources.DataDirectory || local && pathsOverlap(mountPath, workerresources.PipelineConfigDirectory) {
 			errs = append(errs, field.Invalid(fieldPath.Child("volumeMounts").Index(i).Child("mountPath"), volumeMount.MountPath, "is reserved for a built-in volume mount"))
 		}
 	}
 	return errs
+}
+
+// pathsOverlap reports whether one clean absolute path equals or contains the other, so mounting either would hide the other.
+func pathsOverlap(a, b string) bool {
+	within := func(child, parent string) bool {
+		return child == parent || strings.HasPrefix(child, strings.TrimSuffix(parent, "/")+"/")
+	}
+	return within(a, b) || within(b, a)
 }
