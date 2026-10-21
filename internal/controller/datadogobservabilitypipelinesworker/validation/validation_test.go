@@ -303,3 +303,46 @@ func TestValidateWorkerSpec_Pipeline(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateWorkerSpec_PipelineReservedNames(t *testing.T) {
+	tests := []struct {
+		name      string
+		local     bool
+		volume    string
+		mountPath string
+		want      []string
+	}{
+		{name: "local pipeline volume", local: true, volume: "pipeline-config", want: []string{"spec.volumes[0].name: is reserved for a built-in volume"}},
+		{name: "local mount at the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker/pipeline/", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount under the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker/pipeline/extra", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount over the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount at the root", local: true, mountPath: "/", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount beside the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker/bootstrap.yaml"},
+		{name: "local mount with a shared prefix", local: true, mountPath: "/etc/observability-pipelines-worker/pipelines"},
+		{name: "Remote Config keeps the names", volume: "pipeline-config", mountPath: "/etc/observability-pipelines-worker"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{Repository: ptr.To("registry.example.com/worker"), Tag: ptr.To("v1")},
+			}
+			spec.PipelineID = ptr.To("pipeline-id")
+			if tt.local {
+				spec.PipelineConfig = ptr.To("sources: {}")
+			}
+			if tt.volume != "" {
+				spec.Volumes = []corev1.Volume{{Name: tt.volume}}
+			}
+			if tt.mountPath != "" {
+				spec.VolumeMounts = []corev1.VolumeMount{{Name: "extra", MountPath: tt.mountPath}}
+			}
+			var got []string
+			for _, err := range ValidateWorkerSpec(&spec) {
+				got = append(got, err.Field+": "+err.Detail)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("validation errors (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
