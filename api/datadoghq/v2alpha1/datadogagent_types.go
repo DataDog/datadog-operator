@@ -731,9 +731,10 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
-	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
+	// payloads directly, without using the security-agent.
+	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
@@ -748,7 +749,8 @@ type CSPMHostBenchmarksConfig struct {
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
-// CWS runs in the Security Agent.
+// CWS runs in the System Probe, which also sends the events unless
+// DirectSendFromSystemProbe is disabled, in which case the Security Agent sends them.
 type CWSFeatureConfig struct {
 	// Enabled enables Cloud Workload Security.
 	// Default: false
@@ -761,8 +763,8 @@ type CWSFeatureConfig struct {
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
 	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// Requires Agent 7.63.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
@@ -1216,6 +1218,15 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other
+	// resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins
+	// cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,
+	// `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	ShardingEnabled *bool `json:"shardingEnabled,omitempty"`
 }
 
 // KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.

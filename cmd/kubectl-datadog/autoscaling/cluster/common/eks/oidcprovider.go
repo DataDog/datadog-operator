@@ -120,8 +120,7 @@ func waitForOIDCProviderReadable(ctx context.Context, iamClient OIDCProviderAPI,
 		if err == nil {
 			return nil
 		}
-		var notFound *iamtypes.NoSuchEntityException
-		if !errors.As(err, &notFound) {
+		if _, ok := errors.AsType[*iamtypes.NoSuchEntityException](err); !ok {
 			return fmt.Errorf("failed to read back OIDC provider %s: %w", arn, err)
 		}
 		select {

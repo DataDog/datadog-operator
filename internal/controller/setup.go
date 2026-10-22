@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -34,6 +35,7 @@ const (
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
 	byocClusterControllerName     = "DatadogBYOCCluster"
+	workerControllerName          = "DatadogObservabilityPipelinesWorker"
 	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
@@ -65,6 +67,7 @@ type SetupOptions struct {
 	DefaultDataPlaneLinuxEnabled      bool
 	ComponentHealthEnabled            bool
 	ComponentHealthIntakeEnabled      bool
+	ComponentHealthIntakeURL          string
 	ComponentHealthSnapshotInterval   time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
@@ -80,6 +83,7 @@ var controllerStarters = map[string]starterFunc{
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
 	byocClusterControllerName:     startDatadogBYOCCluster,
+	workerControllerName:          startDatadogObservabilityPipelinesWorker,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
 	componentHealthControllerName: startComponentHealth,
@@ -227,6 +231,19 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 	}).SetupWithManager(mgr)
 }
 
+func startDatadogObservabilityPipelinesWorker(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", workerControllerName)
+		return nil
+	}
+
+	return (&datadogobservabilitypipelinesworker.Reconciler{
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
+	}).SetupWithManager(mgr)
+}
+
 func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
@@ -283,8 +300,13 @@ func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.
 		if options.CredsManager == nil {
 			return fmt.Errorf("%s: intake emitter requires a credentials manager", componentHealthControllerName)
 		}
-		reconciler.emitter = newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
-		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake", "controller", componentHealthControllerName)
+		emitter := newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
+		// When set, override the derived agenthealth intake URL (testing/QA against a
+		// fakeintake). Empty keeps the production URL derived from the site.
+		emitter.intakeURL = options.ComponentHealthIntakeURL
+		reconciler.emitter = emitter
+		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake",
+			"controller", componentHealthControllerName, "intakeURLOverride", options.ComponentHealthIntakeURL)
 	}
 
 	return reconciler.SetupWithManager(mgr)

@@ -208,12 +208,62 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:  ksmClusterAgentWantFunc(),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
+		{
+			Name: "ksm-core enabled, cluster checks enabled, shardingEnabled=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithKSMShardingEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: ksmClusterAgentWantFunc(
+				&corev1.EnvVar{
+					Name:  DDKubeStateMetricsShardingEnabled,
+					Value: "true",
+				},
+			),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster check runners disabled, shardingEnabled=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, false).
+				WithKSMShardingEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster check runners enabled, cluster agent image < 7.83.0 shardingEnabled=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithKSMShardingEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/agent:7.81.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster check runners enabled, shardingEnabled=false (explicit)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithKSMShardingEnabled(false).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildKSMFeature)
 }
 
-func ksmClusterAgentWantFunc() *test.ComponentTest {
+func ksmClusterAgentWantFunc(envOverrides ...*corev1.EnvVar) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -229,6 +279,9 @@ func ksmClusterAgentWantFunc() *test.ComponentTest {
 					Value: "-kube-state-metrics-core-config",
 				},
 			}
+
+			want = append(want, envOverrides...)
+
 			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.Empty(t, annotations)

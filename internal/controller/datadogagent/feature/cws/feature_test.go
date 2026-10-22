@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -458,18 +459,41 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 	})
 }
 
-// DirectSendFromSystemProbe is resolved in Configure rather than in the defaulting pass, so that a
-// CWS enabled through Remote Configuration gets the same value as one enabled in the spec. The
-// resolved value is written back to the spec.
+// Remote Configuration can enable CWS after the defaulting pass has run. DirectSendFromSystemProbe is
+// defaulted in Configure, after the merge, so a remotely enabled CWS sends from the system-probe too.
+func Test_cwsFeature_ConfigureFromRemoteConfig(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Status: v2alpha1.DatadogAgentStatus{
+			RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
+	require.False(t, *dda.Spec.Features.CWS.Enabled, "CWS is off in the spec before the merge")
+
+	f := &cwsFeature{}
+	reqComp := f.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	assert.True(t, f.directSendFromSystemProbe)
+	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+}
+
 func Test_cwsFeature_DirectSendFromSystemProbeDefault(t *testing.T) {
 	tests := []struct {
 		name                      string
+		agentTag                  string
 		directSendFromSystemProbe *bool
 		want                      bool
 	}{
-		{name: "unset resolves to the default", want: defaultDirectSendFromSystemProbe},
-		{name: "explicit false is kept", directSendFromSystemProbe: ptr.To(false), want: false},
-		{name: "explicit true is kept", directSendFromSystemProbe: ptr.To(true), want: true},
+		{name: "unset, no Agent image override", want: true},
+		{name: "unset, Agent too old", agentTag: "7.62.0", want: false},
+		{name: "unset, Agent recent enough", agentTag: "7.63.0", want: true},
+		{name: "unset, unparsable Agent tag is assumed recent enough", agentTag: "latest", want: true},
+		{name: "explicit false wins", directSendFromSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true wins on an older Agent", agentTag: "7.62.0", directSendFromSystemProbe: ptr.To(true), want: true},
 	}
 
 	for _, tt := range tests {
@@ -480,6 +504,11 @@ func Test_cwsFeature_DirectSendFromSystemProbeDefault(t *testing.T) {
 						CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true), DirectSendFromSystemProbe: tt.directSendFromSystemProbe},
 					},
 				},
+			}
+			if tt.agentTag != "" {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
+				}
 			}
 
 			f := &cwsFeature{}

@@ -1508,7 +1508,7 @@
                   "type": "object"
                 },
                 "runInSystemProbe": {
-                  "description": "RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                  "description": "RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send\npayloads directly, without using the security-agent.\nRequires Agent 7.77.0 or above; on older Agents this defaults to false.\nDefault: true",
                   "type": "boolean"
                 }
               },
@@ -1578,7 +1578,7 @@
                   "type": "object"
                 },
                 "directSendFromSystemProbe": {
-                  "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                  "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nRequires Agent 7.63.0 or above; on older Agents this defaults to false.\nDefault: true",
                   "type": "boolean"
                 },
                 "enabled": {
@@ -2289,6 +2289,10 @@
                     "node_kubelet"
                   ],
                   "type": "string"
+                },
+                "shardingEnabled": {
+                  "description": "`ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other\nresources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins\ncannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,\n`container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.\n\nDefault behavior is unchanged when this field is unset.",
+                  "type": "boolean"
                 }
               },
               "type": "object"
@@ -10684,7 +10688,7 @@
                       "type": "object"
                     },
                     "runInSystemProbe": {
-                      "description": "RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "description": "RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send\npayloads directly, without using the security-agent.\nRequires Agent 7.77.0 or above; on older Agents this defaults to false.\nDefault: true",
                       "type": "boolean"
                     }
                   },
@@ -10754,7 +10758,7 @@
                       "type": "object"
                     },
                     "directSendFromSystemProbe": {
-                      "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nRequires Agent 7.63.0 or above; on older Agents this defaults to false.\nDefault: true",
                       "type": "boolean"
                     },
                     "enabled": {
@@ -11465,6 +11469,10 @@
                         "node_kubelet"
                       ],
                       "type": "string"
+                    },
+                    "shardingEnabled": {
+                      "description": "`ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other\nresources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins\ncannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,\n`container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.\n\nDefault behavior is unchanged when this field is unset.",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
