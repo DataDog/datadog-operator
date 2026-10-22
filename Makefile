@@ -60,6 +60,7 @@ E2E_GO_TEST_TIMEOUT ?= 55m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
 E2E_GKE_AUTOPILOT_GO_TEST_TIMEOUT ?= 100m
 E2E_UNTAINT_GO_TEST_TIMEOUT ?= 90m
+E2E_COMPONENTHEALTH_GO_TEST_TIMEOUT ?= 60m
 E2E_GO_TEST_OUTPUT ?= go run ./hack/e2e-test-output
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -239,11 +240,16 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+	# -p 2 caps how many e2e test binaries build/link in parallel. This target globs
+	# ./... (to keep E2E_RUN_REGEX able to target any suite), so it compiles every
+	# suite binary; each links the full agent dependency tree, and uncapped
+	# parallelism peaked over the 16Gi job limit (OOMKilled) once the suite count
+	# grew. The scoped targets below build a single binary and need no cap.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ -p 2 ./... -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ -p 2 ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	fi
 
 .PHONY: e2e-autoscaling-tests
@@ -257,6 +263,10 @@ e2e-gke-autopilot-tests: ## Run GKE Autopilot E2E tests.
 .PHONY: e2e-untaint-tests
 e2e-untaint-tests: ## Run untaint controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
 	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/untaint_suite/... -count=1 --tags=e2e -json -run 'TestUntaint.*AWSKind' -timeout $(E2E_UNTAINT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_untaint.out | $(E2E_GO_TEST_OUTPUT)
+
+.PHONY: e2e-componenthealth-tests
+e2e-componenthealth-tests: ## Run ComponentHealth controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/componenthealth_suite/... -count=1 --tags=e2e -json -run 'TestComponentHealth.*AWSKind' -timeout $(E2E_COMPONENTHEALTH_GO_TEST_TIMEOUT) -coverprofile cover_e2e_componenthealth.out | $(E2E_GO_TEST_OUTPUT)
 
 .PHONY: yaml-mapper-tests
 yaml-mapper-tests: fmt lint yaml-mapper-unit-tests
