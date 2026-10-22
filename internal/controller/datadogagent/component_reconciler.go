@@ -226,7 +226,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
 	}
 
-	res, err := r.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, component.UpdateStatus)
+	res, err := r.reconciler.createOrUpdateDeployment(ctx, deploymentLogger, params.DDA, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
 		// Update condition to success since the deployment was created or updated successfully

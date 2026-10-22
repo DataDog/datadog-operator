@@ -45,7 +45,7 @@ const (
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, parentLogger logr.Logger, dda *v2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
 
 	var result reconcile.Result
@@ -66,7 +66,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 	}
 
 	// Get the current deployment and compare
-	currentDeployment, err := r.getCurrentDeployment(dda, deployment)
+	currentDeployment, err := r.getCurrentDeployment(ctx, dda, deployment)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -89,7 +89,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 				return reconcile.Result{}, e
 			}
 			// use merge patch to replace the entire existing owner reference list
-			err = r.client.Patch(context.TODO(), currentDeployment, client.RawPatch(types.MergePatchType, patch))
+			err = r.client.Patch(ctx, currentDeployment, client.RawPatch(types.MergePatchType, patch))
 			if err != nil {
 				logger.Error(err, "Unable to patch Deployment owner reference")
 				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
@@ -101,12 +101,12 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 			// if its a helm cluster checks runner deployment, delete the workload and dependents
 			helmCCRDeployment := currentDeployment.GetLabels()[kubernetes.AppKubernetesComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
 			if helmCCRDeployment {
-				if err = deleteAllWorkloadsAndDependentsBackground(context.TODO(), logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				if err = deleteAllWorkloadsAndDependentsBackground(ctx, logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
 				}
 				return result, nil
 			} else {
-				if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				if err = deleteObjectAndOrphanDependents(ctx, logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
 				}
 			}
@@ -136,7 +136,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 		updateDeployment.Labels = mergeAnnotationsLabels(logger, currentDeployment.GetLabels(), deployment.GetLabels(), keepLabelsFilter)
 
 		now := metav1.NewTime(time.Now())
-		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
+		err = kubernetes.UpdateFromObject(ctx, r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Deployment")
 			return reconcile.Result{}, err
@@ -147,7 +147,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 	} else {
 		now := metav1.NewTime(time.Now())
 
-		err = r.client.Create(context.TODO(), deployment)
+		err = r.client.Create(ctx, deployment)
 		if err != nil {
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Deployment")
 			return reconcile.Result{}, err
@@ -224,12 +224,12 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(ctx context.Context, status *v2alp
 }
 
 // getCurrentDeployment returns the current deployment for a given DDA
-func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv1.Deployment, error) {
+func (r *Reconciler) getCurrentDeployment(ctx context.Context, dda, deployment metav1.Object) (*appsv1.Deployment, error) {
 	// Helm-migrated deployment
 	if helm.IsHelmMigration(dda) {
 		componentType := deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]
 		if componentType == "" {
-			r.log.Info("No component label found in deployment, using default")
+			ctrl.LoggerFrom(ctx).Info("No component label found in deployment, using default")
 			componentType = constants.DefaultAgentResourceSuffix
 		}
 		dsList := appsv1.DeploymentList{}
@@ -239,15 +239,15 @@ func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv
 			apicommon.AgentDeploymentComponentLabelKey: componentType,
 		}
 
-		if err := r.client.List(context.TODO(), &dsList, matchLabels); err != nil {
+		if err := r.client.List(ctx, &dsList, matchLabels); err != nil {
 			return nil, err
 		}
 
 		switch len(dsList.Items) {
 		case 0: // Migration has completed; check for default deployment
-			r.log.Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
+			ctrl.LoggerFrom(ctx).Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
 		case 1:
-			r.log.Info("Found Helm-managed deployment", "name", dsList.Items[0].Name)
+			ctrl.LoggerFrom(ctx).Info("Found Helm-managed deployment", "name", dsList.Items[0].Name)
 			return &dsList.Items[0], nil
 		default:
 			return nil, fmt.Errorf("expected 1 deployment for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
@@ -260,9 +260,9 @@ func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv
 		Namespace: deployment.GetNamespace(),
 	}
 	currentDeployment := &appsv1.Deployment{}
-	if err := r.client.Get(context.TODO(), nsName, currentDeployment); err != nil {
+	if err := r.client.Get(ctx, nsName, currentDeployment); err != nil {
 		if apierrors.IsNotFound(err) {
-			r.log.Info("deployment is not found")
+			ctrl.LoggerFrom(ctx).Info("deployment is not found")
 			return nil, nil
 		}
 		return nil, err

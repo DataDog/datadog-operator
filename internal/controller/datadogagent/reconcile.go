@@ -31,14 +31,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	reqLogger := ctrl.LoggerFrom(ctx).WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
+	reqLogger := ctrl.LoggerFrom(ctx)
 	reqLogger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
 
@@ -181,7 +180,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		if e != nil {
 			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
