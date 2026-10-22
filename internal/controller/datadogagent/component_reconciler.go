@@ -14,6 +14,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -95,12 +96,11 @@ type ComponentReconciler interface {
 	ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, requiredComponents feature.RequiredComponents) bool
 
 	// CleanupDependencies deletes any dependencies associated with the component
-	CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
+	CleanupDependencies(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
 }
 
 // ReconcileComponentParams bundles common parameters needed by all components
 type ReconcileComponentParams struct {
-	Logger             logr.Logger
 	DDA                *datadoghqv2alpha1.DatadogAgent
 	RequiredComponents feature.RequiredComponents
 	Features           []feature.Feature
@@ -134,6 +134,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	for _, comp := range r.components {
+		componentCtx := ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("component", comp.Name()))
 		// Check if component is enabled and if there's a conflict
 		enabled, conflict := comp.IsEnabled(params.RequiredComponents, params.DDA.Spec.Override)
 
@@ -154,10 +155,10 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 					true,
 				)
 			}
-			res, err = r.Cleanup(ctx, params, comp)
+			res, err = r.Cleanup(componentCtx, params, comp)
 		} else {
 			// Component is enabled, reconcile it
-			res, err = r.reconcileComponent(ctx, params, comp)
+			res, err = r.reconcileComponent(componentCtx, params, comp)
 		}
 
 		if utils.ShouldReturn(res, err) {
@@ -177,7 +178,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
-	deploymentLogger := params.Logger.WithValues("component", component.Name())
+	deploymentLogger := ctrl.LoggerFrom(ctx)
 
 	// Start by creating the Default Cluster-Agent deployment
 	// Pass params.DDA directly (not GetObjectMeta()) so that getCommonLabels can
@@ -226,7 +227,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
 	}
 
-	res, err := r.reconciler.createOrUpdateDeployment(ctx, deploymentLogger, params.DDA, deployment, params.Status, component.UpdateStatus)
+	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDA, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
 		// Update condition to success since the deployment was created or updated successfully
@@ -253,14 +254,14 @@ func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileCompon
 		override.Deployment(deployment, componentOverride)
 	}
 
-	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
+	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.DDA, deployment)
 
 	if err != nil {
 		return result, err
 	}
 
 	// Do status and other resource cleanup if the deployment was deleted successfully
-	if result, err = component.CleanupDependencies(ctx, params.Logger, params.DDA, params.ResourceManagers); err != nil {
+	if result, err = component.CleanupDependencies(ctx, params.DDA, params.ResourceManagers); err != nil {
 		return result, err
 	}
 	component.DeleteStatus(params.Status, component.GetConditionType())

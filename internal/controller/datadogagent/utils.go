@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -157,7 +158,8 @@ func getDDAIGVK() schema.GroupVersionKind {
 
 // Delete specific workload and dependents with background propagation
 // Only used for Helm-managed cluster checks runner deployment
-func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, c client.Client, obj client.Object, component string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	propagationPolicy := metav1.DeletePropagationBackground
 	selector := labels.SelectorFromSet(labels.Set{
 		apicommon.AgentDeploymentComponentLabelKey: component,
@@ -175,7 +177,8 @@ func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, logger logr.
 }
 
 // delete ALL workloads for a given DDA/DDAI and orphan pods
-func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+func deleteObjectAndOrphanDependents(ctx context.Context, c client.Client, obj client.Object, component string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	propagationPolicy := metav1.DeletePropagationOrphan
 	selector := labels.SelectorFromSet(labels.Set{
 		kubernetes.AppKubernetesPartOfLabelKey:     obj.GetLabels()[kubernetes.AppKubernetesPartOfLabelKey],

@@ -47,7 +47,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 2. Handle finalizer logic.
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -61,7 +61,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstance(ctx, reqLogger, instanceCopy, rawSpec)
+	return r.reconcileInstance(ctx, instanceCopy, rawSpec)
 }
 
 // Force GCR registry if not set to avoid defaulting to Datadog registry
@@ -84,7 +84,8 @@ func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
-func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstance(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
 		f, err := newFieldManager(ctx, r.client, r.scheme, getDDAIGVK())
@@ -115,7 +116,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// ordinary ServiceAccount permits. Resolve (and always verify) the ServiceAccount
 	// before generating the DDAI, so the pod spec and the RBAC binding both pick the
 	// value up through constants.GetAgentServiceAccount.
-	r.reconcileOpenShiftSCC(ctx, logger, instance, provider, newDDAStatus, now)
+	r.reconcileOpenShiftSCC(ctx, instance, provider, newDDAStatus, now)
 
 	if r.options.CreateControllerRevisions {
 		revList, err := r.listRevisions(ctx, instance)
@@ -359,12 +360,12 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 // rejected.
 func (r *Reconciler) reconcileOpenShiftSCC(
 	ctx context.Context,
-	logger logr.Logger,
 	instance *datadoghqv2alpha1.DatadogAgent,
 	provider string,
 	status *datadoghqv2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 ) {
+	logger := ctrl.LoggerFrom(ctx)
 	if !kubernetes.IsOpenShiftProvider(provider) || r.options.SCCAuthorizer == nil {
 		return
 	}

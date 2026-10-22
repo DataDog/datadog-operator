@@ -11,7 +11,6 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -19,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -58,7 +58,8 @@ const (
 // type-specific factory functions, and type-specific equality checks. Extending it for a single
 // custom resource would require changes across multiple packages (pkg/kubernetes, pkg/equality,
 // store). Direct management is simpler and follows the same pattern used for DatadogAgentInternal.
-func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
+func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
+	logger := ctrl.LoggerFrom(ctx)
 	csiEnabled := instance.Spec.Global != nil &&
 		instance.Spec.Global.CSI != nil &&
 		apiutils.BoolValue(instance.Spec.Global.CSI.Enabled)
@@ -69,7 +70,7 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 	// `||` short-circuits: if csiEnabled is false (which requires Global/CSI to be safely-nil-
 	// guarded), we never dereference `.AutoManage`
 	if !csiEnabled || !ptr.Deref(instance.Spec.Global.CSI.AutoManage, true) {
-		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
+		return r.cleanupDatadogCSIDriver(ctx, instance)
 	}
 
 	// csi.enabled=true is the long-standing signal that the Agent should use a CSI driver. The
@@ -80,7 +81,7 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 		return nil
 	}
 
-	return r.createOrUpdateDatadogCSIDriver(ctx, logger, instance)
+	return r.createOrUpdateDatadogCSIDriver(ctx, instance)
 }
 
 // externalCSIDriverExists returns true if a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver
@@ -222,7 +223,8 @@ func dsdSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 // createOrUpdateDatadogCSIDriver ensures a DatadogCSIDriver resource exists with the desired spec.
 // Like DatadogAgentInternal, this treats the DatadogCSIDriver as a desired-state object: if someone
 // modifies it, the operator will reconcile it back to the desired state on the next loop.
-func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
+func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
+	logger := ctrl.LoggerFrom(ctx)
 	desired, err := r.buildDesiredDatadogCSIDriver(instance)
 	if err != nil {
 		return err
@@ -294,7 +296,8 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 }
 
 // cleanupDatadogCSIDriver deletes the DDA-owned DatadogCSIDriver if it exists.
-func (r *Reconciler) cleanupDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
+func (r *Reconciler) cleanupDatadogCSIDriver(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
+	logger := ctrl.LoggerFrom(ctx)
 	// If the CRD is not installed, there is nothing to clean up.
 	if !r.platformInfo.IsResourceSupported(datadogCSIDriverKind) {
 		return nil

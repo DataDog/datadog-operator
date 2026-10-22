@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,8 +44,9 @@ const (
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, parentLogger logr.Logger, dda *v2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
-	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
+func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, dda *v2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx).WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
+	ctx = ctrl.LoggerInto(ctx, logger)
 
 	var result reconcile.Result
 	var err error
@@ -101,12 +101,12 @@ func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, parentLogger 
 			// if its a helm cluster checks runner deployment, delete the workload and dependents
 			helmCCRDeployment := currentDeployment.GetLabels()[kubernetes.AppKubernetesComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
 			if helmCCRDeployment {
-				if err = deleteAllWorkloadsAndDependentsBackground(ctx, logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				if err = deleteAllWorkloadsAndDependentsBackground(ctx, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
 				}
 				return result, nil
 			} else {
-				if err = deleteObjectAndOrphanDependents(ctx, logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				if err = deleteObjectAndOrphanDependents(ctx, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
 				}
 			}

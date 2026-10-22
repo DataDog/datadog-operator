@@ -39,7 +39,7 @@ import (
 
 // Exercise real helper logs with a span-enriched request logger. In particular,
 // verbosity-one logs must keep the current span's IDs as well as the DDA field.
-func tracedLogContext(t *testing.T) (context.Context, func()) {
+func tracedLogContext(t *testing.T) (context.Context, func() []string) {
 	t.Helper()
 	mt := mocktracer.Start()
 	previous := trace.Enabled()
@@ -50,7 +50,7 @@ func tracedLogContext(t *testing.T) (context.Context, func()) {
 	span, ctx := trace.StartSpan(ctrl.LoggerInto(context.Background(), logger))
 	require.NotNil(t, span)
 	t.Cleanup(func() { trace.FinishSpan(span, nil) })
-	return ctx, func() {
+	return ctx, func() []string {
 		t.Helper()
 		require.NotEmpty(t, logs)
 		for _, entry := range logs {
@@ -59,6 +59,7 @@ func tracedLogContext(t *testing.T) (context.Context, func()) {
 			assert.Equal(t, 1, strings.Count(entry, `"datadogagent"=`), entry)
 			assert.Contains(t, entry, `"datadogagent"="ns/dda"`)
 		}
+		return logs
 	}
 }
 
