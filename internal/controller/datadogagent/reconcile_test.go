@@ -788,6 +788,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 						"agent.datadoghq.com/private-action-runner-enabled":                "true",
 						"agent.datadoghq.com/private-action-runner-packet-capture-enabled": "true",
 					}).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"},
+					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
 				return dda

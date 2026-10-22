@@ -16,7 +16,10 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func TestPacketCaptureConfigFromAnnotations(t *testing.T) {
@@ -77,7 +80,7 @@ func TestConfigureRequestsSystemProbeForPacketCapture(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: tt.annotations}}
-			reqComp := buildPrivateActionRunnerFeature(nil).Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+			reqComp := buildPrivateActionRunnerFeature(nil).Configure(dda, specWithAgentTag("7.86.0"), nil)
 
 			assert.Equal(t, tt.wantAgent, reqComp.Agent.IsEnabled())
 			if tt.wantSystemProbe {
@@ -89,12 +92,56 @@ func TestConfigureRequestsSystemProbeForPacketCapture(t *testing.T) {
 	}
 }
 
+func TestPacketCaptureRequiresSupportingAgent(t *testing.T) {
+	tests := []struct {
+		name        string
+		tag         string
+		wantEnabled bool
+	}{
+		{name: "default image", wantEnabled: pkgutils.IsAboveMinVersion(images.AgentLatestVersion, packetCaptureMinVersion, new(true))},
+		{name: "old agent", tag: "7.85.0"},
+		{name: "minimum version", tag: "7.86.0", wantEnabled: true},
+		{name: "prerelease", tag: "7.86.0-rc.1", wantEnabled: true},
+		{name: "unknown version", tag: "dev-remote-pcap-5190445c", wantEnabled: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation:              "true",
+				featureutils.EnablePrivateActionRunnerPacketCaptureAnnotation: "true",
+			}}}
+			spec := &v2alpha1.DatadogAgentSpec{}
+			if tt.tag != "" {
+				spec = specWithAgentTag(tt.tag)
+			}
+			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+			reqComp := f.Configure(dda, spec, nil)
+
+			assert.Equal(t, tt.wantEnabled, f.packetCaptureConfig.enabled)
+			if tt.wantEnabled {
+				assert.Contains(t, reqComp.Agent.Containers, apicommon.SystemProbeContainerName)
+			} else {
+				assert.NotContains(t, reqComp.Agent.Containers, apicommon.SystemProbeContainerName)
+			}
+		})
+	}
+}
+
+func specWithAgentTag(tag string) *v2alpha1.DatadogAgentSpec {
+	return &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tag}},
+	}}
+}
+
 func TestManageNodeAgentAddsPacketCaptureSocket(t *testing.T) {
-	managers, err := manageNodeAgent(t, map[string]string{
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 		featureutils.EnablePrivateActionRunnerAnnotation:              "true",
 		featureutils.EnablePrivateActionRunnerPacketCaptureAnnotation: "true",
-	})
-	require.NoError(t, err)
+	}}}
+	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+	f.Configure(dda, specWithAgentTag("7.86.0"), nil)
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	require.NoError(t, f.ManageNodeAgent(managers))
 
 	var captureVolume *corev1.Volume
 	for _, vol := range managers.VolumeMgr.Volumes {
