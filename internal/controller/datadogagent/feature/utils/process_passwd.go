@@ -22,16 +22,16 @@ import (
 )
 
 // Keep the threshold and recognized variants aligned with the Helm chart's
-// process-agent-supports-host-passwd helper. This detects Process Check/Discovery
+// process-passwd-mount-path helper. This detects Process Check/Discovery
 // support only; Gohai still resolves usernames against the local user database.
 const processHostPasswdMinVersion = "7.86.0"
 
-var processHostPasswdTag = regexp.MustCompile(`^7\.[0-9]+\.[0-9]+(-jmx|-full|-fips|-fips-jmx|-fips-full)?$`)
+var processHostPasswdTag = regexp.MustCompile(`^7\.[0-9]+\.[0-9]+(-fips)?(-jmx|-full)?$`)
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility. HOST_ETC is initialized by the Agent;
 // do not override an explicitly configured HOST_ETC or ignore_host_etc here.
-func ProcessPasswdMountPath(dda metav1.Object, spec *v2alpha1.DatadogAgentSpec, containerName apicommon.AgentContainerName, pod *corev1.PodTemplateSpec) string {
+func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, containerName apicommon.AgentContainerName, pod *corev1.PodTemplateSpec) string {
 	// Published Autopilot allowlists still require /etc/passwd. Windows does not
 	// use the Unix host-passwd resolver.
 	if dda != nil && (experimental.IsAutopilotEnabled(dda) || dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider) {
@@ -47,8 +47,8 @@ func ProcessPasswdMountPath(dda metav1.Object, spec *v2alpha1.DatadogAgentSpec, 
 			}
 		}
 	}
-	if spec != nil {
-		if override := spec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+	if override != nil {
+		if override.Image != nil {
 			// Digests are not version evidence. Avoid interpreting a registry port
 			// as an image tag, too.
 			name := override.Image.Name
@@ -57,10 +57,8 @@ func ProcessPasswdMountPath(dda metav1.Object, spec *v2alpha1.DatadogAgentSpec, 
 			}
 			image = images.OverrideAgentImage(image, override.Image)
 		}
-		if override := spec.Override[v2alpha1.NodeAgentComponentName]; override != nil {
-			if container := override.Containers[containerName]; container != nil && container.Name != nil {
-				containerName = apicommon.AgentContainerName(*container.Name)
-			}
+		if container := override.Containers[containerName]; container != nil && container.Name != nil {
+			containerName = apicommon.AgentContainerName(*container.Name)
 		}
 	}
 	// Match reconciliation precedence, including per-container experimental
@@ -71,7 +69,8 @@ func ProcessPasswdMountPath(dda metav1.Object, spec *v2alpha1.DatadogAgentSpec, 
 		return common.PasswdMountPath
 	}
 	tag := image[strings.LastIndex(image, ":")+1:]
-	if processHostPasswdTag.MatchString(tag) && pkgutils.IsAboveMinVersion(strings.SplitN(tag, "-", 2)[0], processHostPasswdMinVersion, new(false)) {
+	version, _, _ := strings.Cut(tag, "-")
+	if processHostPasswdTag.MatchString(tag) && pkgutils.IsAboveMinVersion(version, processHostPasswdMinVersion, new(false)) {
 		return "/host/etc/passwd"
 	}
 	return common.PasswdMountPath

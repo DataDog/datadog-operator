@@ -33,7 +33,7 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 
 type processDiscoveryFeature struct {
 	owner          metav1.Object
-	spec           *v2alpha1.DatadogAgentSpec
+	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	runInCoreAgent bool
 }
 
@@ -53,7 +53,7 @@ func (p *processDiscoveryFeature) NodeAgentProviderCapabilities() providercaps.P
 }
 
 func (p *processDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	p.owner, p.spec = dda, ddaSpec
+	p.owner, p.nodeOverride = dda, ddaSpec.Override[v2alpha1.NodeAgentComponentName]
 	var reqComp feature.RequiredComponents
 	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddaSpec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
@@ -113,7 +113,7 @@ func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers featur
 
 func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
-	mountPath := featutils.ProcessPasswdMountPath(p.owner, p.spec, agentContainerName, managers.PodTemplateSpec())
+	mountPath := featutils.ProcessPasswdMountPath(p.owner, p.nodeOverride, agentContainerName, managers.PodTemplateSpec())
 	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, mountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)

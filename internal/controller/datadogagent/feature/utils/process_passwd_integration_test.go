@@ -76,12 +76,8 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 				} else {
 					require.NoError(t, f.ManageNodeAgent(manager))
 				}
-				if tt.talos {
-					if contributor, ok := f.(interface {
-						NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap
-					}); ok {
-						providercaps.ApplyProviderCapabilities(manager, kubernetes.TalosProvider, contributor.NodeAgentProviderCapabilities())
-					}
+				if contributor, ok := f.(feature.ProviderAwareFeature); ok {
+					providercaps.ApplyProviderCapabilities(manager, dda.Annotations[kubernetes.ProviderAnnotationKey], contributor.NodeAgentProviderCapabilities())
 				}
 			}
 			require.Equal(t, 2, processFeatures)
@@ -90,7 +86,8 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			for _, container := range pod.Spec.Containers {
 				count := 0
 				for _, mount := range container.VolumeMounts {
-					if mount.Name == common.PasswdVolumeName {
+					switch mount.Name {
+					case common.PasswdVolumeName:
 						count++
 						assert.True(t, mount.ReadOnly)
 						if container.Name == string(apicommon.SecurityAgentContainerName) || container.Name == string(apicommon.SystemProbeContainerName) {
@@ -100,23 +97,18 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 							processMounts++
 							assert.Equal(t, tt.expectedPath, mount.MountPath)
 						}
-					}
-					if mount.Name == common.GroupVolumeName {
+					case common.GroupVolumeName:
 						assert.Equal(t, "/etc/group", mount.MountPath)
 					}
 				}
 				assert.LessOrEqual(t, count, 1, "never dual-mount passwd")
-				hostEtcCount := 0
+				var hostEtcEnv []corev1.EnvVar
 				for _, env := range container.Env {
-					if env.Name == "HOST_ETC" {
-						hostEtcCount++
-						assert.Equal(t, "/custom/etc", env.Value)
-					}
-					if env.Name == "DD_IGNORE_HOST_ETC" {
-						assert.Equal(t, "true", env.Value)
+					if env.Name == "HOST_ETC" || env.Name == "DD_IGNORE_HOST_ETC" {
+						hostEtcEnv = append(hostEtcEnv, env)
 					}
 				}
-				assert.Equal(t, 1, hostEtcCount, "preserve explicit HOST_ETC without injecting another value")
+				assert.ElementsMatch(t, nodeOverride.Env, hostEtcEnv, "preserve explicit configuration without duplicates")
 			}
 			if tt.talos {
 				assert.Zero(t, processMounts)
