@@ -58,7 +58,7 @@ const (
 const (
 	pomskyUserID                 int64 = 1005
 	startupProbePath                   = "/health/readyz"
-	startupProbeFailureThreshold int32 = 12
+	startupProbeFailureThreshold int32 = 60
 	startupProbePeriodSeconds    int32 = 5
 	livenessProbePath                  = "/health/livez"
 	livenessProbeTimeoutSeconds  int32 = 5
@@ -141,10 +141,8 @@ func defaultNodeConfig() map[string]any {
 		"health":                map[string]any{"listen_port": healthPort},
 		"cloudprem": map[string]any{
 			"mtls_header":              "X-Amzn-Mtls-Clientcert",
-			"create_dd_logs_index":     true,
 			"create_dd_metrics_index":  false,
 			"create_dd_sketches_index": false,
-			"create_dd_traces_index":   false,
 		},
 		"docs_clustering": []any{
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
