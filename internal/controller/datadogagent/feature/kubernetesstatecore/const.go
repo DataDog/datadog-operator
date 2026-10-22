@@ -32,6 +32,10 @@ const (
 	// Minimum agent / cluster-agent / node-agent version supporting
 	// PodCollectionMode=node_kubelet and cluster_aggregates_enabled.
 	podCollectionOnNodeMinVersion = "7.82.0-0"
+
+	// Sharding only coexists safely with the cluster_aggregates_only
+	// collection mode as of https://github.com/DataDog/datadog-agent/pull/54126.
+	ksmShardingMinVersion = "7.83.0-0"
 )
 
 // GetKubeStateMetricsRBACResourceName return the RBAC resources name

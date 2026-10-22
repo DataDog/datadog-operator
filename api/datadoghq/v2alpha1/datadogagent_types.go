@@ -1216,6 +1216,15 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other
+	// resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins
+	// cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,
+	// `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	ShardingEnabled *bool `json:"shardingEnabled,omitempty"`
 }
 
 // KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.

@@ -683,6 +683,12 @@ func (builder *DatadogAgentBuilder) WithKSMPodCollectionMode(mode v2alpha1.KSMPo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMShardingEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.ShardingEnabled = new(enabled)
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {
