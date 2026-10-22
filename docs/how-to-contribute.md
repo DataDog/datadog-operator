@@ -22,6 +22,12 @@ $ make test
 # linter validation
 $ make lint
 
+# format code without running the linters
+$ make fmt
+
+# apply import formatting and fixes supported by the linters
+$ make lint-fix
+
 # build docker image defined as {IMG}
 $ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-build
 

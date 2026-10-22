@@ -115,6 +115,69 @@ instances:
     tls_ca_cert: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"`,
 			},
 		}
+	case kubernetes.TalosProvider:
+		// apiserver, scheduler and controller-manager are cluster checks; etcd is
+		// node-local and mounted into the node agent instead.
+		//
+		// The `kubernetes` Endpoints resolves to a control-plane address, so
+		// %%host%% reaches the control plane from a check running elsewhere.
+		// Scheduler and controller-manager need literal ports (%%port%% is 6443).
+		// resolve: "ip" is required: that Endpoints has no targetRef, and the
+		// Cluster Agent only dispatches pod-backed endpoints checks without it.
+		configMap = &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      configMapName,
+				Namespace: f.owner.GetNamespace(),
+			},
+			Data: map[string]string{
+				"kube_apiserver_metrics.yaml": `advanced_ad_identifiers:
+  - kube_endpoints:
+      name: "kubernetes"
+      namespace: "default"
+      resolve: "ip"
+cluster_check: true
+init_config: {}
+instances:
+  - prometheus_url: "https://%%host%%:%%port%%/metrics"
+    bearer_token_auth: true`,
+
+				"kube_controller_manager.yaml": `advanced_ad_identifiers:
+  - kube_endpoints:
+      name: "kubernetes"
+      namespace: "default"
+      resolve: "ip"
+cluster_check: true
+init_config: {}
+instances:
+  - prometheus_url: "https://%%host%%:10257/metrics"
+    ssl_verify: false
+    bearer_token_auth: true`,
+
+				"kube_scheduler.yaml": `advanced_ad_identifiers:
+  - kube_endpoints:
+      name: "kubernetes"
+      namespace: "default"
+      resolve: "ip"
+cluster_check: true
+init_config: {}
+instances:
+  - prometheus_url: "https://%%host%%:10259/metrics"
+    ssl_verify: false
+    bearer_token_auth: true`,
+
+				// etcd has no pod or endpoint on Talos, so ad_identifiers names
+				// kube-scheduler only to pin the check to a control-plane node. If
+				// that AD name changes, the etcd check stops running silently.
+				"etcd.yaml": `ad_identifiers:
+  - kube-scheduler
+init_config: {}
+instances:
+  - prometheus_url: "https://%%host%%:2379/metrics"
+    tls_ca_cert: "` + talosEtcdCertsMountPath + `/ca.crt"
+    tls_cert: "` + talosEtcdCertsMountPath + `/server.crt"
+    tls_private_key: "` + talosEtcdCertsMountPath + `/server.key"`,
+			},
+		}
 	default: // Default provider
 		configMap = nil
 	}

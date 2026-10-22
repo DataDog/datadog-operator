@@ -117,8 +117,11 @@ type snapshotEmitter struct {
 	// accessed from the single snapshot-loop goroutine.
 	cachedClusterID string
 
-	// intakeURL, when set, overrides the computed agenthealth URL. Used by tests to
-	// target a local server; empty in production (the URL is derived from the site).
+	// intakeURL, when set, overrides the computed agenthealth URL with a full target
+	// URL (including path). Populated from --componentHealthIntakeURL /
+	// DD_COMPONENT_HEALTH_INTAKE_URL to target a fakeintake in tests/QA, and by unit
+	// tests to target a local server; empty in production (the URL is derived from
+	// the site).
 	intakeURL string
 }
 
