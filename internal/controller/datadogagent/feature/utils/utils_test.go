@@ -198,8 +198,9 @@ func TestIsKubernetesActionsPAREnabled(t *testing.T) {
 		wantEnabled   bool
 	}{
 		{name: "nil spec", spec: nil},
-		{name: "communication unset defaults to false", spec: kubernetesActionsSpec(true, nil, "")},
-		{name: "privateActionRunner set without enabled defaults to false", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{}}, "")},
+		{name: "communication unset defaults to true", spec: kubernetesActionsSpec(true, nil, ""), wantRequested: true, wantEnabled: true},
+		{name: "privateActionRunner set without enabled defaults to true", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{}}, ""), wantRequested: true, wantEnabled: true},
+		{name: "default on a cluster agent without the bundle", spec: kubernetesActionsSpec(true, nil, "7.82.0"), wantRequested: true, wantEnabled: false},
 		{name: "privateActionRunner disabled", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: ptr.To(false)}}, "")},
 		{name: "feature disabled", spec: kubernetesActionsSpec(false, par, "")},
 		{name: "privateActionRunner enabled on the default cluster agent", spec: kubernetesActionsSpec(true, par, ""), wantRequested: true, wantEnabled: true},

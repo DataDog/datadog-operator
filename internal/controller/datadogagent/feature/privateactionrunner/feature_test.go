@@ -702,9 +702,19 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
   identity_secret_name: my-custom-secret`,
 		},
 		{
-			name: "kubernetes actions without PAR communication does not enable cluster agent runner",
+			name: "kubernetes actions enables the cluster agent runner by default",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled: new(true),
+			},
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "kubernetes actions with PAR communication disabled does not enable cluster agent runner",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(false)}},
 			},
 			wantClusterAgentEnabled: false,
 		},

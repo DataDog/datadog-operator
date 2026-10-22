@@ -111,10 +111,22 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsPAROnlyClusterAgentWantFunc),
 		},
 		{
+			// Both channels are on by default: no channel setting is passed.
+			Name: "KubernetesActions enabled with default channels on a cluster agent with channel settings",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithClusterAgentTag("7.86.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
+		},
+		{
 			Name: "KubernetesActions enabled with RC only",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithKubernetesActionsEnabled(true).
+				WithKubernetesActionsCommunication(true, false).
 				WithClusterAgentTag("7.86.0").
 				Build(),
 			WantConfigure: true,

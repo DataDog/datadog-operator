@@ -178,7 +178,7 @@ type KubernetesActionsPrivateActionRunnerConfig struct {
 	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
 	// Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
 	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }

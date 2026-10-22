@@ -242,14 +242,19 @@ func ClusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
 
 // IsKubernetesActionsPARRequested returns whether the DatadogAgent asks for Kubernetes Actions to be
 // delivered through the Cluster Agent Private Action Runner, regardless of the Cluster Agent version.
-// Defaults to false when unset.
+// Defaults to true when unset.
 func IsKubernetesActionsPARRequested(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if ddaSpec == nil || ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil {
 		return false
 	}
 	ka := ddaSpec.Features.KubernetesActions
-	return apiutils.BoolValue(ka.Enabled) && ka.Communication != nil && ka.Communication.PrivateActionRunner != nil &&
-		apiutils.BoolValue(ka.Communication.PrivateActionRunner.Enabled)
+	if !apiutils.BoolValue(ka.Enabled) {
+		return false
+	}
+	if ka.Communication == nil || ka.Communication.PrivateActionRunner == nil || ka.Communication.PrivateActionRunner.Enabled == nil {
+		return true
+	}
+	return *ka.Communication.PrivateActionRunner.Enabled
 }
 
 // IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the
