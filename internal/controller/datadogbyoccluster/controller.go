@@ -378,7 +378,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
-		Owns(&autoscalingv2.HorizontalPodAutoscaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&autoscalingv2.HorizontalPodAutoscaler{}, builder.WithPredicates(byocutils.HorizontalPodAutoscalerSpecChanged)).
 		Owns(&policyv1.PodDisruptionBudget{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
