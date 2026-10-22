@@ -21,6 +21,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -236,13 +237,20 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 func TestCountOutdatedNotReadyNodes(t *testing.T) {
 	defaultDS := testAgentDaemonSet("agent-agent", "agent", "5")
 	profileDS := testAgentDaemonSet("profile-agent", "agent", "3")
+	profileDS.Spec.Template.Spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
 	otherDDADS := testAgentDaemonSet("other-agent", "other", "5")
 
 	// Generation changed, but the revision hash is the current one (template revert).
 	revertedPod := testAgentPod("reverted", defaultDS, "4", "node-revert", time.Hour)
 	revertedPod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
 
+	// A not-Ready node with the NoSchedule taint that the node lifecycle controller adds. The
+	// DaemonSet default tolerations do not cover it.
+	taintedNode := testNode("node-tainted", corev1.ConditionUnknown)
+	taintedNode.Spec.Taints = []corev1.Taint{{Key: corev1.TaintNodeUnreachable, Effect: corev1.TaintEffectNoSchedule}}
+
 	objects := []client.Object{
+		taintedNode,
 		testNode("node-ready", corev1.ConditionTrue),
 		testNode("node-not-ready", corev1.ConditionFalse),
 		testNode("node-unknown", corev1.ConditionUnknown),
@@ -260,6 +268,8 @@ func TestCountOutdatedNotReadyNodes(t *testing.T) {
 		testAgentPod("outdated-a", defaultDS, "3", "node-two-outdated", 2*time.Hour),
 		testAgentPod("outdated-b", defaultDS, "4", "node-two-outdated", time.Hour),
 		testAgentPod("profile-outdated-unknown", profileDS, "2", "node-unknown", time.Hour),
+		// The profile tolerates every taint, so the DaemonSet status counts this node.
+		testAgentPod("profile-outdated-tainted", profileDS, "2", "node-tainted", time.Hour),
 
 		// Not counted.
 		testAgentPod("outdated-ready", defaultDS, "4", "node-ready", time.Hour),
@@ -270,15 +280,17 @@ func TestCountOutdatedNotReadyNodes(t *testing.T) {
 		revertedPod,
 		testAgentPod("outdated-deleted-node", defaultDS, "4", "node-deleted", time.Hour),
 		testAgentPod("other-dda-outdated-unknown", otherDDADS, "4", "node-unknown", time.Hour),
+		// The default DaemonSet does not tolerate the taint, so its status does not count this node.
+		testAgentPod("outdated-tainted", defaultDS, "4", "node-tainted", time.Hour),
 	}
 
 	o := testOptions(t, objects...)
 
 	skipped, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
 	require.NoError(t, err)
-	assert.Equal(t, int32(4), skipped)
+	assert.Equal(t, int32(5), skipped)
 
-	skipped, err = o.countOutdatedNotReadyNodes(context.Background(), 3)
+	skipped, err = o.countOutdatedNotReadyNodes(context.Background(), 4)
 	require.NoError(t, err)
 	assert.Equal(t, int32(0), skipped, "above maxSkipped, no node is skipped")
 }
@@ -312,6 +324,25 @@ func TestIsAgentDoneSkippingNotReadyNodes(t *testing.T) {
 			assert.Equal(t, tt.want, o.isAgentDoneSkippingNotReadyNodes(context.Background(), tt.status))
 		})
 	}
+}
+
+func TestIsAgentDoneSkippingNotReadyNodesPrecheck(t *testing.T) {
+	var lists int
+	o := testOptions(t)
+	o.Client = interceptor.NewClient(o.Client.(client.WithWatch), interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			lists++
+			return c.List(ctx, list, opts...)
+		},
+	})
+
+	// Even with 10% of the nodes skipped, 50/90 is below the threshold: no API call.
+	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 100, UpToDate: 50}))
+	assert.Equal(t, 0, lists)
+
+	// 92/100 can pass if 4 nodes are skipped: the check lists the DaemonSets.
+	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 100, UpToDate: 92}))
+	assert.Positive(t, lists)
 }
 
 func TestRunSkipsNotReadyNodes(t *testing.T) {
