@@ -70,14 +70,15 @@ func TestProcessPasswdMountPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			owner := &metav1.ObjectMeta{Annotations: tt.annotations}
-			spec := &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {Image: tt.override, Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+			var nodeOverride *v2alpha1.DatadogAgentComponentOverride
+			if tt.override != nil || tt.nameOverride != nil {
+				nodeOverride = &v2alpha1.DatadogAgentComponentOverride{Image: tt.override, Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.CoreAgentContainerName: {Name: tt.nameOverride},
-				}},
-			}}
+				}}
+			}
 			pod := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "agent", Image: tt.image}}}}
 			expectedPod := pod.DeepCopy()
-			assert.Equal(t, tt.expectedPath, ProcessPasswdMountPath(owner, spec, apicommon.CoreAgentContainerName, pod))
+			assert.Equal(t, tt.expectedPath, ProcessPasswdMountPath(owner, nodeOverride, apicommon.CoreAgentContainerName, pod))
 			assert.Equal(t, expectedPod, pod, "selection must not mutate image or environment")
 		})
 	}
