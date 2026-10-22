@@ -13,8 +13,12 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,7 +26,24 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+)
+
+const (
+	// daemonSetTemplateGenerationAnnotation and podTemplateGenerationLabel are set by Kubernetes
+	// on DaemonSets and their pods. A pod is up to date when both values match.
+	daemonSetTemplateGenerationAnnotation = "deprecated.daemonset.template.generation"
+	podTemplateGenerationLabel            = "pod-template-generation"
+
+	// maxNodeLookups caps the node GETs done in one check, to bound API calls (client-go default
+	// rate limit is 5 QPS). Above this cap the check does not discount any node.
+	maxNodeLookups = 200
+
+	// maxSkippedRatio caps the share of scheduled Agent nodes that the check can discount. Above it,
+	// the not-Ready nodes are more likely an outage than background churn, so the check does not
+	// discount any node.
+	maxSkippedRatio = 0.10
 )
 
 // Options provides information required to manage canary.
@@ -37,6 +58,9 @@ type Options struct {
 	agentCompletionMin int32
 	dcaMinUpToDate     int32
 	clcMinUpToDate     int32
+	// skipNotReadyNodes discounts out-of-date Agent pods on not-Ready nodes. Kubernetes cannot
+	// replace these pods, so they would otherwise hold the check until its timeout.
+	skipNotReadyNodes bool
 }
 
 // NewOptions provides an instance of Options with default values.
@@ -74,6 +98,12 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 	if val, found := os.LookupEnv("CLC_MIN_UP_TO_DATE"); found {
 		if iVal, err := strconv.ParseInt(val, 10, 32); err == nil {
 			opts.clcMinUpToDate = int32(iVal)
+		}
+	}
+
+	if val, found := os.LookupEnv("AGENT_SKIP_NOT_READY_NODES"); found {
+		if bVal, err := strconv.ParseBool(val); err == nil {
+			opts.skipNotReadyNodes = bVal
 		}
 	}
 
@@ -210,7 +240,7 @@ func (o *Options) Run() error {
 		}
 
 		if !agentDone {
-			agentDone = o.isAgentDone(status.GetAgentStatus())
+			agentDone = o.isAgentDoneSkippingNotReadyNodes(ctx, status.GetAgentStatus())
 		}
 
 		if !dcaDone {
@@ -256,6 +286,221 @@ func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
 		return true
 	}
 
+	return false
+}
+
+// isAgentDoneSkippingNotReadyNodes runs isAgentDone. If it fails and skipNotReadyNodes is set, it
+// runs it again without the nodes that cannot finish the rollout: existing not-Ready nodes whose
+// Agent pod is out of date. Errors fall back to the plain result.
+func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *v2alpha1.DaemonSetStatus) bool {
+	if o.isAgentDone(status) {
+		return true
+	}
+	if !o.skipNotReadyNodes {
+		return false
+	}
+
+	maxSkipped := int32(float64(status.Current) * maxSkippedRatio)
+	skipped, err := o.countOutdatedNotReadyNodes(ctx, maxSkipped)
+	if err != nil {
+		o.printOutf("[Agent] unable to count not-Ready nodes, not skipping any: %v", err)
+		return false
+	}
+	if skipped == 0 {
+		return false
+	}
+
+	adjusted := *status
+	adjusted.Current -= skipped
+	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod", skipped)
+	return o.isAgentDone(&adjusted)
+}
+
+// countOutdatedNotReadyNodes returns, summed over the Agent DaemonSets, the number of existing
+// not-Ready nodes whose oldest Agent pod is out of date. It follows the DaemonSet controller, which
+// counts nodes, not pods, in currentNumberScheduled and updatedNumberScheduled:
+//   - only pods that are both terminal and deleted are ignored. A pod stuck in Terminating on an
+//     unreachable node is still counted;
+//   - a pod is up to date if its template generation or its revision hash matches;
+//   - deleted nodes are not counted, as the DaemonSet status does not count them.
+//
+// It only lists small sets of pods (out-of-date pods, then the pods of each not-Ready node), as a
+// list of all Agent pods can take minutes on large clusters. It returns 0 if more than maxSkipped
+// nodes would be skipped.
+func (o *Options) countOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32) (int32, error) {
+	daemonSets := &appsv1.DaemonSetList{}
+	if err := o.Client.List(
+		ctx,
+		daemonSets,
+		client.InNamespace(o.UserNamespace),
+		client.MatchingLabels{
+			apicommon.AgentDeploymentNameLabelKey:      o.datadogAgentName,
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		},
+	); err != nil {
+		return 0, fmt.Errorf("unable to list Agent DaemonSets: %w", err)
+	}
+
+	candidates := map[*appsv1.DaemonSet]map[string]struct{}{}
+	nodeNames := map[string]struct{}{}
+	for i := range daemonSets.Items {
+		ds := &daemonSets.Items[i]
+		nodes, err := o.getOutdatedPodNodes(ctx, ds)
+		if err != nil {
+			return 0, err
+		}
+		candidates[ds] = nodes
+		for name := range nodes {
+			nodeNames[name] = struct{}{}
+		}
+	}
+
+	if len(nodeNames) > maxNodeLookups {
+		o.printOutf("[Agent] %d nodes have an out-of-date Agent pod, above the %d node lookups cap: not skipping any", len(nodeNames), maxNodeLookups)
+		return 0, nil
+	}
+
+	notReady := map[string]bool{}
+	for name := range nodeNames {
+		node := &corev1.Node{}
+		if err := o.Client.Get(ctx, client.ObjectKey{Name: name}, node); err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			}
+			return 0, fmt.Errorf("unable to get node %s: %w", name, err)
+		}
+		notReady[name] = !isNodeReady(node)
+	}
+
+	var skipped int32
+	for ds, nodes := range candidates {
+		for name := range nodes {
+			if !notReady[name] {
+				continue
+			}
+			outdated, err := o.isOldestPodOutdated(ctx, ds, name)
+			if err != nil {
+				return 0, err
+			}
+			if outdated {
+				skipped++
+			}
+		}
+	}
+
+	if skipped > maxSkipped {
+		o.printOutf("[Agent] %d not-Ready nodes have an out-of-date Agent pod, above the %d cap (%.0f%% of scheduled nodes): not skipping any", skipped, maxSkipped, maxSkippedRatio*100)
+		return 0, nil
+	}
+
+	return skipped, nil
+}
+
+// getOutdatedPodNodes returns the nodes that run an out-of-date pod of the DaemonSet.
+func (o *Options) getOutdatedPodNodes(ctx context.Context, ds *appsv1.DaemonSet) (map[string]struct{}, error) {
+	generation, found := ds.Annotations[daemonSetTemplateGenerationAnnotation]
+	if !found || ds.Spec.Selector == nil {
+		return nil, nil
+	}
+	selector, err := metav1.LabelSelectorAsSelector(ds.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("invalid selector on DaemonSet %s: %w", ds.Name, err)
+	}
+	outdatedReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.NotEquals, []string{generation})
+	if err != nil {
+		return nil, err
+	}
+
+	pods := &corev1.PodList{}
+	if err = o.Client.List(ctx, pods, client.InNamespace(o.UserNamespace), client.MatchingLabelsSelector{Selector: selector.Add(*outdatedReq)}); err != nil {
+		return nil, fmt.Errorf("unable to list out-of-date pods of DaemonSet %s: %w", ds.Name, err)
+	}
+
+	nodes := map[string]struct{}{}
+	for i := range pods.Items {
+		if pod := &pods.Items[i]; isCountedDaemonPod(pod, ds) {
+			nodes[pod.Spec.NodeName] = struct{}{}
+		}
+	}
+	return nodes, nil
+}
+
+// isOldestPodOutdated returns true if the oldest counted pod of the DaemonSet on the node is out of
+// date. The DaemonSet controller only looks at this pod to count the node as updated.
+func (o *Options) isOldestPodOutdated(ctx context.Context, ds *appsv1.DaemonSet, nodeName string) (bool, error) {
+	selector, err := metav1.LabelSelectorAsSelector(ds.Spec.Selector)
+	if err != nil {
+		return false, fmt.Errorf("invalid selector on DaemonSet %s: %w", ds.Name, err)
+	}
+
+	pods := &corev1.PodList{}
+	if err = o.Client.List(
+		ctx,
+		pods,
+		client.InNamespace(o.UserNamespace),
+		client.MatchingLabelsSelector{Selector: selector},
+		client.MatchingFields{"spec.nodeName": nodeName},
+	); err != nil {
+		return false, fmt.Errorf("unable to list pods of DaemonSet %s on node %s: %w", ds.Name, nodeName, err)
+	}
+
+	var oldest *corev1.Pod
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if !isCountedDaemonPod(pod, ds) {
+			continue
+		}
+		if oldest == nil || pod.CreationTimestamp.Before(&oldest.CreationTimestamp) {
+			oldest = pod
+		}
+	}
+	if oldest == nil {
+		return false, nil
+	}
+
+	if oldest.Labels[podTemplateGenerationLabel] == ds.Annotations[daemonSetTemplateGenerationAnnotation] {
+		return false, nil
+	}
+	currentHash, err := o.getCurrentRevisionHash(ctx, ds, selector)
+	if err != nil {
+		return false, err
+	}
+	return currentHash == "" || oldest.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentHash, nil
+}
+
+// getCurrentRevisionHash returns the revision hash of a pod on the current template generation, or
+// "" if there is none.
+func (o *Options) getCurrentRevisionHash(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector) (string, error) {
+	currentReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.Equals, []string{ds.Annotations[daemonSetTemplateGenerationAnnotation]})
+	if err != nil {
+		return "", err
+	}
+	pods := &corev1.PodList{}
+	if err = o.Client.List(ctx, pods, client.InNamespace(o.UserNamespace), client.MatchingLabelsSelector{Selector: selector.Add(*currentReq)}, client.Limit(1)); err != nil {
+		return "", fmt.Errorf("unable to list current pods of DaemonSet %s: %w", ds.Name, err)
+	}
+	if len(pods.Items) == 0 {
+		return "", nil
+	}
+	return pods.Items[0].Labels[appsv1.DefaultDaemonSetUniqueLabelKey], nil
+}
+
+// isCountedDaemonPod returns true if the DaemonSet controller counts this pod in its status: it is
+// controlled by the DaemonSet, bound to a node, and not both terminal and deleted.
+func isCountedDaemonPod(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
+	if !metav1.IsControlledBy(pod, ds) || pod.Spec.NodeName == "" {
+		return false
+	}
+	terminal := pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed
+	return pod.DeletionTimestamp == nil || !terminal
+}
+
+func isNodeReady(node *corev1.Node) bool {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
 	return false
 }
 
