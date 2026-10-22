@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,11 +36,12 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // Exercise real helper logs with a span-enriched request logger. In particular,
-// verbosity-one logs must keep the current span's IDs as well as the DDA field.
+// verbosity-one logs must keep the current span's IDs as well as the flat DDA identity.
 func tracedLogContext(t *testing.T) (context.Context, func() []string) {
 	t.Helper()
 	mt := mocktracer.Start()
@@ -47,7 +49,7 @@ func tracedLogContext(t *testing.T) (context.Context, func() []string) {
 	trace.SetEnabled(true)
 	t.Cleanup(func() { trace.SetEnabled(previous); mt.Stop() })
 	var logs []string
-	logger := funcr.New(func(_, entry string) { logs = append(logs, entry) }, funcr.Options{Verbosity: 1}).WithValues("datadogagent", "ns/dda")
+	logger := funcr.New(func(_, entry string) { logs = append(logs, entry) }, funcr.Options{Verbosity: 1}).WithValues("namespace", "ns", "name", "dda")
 	span, ctx := trace.StartSpan(ctrl.LoggerInto(context.Background(), logger))
 	require.NotNil(t, span)
 	t.Cleanup(func() { trace.FinishSpan(span, nil) })
@@ -65,8 +67,11 @@ func tracedLogContext(t *testing.T) (context.Context, func() []string) {
 			ids := spanIDPattern.FindStringSubmatch(entry)
 			require.Len(t, ids, 2, entry)
 			assert.True(t, spanIDs[ids[1]], "log must reference the request span or one of its children: %s", entry)
-			assert.Equal(t, 1, strings.Count(entry, `"datadogagent"=`), entry)
-			assert.Contains(t, entry, `"datadogagent"="ns/dda"`)
+			assert.Equal(t, 1, strings.Count(entry, `"namespace"=`), entry)
+			assert.Equal(t, 1, strings.Count(entry, `"name"=`), entry)
+			assert.Contains(t, entry, `"namespace"="ns"`)
+			assert.Contains(t, entry, `"name"="dda"`)
+			assert.NotContains(t, entry, `"datadogagent"=`)
 		}
 		return logs
 	}
@@ -98,6 +103,12 @@ func TestHelpersUseContextLogger(t *testing.T) {
 			},
 		},
 		{
+			name: "CSI creation",
+			run: func(ctx context.Context, r *Reconciler) error {
+				return r.createOrUpdateDatadogCSIDriver(ctx, testutils.NewInitializedDatadogAgentBuilder("ns", "dda").BuildWithDefaults())
+			},
+		},
+		{
 			name: "deployment lookup",
 			run: func(ctx context.Context, r *Reconciler) error {
 				_, err := r.getCurrentDeployment(ctx, &v2alpha1.DatadogAgent{}, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "missing", Namespace: "ns"}})
@@ -112,7 +123,9 @@ func TestHelpersUseContextLogger(t *testing.T) {
 			require.NoError(t, corev1.AddToScheme(scheme))
 			require.NoError(t, appsv1.AddToScheme(scheme))
 			require.NoError(t, v1alpha1.AddToScheme(scheme))
-			r := &Reconciler{client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.objects...).Build()}
+			require.NoError(t, v2alpha1.AddToScheme(scheme))
+			require.NoError(t, storagev1.AddToScheme(scheme))
+			r := &Reconciler{scheme: scheme, client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.objects...).Build()}
 			require.NoError(t, tt.run(ctx, r))
 			checkLogs()
 		})

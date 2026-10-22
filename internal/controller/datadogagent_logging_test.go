@@ -9,7 +9,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -142,17 +141,22 @@ func TestDatadogAgentReconcileLogging(t *testing.T) {
 	for _, entry := range []observer.LoggedEntry{rootEntry, childEntry} {
 		fields := entry.ContextMap()
 		assert.Equal(t, "controllers.DatadogAgent", entry.LoggerName)
-		identity, err := json.Marshal(fields["datadogagent"])
-		require.NoError(t, err)
-		assert.JSONEq(t, `{"name":"logging-test","namespace":"default"}`, string(identity))
-		identities := 0
-		for _, field := range entry.Context {
-			if field.Key == "datadogagent" {
-				identities++
+		assert.Equal(t, "datadogagent", fields["controller"])
+		assert.Equal(t, "datadoghq.com", fields["controllerGroup"])
+		assert.Equal(t, "DatadogAgent", fields["controllerKind"])
+		assert.Equal(t, dda.Namespace, fields["namespace"])
+		assert.Equal(t, dda.Name, fields["name"])
+		for _, key := range []string{"controller", "controllerGroup", "controllerKind", "namespace", "name"} {
+			count := 0
+			for _, field := range entry.Context {
+				if field.Key == key {
+					count++
+				}
 			}
+			assert.Equal(t, 1, count, "%s must appear exactly once", key)
 		}
-		assert.Equal(t, 1, identities, "DDA identity must appear exactly once")
 		assert.NotContains(t, fields, "DatadogAgent")
+		assert.NotContains(t, fields, "datadogagent")
 		require.NotEmpty(t, fields["reconcileID"])
 		id, ok := fields["dd.span_id"].(string)
 		require.True(t, ok, "missing span ID: %v", fields)
@@ -161,9 +165,9 @@ func TestDatadogAgentReconcileLogging(t *testing.T) {
 		assert.Equal(t, strconv.FormatUint(span.TraceID(), 10), fields["dd.trace_id"])
 		assert.Equal(t, fmt.Sprint(fields["reconcileID"]), span.Tag("reconcileID"))
 	}
-	for _, key := range []string{"namespace", "name"} {
-		assert.NotContains(t, rootEntry.ContextMap(), key, "duplicate root object identity")
-	}
+	assert.Equal(t, "DatadogAgentInternal", childFields["object.kind"])
+	assert.Equal(t, dda.Namespace, childFields["object.namespace"])
+	assert.Equal(t, dda.Name, childFields["object.name"])
 	rootSpan := spans[rootEntry.ContextMap()["dd.span_id"].(string)]
 	childSpan := spans[childFields["dd.span_id"].(string)]
 	assert.Nil(t, rootSpan.Tag(ext.ErrorMsg))

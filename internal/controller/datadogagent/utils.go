@@ -167,7 +167,7 @@ func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, c client.Cli
 	logger.Info("deleting all workloads and dependents for matching DDA with background propagation", "labels", selector.String())
 	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			logger.Info("object not found, skipping deletion")
 			return nil
 		}
 		return err
@@ -186,7 +186,7 @@ func deleteObjectAndOrphanDependents(ctx context.Context, c client.Client, obj c
 	logger.Info("deleting all workloads for matching DDA", "labels", selector.String())
 	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			logger.Info("object not found, skipping deletion")
 			return nil
 		}
 		return err

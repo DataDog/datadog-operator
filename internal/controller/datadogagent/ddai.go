@@ -127,7 +127,7 @@ func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alp
 	}
 	for _, ddai := range ddaiList.Items {
 		if _, isValid := validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)]; !isValid {
-			ctrl.LoggerFrom(ctx).Info("Deleting unused DDAI", "namespace", ddai.Namespace, "name", ddai.Name)
+			ctrl.LoggerFrom(ctx).Info("Deleting unused DDAI", "object.kind", "DatadogAgentInternal", "object.namespace", ddai.Namespace, "object.name", ddai.Name)
 			if err := r.client.Delete(ctx, &ddai); err != nil {
 				return err
 			}

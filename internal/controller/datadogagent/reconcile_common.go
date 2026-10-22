@@ -175,7 +175,7 @@ func (r *Reconciler) createOrUpdateDDAI(ctx context.Context, ddai *v1alpha1.Data
 			return err
 		}
 		// Create the DDAI object if it doesn't exist
-		logger.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		logger.Info("creating DatadogAgentInternal", "object.kind", "DatadogAgentInternal", "object.namespace", ddai.Namespace, "object.name", ddai.Name)
 		if err := r.client.Create(ctx, ddai); err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ func (r *Reconciler) createOrUpdateDDAI(ctx context.Context, ddai *v1alpha1.Data
 	// By comparing annotations, we reconcile either instantly if the spec annotation changed or after the reconcile period
 	// if only the annotations changed.
 	if !maps.Equal(currentDDAI.Annotations, ddai.Annotations) {
-		logger.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		logger.Info("updating DatadogAgentInternal", "object.kind", "DatadogAgentInternal", "object.namespace", ddai.Namespace, "object.name", ddai.Name)
 		if err := kubernetes.UpdateFromObject(ctx, r.client, ddai, currentDDAI.ObjectMeta); err != nil {
 			return err
 		}
@@ -247,7 +247,7 @@ func (r *Reconciler) getCurrentDeployment(ctx context.Context, dda, deployment m
 		case 0: // Migration has completed; check for default deployment
 			ctrl.LoggerFrom(ctx).Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
 		case 1:
-			ctrl.LoggerFrom(ctx).Info("Found Helm-managed deployment", "name", dsList.Items[0].Name)
+			ctrl.LoggerFrom(ctx).Info("Found Helm-managed deployment", "helmDeployment.name", dsList.Items[0].Name)
 			return &dsList.Items[0], nil
 		default:
 			return nil, fmt.Errorf("expected 1 deployment for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))

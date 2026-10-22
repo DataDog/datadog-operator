@@ -271,11 +271,16 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.Da
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
-		// Keep the DDA identity in one field for all context-based reconcile logs.
+		// Keep controller metadata and one flat DDA identity, without the default
+		// constructor's additional nested copy.
 		WithLogConstructor(func(req *reconcile.Request) logr.Logger {
-			logger := mgr.GetLogger().WithName("controllers").WithName("DatadogAgent")
+			logger := mgr.GetLogger().WithName("controllers").WithName("DatadogAgent").WithValues(
+				"controller", "datadogagent",
+				"controllerGroup", v2alpha1.GroupVersion.Group,
+				"controllerKind", "DatadogAgent",
+			)
 			if req != nil {
-				logger = logger.WithValues("datadogagent", req.NamespacedName)
+				logger = logger.WithValues("namespace", req.Namespace, "name", req.Name)
 			}
 			return logger
 		}).

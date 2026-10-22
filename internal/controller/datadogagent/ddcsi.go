@@ -247,13 +247,13 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, instanc
 		if externalExists {
 			// Debug level: fires every reconcile while the external install remains — steady-state
 			// info, not an actionable event.
-			logger.V(1).Info("External CSIDriver detected, not creating DatadogCSIDriver", "name", datadogCSIDriverObjectName)
+			logger.V(1).Info("External CSIDriver detected, not creating DatadogCSIDriver", "object.kind", "CSIDriver", "object.name", datadogCSIDriverObjectName)
 			return nil
 		}
 
 		experimental.CreateDatadogCSIAllowlistSynchronizer(instance)
 
-		logger.Info("Creating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
+		logger.Info("Creating DatadogCSIDriver", "object.kind", "DatadogCSIDriver", "object.name", desired.Name, "object.namespace", desired.Namespace)
 		if err := r.client.Create(ctx, desired); err != nil {
 			return fmt.Errorf("failed to create DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
 		}
@@ -264,7 +264,7 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, instanc
 	// this DDA (no controller reference), don't touch it. Mirrors the cleanup guard below; avoids
 	// clobbering a standalone DatadogCSIDriver a user maintains with the same name as their DDA.
 	if !metav1.IsControlledBy(existing, instance) {
-		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping update", "name", existing.Name, "namespace", existing.Namespace)
+		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping update", "object.kind", "DatadogCSIDriver", "object.name", existing.Name, "object.namespace", existing.Namespace)
 		return nil
 	}
 
@@ -286,7 +286,7 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, instanc
 		existing.Labels = desired.Labels
 		existing.Annotations = desired.Annotations
 
-		logger.Info("Updating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
+		logger.Info("Updating DatadogCSIDriver", "object.kind", "DatadogCSIDriver", "object.name", desired.Name, "object.namespace", desired.Namespace)
 		if err := r.client.Patch(ctx, existing, client.MergeFrom(patchBase)); err != nil {
 			return fmt.Errorf("failed to patch DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
 		}
@@ -317,11 +317,11 @@ func (r *Reconciler) cleanupDatadogCSIDriver(ctx context.Context, instance *v2al
 
 	// Only delete if this DDA owns it (via controller reference).
 	if !metav1.IsControlledBy(existing, instance) {
-		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping cleanup", "name", ddcsiName)
+		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping cleanup", "object.kind", "DatadogCSIDriver", "object.name", ddcsiName)
 		return nil
 	}
 
-	logger.Info("Deleting DatadogCSIDriver", "name", ddcsiName, "namespace", ddcsiNamespace)
+	logger.Info("Deleting DatadogCSIDriver", "object.kind", "DatadogCSIDriver", "object.name", ddcsiName, "object.namespace", ddcsiNamespace)
 	if err := r.client.Delete(ctx, existing); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete DatadogCSIDriver %s/%s: %w", ddcsiNamespace, ddcsiName, err)
 	}
