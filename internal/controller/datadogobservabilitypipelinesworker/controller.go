@@ -162,12 +162,13 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		// Status updates do not bump the generation, so this skips requeues caused by the controller's own status writes.
 		// Workload status changes drive availability, and the other owned resources do not bump the generation on
-		// changes, so their watches stay unfiltered. HPA and PDB status is not read, so only their spec changes requeue.
+		// changes, so their watches stay unfiltered. HPA and PDB status is not read, so only changes to their spec, labels, or
+		// annotations requeue.
 		For(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
-		Owns(&autoscalingv2.HorizontalPodAutoscaler{}, builder.WithPredicates(byocutils.HorizontalPodAutoscalerSpecChanged)).
-		Owns(&policyv1.PodDisruptionBudget{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&autoscalingv2.HorizontalPodAutoscaler{}, builder.WithPredicates(predicate.Or(predicate.LabelChangedPredicate{}, predicate.AnnotationChangedPredicate{}, byocutils.HorizontalPodAutoscalerSpecChanged))).
+		Owns(&policyv1.PodDisruptionBudget{}, builder.WithPredicates(predicate.Or(predicate.LabelChangedPredicate{}, predicate.AnnotationChangedPredicate{}, predicate.GenerationChangedPredicate{}))).
 		Complete(r)
 }
