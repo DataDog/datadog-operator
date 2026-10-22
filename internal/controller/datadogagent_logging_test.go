@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,7 +25,9 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"k8s.io/utils/ptr"
@@ -44,6 +47,44 @@ import (
 // a context logger. This covers WithLogConstructor, the public Reconcile entry,
 // and the root/child span loggers on the active DDA -> DDAI path together.
 func TestDatadogAgentReconcileLogging(t *testing.T) {
+	for _, delayedCache := range []bool{false, true} {
+		t.Run(fmt.Sprintf("delayed-cache=%t", delayedCache), func(t *testing.T) {
+			testDatadogAgentReconcileLogging(t, delayedCache)
+		})
+	}
+}
+
+// delayedDDAICache models the cache lagging a successful API-server create.
+// The first two cached DDAI reads (status and remote-config status) miss, so
+// the creating reconcile fails and controller-runtime must retry it.
+type delayedDDAICache struct {
+	client.Client
+	staleGets atomic.Int32
+}
+
+func (c *delayedDDAICache) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if err := c.Client.Create(ctx, obj, opts...); err != nil {
+		return err
+	}
+	if _, ok := obj.(*v1alpha1.DatadogAgentInternal); ok {
+		c.staleGets.Store(2)
+	}
+	return nil
+}
+
+func (c *delayedDDAICache) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if _, ok := obj.(*v1alpha1.DatadogAgentInternal); ok {
+		for remaining := c.staleGets.Load(); remaining > 0; remaining = c.staleGets.Load() {
+			if c.staleGets.CompareAndSwap(remaining, remaining-1) {
+				return apierrors.NewNotFound(schema.GroupResource{Group: v1alpha1.GroupVersion.Group, Resource: "datadogagentinternals"}, key.Name)
+			}
+		}
+	}
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+func testDatadogAgentReconcileLogging(t *testing.T, simulateCacheLag bool) {
+	t.Helper()
 	testEnv := &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases", "v1")},
 		ErrorIfCRDPathMissing: true,
@@ -80,6 +121,10 @@ func TestDatadogAgentReconcileLogging(t *testing.T) {
 		Client: mgr.GetClient(), Scheme: scheme,
 		Recorder: mgr.GetEventRecorderFor("datadogagent-logging-test"),
 	}
+	delayedCache := &delayedDDAICache{Client: r.Client}
+	if simulateCacheLag {
+		r.Client = delayedCache
+	}
 	require.NoError(t, r.SetupWithManager(mgr, nil))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -107,13 +152,18 @@ func TestDatadogAgentReconcileLogging(t *testing.T) {
 		}
 		reconcileID := fmt.Sprint(entries[0].ContextMap()["reconcileID"])
 		for _, span := range mt.FinishedSpans() {
-			if span.ParentID() == 0 && span.Tag("reconcileID") == reconcileID {
+			// A successful Create does not guarantee that cached status reads
+			// see the DDAI in this same reconcile. Accept a successful retry.
+			if span.ParentID() == 0 && span.Tag("kind") == "DatadogAgent" &&
+				span.Tag("name") == dda.Name && span.Tag("namespace") == dda.Namespace &&
+				span.Tag(ext.ErrorMsg) == nil &&
+				(span.Tag("reconcileID") == reconcileID || span.StartTime().After(entries[0].Time)) {
 				return true
 			}
 		}
 		return false
 	}, 30*time.Second, 100*time.Millisecond)
-	require.True(t, reconciled, "real reconcile did not finish DDAI creation; errors: %v", logs.FilterLevelExact(zapcore.ErrorLevel).All())
+	require.True(t, reconciled, "real reconcile did not succeed after DDAI creation; errors: %v", logs.FilterLevelExact(zapcore.ErrorLevel).All())
 	require.NoError(t, cli.Get(ctx, client.ObjectKeyFromObject(dda), &v1alpha1.DatadogAgentInternal{}))
 	cancel()
 	select {
@@ -170,7 +220,12 @@ func TestDatadogAgentReconcileLogging(t *testing.T) {
 	assert.Equal(t, dda.Name, childFields["object.name"])
 	rootSpan := spans[rootEntry.ContextMap()["dd.span_id"].(string)]
 	childSpan := spans[childFields["dd.span_id"].(string)]
-	assert.Nil(t, rootSpan.Tag(ext.ErrorMsg))
+	// The creation span succeeds even when its parent must retry a stale
+	// cached read. The wait above separately requires eventual recovery.
+	if simulateCacheLag {
+		assert.Contains(t, rootSpan.Tag(ext.ErrorMsg), "not found")
+		assert.Zero(t, delayedCache.staleGets.Load())
+	}
 	assert.Nil(t, childSpan.Tag(ext.ErrorMsg))
 	assert.Zero(t, rootSpan.ParentID())
 	assert.Equal(t, "Reconcile", rootSpan.Tag(ext.ResourceName))
