@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -53,9 +54,17 @@ func tracedLogContext(t *testing.T) (context.Context, func() []string) {
 	return ctx, func() []string {
 		t.Helper()
 		require.NotEmpty(t, logs)
+		spanIDs := map[string]bool{strconv.FormatUint(span.Context().SpanID(), 10): true}
+		for _, child := range mt.FinishedSpans() {
+			assert.Equal(t, span.Context().TraceIDLower(), child.TraceID())
+			spanIDs[strconv.FormatUint(child.SpanID(), 10)] = true
+		}
+		spanIDPattern := regexp.MustCompile(`"dd.span_id"="([0-9]+)"`)
 		for _, entry := range logs {
 			assert.Contains(t, entry, `"dd.trace_id"=`)
-			assert.Contains(t, entry, `"dd.span_id"="`+strconv.FormatUint(span.Context().SpanID(), 10)+`"`)
+			ids := spanIDPattern.FindStringSubmatch(entry)
+			require.Len(t, ids, 2, entry)
+			assert.True(t, spanIDs[ids[1]], "log must reference the request span or one of its children: %s", entry)
 			assert.Equal(t, 1, strings.Count(entry, `"datadogagent"=`), entry)
 			assert.Contains(t, entry, `"datadogagent"="ns/dda"`)
 		}

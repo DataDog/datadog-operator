@@ -45,7 +45,6 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 
 // deleteDeploymentWithEvent deletes a deployment and records DDA event only if deletion was successful
 func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx)
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),
@@ -59,7 +58,7 @@ func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, dda *datadog
 		}
 		return reconcile.Result{}, err
 	}
-	logger.Info("Deleting Deployment", "deployment.Namespace", existingDeployment.Namespace, "deployment.Name", existingDeployment.Name)
+	ctrl.LoggerFrom(ctx).Info("Deleting Deployment")
 	if err := r.client.Delete(ctx, existingDeployment); err != nil {
 		return reconcile.Result{}, err
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
@@ -134,7 +135,6 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	for _, comp := range r.components {
-		componentCtx := ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("component", comp.Name()))
 		// Check if component is enabled and if there's a conflict
 		enabled, conflict := comp.IsEnabled(params.RequiredComponents, params.DDA.Spec.Override)
 
@@ -155,10 +155,10 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 					true,
 				)
 			}
-			res, err = r.Cleanup(componentCtx, params, comp)
+			res, err = r.Cleanup(ctx, params, comp)
 		} else {
 			// Component is enabled, reconcile it
-			res, err = r.reconcileComponent(componentCtx, params, comp)
+			res, err = r.reconcileComponent(ctx, params, comp)
 		}
 
 		if utils.ShouldReturn(res, err) {
@@ -174,20 +174,21 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	return result, nil
 }
 
-// Reconcile reconciles component
-func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	var result reconcile.Result
+// reconcileComponent reconciles a single component
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
-	deploymentLogger := ctrl.LoggerFrom(ctx)
 
 	// Start by creating the Default Cluster-Agent deployment
 	// Pass params.DDA directly (not GetObjectMeta()) so that getCommonLabels can
 	// type-assert to *v2alpha1.DatadogAgent and read spec.global.commonLabels.
 	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
@@ -209,7 +210,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 	// Apply override if defined for the component
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
-		override.PodTemplateSpec(deploymentLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
+		override.PodTemplateSpec(objLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
 	}
 
@@ -246,13 +247,21 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 }
 
 // Cleanup removes the component deployment, associated resources and updates status
-func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
 
 	// Apply the name override so we delete the correct deployment
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
 		override.Deployment(deployment, componentOverride)
 	}
+
+	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues(
+		"object.kind", "Deployment",
+		"object.namespace", deployment.Namespace,
+		"object.name", deployment.Name,
+	))
 
 	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.DDA, deployment)
 

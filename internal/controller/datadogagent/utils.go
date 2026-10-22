@@ -15,7 +15,6 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,13 +30,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
+func mergeAnnotationsLabels(ctx context.Context, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
 	var globFilter glob.Glob
 	var err error
 	if filter != "" {
 		globFilter, err = glob.Compile(filter)
 		if err != nil {
-			logger.Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
+			ctrl.LoggerFrom(ctx).Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
 		}
 	}
 

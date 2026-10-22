@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -50,7 +51,10 @@ func TestComponentLoggerContextIsolation(t *testing.T) {
 	ctx, checkLogs := tracedLogContext(t)
 	scheme := testScheme()
 	require.NoError(t, appsv1.AddToScheme(scheme))
-	r := &Reconciler{client: fake.NewClientBuilder().WithScheme(scheme).Build()}
+	r := &Reconciler{client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "clusterAgent", Namespace: "ns"}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "clusterChecksRunner", Namespace: "ns"}},
+	).Build(), recorder: record.NewFakeRecorder(10)}
 	registry := NewComponentRegistry(r)
 	registry.Register(loggingCleanupComponent{name: v2alpha1.ClusterAgentComponentName})
 	registry.Register(loggingCleanupComponent{name: v2alpha1.ClusterChecksRunnerComponentName})
@@ -61,11 +65,26 @@ func TestComponentLoggerContextIsolation(t *testing.T) {
 	require.NoError(t, err)
 	ctrl.LoggerFrom(ctx).Info("After components")
 	logs := checkLogs()
-	require.Len(t, logs, 3)
-	assert.Contains(t, logs[0], `"component"="clusterAgent"`)
-	assert.Contains(t, logs[1], `"component"="clusterChecksRunner"`)
-	assert.Equal(t, 1, strings.Count(logs[1], `"component"=`))
-	assert.NotContains(t, logs[2], `"component"=`)
+	require.Len(t, logs, 5)
+	for i, entry := range logs[:4] {
+		name := "clusterAgent"
+		if i >= 2 {
+			name = "clusterChecksRunner"
+		}
+		assert.Contains(t, entry, `"object.kind"="Deployment"`)
+		assert.Contains(t, entry, `"object.namespace"="ns"`)
+		assert.Contains(t, entry, `"object.name"="`+name+`"`)
+		assert.Equal(t, 1, strings.Count(entry, `"object.name"=`))
+	}
+	assert.NotContains(t, logs[4], `"object.name"=`)
+	spanIDPattern := regexp.MustCompile(`"dd.span_id"="([0-9]+)"`)
+	spanIDs := make(map[string]struct{})
+	for _, i := range []int{0, 2, 4} {
+		ids := spanIDPattern.FindStringSubmatch(logs[i])
+		require.Len(t, ids, 2)
+		spanIDs[ids[1]] = struct{}{}
+	}
+	assert.Len(t, spanIDs, 3, "each component must log with its own span, and leave the parent span intact")
 }
 
 func TestDeploymentLoggerPropagatesToLookup(t *testing.T) {
@@ -82,6 +101,7 @@ func TestDeploymentLoggerPropagatesToLookup(t *testing.T) {
 	require.NotEmpty(t, logs)
 	// The first log comes from the nested getCurrentDeployment helper.
 	assert.Contains(t, logs[0], `"msg"="deployment is not found"`)
-	assert.Contains(t, logs[0], `"deployment.Namespace"="ns"`)
-	assert.Contains(t, logs[0], `"deployment.Name"="deployment"`)
+	assert.Contains(t, logs[0], `"object.kind"="Deployment"`)
+	assert.Contains(t, logs[0], `"object.namespace"="ns"`)
+	assert.Contains(t, logs[0], `"object.name"="deployment"`)
 }

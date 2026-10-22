@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -37,8 +36,8 @@ import (
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	reqLogger := ctrl.LoggerFrom(ctx)
-	reqLogger.Info("Reconciling DatadogAgent")
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
 
 	// 1. Validate the resource.
@@ -47,7 +46,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 2. Handle finalizer logic.
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -235,7 +234,7 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *
 
 	setDeprecatedConfigStatus(agentdeployment, newStatus, now)
 
-	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
+	r.setMetricsForwarderStatus(ctx, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
@@ -259,7 +258,7 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
-func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+func (r *Reconciler) setMetricsForwarderStatus(ctx context.Context, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
 			condition.UpdateDatadogAgentStatusConditions(
@@ -272,7 +271,7 @@ func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployme
 				true,
 			)
 		} else {
-			logger.V(1).Info("metrics conditions status could not be set")
+			ctrl.LoggerFrom(ctx).V(1).Info("metrics conditions status could not be set")
 		}
 	}
 }

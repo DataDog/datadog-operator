@@ -45,7 +45,7 @@ const (
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
 func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, dda *v2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
+	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
 
 	var result reconcile.Result
@@ -132,8 +132,8 @@ func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, dda *v2alpha1
 		updateDeployment := deployment.DeepCopy()
 		updateDeployment.Spec = *deployment.Spec.DeepCopy()
 		updateDeployment.Spec.Replicas = getReplicas(currentDeployment.Spec.Replicas, updateDeployment.Spec.Replicas)
-		updateDeployment.Annotations = mergeAnnotationsLabels(logger, currentDeployment.GetAnnotations(), deployment.GetAnnotations(), keepAnnotationsFilter)
-		updateDeployment.Labels = mergeAnnotationsLabels(logger, currentDeployment.GetLabels(), deployment.GetLabels(), keepLabelsFilter)
+		updateDeployment.Annotations = mergeAnnotationsLabels(ctx, currentDeployment.GetAnnotations(), deployment.GetAnnotations(), keepAnnotationsFilter)
+		updateDeployment.Labels = mergeAnnotationsLabels(ctx, currentDeployment.GetLabels(), deployment.GetLabels(), keepLabelsFilter)
 
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(ctx, r.client, updateDeployment, currentDeployment.ObjectMeta)

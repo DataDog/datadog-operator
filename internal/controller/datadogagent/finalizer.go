@@ -29,7 +29,7 @@ func (r *Reconciler) deleteResource() finalizer.ResourceDeleteFunc {
 }
 
 func (r *Reconciler) finalizeDad(ctx context.Context, obj client.Object) error {
-	reqLogger := ctrl.LoggerFrom(ctx)
+	logger := ctrl.LoggerFrom(ctx)
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(obj)
 	}
@@ -38,7 +38,7 @@ func (r *Reconciler) finalizeDad(ctx context.Context, obj client.Object) error {
 		return err
 	}
 
-	reqLogger.Info("Successfully finalized DatadogAgent")
+	logger.Info("Successfully finalized DatadogAgent")
 	return nil
 }
 

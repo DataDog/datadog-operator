@@ -77,10 +77,9 @@ func (c *ClusterAgentComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.Data
 	return false
 }
 func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx)
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
-	logger.Info("Deleting Cluster Agent RBACs")
+	ctrl.LoggerFrom(ctx).Info("Deleting Cluster Agent RBACs")
 	if err := rbacManager.DeleteServiceAccountByComponent(string(datadoghqv2alpha1.ClusterAgentComponentName), dda.Namespace); err != nil {
 		return reconcile.Result{}, err
 	}
