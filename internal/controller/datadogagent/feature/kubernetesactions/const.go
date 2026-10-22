@@ -26,10 +26,6 @@ const (
 	// Agent accepts Kubernetes actions through its Private Action Runner.
 	DDKubeActionsPAREnabled = "DD_KUBEACTIONS_PRIVATE_ACTION_RUNNER_ENABLED"
 
-	// ClusterAgentMinVersion is the minimum Cluster Agent version that supports
-	// the Kubernetes Actions product.
-	ClusterAgentMinVersion = "7.79.0"
-
 	// ClusterAgentChannelTogglesMinVersion is the minimum Cluster Agent version that
 	// understands DDKubeActionsRemoteConfigEnabled and DDKubeActionsPAREnabled.
 	ClusterAgentChannelTogglesMinVersion = "7.86.0-0"

@@ -137,6 +137,7 @@ type DatadogFeatures struct {
 // +k8s:openapi-gen=true
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Requires Cluster Agent 7.84.0 or greater.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -176,7 +177,7 @@ type KubernetesActionsPrivateActionRunnerConfig struct {
 	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
 	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
 	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
-	// Requires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
 	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
 	// Default: true
 	// +optional

@@ -719,14 +719,14 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			wantClusterAgentEnabled: false,
 		},
 		{
-			// The Kubernetes Actions bundle ships in Cluster Agent 7.83.0: do not provision an
-			// orphan runner, ConfigMap and RBAC for an older Cluster Agent.
-			name: "kubernetes actions PAR communication ignored on a cluster agent without the bundle",
+			// Kubernetes Actions requires Cluster Agent 7.84.0: do not provision an orphan
+			// runner, ConfigMap and RBAC for an older Cluster Agent.
+			name: "kubernetes actions PAR communication ignored on a cluster agent without Kubernetes Actions support",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(true),
 				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
-			clusterAgentTag:         "7.82.0",
+			clusterAgentTag:         "7.83.0",
 			wantClusterAgentEnabled: false,
 		},
 		{
@@ -735,7 +735,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 				Enabled:       new(true),
 				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
 			},
-			clusterAgentTag:           "7.83.0",
+			clusterAgentTag:           "7.84.0",
 			wantClusterAgentEnabled:   true,
 			wantSelfEnroll:            true,
 			expectedClusterConfigData: kubernetesActionsDefaultConfigData,

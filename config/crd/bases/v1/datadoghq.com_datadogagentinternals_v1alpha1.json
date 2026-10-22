@@ -2310,7 +2310,7 @@
                       "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
                       "properties": {
                         "enabled": {
-                          "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
+                          "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
                           "type": "boolean"
                         }
                       },
@@ -2331,7 +2331,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                  "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
                   "type": "boolean"
                 }
               },
@@ -11279,7 +11279,7 @@
                           "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
                           "properties": {
                             "enabled": {
-                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nRequires Cluster Agent 7.83.0 or greater. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
+                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
                               "type": "boolean"
                             }
                           },
@@ -11300,7 +11300,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
                       "type": "boolean"
                     }
                   },

@@ -224,9 +224,9 @@ func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return *ka.Communication.RemoteConfiguration.Enabled
 }
 
-// KubernetesActionsPARMinVersion is the minimum Cluster Agent version whose Private Action Runner
-// ships the Kubernetes Actions bundle.
-const KubernetesActionsPARMinVersion = "7.83.0-0"
+// KubernetesActionsMinVersion is the minimum Cluster Agent version that supports the Kubernetes
+// Actions feature, through both Remote Configuration and the Private Action Runner.
+const KubernetesActionsMinVersion = "7.84.0-0"
 
 // ClusterAgentVersion returns the Cluster Agent version from the image override, or the
 // latest supported version when the image is not overridden.
@@ -259,8 +259,8 @@ func IsKubernetesActionsPARRequested(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 
 // IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the
 // Cluster Agent through the Cluster Agent Private Action Runner: it is requested and the Cluster
-// Agent is recent enough to ship the Kubernetes Actions bundle.
+// Agent supports Kubernetes Actions.
 func IsKubernetesActionsPAREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return IsKubernetesActionsPARRequested(ddaSpec) &&
-		utils.IsAboveMinVersion(ClusterAgentVersion(ddaSpec), KubernetesActionsPARMinVersion, nil)
+		utils.IsAboveMinVersion(ClusterAgentVersion(ddaSpec), KubernetesActionsMinVersion, nil)
 }

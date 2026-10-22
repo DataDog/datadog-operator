@@ -60,6 +60,12 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 		return reqComp
 	}
 
+	dcaVersion := featureutils.ClusterAgentVersion(ddaSpec)
+	if !utils.IsAboveMinVersion(dcaVersion, featureutils.KubernetesActionsMinVersion, nil) {
+		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", featureutils.KubernetesActionsMinVersion)
+		return reqComp
+	}
+
 	// The Cluster Agent refuses to start with Kubernetes Actions enabled and Remote Configuration
 	// disabled (both delivery channels need it). Keep that behavior, but say why up front.
 	if rc := ddaSpec.Features.RemoteConfiguration; rc != nil && rc.Enabled != nil && !*rc.Enabled {
@@ -67,21 +73,10 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	}
 
 	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
-	parRequested := featureutils.IsKubernetesActionsPARRequested(ddaSpec)
-	if !f.rcEnabled && !parRequested {
-		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.remoteConfiguration.enabled and communication.privateActionRunner.enabled are false; the feature will not be configured")
-		return reqComp
-	}
-
 	// The private action runner feature enables the runner under the same condition.
 	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
-	if parRequested && !f.parEnabled {
-		f.logger.Error(nil, "Kubernetes Actions communication.privateActionRunner.enabled=true requires a newer Cluster Agent; the Private Action Runner is not enabled", "min", featureutils.KubernetesActionsPARMinVersion)
-	}
-
-	dcaVersion := featureutils.ClusterAgentVersion(ddaSpec)
-	if !utils.IsAboveMinVersion(dcaVersion, ClusterAgentMinVersion, nil) {
-		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", ClusterAgentMinVersion)
+	if !f.rcEnabled && !f.parEnabled {
+		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.remoteConfiguration.enabled and communication.privateActionRunner.enabled are false; the feature will not be configured")
 		return reqComp
 	}
 

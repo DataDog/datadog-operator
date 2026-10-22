@@ -200,12 +200,12 @@ func TestIsKubernetesActionsPAREnabled(t *testing.T) {
 		{name: "nil spec", spec: nil},
 		{name: "communication unset defaults to true", spec: kubernetesActionsSpec(true, nil, ""), wantRequested: true, wantEnabled: true},
 		{name: "privateActionRunner set without enabled defaults to true", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{}}, ""), wantRequested: true, wantEnabled: true},
-		{name: "default on a cluster agent without the bundle", spec: kubernetesActionsSpec(true, nil, "7.82.0"), wantRequested: true, wantEnabled: false},
+		{name: "default on a cluster agent without Kubernetes Actions support", spec: kubernetesActionsSpec(true, nil, "7.83.0"), wantRequested: true, wantEnabled: false},
 		{name: "privateActionRunner disabled", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: ptr.To(false)}}, "")},
 		{name: "feature disabled", spec: kubernetesActionsSpec(false, par, "")},
 		{name: "privateActionRunner enabled on the default cluster agent", spec: kubernetesActionsSpec(true, par, ""), wantRequested: true, wantEnabled: true},
-		{name: "privateActionRunner enabled at the minimum cluster agent version", spec: kubernetesActionsSpec(true, par, "7.83.0"), wantRequested: true, wantEnabled: true},
-		{name: "privateActionRunner enabled on a cluster agent without the bundle", spec: kubernetesActionsSpec(true, par, "7.82.0"), wantRequested: true, wantEnabled: false},
+		{name: "privateActionRunner enabled at the minimum cluster agent version", spec: kubernetesActionsSpec(true, par, "7.84.0"), wantRequested: true, wantEnabled: true},
+		{name: "privateActionRunner enabled on a cluster agent without Kubernetes Actions support", spec: kubernetesActionsSpec(true, par, "7.83.0"), wantRequested: true, wantEnabled: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

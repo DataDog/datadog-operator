@@ -40,7 +40,7 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithKubernetesActionsEnabled(true).
-				WithClusterAgentTag("7.78.0").
+				WithClusterAgentTag("7.83.0").
 				Build(),
 			WantConfigure: false,
 		},
@@ -49,7 +49,17 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithKubernetesActionsEnabled(true).
-				WithClusterAgentTag("7.79.0").
+				WithClusterAgentTag("7.84.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
+		},
+		{
+			Name: "KubernetesActions enabled on a minimum cluster agent release candidate",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubernetesActionsEnabled(true).
+				WithClusterAgentTag("7.84.0-rc.1").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
@@ -82,19 +92,6 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 				WithKubernetesActionsEnabled(true).
 				WithKubernetesActionsCommunication(false, true).
 				WithClusterAgentTag("7.85.0").
-				Build(),
-			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
-		},
-		{
-			// PAR needs Cluster Agent 7.83.0: on an older one the runner is not enabled and
-			// Remote Configuration keeps delivering actions.
-			Name: "KubernetesActions enabled with PAR on a cluster agent without the PAR bundle",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithName("ddaDCA").
-				WithKubernetesActionsEnabled(true).
-				WithKubernetesActionsCommunication(true, true).
-				WithClusterAgentTag("7.82.0").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
