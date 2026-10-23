@@ -95,6 +95,13 @@ type resolvedIssue struct {
 	resolvedAt time.Time
 }
 
+// componentScope identifies a managed component within a namespace. It is the
+// unit over which the startup resolve sweep enumerates the issue catalog.
+type componentScope struct {
+	namespace string
+	component string
+}
+
 // ComponentHealthReconciler watches the managed cluster-level component pods
 // (Datadog Cluster Agent and Cluster Check Runners) and reports Kubernetes
 // health issues (OOMKills, crash loops, scheduling failures, image-pull
@@ -125,6 +132,10 @@ type ComponentHealthReconciler struct {
 	mu       sync.Mutex
 	reported map[componentIssueKey]*componentIssueState
 	resolved map[componentIssueKey]resolvedIssue
+
+	// seeded is closed after startup initializes issue state from existing pods.
+	// Reconcile waits for it so startup cannot overwrite a newer pod observation.
+	seeded chan struct{}
 }
 
 // NewComponentHealthReconciler builds a ComponentHealthReconciler with the
@@ -139,12 +150,20 @@ func NewComponentHealthReconciler(c client.Client, log logr.Logger) *ComponentHe
 		clock:            time.Now,
 		reported:         map[componentIssueKey]*componentIssueState{},
 		resolved:         map[componentIssueKey]resolvedIssue{},
+		seeded:           make(chan struct{}),
 	}
 }
 
 // Reconcile evaluates a single managed component pod and folds its detected
 // issues into the component-level state, emitting only the resulting transitions.
 func (r *ComponentHealthReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// Retry after startup has initialized issue state.
+	select {
+	case <-r.seeded:
+	default:
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
+
 	pod := &corev1.Pod{}
 	if err := r.client.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -362,26 +381,88 @@ func sortIssues(issues []componenthealth.ComponentIssue) {
 // active-issue set to the emitter. It implements manager.Runnable and is
 // registered with the manager in SetupWithManager.
 //
-// TODO(CONTP-2137): close the restart resolve-gap. State is in-memory, so if an
-// issue was active before an operator restart and clears while the operator is
-// down (or before it re-observes the pods), no present->absent transition occurs
-// and no RESOLVED signal is sent — the backend only clears it via TTL. Once
-// detection has stabilized on startup, emit explicit RESOLVED signals for the
-// catalog issue types not currently active on each managed component, so the
-// backend reconciles any issue left stuck from before the restart. (Pending the
-// backend decision on whether a full operator snapshot can instead be treated as
-// authoritative, which would close this gap without a startup sweep.)
+// Before the loop it runs seedAndSweep once, then emits an initial snapshot so
+// recovered issues clear promptly instead of waiting a full interval.
 func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
+	r.log.Info("Starting component health snapshot loop", "interval", r.snapshotInterval)
+
+	if err := r.seedAndSweep(ctx); err != nil {
+		// A failed sweep is not fatal: steady-state reporting still works, and any
+		// pre-restart issue that cleared during downtime falls back to backend TTL.
+		r.log.Error(err, "component health startup resolve sweep failed; pre-restart issues that cleared during downtime will clear via backend TTL instead")
+	}
+	// Release deferred reconciles. Closed even on sweep error so reconciliation
+	// never stays blocked.
+	close(r.seeded)
+	r.emitSnapshot(ctx)
+
 	ticker := time.NewTicker(r.snapshotInterval)
 	defer ticker.Stop()
-
-	r.log.Info("Starting component health snapshot loop", "interval", r.snapshotInterval)
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
 			r.emitSnapshot(ctx)
+		}
+	}
+}
+
+// seedAndSweep loads active issues from existing component pods, then queues
+// RESOLVED signals for the remaining issue types. This clears issues that
+// recovered while the operator was stopped.
+//
+// Components with no remaining pods are skipped; their previous issues expire
+// through the backend TTL.
+func (r *ComponentHealthReconciler) seedAndSweep(ctx context.Context) error {
+	ls := managedComponentLabelSelector()
+	sel, err := metav1.LabelSelectorAsSelector(&ls)
+	if err != nil {
+		return err
+	}
+
+	pods := &corev1.PodList{}
+	if err := r.client.List(ctx, pods, &client.ListOptions{LabelSelector: sel}); err != nil {
+		return err
+	}
+
+	observed := map[componentScope]struct{}{}
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if !pod.DeletionTimestamp.IsZero() {
+			continue
+		}
+		component := componenthealth.ManagedComponent(pod)
+		if component == "" {
+			continue
+		}
+		observed[componentScope{namespace: pod.Namespace, component: component}] = struct{}{}
+		issues := componenthealth.DetectPodIssues(pod, r.restartThreshold)
+		r.reconcilePod(types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, component, issues)
+	}
+
+	r.sweepResolved(observed)
+	return nil
+}
+
+// sweepResolved queues a RESOLVED tombstone for every catalog issue type that is
+// not currently active on an observed component, skipping issues that are active
+// or already pending resolution. Caller must not hold mu.
+func (r *ComponentHealthReconciler) sweepResolved(observed map[componentScope]struct{}) {
+	now := r.clock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for scope := range observed {
+		for _, issueType := range componenthealth.AllIssueTypes {
+			key := componentIssueKey{namespace: scope.namespace, component: scope.component, issueType: issueType}
+			if _, active := r.reported[key]; active {
+				continue
+			}
+			if _, pending := r.resolved[key]; pending {
+				continue
+			}
+			// Only resolvedAt is known here; the backend matches on issue identity.
+			r.resolved[key] = resolvedIssue{resolvedAt: now}
 		}
 	}
 }
@@ -422,11 +503,12 @@ func (r *ComponentHealthReconciler) setActiveGauge(key componentIssueKey) {
 	metrics.ComponentHealthIssuesActive.WithLabelValues(key.component, key.issueType).Set(float64(total))
 }
 
-// SetupWithManager wires the controller to watch only the managed cluster-level
-// component pods (cluster-agent, cluster-checks-runner). Node Agent pods are
-// intentionally excluded.
-func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	pred, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+// managedComponentLabelSelector selects the managed cluster-level component pods
+// (cluster-agent, cluster-checks-runner). It is the single source of truth for
+// both the watch predicate and the startup resolve sweep's pod list, so the two
+// cannot drift.
+func managedComponentLabelSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
 				Key:      common.AgentDeploymentComponentLabelKey,
@@ -437,7 +519,15 @@ func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			},
 		},
-	})
+	}
+}
+
+// SetupWithManager wires the controller to watch only the managed cluster-level
+// component pods (cluster-agent, cluster-checks-runner). Node Agent pods are
+// intentionally excluded.
+func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	ls := managedComponentLabelSelector()
+	pred, err := predicate.LabelSelectorPredicate(ls)
 	if err != nil {
 		return err
 	}

@@ -1077,6 +1077,70 @@ metadata:
     uid: ""
 ---
 apiVersion: v1
+data:
+  etcd.yaml: |-
+    ad_identifiers:
+      - kube-scheduler
+    init_config: {}
+    instances:
+      - prometheus_url: "https://%%host%%:2379/metrics"
+        tls_ca_cert: "/host/etc/kubernetes/pki/etcd/ca.crt"
+        tls_cert: "/host/etc/kubernetes/pki/etcd/server.crt"
+        tls_private_key: "/host/etc/kubernetes/pki/etcd/server.key"
+  kube_apiserver_metrics.yaml: |-
+    advanced_ad_identifiers:
+      - kube_endpoints:
+          name: "kubernetes"
+          namespace: "default"
+          resolve: "ip"
+    cluster_check: true
+    init_config: {}
+    instances:
+      - prometheus_url: "https://%%host%%:%%port%%/metrics"
+        bearer_token_auth: true
+  kube_controller_manager.yaml: |-
+    advanced_ad_identifiers:
+      - kube_endpoints:
+          name: "kubernetes"
+          namespace: "default"
+          resolve: "ip"
+    cluster_check: true
+    init_config: {}
+    instances:
+      - prometheus_url: "https://%%host%%:10257/metrics"
+        ssl_verify: false
+        bearer_token_auth: true
+  kube_scheduler.yaml: |-
+    advanced_ad_identifiers:
+      - kube_endpoints:
+          name: "kubernetes"
+          namespace: "default"
+          resolve: "ip"
+    cluster_check: true
+    init_config: {}
+    instances:
+      - prometheus_url: "https://%%host%%:10259/metrics"
+        ssl_verify: false
+        bearer_token_auth: true
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-controlplane-monitoring-talos
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: datadog-agent
+    uid: ""
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
@@ -1343,7 +1407,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 473c03399048791a3b623df788347889
+    agent.datadoghq.com/agentspechash: 4c60b35e2f8ee65db86e71b350ab948a
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1548,6 +1612,12 @@ spec:
           name: datadogrun
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /etc/datadog-agent/conf.d/kube_apiserver_metrics.d
+          name: disable-kube-apiserver-metrics-autoconf
+        - mountPath: /etc/datadog-agent/conf.d/kube_controller_manager.d
+          name: disable-kube-controller-manager-autoconf
+        - mountPath: /etc/datadog-agent/conf.d/kube_scheduler.d
+          name: disable-kube-scheduler-autoconf
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
           readOnly: true
@@ -2026,6 +2096,12 @@ spec:
           path: /var/run/datadog
           type: DirectoryOrCreate
         name: apmsocket
+      - emptyDir: {}
+        name: disable-kube-apiserver-metrics-autoconf
+      - emptyDir: {}
+        name: disable-kube-controller-manager-autoconf
+      - emptyDir: {}
+        name: disable-kube-scheduler-autoconf
       - hostPath:
           path: /
         name: hostroot
@@ -2046,7 +2122,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: aedbb529188c3f20e556fa987d45cde1
+    agent.datadoghq.com/agentspechash: 2505eefcf84f1897ee648d2761b494dc
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2074,7 +2150,7 @@ spec:
   template:
     metadata:
       annotations:
-        agent.datadoghq.com/configmapshash: f4da1a5e704c25db
+        agent.datadoghq.com/configmapshash: f2dfd6e2aee465c6
         checksum/cluster_checks-custom-config: f7dc31a1080204b2a0f72ea0cc314033
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       labels:
@@ -2272,6 +2348,15 @@ spec:
           name: tmpdir
         - mountPath: /opt/datadog-agent/run/
           name: datadogrun
+        - mountPath: /etc/datadog-agent/conf.d/kube_apiserver_metrics.d
+          name: kube-apiserver-metrics-config
+          readOnly: true
+        - mountPath: /etc/datadog-agent/conf.d/kube_controller_manager.d
+          name: kube-controller-manager-config
+          readOnly: true
+        - mountPath: /etc/datadog-agent/conf.d/kube_scheduler.d
+          name: kube-scheduler-config
+          readOnly: true
         - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
           name: ksm-core-config
           readOnly: true
@@ -2295,6 +2380,24 @@ spec:
         name: tmpdir
       - emptyDir: {}
         name: datadogrun
+      - configMap:
+          items:
+          - key: kube_apiserver_metrics.yaml
+            path: kube_apiserver_metrics.yaml
+          name: datadog-controlplane-monitoring-talos
+        name: kube-apiserver-metrics-config
+      - configMap:
+          items:
+          - key: kube_controller_manager.yaml
+            path: kube_controller_manager.yaml
+          name: datadog-controlplane-monitoring-talos
+        name: kube-controller-manager-config
+      - configMap:
+          items:
+          - key: kube_scheduler.yaml
+            path: kube_scheduler.yaml
+          name: datadog-controlplane-monitoring-talos
+        name: kube-scheduler-config
       - configMap:
           name: datadog-agent-kube-state-metrics-core-config
         name: ksm-core-config

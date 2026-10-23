@@ -212,6 +212,18 @@ func TestRender_Golden(t *testing.T) {
 			sccAllowed: true,
 			golden:     "testdata/golden/comprehensive-baseline.golden.yaml",
 		},
+		{
+			// Control plane monitoring on Talos has two tiers. The fixture above
+			// has no control-plane toleration, so only the cluster-check tier
+			// (apiserver/scheduler/controller-manager) renders. This fixture adds
+			// the toleration, which is what unlocks the etcd tier: the etcd config
+			// gets mounted into the node agent along with the host cert hostPath.
+			// Diffing the two goldens isolates exactly what the toleration buys.
+			name:     "talos dda with control-plane toleration, talos",
+			ddaFile:  "testdata/talos-cp-toleration-dda.yaml",
+			provider: kubernetes.TalosProvider,
+			golden:   "testdata/golden/talos-cp-toleration-talos.golden.yaml",
+		},
 	}
 
 	for _, tt := range tests {

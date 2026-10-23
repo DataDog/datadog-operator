@@ -683,6 +683,12 @@ func (builder *DatadogAgentBuilder) WithKSMPodCollectionMode(mode v2alpha1.KSMPo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMShardingEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.ShardingEnabled = new(enabled)
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {
@@ -1035,6 +1041,41 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+// Kueue
+
+func (builder *DatadogAgentBuilder) initKueue() {
+	if builder.datadogAgent.Spec.Features.Kueue == nil {
+		builder.datadogAgent.Spec.Features.Kueue = &v2alpha1.KueueFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithKueueEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueCollectWorkloadEvents(enabled bool) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.CollectWorkloadEvents = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueMetricsService(name, namespace string) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.MetricsService = &v2alpha1.KueueMetricsServiceConfig{
+		Name:      new(name),
+		Namespace: new(namespace),
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueCustomConf(conf *v2alpha1.CustomConfig) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.Conf = conf
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) initKubernetesActions() {
 	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
 		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
@@ -1044,6 +1085,15 @@ func (builder *DatadogAgentBuilder) initKubernetesActions() {
 func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initKubernetesActions()
 	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKubernetesActionsCommunication(rc, par bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Communication = &v2alpha1.KubernetesActionsCommunicationConfig{
+		RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(rc)},
+		PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(par)},
+	}
 	return builder
 }
 
