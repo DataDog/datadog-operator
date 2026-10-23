@@ -54,16 +54,16 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			name: "node config overrides shared config without affecting cluster",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
 				Enabled: new(true), ConfigData: new(shared),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{ConfigData: new(custom), SplitEnabled: new(false)},
+				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{ConfigData: new(custom)},
 			},
-			wantNode: true, wantCluster: true,
+			wantNode: true, wantCluster: true, wantSplit: true,
 			wantNodeYML: custom, wantClusYML: shared,
 		},
 		{
 			name: "cluster config overrides shared config without affecting node",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
 				Enabled: new(true), ConfigData: new(shared),
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{ConfigData: new(custom), K8sRemediationEnabled: new(true)},
+				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{ConfigData: new(custom)},
 			},
 			wantNode: true, wantCluster: true, wantSplit: true,
 			wantNodeYML: shared, wantClusYML: custom,
@@ -102,7 +102,7 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 		{
 			name: "old node agent cannot use split mode",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{SplitEnabled: new(true)},
+				Enabled: new(true),
 			},
 			agentTag: "7.83.0", wantNode: true, wantCluster: true,
 			wantNodeYML: defaultConfigData, wantClusYML: defaultConfigData,
@@ -115,7 +115,7 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			},
 		},
 		{
-			name:   "spec overrides legacy disable config and split annotations",
+			name:   "spec overrides enable and config annotations but preserves split and remediation annotations",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(shared)},
 			annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation:                  "false",
@@ -125,7 +125,7 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation:  "invalid: [",
 				featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled: "true",
 			},
-			wantNode: true, wantCluster: true, wantSplit: true, wantNodeYML: shared, wantClusYML: shared,
+			wantNode: true, wantCluster: true, wantNodeYML: shared, wantClusYML: shared,
 		},
 	}
 	for _, tt := range tests {
@@ -155,7 +155,7 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			if tt.config.ConfigData != nil {
 				assert.Equal(t, shared, *tt.config.ConfigData, "shared input must remain unchanged")
 			}
-			wantRemediation := tt.config.ClusterAgent != nil && tt.config.ClusterAgent.K8sRemediationEnabled != nil && *tt.config.ClusterAgent.K8sRemediationEnabled
+			wantRemediation := tt.annotations[featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled] == "true"
 			assert.Equal(t, tt.wantCluster && wantRemediation, f.k8sRemediationEnabled)
 
 			scheme := runtime.NewScheme()
@@ -213,10 +213,10 @@ func TestPrivateActionRunnerSpecYAML(t *testing.T) {
   features:
     privateActionRunner:
       enabled: true
-      actionsAllowlist:
-        - com.datadoghq.script.runPredefinedScript
       configData: |
         private_action_runner:
+          actions_allowlist:
+            - com.datadoghq.script.runPredefinedScript
           enabled: false
           task_concurrency: 3
       clusterAgent:
@@ -241,20 +241,29 @@ func TestPrivateActionRunnerSpecYAML(t *testing.T) {
 	assert.Nil(t, f.clusterConfig)
 }
 
-func TestPrivateActionRunnerActionsAllowlistOverridesYAML(t *testing.T) {
+func TestPrivateActionRunnerConfigOverridesYAML(t *testing.T) {
 	var dda v2alpha1.DatadogAgent
 	require.NoError(t, yaml.UnmarshalStrict([]byte(`spec:
   features:
     privateActionRunner:
       enabled: true
-      actionsAllowlist:
-        - com.datadoghq.script.runPredefinedScript
+      configData: |
+        private_action_runner:
+          actions_allowlist:
+            - com.datadoghq.script.runPredefinedScript
+          task_concurrency: 3
+          advanced_option: preserved
       nodeAgent:
-        actionsAllowlist:
-          - com.datadoghq.script.testConnection
+        configData: |
+          private_action_runner:
+            actions_allowlist:
+              - com.datadoghq.script.testConnection
       clusterAgent:
-        actionsAllowlist: []
+        configData: |
+          private_action_runner:
+            actions_allowlist: []
 `), &dda))
+	shared := *dda.Spec.Features.PrivateActionRunner.ConfigData
 	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
 	f.Configure(&dda, &dda.Spec, nil)
 	require.NoError(t, f.configErr)
@@ -262,121 +271,24 @@ func TestPrivateActionRunnerActionsAllowlistOverridesYAML(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"com.datadoghq.script.testConnection"}, node.ActionsAllowlist)
 	assert.Equal(t, []string{}, f.clusterConfig.ActionsAllowlist)
-}
+	assert.Nil(t, node.TaskConcurrency, "component config replaces the entire shared configuration")
+	assert.Nil(t, f.clusterConfig.TaskConcurrency)
+	assert.NotContains(t, f.nodeConfigData, "advanced_option")
+	assert.NotContains(t, f.clusterConfigData, "advanced_option")
+	assert.Equal(t, shared, *dda.Spec.Features.PrivateActionRunner.ConfigData)
 
-func TestPrivateActionRunnerActionsAllowlist(t *testing.T) {
-	shared := []string{"com.datadoghq.script.runPredefinedScript"}
-	node := []string{"com.datadoghq.script.testConnection"}
-	cluster := []string{"com.datadoghq.http.request"}
-	empty := []string{}
-	const advanced = "private_action_runner:\n  enabled: true\n  task_concurrency: 3\n  actions_allowlist:\n    - from-config-data\n  advanced_option: preserved\n"
-	tests := []struct {
-		name        string
-		config      v2alpha1.PrivateActionRunnerFeatureConfig
-		wantNode    []string
-		wantCluster []string
-	}{
-		{
-			name:     "shared list applies to both agents",
-			config:   v2alpha1.PrivateActionRunnerFeatureConfig{ActionsAllowlist: &shared},
-			wantNode: shared, wantCluster: shared,
-		},
-		{
-			name: "node override replaces shared list",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ActionsAllowlist: &shared,
-				NodeAgent:        &v2alpha1.PrivateActionRunnerNodeAgentConfig{ActionsAllowlist: &node},
-			},
-			wantNode: node, wantCluster: shared,
-		},
-		{
-			name: "cluster override replaces shared list",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ActionsAllowlist: &shared,
-				ClusterAgent:     &v2alpha1.PrivateActionRunnerClusterAgentConfig{ActionsAllowlist: &cluster},
-			},
-			wantNode: shared, wantCluster: cluster,
-		},
-		{
-			name: "both components can override independently",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ActionsAllowlist: &shared,
-				NodeAgent:        &v2alpha1.PrivateActionRunnerNodeAgentConfig{ActionsAllowlist: &node},
-				ClusterAgent:     &v2alpha1.PrivateActionRunnerClusterAgentConfig{ActionsAllowlist: &cluster},
-			},
-			wantNode: node, wantCluster: cluster,
-		},
-		{
-			name: "empty node override clears inherited list",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ActionsAllowlist: &shared,
-				NodeAgent:        &v2alpha1.PrivateActionRunnerNodeAgentConfig{ActionsAllowlist: &empty},
-			},
-			wantNode: empty, wantCluster: shared,
-		},
-		{
-			name: "empty cluster override clears inherited list",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ActionsAllowlist: &shared,
-				ClusterAgent:     &v2alpha1.PrivateActionRunnerClusterAgentConfig{ActionsAllowlist: &empty},
-			},
-			wantNode: shared, wantCluster: empty,
-		},
-		{
-			name:     "empty common list overrides raw config",
-			config:   v2alpha1.PrivateActionRunnerFeatureConfig{ActionsAllowlist: &empty, ConfigData: new(advanced)},
-			wantNode: empty, wantCluster: empty,
-		},
-		{
-			name: "shared typed list takes precedence over component config data",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ActionsAllowlist: &shared,
-				NodeAgent:        &v2alpha1.PrivateActionRunnerNodeAgentConfig{ConfigData: new(advanced)},
-				ClusterAgent:     &v2alpha1.PrivateActionRunnerClusterAgentConfig{ConfigData: new(advanced)},
-			},
-			wantNode: shared, wantCluster: shared,
-		},
-		{
-			name: "component typed lists take precedence over raw config",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ConfigData: new(advanced), ActionsAllowlist: &shared,
-				NodeAgent:    &v2alpha1.PrivateActionRunnerNodeAgentConfig{ActionsAllowlist: &node},
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{ActionsAllowlist: &cluster},
-			},
-			wantNode: node, wantCluster: cluster,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.config.Enabled = new(true)
-			dda := &v2alpha1.DatadogAgent{Spec: v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: &tt.config}}}
-			// Exercise the API round trip, including explicit empty lists.
-			data, err := yaml.Marshal(dda)
-			require.NoError(t, err)
-			require.NoError(t, yaml.Unmarshal(data, dda))
-			before := dda.DeepCopy()
-			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
-			req := f.Configure(dda, &dda.Spec, nil)
-			require.NoError(t, f.configErr)
-			require.True(t, req.Agent.IsEnabled())
-			require.True(t, req.ClusterAgent.IsEnabled())
-			for _, component := range []struct {
-				data string
-				want []string
-			}{
-				{f.nodeConfigData, tt.wantNode},
-				{f.clusterConfigData, tt.wantCluster},
-			} {
-				config, err := parsePrivateActionRunnerConfig(component.data)
-				require.NoError(t, err)
-				assert.Equal(t, component.want, config.ActionsAllowlist)
-				assert.True(t, config.Enabled)
-			}
-			assert.Equal(t, before.Spec, dda.Spec, "resolving component lists must not modify the spec")
-			if tt.config.ConfigData != nil {
-				assert.Contains(t, f.nodeConfigData, "advanced_option: preserved")
-				assert.Contains(t, f.clusterConfigData, "advanced_option: preserved")
-			}
-		})
+	// Removing overrides restores the common allowlist and unknown Agent options.
+	dda.Spec.Features.PrivateActionRunner.NodeAgent = nil
+	dda.Spec.Features.PrivateActionRunner.ClusterAgent = nil
+	f.Configure(&dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+	for _, data := range []string{f.nodeConfigData, f.clusterConfigData} {
+		config, err := parsePrivateActionRunnerConfig(data)
+		require.NoError(t, err)
+		assert.True(t, config.Enabled)
+		assert.Equal(t, []string{"com.datadoghq.script.runPredefinedScript"}, config.ActionsAllowlist)
+		require.NotNil(t, config.TaskConcurrency)
+		assert.EqualValues(t, 3, *config.TaskConcurrency)
+		assert.Contains(t, data, "advanced_option: preserved")
 	}
 }

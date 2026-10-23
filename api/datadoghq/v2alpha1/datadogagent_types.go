@@ -137,8 +137,9 @@ type DatadogFeatures struct {
 }
 
 // PrivateActionRunnerFeatureConfig contains Private Action Runner configuration.
-// When present, this block replaces the enable, split, configdata and Kubernetes
-// remediation annotations. Host systemd access is still configured through annotations.
+// When present, this block replaces the enable and configdata annotations.
+// Split mode, host systemd access and legacy Kubernetes remediation permissions
+// remain configured through annotations. Use features.kubernetesActions for Kubernetes actions.
 // +k8s:openapi-gen=true
 type PrivateActionRunnerFeatureConfig struct {
 	// Enabled enables Private Action Runner on both the Node Agent and Cluster Agent.
@@ -147,15 +148,9 @@ type PrivateActionRunnerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ActionsAllowlist lists the action patterns allowed on both agents.
-	// Component-specific actionsAllowlist settings replace this list, including an empty list.
-	// Takes precedence over actions_allowlist in ConfigData.
-	// +optional
-	// +listType=atomic
-	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
-
 	// ConfigData contains YAML configuration, including the private_action_runner key,
 	// shared by both agents. The enabled field is controlled by Enabled instead.
+	// Configure allowed action patterns with private_action_runner.actions_allowlist.
 	// Default: "private_action_runner:\n  enabled: true\n"
 	// +optional
 	ConfigData *string `json:"configData,omitempty"`
@@ -176,21 +171,9 @@ type PrivateActionRunnerNodeAgentConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.
-	// An empty list explicitly clears the shared list. Takes precedence over ConfigData.
-	// +optional
-	// +listType=atomic
-	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
-
 	// ConfigData replaces the entire shared YAML configuration for the Node Agent.
 	// +optional
 	ConfigData *string `json:"configData,omitempty"`
-
-	// SplitEnabled runs the Private Action Runner separately from the core Agent.
-	// Defaults to true for Agent images supporting split mode (7.84.0+).
-	// Older Agent images always use the legacy mode.
-	// +optional
-	SplitEnabled *bool `json:"splitEnabled,omitempty"`
 }
 
 // PrivateActionRunnerClusterAgentConfig contains Cluster Agent Private Action Runner overrides.
@@ -200,20 +183,9 @@ type PrivateActionRunnerClusterAgentConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.
-	// An empty list explicitly clears the shared list. Takes precedence over ConfigData.
-	// +optional
-	// +listType=atomic
-	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
-
 	// ConfigData replaces the entire shared YAML configuration for the Cluster Agent.
 	// +optional
 	ConfigData *string `json:"configData,omitempty"`
-
-	// K8sRemediationEnabled grants cluster-wide permissions for Kubernetes remediation actions.
-	// Default: false
-	// +optional
-	K8sRemediationEnabled *bool `json:"k8sRemediationEnabled,omitempty"`
 }
 
 // KubernetesActionsFeatureConfig allows configuration of the Kubernetes Actions feature.

@@ -2925,26 +2925,10 @@
               "additionalProperties": false,
               "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
               "properties": {
-                "actionsAllowlist": {
-                  "description": "ActionsAllowlist lists the action patterns allowed on both agents.\nComponent-specific actionsAllowlist settings replace this list, including an empty list.\nTakes precedence over actions_allowlist in ConfigData.",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array",
-                  "x-kubernetes-list-type": "atomic"
-                },
                 "clusterAgent": {
                   "additionalProperties": false,
                   "description": "ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.",
                   "properties": {
-                    "actionsAllowlist": {
-                      "description": "ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array",
-                      "x-kubernetes-list-type": "atomic"
-                    },
                     "configData": {
                       "description": "ConfigData replaces the entire shared YAML configuration for the Cluster Agent.",
                       "type": "string"
@@ -2952,16 +2936,12 @@
                     "enabled": {
                       "description": "Enabled overrides the shared enabled setting for the Cluster Agent.",
                       "type": "boolean"
-                    },
-                    "k8sRemediationEnabled": {
-                      "description": "K8sRemediationEnabled grants cluster-wide permissions for Kubernetes remediation actions.\nDefault: false",
-                      "type": "boolean"
                     }
                   },
                   "type": "object"
                 },
                 "configData": {
-                  "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled instead.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
+                  "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled instead.\nConfigure allowed action patterns with private_action_runner.actions_allowlist.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
                   "type": "string"
                 },
                 "enabled": {
@@ -2972,24 +2952,12 @@
                   "additionalProperties": false,
                   "description": "NodeAgent overrides the shared Private Action Runner settings for the Node Agent.",
                   "properties": {
-                    "actionsAllowlist": {
-                      "description": "ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array",
-                      "x-kubernetes-list-type": "atomic"
-                    },
                     "configData": {
                       "description": "ConfigData replaces the entire shared YAML configuration for the Node Agent.",
                       "type": "string"
                     },
                     "enabled": {
                       "description": "Enabled overrides the shared enabled setting for the Node Agent.",
-                      "type": "boolean"
-                    },
-                    "splitEnabled": {
-                      "description": "SplitEnabled runs the Private Action Runner separately from the core Agent.\nDefaults to true for Agent images supporting split mode (7.84.0+).\nOlder Agent images always use the legacy mode.",
                       "type": "boolean"
                     }
                   },
@@ -12035,26 +12003,10 @@
                   "additionalProperties": false,
                   "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
                   "properties": {
-                    "actionsAllowlist": {
-                      "description": "ActionsAllowlist lists the action patterns allowed on both agents.\nComponent-specific actionsAllowlist settings replace this list, including an empty list.\nTakes precedence over actions_allowlist in ConfigData.",
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array",
-                      "x-kubernetes-list-type": "atomic"
-                    },
                     "clusterAgent": {
                       "additionalProperties": false,
                       "description": "ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.",
                       "properties": {
-                        "actionsAllowlist": {
-                          "description": "ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
-                          "items": {
-                            "type": "string"
-                          },
-                          "type": "array",
-                          "x-kubernetes-list-type": "atomic"
-                        },
                         "configData": {
                           "description": "ConfigData replaces the entire shared YAML configuration for the Cluster Agent.",
                           "type": "string"
@@ -12062,16 +12014,12 @@
                         "enabled": {
                           "description": "Enabled overrides the shared enabled setting for the Cluster Agent.",
                           "type": "boolean"
-                        },
-                        "k8sRemediationEnabled": {
-                          "description": "K8sRemediationEnabled grants cluster-wide permissions for Kubernetes remediation actions.\nDefault: false",
-                          "type": "boolean"
                         }
                       },
                       "type": "object"
                     },
                     "configData": {
-                      "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled instead.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
+                      "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled instead.\nConfigure allowed action patterns with private_action_runner.actions_allowlist.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
                       "type": "string"
                     },
                     "enabled": {
@@ -12082,24 +12030,12 @@
                       "additionalProperties": false,
                       "description": "NodeAgent overrides the shared Private Action Runner settings for the Node Agent.",
                       "properties": {
-                        "actionsAllowlist": {
-                          "description": "ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
-                          "items": {
-                            "type": "string"
-                          },
-                          "type": "array",
-                          "x-kubernetes-list-type": "atomic"
-                        },
                         "configData": {
                           "description": "ConfigData replaces the entire shared YAML configuration for the Node Agent.",
                           "type": "string"
                         },
                         "enabled": {
                           "description": "Enabled overrides the shared enabled setting for the Node Agent.",
-                          "type": "boolean"
-                        },
-                        "splitEnabled": {
-                          "description": "SplitEnabled runs the Private Action Runner separately from the core Agent.\nDefaults to true for Agent images supporting split mode (7.84.0+).\nOlder Agent images always use the legacy mode.",
                           "type": "boolean"
                         }
                       },

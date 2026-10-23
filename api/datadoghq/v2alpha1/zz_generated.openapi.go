@@ -2433,37 +2433,10 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerClusterAg
 							Format:      "",
 						},
 					},
-					"actionsAllowlist": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
 					"configData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigData replaces the entire shared YAML configuration for the Cluster Agent.",
 							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"k8sRemediationEnabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "K8sRemediationEnabled grants cluster-wide permissions for Kubernetes remediation actions. Default: false",
-							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -2477,7 +2450,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureCo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PrivateActionRunnerFeatureConfig contains Private Action Runner configuration. When present, this block replaces the enable, split, configdata and Kubernetes remediation annotations. Host systemd access is still configured through annotations.",
+				Description: "PrivateActionRunnerFeatureConfig contains Private Action Runner configuration. When present, this block replaces the enable and configdata annotations. Split mode, host systemd access and legacy Kubernetes remediation permissions remain configured through annotations. Use features.kubernetesActions for Kubernetes actions.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
@@ -2487,29 +2460,9 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureCo
 							Format:      "",
 						},
 					},
-					"actionsAllowlist": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist lists the action patterns allowed on both agents. Component-specific actionsAllowlist settings replace this list, including an empty list. Takes precedence over actions_allowlist in ConfigData.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
 					"configData": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled instead. Default: \"private_action_runner:\\n  enabled: true\\n\"",
+							Description: "ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled instead. Configure allowed action patterns with private_action_runner.actions_allowlist. Default: \"private_action_runner:\\n  enabled: true\\n\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2548,37 +2501,10 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerNodeAgent
 							Format:      "",
 						},
 					},
-					"actionsAllowlist": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
 					"configData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigData replaces the entire shared YAML configuration for the Node Agent.",
 							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"splitEnabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SplitEnabled runs the Private Action Runner separately from the core Agent. Defaults to true for Agent images supporting split mode (7.84.0+). Older Agent images always use the legacy mode.",
-							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

@@ -38,23 +38,20 @@ const (
 )
 
 const (
-	privateActionRunnerConfigKey    = "private_action_runner"
-	privateActionRunnerEnabledKey   = "enabled"
-	privateActionRunnerAllowlistKey = "actions_allowlist"
+	privateActionRunnerConfigKey  = "private_action_runner"
+	privateActionRunnerEnabledKey = "enabled"
 )
 
 type componentConfig struct {
-	enabled          bool
-	configData       string
-	actionsAllowlist *[]string
+	enabled    bool
+	configData string
 }
 
 // resolveConfiguration selects either the spec or legacy annotations, then applies
 // component overrides without mutating the shared configuration.
-func resolveConfiguration(dda metav1.Object, spec *v2alpha1.PrivateActionRunnerFeatureConfig) (node, cluster componentConfig, splitEnabled, k8sRemediationEnabled bool) {
+func resolveConfiguration(dda metav1.Object, spec *v2alpha1.PrivateActionRunnerFeatureConfig) (node, cluster componentConfig) {
 	node.configData = defaultConfigData
 	cluster.configData = defaultConfigData
-	splitEnabled = true
 	if spec == nil {
 		node.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation)
 		cluster.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation)
@@ -64,44 +61,30 @@ func resolveConfiguration(dda metav1.Object, spec *v2alpha1.PrivateActionRunnerF
 		if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
 			cluster.configData = data
 		}
-		splitEnabled = !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation)
-		k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
 		return
 	}
 
 	node.enabled = apiutils.BoolValue(spec.Enabled)
 	cluster.enabled = node.enabled
-	node.actionsAllowlist = spec.ActionsAllowlist
-	cluster.actionsAllowlist = spec.ActionsAllowlist
 	if spec.ConfigData != nil {
 		node.configData = *spec.ConfigData
 		cluster.configData = *spec.ConfigData
 	}
 	if override := spec.NodeAgent; override != nil {
-		if override.ActionsAllowlist != nil {
-			node.actionsAllowlist = override.ActionsAllowlist
-		}
 		if override.Enabled != nil {
 			node.enabled = *override.Enabled
 		}
 		if override.ConfigData != nil {
 			node.configData = *override.ConfigData
 		}
-		if override.SplitEnabled != nil {
-			splitEnabled = *override.SplitEnabled
-		}
 	}
 	if override := spec.ClusterAgent; override != nil {
-		if override.ActionsAllowlist != nil {
-			cluster.actionsAllowlist = override.ActionsAllowlist
-		}
 		if override.Enabled != nil {
 			cluster.enabled = *override.Enabled
 		}
 		if override.ConfigData != nil {
 			cluster.configData = *override.ConfigData
 		}
-		k8sRemediationEnabled = apiutils.BoolValue(override.K8sRemediationEnabled)
 	}
 	return
 }
@@ -185,24 +168,20 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 }
 
 // enabledConfigData validates spec configuration and keeps enabled consistent with the feature.
-func enabledConfigData(configData string, actionsAllowlist *[]string) (string, error) {
+func enabledConfigData(configData string) (string, error) {
 	config, err := parsePrivateActionRunnerConfig(configData)
 	if err != nil {
 		return "", err
 	}
-	if config.Enabled && actionsAllowlist == nil {
+	if config.Enabled {
 		return configData, nil
 	}
-	return overrideValuesInConfigData(configData, true, actionsAllowlist)
+	return overrideEnabledValueInConfigData(configData, true)
 }
 
 // overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
 // matches the desired value.
 func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
-	return overrideValuesInConfigData(configData, enabled, nil)
-}
-
-func overrideValuesInConfigData(configData string, enabled bool, actionsAllowlist *[]string) (string, error) {
 	var data map[string]any
 	if err := yaml.Unmarshal([]byte(configData), &data); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config data: %w", err)
@@ -220,9 +199,6 @@ func overrideValuesInConfigData(configData string, enabled bool, actionsAllowlis
 		data[privateActionRunnerConfigKey] = parConfig
 	}
 	parConfig[privateActionRunnerEnabledKey] = enabled
-	if actionsAllowlist != nil {
-		parConfig[privateActionRunnerAllowlistKey] = *actionsAllowlist
-	}
 
 	updatedYAML, err := yaml.Marshal(data)
 	if err != nil {

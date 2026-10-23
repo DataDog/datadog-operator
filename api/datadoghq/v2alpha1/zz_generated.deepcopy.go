@@ -3626,23 +3626,9 @@ func (in *PrivateActionRunnerClusterAgentConfig) DeepCopyInto(out *PrivateAction
 		*out = new(bool)
 		**out = **in
 	}
-	if in.ActionsAllowlist != nil {
-		in, out := &in.ActionsAllowlist, &out.ActionsAllowlist
-		*out = new([]string)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make([]string, len(*in))
-			copy(*out, *in)
-		}
-	}
 	if in.ConfigData != nil {
 		in, out := &in.ConfigData, &out.ConfigData
 		*out = new(string)
-		**out = **in
-	}
-	if in.K8sRemediationEnabled != nil {
-		in, out := &in.K8sRemediationEnabled, &out.K8sRemediationEnabled
-		*out = new(bool)
 		**out = **in
 	}
 }
@@ -3664,15 +3650,6 @@ func (in *PrivateActionRunnerFeatureConfig) DeepCopyInto(out *PrivateActionRunne
 		in, out := &in.Enabled, &out.Enabled
 		*out = new(bool)
 		**out = **in
-	}
-	if in.ActionsAllowlist != nil {
-		in, out := &in.ActionsAllowlist, &out.ActionsAllowlist
-		*out = new([]string)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make([]string, len(*in))
-			copy(*out, *in)
-		}
 	}
 	if in.ConfigData != nil {
 		in, out := &in.ConfigData, &out.ConfigData
@@ -3709,23 +3686,9 @@ func (in *PrivateActionRunnerNodeAgentConfig) DeepCopyInto(out *PrivateActionRun
 		*out = new(bool)
 		**out = **in
 	}
-	if in.ActionsAllowlist != nil {
-		in, out := &in.ActionsAllowlist, &out.ActionsAllowlist
-		*out = new([]string)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make([]string, len(*in))
-			copy(*out, *in)
-		}
-	}
 	if in.ConfigData != nil {
 		in, out := &in.ConfigData, &out.ConfigData
 		*out = new(string)
-		**out = **in
-	}
-	if in.SplitEnabled != nil {
-		in, out := &in.SplitEnabled, &out.SplitEnabled
-		*out = new(bool)
 		**out = **in
 	}
 }

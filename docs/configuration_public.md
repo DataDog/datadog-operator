@@ -460,38 +460,23 @@ spec:
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
 
-`features.privateActionRunner.actionsAllowlist`
-: ActionsAllowlist lists the action patterns allowed on both agents. Component-specific actionsAllowlist settings replace this list, including an empty list. Takes precedence over actions_allowlist in ConfigData.
-
-`features.privateActionRunner.clusterAgent.actionsAllowlist`
-: ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.
-
 `features.privateActionRunner.clusterAgent.configData`
 : ConfigData replaces the entire shared YAML configuration for the Cluster Agent.
 
 `features.privateActionRunner.clusterAgent.enabled`
 : Overrides the shared enabled setting for the Cluster Agent.
 
-`features.privateActionRunner.clusterAgent.k8sRemediationEnabled`
-: K8sRemediationEnabled grants cluster-wide permissions for Kubernetes remediation actions. Default: false
-
 `features.privateActionRunner.configData`
-: ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled instead. Default: "private_action_runner:\n  enabled: true\n"
+: ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled instead. Configure allowed action patterns with private_action_runner.actions_allowlist. Default: "private_action_runner:\n  enabled: true\n"
 
 `features.privateActionRunner.enabled`
 : Enables Private Action Runner on both the Node Agent and Cluster Agent. Component-specific enabled settings take precedence. Default: false
-
-`features.privateActionRunner.nodeAgent.actionsAllowlist`
-: ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.
 
 `features.privateActionRunner.nodeAgent.configData`
 : ConfigData replaces the entire shared YAML configuration for the Node Agent.
 
 `features.privateActionRunner.nodeAgent.enabled`
 : Overrides the shared enabled setting for the Node Agent.
-
-`features.privateActionRunner.nodeAgent.splitEnabled`
-: SplitEnabled runs the Private Action Runner separately from the core Agent. Defaults to true for Agent images supporting split mode (7.84.0+). Older Agent images always use the legacy mode.
 
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true

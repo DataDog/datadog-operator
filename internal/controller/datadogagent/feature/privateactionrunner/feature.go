@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -69,17 +70,17 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if ddaSpec.Features != nil {
 		spec = ddaSpec.Features.PrivateActionRunner
 	}
-	node, cluster, splitEnabled, k8sRemediationEnabled := resolveConfiguration(dda, spec)
+	node, cluster := resolveConfiguration(dda, spec)
 
 	if node.enabled {
 		f.nodeEnabled = true
 		f.nodeConfigData = node.configData
 		if spec != nil {
-			f.nodeConfigData, f.configErr = enabledConfigData(f.nodeConfigData, node.actionsAllowlist)
+			f.nodeConfigData, f.configErr = enabledConfigData(f.nodeConfigData)
 		}
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
-		if splitEnabled {
+		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
 			image := images.GetLatestAgentImage()
 			if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
 				image = images.OverrideAgentImage(image, override.Image)
@@ -102,7 +103,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.clusterConfigData = cluster.configData
 		if spec != nil {
 			var err error
-			f.clusterConfigData, err = enabledConfigData(f.clusterConfigData, cluster.actionsAllowlist)
+			f.clusterConfigData, err = enabledConfigData(f.clusterConfigData)
 			if err != nil {
 				f.configErr = err
 			}
@@ -135,7 +136,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			}
 		}
 		f.clusterConfig = clusterConfig
-		f.k8sRemediationEnabled = k8sRemediationEnabled
+		f.k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
