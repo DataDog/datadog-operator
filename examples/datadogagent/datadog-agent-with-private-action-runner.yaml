@@ -1,11 +1,69 @@
 # Private Action Runner (PAR) enables workflow automation capabilities in the Datadog Agent.
-# This example demonstrates how to configure PAR using annotations.
+# Configure PAR through spec.features.privateActionRunner. Shared settings apply
+# to both agents; nodeAgent and clusterAgent override individual settings.
+# Component configData replaces the entire shared YAML configuration.
+# Typed actions_allowlist settings take precedence over configData.
+# When the feature block is absent, legacy annotations remain supported.
 #
 # For more information about Private Action Runner:
 # https://docs.datadoghq.com/actions/private_actions/
 
 ---
-# Example 1: Node Agent with Private Action Runner (self-enrollment)
+# Example 1: Shared configuration for both agents
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+    site: datadoghq.com
+  features:
+    privateActionRunner:
+      enabled: true
+      actions_allowlist:
+        - com.datadoghq.script.runPredefinedScript
+
+---
+# Example 2: Shared enablement with separate configuration for the Cluster Agent
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-par-overrides
+spec:
+  global:
+    clusterName: my-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+    site: datadoghq.com
+  features:
+    privateActionRunner:
+      enabled: true
+      actions_allowlist:
+        - com.datadoghq.script.runPredefinedScript
+      nodeAgent:
+        # Split mode defaults to true for supported Agent images (7.84.0+).
+        splitEnabled: true
+        # Set enabled: false here to run PAR only in the Cluster Agent.
+      clusterAgent:
+        # Set enabled: false here to run PAR only in the Node Agent.
+        # Replace the common allowlist only for the Cluster Agent.
+        # Use actions_allowlist: [] to explicitly clear the common list.
+        actions_allowlist:
+          - com.datadoghq.http.request
+        configData: |
+          private_action_runner:
+            self_enroll: true
+            identity_secret_name: datadog-cluster-par-identity
+
+---
+# Legacy example 1: Node Agent with Private Action Runner (self-enrollment)
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
@@ -35,7 +93,7 @@ spec:
     site: datadoghq.com
 
 ---
-# Example 2: Cluster Agent with Private Action Runner (self-enrollment)
+# Legacy example 2: Cluster Agent with Private Action Runner (self-enrollment)
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
@@ -62,7 +120,7 @@ spec:
     site: datadoghq.com
 
 ---
-# Example 3: Cluster Agent with manual enrollment (URN and private key)
+# Legacy example 3: Cluster Agent with manual enrollment (URN and private key)
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
@@ -88,7 +146,7 @@ spec:
     site: datadoghq.com
 
 ---
-# Example 4: Both Node Agent and Cluster Agent with PAR
+# Legacy example 4: Both Node Agent and Cluster Agent with PAR
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:

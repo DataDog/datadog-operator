@@ -12,6 +12,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 // Environment variable names for Private Action Runner configuration
@@ -33,9 +38,73 @@ const (
 )
 
 const (
-	privateActionRunnerConfigKey  = "private_action_runner"
-	privateActionRunnerEnabledKey = "enabled"
+	privateActionRunnerConfigKey    = "private_action_runner"
+	privateActionRunnerEnabledKey   = "enabled"
+	privateActionRunnerAllowlistKey = "actions_allowlist"
 )
+
+type componentConfig struct {
+	enabled          bool
+	configData       string
+	actionsAllowlist *[]string
+}
+
+// resolveConfiguration selects either the spec or legacy annotations, then applies
+// component overrides without mutating the shared configuration.
+func resolveConfiguration(dda metav1.Object, spec *v2alpha1.PrivateActionRunnerFeatureConfig) (node, cluster componentConfig, splitEnabled, k8sRemediationEnabled bool) {
+	node.configData = defaultConfigData
+	cluster.configData = defaultConfigData
+	splitEnabled = true
+	if spec == nil {
+		node.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation)
+		cluster.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation)
+		if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
+			node.configData = data
+		}
+		if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
+			cluster.configData = data
+		}
+		splitEnabled = !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation)
+		k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
+		return
+	}
+
+	node.enabled = apiutils.BoolValue(spec.Enabled)
+	cluster.enabled = node.enabled
+	node.actionsAllowlist = spec.ActionsAllowlist
+	cluster.actionsAllowlist = spec.ActionsAllowlist
+	if spec.ConfigData != nil {
+		node.configData = *spec.ConfigData
+		cluster.configData = *spec.ConfigData
+	}
+	if override := spec.NodeAgent; override != nil {
+		if override.ActionsAllowlist != nil {
+			node.actionsAllowlist = override.ActionsAllowlist
+		}
+		if override.Enabled != nil {
+			node.enabled = *override.Enabled
+		}
+		if override.ConfigData != nil {
+			node.configData = *override.ConfigData
+		}
+		if override.SplitEnabled != nil {
+			splitEnabled = *override.SplitEnabled
+		}
+	}
+	if override := spec.ClusterAgent; override != nil {
+		if override.ActionsAllowlist != nil {
+			cluster.actionsAllowlist = override.ActionsAllowlist
+		}
+		if override.Enabled != nil {
+			cluster.enabled = *override.Enabled
+		}
+		if override.ConfigData != nil {
+			cluster.configData = *override.ConfigData
+		}
+		k8sRemediationEnabled = apiutils.BoolValue(override.K8sRemediationEnabled)
+	}
+	return
+}
 
 // PrivateActionRunnerConfig represents the parsed configuration from YAML for Private Action Runner
 type PrivateActionRunnerConfig struct {
@@ -115,16 +184,44 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 	return config.PrivateActionRunner, nil
 }
 
+// enabledConfigData validates spec configuration and keeps enabled consistent with the feature.
+func enabledConfigData(configData string, actionsAllowlist *[]string) (string, error) {
+	config, err := parsePrivateActionRunnerConfig(configData)
+	if err != nil {
+		return "", err
+	}
+	if config.Enabled && actionsAllowlist == nil {
+		return configData, nil
+	}
+	return overrideValuesInConfigData(configData, true, actionsAllowlist)
+}
+
 // overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
 // matches the desired value.
 func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
+	return overrideValuesInConfigData(configData, enabled, nil)
+}
+
+func overrideValuesInConfigData(configData string, enabled bool, actionsAllowlist *[]string) (string, error) {
 	var data map[string]any
 	if err := yaml.Unmarshal([]byte(configData), &data); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
 
-	if parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any); ok {
-		parConfig[privateActionRunnerEnabledKey] = enabled
+	if data == nil {
+		data = make(map[string]any)
+	}
+	parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any)
+	if !ok {
+		if data[privateActionRunnerConfigKey] != nil {
+			return "", fmt.Errorf("%s must be a YAML mapping", privateActionRunnerConfigKey)
+		}
+		parConfig = make(map[string]any)
+		data[privateActionRunnerConfigKey] = parConfig
+	}
+	parConfig[privateActionRunnerEnabledKey] = enabled
+	if actionsAllowlist != nil {
+		parConfig[privateActionRunnerAllowlistKey] = *actionsAllowlist
 	}
 
 	updatedYAML, err := yaml.Marshal(data)
