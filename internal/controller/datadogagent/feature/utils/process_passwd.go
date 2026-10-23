@@ -35,6 +35,30 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 		return common.PasswdMountPath
 	}
 
+	image, ok := resolveProcessAgentImage(dda, override, containerName, pod)
+	if !ok {
+		return common.PasswdMountPath
+	}
+	// Strip build variants, not prereleases such as -devel or -rc.1.
+	tag := pkgutils.GetTagFromImageName(image)
+	tag, _, _, _ = images.ParseTagSuffixes(strings.TrimSuffix(tag, images.WindowsServerCoreTagSuffix)) //nolint:dogsled // Only the base tag is needed for version comparison.
+	if tag == "7" || tag == "latest" {
+		tag = images.AgentLatestVersion
+	}
+	// Parse the whole tag: an embedded version in a custom tag is not evidence
+	// of compatibility. Exclude prereleases even above the minimum version.
+	version, err := semver.NewVersion(tag)
+	if err == nil && version.Prerelease() == "" && !version.LessThan(processHostPasswdMinVersion) {
+		return "/host/etc/passwd"
+	}
+	return common.PasswdMountPath
+}
+
+// resolveProcessAgentImage predicts the image after component and experimental
+// overrides, without mutating the pod. A false result means mount selection
+// must keep the legacy path.
+func resolveProcessAgentImage(dda metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, containerName apicommon.AgentContainerName, pod *corev1.PodTemplateSpec) (string, bool) {
+	// Use the pod image when available, otherwise the Operator's bundled default.
 	image := images.GetLatestAgentImage()
 	if pod != nil {
 		for _, container := range pod.Spec.Containers {
@@ -46,14 +70,15 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	}
 	if override != nil {
 		if override.Image != nil {
-			// Digests are not version evidence. Avoid interpreting a registry port
-			// as an image tag, too.
+			// Digests are not version evidence. A registry port without an image
+			// tag is also unsafe for OverrideAgentImage's tag-based parser.
 			name := override.Image.Name
 			if strings.Contains(name, "@") || (strings.Contains(name, ":") && strings.LastIndex(name, ":") < strings.LastIndex(name, "/")) {
-				return common.PasswdMountPath
+				return "", false
 			}
 			image = images.OverrideAgentImage(image, override.Image)
 		}
+		// Experimental overrides are keyed by the final container name.
 		if container := override.Containers[containerName]; container != nil && container.Name != nil {
 			containerName = apicommon.AgentContainerName(*container.Name)
 		}
@@ -62,22 +87,5 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	// overrides. GetAgentVersionFromImage alone incorrectly prioritizes Tag over
 	// a tag embedded in Name, and would ignore this final override altogether.
 	image, err := experimental.ResolveImageOverride(dda, string(containerName), image)
-	if err != nil || strings.Contains(image, "@") {
-		return common.PasswdMountPath
-	}
-	// Strip build variants, not prereleases such as -devel or -rc.1.
-	tag := pkgutils.GetTagFromImageName(image)
-	for _, suffix := range []string{images.WindowsServerCoreTagSuffix, images.FullTagSuffix, images.JMXTagSuffix, images.FIPSTagSuffix} {
-		tag = strings.TrimSuffix(tag, suffix)
-	}
-	if tag == "7" || tag == "latest" {
-		tag = images.AgentLatestVersion
-	}
-	// Parse the whole tag: an embedded version in a custom tag is not evidence
-	// of compatibility. Exclude prereleases even above the minimum version.
-	version, err := semver.NewVersion(tag)
-	if err == nil && version.Prerelease() == "" && !version.LessThan(processHostPasswdMinVersion) {
-		return "/host/etc/passwd"
-	}
-	return common.PasswdMountPath
+	return image, err == nil && !strings.Contains(image, "@")
 }

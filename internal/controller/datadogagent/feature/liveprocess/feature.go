@@ -33,10 +33,11 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	// Retain Configure's inputs for passwd mount selection during pod construction.
-	// owner provides provider and experimental image-override annotations;
-	// nodeOverride provides image and container-name overrides. These overrides
-	// are applied later, so the pod's current image alone is not sufficient.
+	// Process passwd mounts depend on the image that will actually run.
+	// ManageNodeAgent runs before image/container overrides and receives only
+	// pod managers. Retain the CR metadata and node-agent overrides from Configure
+	// so mount selection can account for the final image, renamed containers,
+	// and provider restrictions instead of relying on the pre-override pod.
 	owner          metav1.Object
 	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	scrubArgs      *bool
