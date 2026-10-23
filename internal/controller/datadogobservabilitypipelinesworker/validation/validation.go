@@ -14,12 +14,14 @@ package validation
 
 import (
 	"cmp"
+	"errors"
+	"io"
 	"path"
 	"strings"
 
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
@@ -61,16 +63,17 @@ func validatePipeline(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		return nil
 	}
 	configPath := fieldPath.Child("pipelineConfig")
-	// sigs.k8s.io/yaml decodes only the first document, so later documents would be silently dropped.
-	if strings.Contains(*spec.PipelineConfig, "\n---") {
-		return field.ErrorList{field.Invalid(configPath, nil, "must contain a single YAML document")}
-	}
+	decoder := yaml.NewDecoder(strings.NewReader(*spec.PipelineConfig))
 	var pipeline map[string]any
-	if err := yaml.Unmarshal([]byte(*spec.PipelineConfig), &pipeline); err != nil {
+	if err := decoder.Decode(&pipeline); err != nil && !errors.Is(err, io.EOF) {
 		return field.ErrorList{field.Invalid(configPath, nil, "must be a YAML mapping: "+err.Error())}
 	}
 	if len(pipeline) == 0 {
 		return field.ErrorList{field.Invalid(configPath, nil, "must be a non-empty YAML mapping")}
+	}
+	// OPW reads a single document; a later one would be silently dropped.
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return field.ErrorList{field.Invalid(configPath, nil, "must contain a single YAML document")}
 	}
 	return nil
 }
