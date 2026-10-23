@@ -133,6 +133,32 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 		},
 		{
+			Name: "ksm-core enabled, mixed mode (kube runner groups, no default CCR): RBAC targets the CCR ServiceAccount",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("datadog").
+				WithKSMEnabled(true).
+				WithClusterChecks(true, false).
+				WithKubeChecksRunnerDefault().
+				Build(),
+			WantConfigure:        true,
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-ksm-core-ccr", "datadog-cluster-checks-runner"),
+		},
+		{
+			Name: "ksm-core enabled, runners off, unrelated runner group: KSM RBAC stays on the Cluster Agent",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("datadog").
+				WithKSMEnabled(true).
+				WithClusterChecks(true, false).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{{Name: "http", ChecksInclude: []string{"http_check"}}}).
+				Build(),
+			WantConfigure:        true,
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-ksm-core-dca", "datadog-cluster-agent"),
+		},
+		{
 			Name: "ksm-core enabled, useApiServerCache annotation set",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
