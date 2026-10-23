@@ -148,11 +148,11 @@ type PrivateActionRunnerFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// ActionsAllowlist lists the action patterns allowed on both agents.
-	// Component-specific actions_allowlist settings replace this list, including an empty list.
+	// Component-specific actionsAllowlist settings replace this list, including an empty list.
 	// Takes precedence over actions_allowlist in ConfigData.
 	// +optional
 	// +listType=atomic
-	ActionsAllowlist *[]string `json:"actions_allowlist,omitempty"`
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
 
 	// ConfigData contains YAML configuration, including the private_action_runner key,
 	// shared by both agents. The enabled field is controlled by Enabled instead.
@@ -176,11 +176,11 @@ type PrivateActionRunnerNodeAgentConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ActionsAllowlist replaces the shared actions_allowlist for the Node Agent.
+	// ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.
 	// An empty list explicitly clears the shared list. Takes precedence over ConfigData.
 	// +optional
 	// +listType=atomic
-	ActionsAllowlist *[]string `json:"actions_allowlist,omitempty"`
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
 
 	// ConfigData replaces the entire shared YAML configuration for the Node Agent.
 	// +optional
@@ -200,11 +200,11 @@ type PrivateActionRunnerClusterAgentConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ActionsAllowlist replaces the shared actions_allowlist for the Cluster Agent.
+	// ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.
 	// An empty list explicitly clears the shared list. Takes precedence over ConfigData.
 	// +optional
 	// +listType=atomic
-	ActionsAllowlist *[]string `json:"actions_allowlist,omitempty"`
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
 
 	// ConfigData replaces the entire shared YAML configuration for the Cluster Agent.
 	// +optional

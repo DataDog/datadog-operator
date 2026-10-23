@@ -356,15 +356,11 @@ ensure-gsed: ## Install GNU sed on macOS if not present (no-op on Linux)
 install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen ensure-gsed
 
 .PHONY: generate-openapi
-# PAR intentionally exposes the Agent's snake_case actions_allowlist name.
-# Only the exact naming exceptions in the report allowlist are accepted.
 generate-openapi: $(OPENAPI_GEN)
-	@test -r hack/openapi-rule-exceptions.list
-	@log=$$(mktemp); report=$$(mktemp); trap 'rm -f "$$log" "$$report"' EXIT; \
+	@log=$$(mktemp); trap 'rm -f "$$log"' EXIT; \
 	for version in v1alpha1 v2alpha1; do \
-		if ! $(OPENAPI_GEN) --logtostderr --report-filename "$$report" --output-dir api/datadoghq/$$version --output-file zz_generated.openapi.go --output-pkg api/datadoghq/$$version --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/$$version 2>&1 | tee "$$log"; then exit 1; fi; \
+		if ! $(OPENAPI_GEN) --logtostderr --output-dir api/datadoghq/$$version --output-file zz_generated.openapi.go --output-pkg api/datadoghq/$$version --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/$$version 2>&1 | tee "$$log"; then exit 1; fi; \
 		if grep -q "violation" "$$log"; then echo "Error: OpenAPI violations detected" >&2; exit 1; fi; \
-		if grep -Fvx -f hack/openapi-rule-exceptions.list "$$report"; then echo "Error: unexpected OpenAPI violations detected" >&2; exit 1; fi; \
 	done
 
 .PHONY: preflight-redhat-container

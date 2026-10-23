@@ -2,7 +2,7 @@
 # Configure PAR through spec.features.privateActionRunner. Shared settings apply
 # to both agents; nodeAgent and clusterAgent override individual settings.
 # Component configData replaces the entire shared YAML configuration.
-# Typed actions_allowlist settings take precedence over configData.
+# Typed actionsAllowlist settings take precedence over configData.
 # When the feature block is absent, legacy annotations remain supported.
 #
 # For more information about Private Action Runner:
@@ -25,7 +25,7 @@ spec:
   features:
     privateActionRunner:
       enabled: true
-      actions_allowlist:
+      actionsAllowlist:
         - com.datadoghq.script.runPredefinedScript
 
 ---
@@ -45,7 +45,7 @@ spec:
   features:
     privateActionRunner:
       enabled: true
-      actions_allowlist:
+      actionsAllowlist:
         - com.datadoghq.script.runPredefinedScript
       nodeAgent:
         # Split mode defaults to true for supported Agent images (7.84.0+).
@@ -54,8 +54,8 @@ spec:
       clusterAgent:
         # Set enabled: false here to run PAR only in the Node Agent.
         # Replace the common allowlist only for the Cluster Agent.
-        # Use actions_allowlist: [] to explicitly clear the common list.
-        actions_allowlist:
+        # Use actionsAllowlist: [] to explicitly clear the common list.
+        actionsAllowlist:
           - com.datadoghq.http.request
         configData: |
           private_action_runner:

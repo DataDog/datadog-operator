@@ -2896,10 +2896,10 @@ spec:
                     privateActionRunner:
                       description: PrivateActionRunner configuration for the Node Agent and Cluster Agent.
                       properties:
-                        actions_allowlist:
+                        actionsAllowlist:
                           description: |-
                             ActionsAllowlist lists the action patterns allowed on both agents.
-                            Component-specific actions_allowlist settings replace this list, including an empty list.
+                            Component-specific actionsAllowlist settings replace this list, including an empty list.
                             Takes precedence over actions_allowlist in ConfigData.
                           items:
                             type: string
@@ -2908,9 +2908,9 @@ spec:
                         clusterAgent:
                           description: ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.
                           properties:
-                            actions_allowlist:
+                            actionsAllowlist:
                               description: |-
-                                ActionsAllowlist replaces the shared actions_allowlist for the Cluster Agent.
+                                ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.
                                 An empty list explicitly clears the shared list. Takes precedence over ConfigData.
                               items:
                                 type: string
@@ -2943,9 +2943,9 @@ spec:
                         nodeAgent:
                           description: NodeAgent overrides the shared Private Action Runner settings for the Node Agent.
                           properties:
-                            actions_allowlist:
+                            actionsAllowlist:
                               description: |-
-                                ActionsAllowlist replaces the shared actions_allowlist for the Node Agent.
+                                ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.
                                 An empty list explicitly clears the shared list. Takes precedence over ConfigData.
                               items:
                                 type: string
@@ -12415,10 +12415,10 @@ spec:
                         privateActionRunner:
                           description: PrivateActionRunner configuration for the Node Agent and Cluster Agent.
                           properties:
-                            actions_allowlist:
+                            actionsAllowlist:
                               description: |-
                                 ActionsAllowlist lists the action patterns allowed on both agents.
-                                Component-specific actions_allowlist settings replace this list, including an empty list.
+                                Component-specific actionsAllowlist settings replace this list, including an empty list.
                                 Takes precedence over actions_allowlist in ConfigData.
                               items:
                                 type: string
@@ -12427,9 +12427,9 @@ spec:
                             clusterAgent:
                               description: ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.
                               properties:
-                                actions_allowlist:
+                                actionsAllowlist:
                                   description: |-
-                                    ActionsAllowlist replaces the shared actions_allowlist for the Cluster Agent.
+                                    ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.
                                     An empty list explicitly clears the shared list. Takes precedence over ConfigData.
                                   items:
                                     type: string
@@ -12462,9 +12462,9 @@ spec:
                             nodeAgent:
                               description: NodeAgent overrides the shared Private Action Runner settings for the Node Agent.
                               properties:
-                                actions_allowlist:
+                                actionsAllowlist:
                                   description: |-
-                                    ActionsAllowlist replaces the shared actions_allowlist for the Node Agent.
+                                    ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.
                                     An empty list explicitly clears the shared list. Takes precedence over ConfigData.
                                   items:
                                     type: string

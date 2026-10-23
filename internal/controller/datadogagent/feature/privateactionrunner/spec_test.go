@@ -213,11 +213,11 @@ func TestPrivateActionRunnerSpecYAML(t *testing.T) {
   features:
     privateActionRunner:
       enabled: true
+      actionsAllowlist:
+        - com.datadoghq.script.runPredefinedScript
       configData: |
         private_action_runner:
           enabled: false
-          actions_allowlist:
-            - com.datadoghq.script.runPredefinedScript
           task_concurrency: 3
       clusterAgent:
         enabled: false
@@ -229,6 +229,7 @@ func TestPrivateActionRunnerSpecYAML(t *testing.T) {
 	config, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
 	require.NoError(t, err)
 	assert.True(t, config.Enabled)
+	assert.Equal(t, []string{"com.datadoghq.script.runPredefinedScript"}, config.ActionsAllowlist)
 	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 	require.NoError(t, f.ManageNodeAgent(managers))
 	assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName], &corev1.EnvVar{Name: DDPARTaskConcurrency, Value: "3"})
@@ -238,6 +239,29 @@ func TestPrivateActionRunnerSpecYAML(t *testing.T) {
 	assert.False(t, f.nodeEnabled)
 	assert.False(t, f.splitEnabled)
 	assert.Nil(t, f.clusterConfig)
+}
+
+func TestPrivateActionRunnerActionsAllowlistOverridesYAML(t *testing.T) {
+	var dda v2alpha1.DatadogAgent
+	require.NoError(t, yaml.UnmarshalStrict([]byte(`spec:
+  features:
+    privateActionRunner:
+      enabled: true
+      actionsAllowlist:
+        - com.datadoghq.script.runPredefinedScript
+      nodeAgent:
+        actionsAllowlist:
+          - com.datadoghq.script.testConnection
+      clusterAgent:
+        actionsAllowlist: []
+`), &dda))
+	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+	f.Configure(&dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+	node, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"com.datadoghq.script.testConnection"}, node.ActionsAllowlist)
+	assert.Equal(t, []string{}, f.clusterConfig.ActionsAllowlist)
 }
 
 func TestPrivateActionRunnerActionsAllowlist(t *testing.T) {

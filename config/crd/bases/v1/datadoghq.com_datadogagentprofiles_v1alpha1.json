@@ -2929,8 +2929,8 @@
                   "additionalProperties": false,
                   "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
                   "properties": {
-                    "actions_allowlist": {
-                      "description": "ActionsAllowlist lists the action patterns allowed on both agents.\nComponent-specific actions_allowlist settings replace this list, including an empty list.\nTakes precedence over actions_allowlist in ConfigData.",
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist lists the action patterns allowed on both agents.\nComponent-specific actionsAllowlist settings replace this list, including an empty list.\nTakes precedence over actions_allowlist in ConfigData.",
                       "items": {
                         "type": "string"
                       },
@@ -2941,8 +2941,8 @@
                       "additionalProperties": false,
                       "description": "ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.",
                       "properties": {
-                        "actions_allowlist": {
-                          "description": "ActionsAllowlist replaces the shared actions_allowlist for the Cluster Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
+                        "actionsAllowlist": {
+                          "description": "ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
                           "items": {
                             "type": "string"
                           },
@@ -2976,8 +2976,8 @@
                       "additionalProperties": false,
                       "description": "NodeAgent overrides the shared Private Action Runner settings for the Node Agent.",
                       "properties": {
-                        "actions_allowlist": {
-                          "description": "ActionsAllowlist replaces the shared actions_allowlist for the Node Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
+                        "actionsAllowlist": {
+                          "description": "ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent.\nAn empty list explicitly clears the shared list. Takes precedence over ConfigData.",
                           "items": {
                             "type": "string"
                           },

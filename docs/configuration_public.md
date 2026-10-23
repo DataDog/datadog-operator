@@ -460,11 +460,11 @@ spec:
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
 
-`features.privateActionRunner.actions_allowlist`
-: ActionsAllowlist lists the action patterns allowed on both agents. Component-specific actions_allowlist settings replace this list, including an empty list. Takes precedence over actions_allowlist in ConfigData.
+`features.privateActionRunner.actionsAllowlist`
+: ActionsAllowlist lists the action patterns allowed on both agents. Component-specific actionsAllowlist settings replace this list, including an empty list. Takes precedence over actions_allowlist in ConfigData.
 
-`features.privateActionRunner.clusterAgent.actions_allowlist`
-: ActionsAllowlist replaces the shared actions_allowlist for the Cluster Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.
+`features.privateActionRunner.clusterAgent.actionsAllowlist`
+: ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.
 
 `features.privateActionRunner.clusterAgent.configData`
 : ConfigData replaces the entire shared YAML configuration for the Cluster Agent.
@@ -481,8 +481,8 @@ spec:
 `features.privateActionRunner.enabled`
 : Enables Private Action Runner on both the Node Agent and Cluster Agent. Component-specific enabled settings take precedence. Default: false
 
-`features.privateActionRunner.nodeAgent.actions_allowlist`
-: ActionsAllowlist replaces the shared actions_allowlist for the Node Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.
+`features.privateActionRunner.nodeAgent.actionsAllowlist`
+: ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.
 
 `features.privateActionRunner.nodeAgent.configData`
 : ConfigData replaces the entire shared YAML configuration for the Node Agent.

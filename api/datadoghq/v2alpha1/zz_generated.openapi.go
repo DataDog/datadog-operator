@@ -2433,14 +2433,14 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerClusterAg
 							Format:      "",
 						},
 					},
-					"actions_allowlist": {
+					"actionsAllowlist": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist replaces the shared actions_allowlist for the Cluster Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.",
+							Description: "ActionsAllowlist replaces the shared actionsAllowlist for the Cluster Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2487,14 +2487,14 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureCo
 							Format:      "",
 						},
 					},
-					"actions_allowlist": {
+					"actionsAllowlist": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist lists the action patterns allowed on both agents. Component-specific actions_allowlist settings replace this list, including an empty list. Takes precedence over actions_allowlist in ConfigData.",
+							Description: "ActionsAllowlist lists the action patterns allowed on both agents. Component-specific actionsAllowlist settings replace this list, including an empty list. Takes precedence over actions_allowlist in ConfigData.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2548,14 +2548,14 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerNodeAgent
 							Format:      "",
 						},
 					},
-					"actions_allowlist": {
+					"actionsAllowlist": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist replaces the shared actions_allowlist for the Node Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.",
+							Description: "ActionsAllowlist replaces the shared actionsAllowlist for the Node Agent. An empty list explicitly clears the shared list. Takes precedence over ConfigData.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
