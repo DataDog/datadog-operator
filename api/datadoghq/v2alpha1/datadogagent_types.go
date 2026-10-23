@@ -139,7 +139,49 @@ type DatadogFeatures struct {
 // +k8s:openapi-gen=true
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Requires Cluster Agent 7.84.0 or greater.
 	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
+	// At least one channel must be enabled; both can be enabled at the same time.
+	// +optional
+	Communication *KubernetesActionsCommunicationConfig `json:"communication,omitempty"`
+}
+
+// KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.
+// +k8s:openapi-gen=true
+type KubernetesActionsCommunicationConfig struct {
+	// RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+	// +optional
+	RemoteConfiguration *KubernetesActionsRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
+
+	// PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// +optional
+	PrivateActionRunner *KubernetesActionsPrivateActionRunnerConfig `json:"privateActionRunner,omitempty"`
+}
+
+// KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.
+// +k8s:openapi-gen=true
+type KubernetesActionsRemoteConfigurationConfig struct {
+	// Enabled enables delivery of Kubernetes actions through Remote Configuration.
+	// Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent
+// Private Action Runner.
+// +k8s:openapi-gen=true
+type KubernetesActionsPrivateActionRunnerConfig struct {
+	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }

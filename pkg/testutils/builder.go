@@ -1088,6 +1088,15 @@ func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKubernetesActionsCommunication(rc, par bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Communication = &v2alpha1.KubernetesActionsCommunicationConfig{
+		RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(rc)},
+		PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(par)},
+	}
+	return builder
+}
+
 // Global LocalService
 
 func (builder *DatadogAgentBuilder) WithForceEnableLocalService(force bool) *DatadogAgentBuilder {
