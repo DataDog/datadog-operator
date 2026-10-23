@@ -32,6 +32,10 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
+	// Retain Configure's inputs for passwd mount selection during pod construction.
+	// owner provides provider and experimental image-override annotations;
+	// nodeOverride provides image and container-name overrides. These overrides
+	// are applied later, so the pod's current image alone is not sufficient.
 	owner          metav1.Object
 	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	runInCoreAgent bool

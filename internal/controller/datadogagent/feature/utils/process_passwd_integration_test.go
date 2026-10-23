@@ -64,78 +64,98 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			if tt.talos {
 				dda.Annotations = map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.TalosProvider}
 			}
-			_, features, required, _ := feature.BuildFeatures(dda, &dda.Spec, nil, &feature.Options{Logger: logr.Discard()})
-			pod := &corev1.PodTemplateSpec{}
-			pod.Annotations = map[string]string{}
-			for _, name := range required.Agent.Containers {
-				pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Name: string(name), Image: "gcr.io/datadoghq/agent:7.85.0"})
-			}
-			manager := feature.NewPodTemplateManagers(pod)
-			processFeatures := 0
-			for _, f := range features {
-				if f.ID() == feature.LiveProcessIDType || f.ID() == feature.ProcessDiscoveryIDType {
-					processFeatures++
-				}
-				if tt.single {
-					require.NoError(t, f.ManageSingleContainerNodeAgent(manager))
-				} else {
-					require.NoError(t, f.ManageNodeAgent(manager))
-				}
-				if contributor, ok := f.(feature.ProviderAwareFeature); ok {
-					providercaps.ApplyProviderCapabilities(manager, dda.Annotations[kubernetes.ProviderAnnotationKey], contributor.NodeAgentProviderCapabilities())
-				}
-			}
-			require.Equal(t, 2, processFeatures)
-			override.PodTemplateSpec(logr.Discard(), manager, &nodeOverride, v2alpha1.NodeAgentComponentName, dda.Name)
-			processMounts, securityMounts := 0, 0
-			for _, container := range pod.Spec.Containers {
-				count := 0
-				for _, mount := range container.VolumeMounts {
-					switch mount.Name {
-					case common.PasswdVolumeName:
-						count++
-						assert.True(t, mount.ReadOnly)
-						if container.Name == string(apicommon.SecurityAgentContainerName) || container.Name == string(apicommon.SystemProbeContainerName) {
-							securityMounts++
-							assert.Equal(t, "/etc/passwd", mount.MountPath)
-						} else {
-							processMounts++
-							assert.Equal(t, tt.expectedPath, mount.MountPath)
-						}
-					case common.GroupVolumeName:
-						assert.Equal(t, "/etc/group", mount.MountPath)
-					}
-				}
-				assert.LessOrEqual(t, count, 1, "never dual-mount passwd")
-				var hostEtcEnv []corev1.EnvVar
-				for _, env := range container.Env {
-					if env.Name == "HOST_ETC" || env.Name == "DD_IGNORE_HOST_ETC" {
-						hostEtcEnv = append(hostEtcEnv, env)
-					}
-				}
-				assert.ElementsMatch(t, nodeOverride.Env, hostEtcEnv, "preserve explicit configuration without duplicates")
-			}
-			if tt.talos {
-				assert.Zero(t, processMounts)
-			} else {
-				assert.Equal(t, 1, processMounts, "both features must share one passwd mount")
-			}
-			if tt.security {
-				assert.Positive(t, securityMounts)
-			}
-			passwdVolumes := 0
-			for _, volume := range pod.Spec.Volumes {
-				if volume.Name == common.PasswdVolumeName {
-					passwdVolumes++
-					require.NotNil(t, volume.HostPath)
-					assert.Equal(t, "/etc/passwd", volume.HostPath.Path, "only the mount destination changes")
-				}
-			}
-			if tt.talos {
-				assert.Zero(t, passwdVolumes)
-			} else {
-				assert.Equal(t, 1, passwdVolumes, "both features must share one host passwd volume")
-			}
+			pod := buildProcessFeaturesPod(t, dda, &nodeOverride, tt.single)
+
+			assertProcessPasswdMounts(t, pod, tt.expectedPath, tt.security)
+			assertHostEtcOverrides(t, pod, nodeOverride.Env)
 		})
+	}
+}
+
+func buildProcessFeaturesPod(t *testing.T, dda *v2alpha1.DatadogAgent, nodeOverride *v2alpha1.DatadogAgentComponentOverride, single bool) *corev1.PodTemplateSpec {
+	t.Helper()
+
+	_, features, required, _ := feature.BuildFeatures(dda, &dda.Spec, nil, &feature.Options{Logger: logr.Discard()})
+	pod := &corev1.PodTemplateSpec{}
+	pod.Annotations = map[string]string{}
+	for _, name := range required.Agent.Containers {
+		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Name: string(name), Image: "gcr.io/datadoghq/agent:7.85.0"})
+	}
+	manager := feature.NewPodTemplateManagers(pod)
+	processFeatures := 0
+	for _, f := range features {
+		if f.ID() == feature.LiveProcessIDType || f.ID() == feature.ProcessDiscoveryIDType {
+			processFeatures++
+		}
+		if single {
+			require.NoError(t, f.ManageSingleContainerNodeAgent(manager))
+		} else {
+			require.NoError(t, f.ManageNodeAgent(manager))
+		}
+		if contributor, ok := f.(feature.ProviderAwareFeature); ok {
+			providercaps.ApplyProviderCapabilities(manager, dda.Annotations[kubernetes.ProviderAnnotationKey], contributor.NodeAgentProviderCapabilities())
+		}
+	}
+	require.Equal(t, 2, processFeatures)
+	override.PodTemplateSpec(logr.Discard(), manager, nodeOverride, v2alpha1.NodeAgentComponentName, dda.Name)
+	return pod
+}
+
+func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expectedPath string, security bool) {
+	t.Helper()
+
+	processMounts, securityMounts := 0, 0
+	for _, container := range pod.Spec.Containers {
+		count := 0
+		for _, mount := range container.VolumeMounts {
+			switch mount.Name {
+			case common.PasswdVolumeName:
+				count++
+				assert.True(t, mount.ReadOnly)
+				if container.Name == string(apicommon.SecurityAgentContainerName) || container.Name == string(apicommon.SystemProbeContainerName) {
+					securityMounts++
+					assert.Equal(t, "/etc/passwd", mount.MountPath)
+				} else {
+					processMounts++
+					assert.Equal(t, expectedPath, mount.MountPath)
+				}
+			case common.GroupVolumeName:
+				assert.Equal(t, "/etc/group", mount.MountPath)
+			}
+		}
+		assert.LessOrEqual(t, count, 1, "never dual-mount passwd")
+	}
+	if security {
+		assert.Positive(t, securityMounts)
+	}
+
+	passwdVolumes := 0
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Name == common.PasswdVolumeName {
+			passwdVolumes++
+			require.NotNil(t, volume.HostPath)
+			assert.Equal(t, "/etc/passwd", volume.HostPath.Path, "only the mount destination changes")
+		}
+	}
+	if expectedPath == "" {
+		assert.Zero(t, processMounts)
+		assert.Zero(t, passwdVolumes)
+	} else {
+		assert.Equal(t, 1, processMounts, "both features must share one passwd mount")
+		assert.Equal(t, 1, passwdVolumes, "both features must share one host passwd volume")
+	}
+}
+
+func assertHostEtcOverrides(t *testing.T, pod *corev1.PodTemplateSpec, expected []corev1.EnvVar) {
+	t.Helper()
+
+	for _, container := range pod.Spec.Containers {
+		var hostEtcEnv []corev1.EnvVar
+		for _, env := range container.Env {
+			if env.Name == "HOST_ETC" || env.Name == "DD_IGNORE_HOST_ETC" {
+				hostEtcEnv = append(hostEtcEnv, env)
+			}
+		}
+		assert.ElementsMatch(t, expected, hostEtcEnv, "preserve explicit configuration without duplicates")
 	}
 }
