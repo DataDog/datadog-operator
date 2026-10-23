@@ -642,6 +642,13 @@ func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithEventCollectionMode(mode string) *DatadogAgentBuilder {
+	builder.initEventCollection()
+	builder.datadogAgent.Spec.Features.EventCollection.CollectionMode = new(mode)
+
+	return builder
+}
+
 // Remote Config
 func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
