@@ -21,6 +21,14 @@ const (
 	APIPort        int32 = 8686
 	DataVolumeName       = "data"
 	DataDirectory        = "/var/lib/observability-pipelines-worker"
+	// Local mode mounts spec.pipelineConfig from an owned ConfigMap at PipelineConfigDirectory.
+	PipelineConfigVolumeName = "pipeline-config"
+	PipelineConfigDirectory  = "/etc/observability-pipelines-worker/pipeline"
+)
+
+const (
+	pipelineConfigFileName     = "pipeline.yaml"
+	pipelineChecksumAnnotation = "checksum/pipeline"
 )
 
 const (

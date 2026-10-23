@@ -31,7 +31,9 @@ func TestResources_Objects(t *testing.T) {
 		identity    *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
 		autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		budget      *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
-		want        []string
+		// pipelineConfig enables local mode.
+		pipelineConfig *string
+		want           []string
 	}{
 		{
 			name:  "default resources in apply order",
@@ -53,6 +55,12 @@ func TestResources_Objects(t *testing.T) {
 			identity: &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing-worker")},
 			want:     []string{"*v1.StatefulSet/byoc-pipeline"},
 		},
+		{
+			name:           "local pipeline before the StatefulSet",
+			ports:          ports,
+			pipelineConfig: ptr.To("sources: {}"),
+			want:           []string{"*v1.ServiceAccount/byoc-pipeline", "*v1.Service/byoc-pipeline", "*v1.ConfigMap/byoc-pipeline-pipeline", "*v1.StatefulSet/byoc-pipeline"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -62,6 +70,7 @@ func TestResources_Objects(t *testing.T) {
 			worker.Spec.Identity = tt.identity
 			worker.Spec.Autoscaling = tt.autoscaling
 			worker.Spec.PodDisruptionBudget = tt.budget
+			worker.Spec.PipelineConfig = tt.pipelineConfig
 			resources, err := BuildResources(worker)
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
@@ -81,13 +90,16 @@ func TestResources_Objects(t *testing.T) {
 func TestResources_ObsoleteObjects(t *testing.T) {
 	ports := testWorker().Spec.Ports
 	metadata := metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"}
+	// The pipeline ConfigMap is named after the Worker plus a suffix, unlike the other resources.
+	pipelineConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline-pipeline", Namespace: "testing"}}
 	tests := []struct {
-		name        string
-		ports       []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort
-		identity    *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
-		autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
-		budget      *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
-		want        []client.Object
+		name           string
+		ports          []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort
+		identity       *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		autoscaling    *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		budget         *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		pipelineConfig *string
+		want           []client.Object
 	}{
 		{
 			name:  "disabled autoscaling and budget",
@@ -95,6 +107,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			want: []client.Object{
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
+				pipelineConfigMap,
 			},
 		},
 		{
@@ -102,6 +115,14 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			ports:       ports,
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
 			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			want:        []client.Object{pipelineConfigMap},
+		},
+		{
+			name:           "local pipeline keeps its ConfigMap",
+			ports:          ports,
+			autoscaling:    &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
+			budget:         &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			pipelineConfig: ptr.To("sources: {}"),
 		},
 		{
 			name:        "no ports and existing ServiceAccount",
@@ -111,6 +132,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			want: []client.Object{
 				&corev1.Service{ObjectMeta: metadata},
 				&corev1.ServiceAccount{ObjectMeta: metadata},
+				pipelineConfigMap,
 			},
 		},
 		{
@@ -119,6 +141,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			identity:    &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("byoc-pipeline")},
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
 			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			want:        []client.Object{pipelineConfigMap},
 		},
 	}
 
@@ -129,6 +152,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			worker.Spec.Identity = tt.identity
 			worker.Spec.Autoscaling = tt.autoscaling
 			worker.Spec.PodDisruptionBudget = tt.budget
+			worker.Spec.PipelineConfig = tt.pipelineConfig
 			resources, err := BuildResources(worker)
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
@@ -521,6 +545,70 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, resources.StatefulSet); diff != "" {
 				t.Errorf("StatefulSet mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestBuildResources_LocalMode checks that local mode changes the Remote Config StatefulSet only by the pipeline
+// args, ID, checksum, volume and mount. The "persistent worker" case above pins the Remote Config StatefulSet.
+func TestBuildResources_LocalMode(t *testing.T) {
+	const config = "sources: {}\n"
+	const uid = "0b6f0c4e-8a4f-4a3e-9d0a-6c1f2e3d4b5a"
+	tests := []struct {
+		name       string
+		pipelineID *string
+		wantID     string
+	}{
+		{name: "pipelineConfig only", wantID: uid},
+		{name: "pipelineConfig and pipelineID", pipelineID: ptr.To("pipeline-id"), wantID: "pipeline-id"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			remoteConfig, err := BuildResources(testWorker())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			worker := testWorker()
+			worker.UID = uid
+			worker.Spec.PipelineID = tt.pipelineID
+			worker.Spec.PipelineConfig = ptr.To(config)
+			resources, err := BuildResources(worker)
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+
+			want := remoteConfig.StatefulSet.DeepCopy()
+			template := &want.Spec.Template
+			// sha256 of config.
+			template.Annotations["checksum/pipeline"] = "3d26df056c05b23910b7c9a021457a38e22c7fc56f3840ddd11eb352ffac41d1"
+			template.Spec.Volumes = append(template.Spec.Volumes, corev1.Volume{
+				Name:         "pipeline-config",
+				VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-pipeline-pipeline"}}},
+			})
+			container := &template.Spec.Containers[0]
+			container.Args = []string{"run", "--pipeline-config=/etc/observability-pipelines-worker/pipeline/pipeline.yaml", "--skip-key-validation"}
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: "pipeline-config", MountPath: "/etc/observability-pipelines-worker/pipeline", ReadOnly: true})
+			for i := range container.Env {
+				if container.Env[i].Name == "DD_OP_PIPELINE_ID" {
+					container.Env[i].Value = tt.wantID
+				}
+			}
+			if diff := cmp.Diff(want, resources.StatefulSet); diff != "" {
+				t.Errorf("StatefulSet mismatch (-want +got):\n%s", diff)
+			}
+
+			wantConfigMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "byoc-pipeline-pipeline",
+					Namespace:   "testing",
+					Labels:      remoteConfig.StatefulSet.Labels,
+					Annotations: map[string]string{"example.com/owner": "operator"},
+				},
+				Data: map[string]string{"pipeline.yaml": config},
+			}
+			if diff := cmp.Diff(wantConfigMap, resources.ConfigMap); diff != "" {
+				t.Errorf("ConfigMap mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

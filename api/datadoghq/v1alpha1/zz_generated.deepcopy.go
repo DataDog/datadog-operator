@@ -3001,6 +3001,11 @@ func (in *DatadogObservabilityPipelinesWorkerServiceSpec) DeepCopy() *DatadogObs
 func (in *DatadogObservabilityPipelinesWorkerSpec) DeepCopyInto(out *DatadogObservabilityPipelinesWorkerSpec) {
 	*out = *in
 	in.DatadogBYOCClusterPipelineComponentSpec.DeepCopyInto(&out.DatadogBYOCClusterPipelineComponentSpec)
+	if in.PipelineConfig != nil {
+		in, out := &in.PipelineConfig, &out.PipelineConfig
+		*out = new(string)
+		**out = **in
+	}
 	if in.Datadog != nil {
 		in, out := &in.Datadog, &out.Datadog
 		*out = new(DatadogObservabilityPipelinesWorkerDatadogSpec)

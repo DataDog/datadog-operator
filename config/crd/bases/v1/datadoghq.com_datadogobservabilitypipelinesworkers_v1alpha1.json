@@ -2752,6 +2752,9 @@
           },
           "type": "object"
         },
+        "pipelineConfig": {
+          "type": "string"
+        },
         "pipelineID": {
           "minLength": 1,
           "type": "string"
@@ -4604,7 +4607,6 @@
       "required": [
         "datadog",
         "image",
-        "pipelineID",
         "ports"
       ],
       "type": "object"
