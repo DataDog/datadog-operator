@@ -39,12 +39,17 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 		expectedPath string
 	}{
 		{name: "core", tag: "7.86.0", expectedPath: "/host/etc/passwd"},
+		{name: "prefixed version", tag: "v7.86.0", expectedPath: "/host/etc/passwd"},
+		{name: "minor alias", tag: "7.86", expectedPath: "/host/etc/passwd"},
+		{name: "prerelease full variant", tag: "7.87.0-rc.1-full", expectedPath: "/etc/passwd"},
 		{name: "old core", tag: "7.85.0", expectedPath: "/etc/passwd"},
 		{name: "unknown image", tag: "local-build", expectedPath: "/etc/passwd"},
 		{name: "supported separate process agent", tag: "7.59.0", expectedPath: "/etc/passwd"},
 		{name: "unprivileged single container", tag: "7.86.0", single: true, expectedPath: "/host/etc/passwd"},
 		{name: "security agent unchanged", tag: "7.86.0", security: true, expectedPath: "/host/etc/passwd"},
 		{name: "system probe unchanged", tag: "7.86.0", security: true, systemProbe: true, expectedPath: "/host/etc/passwd"},
+		{name: "old core with security agent", tag: "7.85.0", security: true, expectedPath: "/etc/passwd"},
+		{name: "old core with system probe", tag: "7.85.0", security: true, systemProbe: true, expectedPath: "/etc/passwd"},
 		{name: "Talos exclusion", tag: "7.86.0", talos: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,6 +122,19 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			}
 			if tt.security {
 				assert.Positive(t, securityMounts)
+			}
+			passwdVolumes := 0
+			for _, volume := range pod.Spec.Volumes {
+				if volume.Name == common.PasswdVolumeName {
+					passwdVolumes++
+					require.NotNil(t, volume.HostPath)
+					assert.Equal(t, "/etc/passwd", volume.HostPath.Path, "only the mount destination changes")
+				}
+			}
+			if tt.talos {
+				assert.Zero(t, passwdVolumes)
+			} else {
+				assert.Equal(t, 1, passwdVolumes, "both features must share one host passwd volume")
 			}
 		})
 	}

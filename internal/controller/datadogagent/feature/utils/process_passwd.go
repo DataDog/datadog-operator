@@ -6,9 +6,9 @@
 package utils
 
 import (
-	"regexp"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -21,12 +21,9 @@ import (
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-// Keep the threshold and recognized variants aligned with the Helm chart's
-// process-passwd-mount-path helper. This detects Process Check/Discovery
-// support only; Gohai still resolves usernames against the local user database.
-const processHostPasswdMinVersion = "7.86.0"
-
-var processHostPasswdTag = regexp.MustCompile(`^7\.[0-9]+\.[0-9]+(-fips)?(-jmx|-full)?$`)
+// Keep version selection aligned with Helm's process-passwd-mount-path helper.
+// This covers Process Check/Discovery only; Gohai still uses local user lookup.
+var processHostPasswdMinVersion = semver.MustParse("7.86.0")
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility. HOST_ETC is initialized by the Agent;
@@ -68,9 +65,18 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	if err != nil || strings.Contains(image, "@") {
 		return common.PasswdMountPath
 	}
-	tag := image[strings.LastIndex(image, ":")+1:]
-	version, _, _ := strings.Cut(tag, "-")
-	if processHostPasswdTag.MatchString(tag) && pkgutils.IsAboveMinVersion(version, processHostPasswdMinVersion, new(false)) {
+	// Strip build variants, not prereleases such as -devel or -rc.1.
+	tag := pkgutils.GetTagFromImageName(image)
+	for _, suffix := range []string{images.WindowsServerCoreTagSuffix, images.FullTagSuffix, images.JMXTagSuffix, images.FIPSTagSuffix} {
+		tag = strings.TrimSuffix(tag, suffix)
+	}
+	if tag == "7" || tag == "latest" {
+		tag = images.AgentLatestVersion
+	}
+	// Parse the whole tag: an embedded version in a custom tag is not evidence
+	// of compatibility. Exclude prereleases even above the minimum version.
+	version, err := semver.NewVersion(tag)
+	if err == nil && version.Prerelease() == "" && !version.LessThan(processHostPasswdMinVersion) {
 		return "/host/etc/passwd"
 	}
 	return common.PasswdMountPath
