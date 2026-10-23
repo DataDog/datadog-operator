@@ -110,6 +110,33 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "BYOCCluster disabled; BYOC CR entries and owned-type caches are absent for non-BYOC users",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:       true,
+				DatadogBYOCClusterEnabled: false,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:      "byocNs",
+				AgentWatchNamespaceEnvVar: "agentNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:                                 {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:                           {configured: false},
+				workerObj:                                {configured: false},
+				&corev1.ConfigMap{}:                      {configured: false},
+				&corev1.ServiceAccount{}:                 {configured: false},
+				&corev1.Service{}:                        {configured: false},
+				&appsv1.Deployment{}:                     {configured: false},
+				&appsv1.StatefulSet{}:                    {configured: false},
+				&autoscalingv2.HorizontalPodAutoscaler{}: {configured: false},
+				&policyv1.PodDisruptionBudget{}:          {configured: false},
+			},
+		},
+		{
 			name: "CSIDriver enabled; falls back to WATCH_NAMESPACE when DD_CSIDRIVER_WATCH_NAMESPACE not set",
 			watchOptions: WatchOptions{
 				DatadogCSIDriverEnabled: true,
