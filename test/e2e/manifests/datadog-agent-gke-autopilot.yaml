@@ -11,6 +11,12 @@ spec:
   features:
     dataPlane:
       enabled: true
+    kubeStateMetricsCore:
+      enabled: true
+    orchestratorExplorer:
+      enabled: true
+    liveContainerCollection:
+      enabled: true
     logCollection:
       enabled: true
       containerCollectAll: true

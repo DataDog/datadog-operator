@@ -207,6 +207,13 @@ spec:
 | features.kubernetesActions.communication.privateActionRunner.enabled | Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true |
 | features.kubernetesActions.communication.remoteConfiguration.enabled | Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true |
 | features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false |
+| features.kueue.collectWorkloadEvents | CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true |
+| features.kueue.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.kueue.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
+| features.kueue.conf.configMap.name | Is the name of the ConfigMap. |
+| features.kueue.enabled | Enables Kueue metadata collection in the Cluster Agent and the Kueue check, which runs as an endpoints check against each Kueue controller pod. The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes. With `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics` non-resource URL separately, as Kueue authorizes metrics scrapes against it. (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.) Default: false |
+| features.kueue.metricsService.name | Is the name of the Kueue metrics Service. Default: kueue-controller-manager-metrics-service |
+| features.kueue.metricsService.namespace | Is the namespace of the Kueue metrics Service. Default: kueue-system |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |

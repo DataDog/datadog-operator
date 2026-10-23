@@ -49,6 +49,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentationcrd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kueue"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/logcollection"
@@ -115,6 +116,8 @@ type ReconcilerOptions struct {
 	// APIReader is an uncached, direct-to-apiserver reader used to validate
 	// experiment rollback targets. A cached/informer-backed client's stale
 	// NotFound could be mistaken for a permanently-lost baseline revision.
+	// It is also used to read unscheduled agent pods, because the pod cache
+	// drops their node affinity.
 	APIReader client.Reader
 }
 

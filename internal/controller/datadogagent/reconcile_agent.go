@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"maps"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +18,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -97,6 +99,8 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // might not always be evicted when there's a change in the profiles to apply.
 // Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
 // available in Kubernetes yet.
+// Unschedulable pods have no node name yet, so their node is read from their
+// node affinity.
 func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
 	agentPods := &corev1.PodList{}
 	err := r.client.List(
@@ -111,8 +115,36 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		return err
 	}
 
+	// The pod cache only keeps names, labels and node names, so unscheduled
+	// pods are read straight from the API server to get their node affinity.
+	// This only happens when the cache shows a pod with no node yet.
+	hasUnscheduledPod := slices.ContainsFunc(agentPods.Items, func(pod corev1.Pod) bool {
+		return pod.Spec.NodeName == ""
+	})
+	if hasUnscheduledPod && r.options.APIReader != nil {
+		unscheduledPods := &corev1.PodList{}
+		err = r.options.APIReader.List(
+			ctx,
+			unscheduledPods,
+			client.MatchingLabels(map[string]string{
+				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			}),
+			client.MatchingFields{"spec.nodeName": ""},
+			client.InNamespace(ddaNamespace),
+		)
+		if err != nil {
+			return err
+		}
+		agentPods.Items = append(agentPods.Items, unscheduledPods.Items...)
+	}
+
 	for _, agentPod := range agentPods.Items {
-		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
+		// Already being deleted
+		if agentPod.DeletionTimestamp != nil {
+			continue
+		}
+
+		profileNamespacedName, found := profilesByNode[agentPodNodeName(&agentPod)]
 		if !found {
 			continue
 		}
@@ -141,6 +173,37 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 	}
 
 	return nil
+}
+
+// agentPodNodeName returns the node the agent pod runs on. For an unschedulable
+// pod created by the operator, it returns the node in the pod's "metadata.name"
+// node affinity.
+func agentPodNodeName(pod *corev1.Pod) string {
+	if pod.Spec.NodeName != "" {
+		return pod.Spec.NodeName
+	}
+
+	unschedulable := slices.ContainsFunc(pod.Status.Conditions, func(cond corev1.PodCondition) bool {
+		return cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse && cond.Reason == corev1.PodReasonUnschedulable
+	})
+	managedByOperator := pod.Labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
+	if !managedByOperator || !unschedulable || pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
+		return ""
+	}
+
+	nodeSelector := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	if nodeSelector == nil {
+		return ""
+	}
+	for _, term := range nodeSelector.NodeSelectorTerms {
+		for _, field := range term.MatchFields {
+			if field.Key == common.FieldPathMetaName && field.Operator == corev1.NodeSelectorOpIn && len(field.Values) == 1 {
+				return field.Values[0]
+			}
+		}
+	}
+
+	return ""
 }
 
 // getValidDaemonSetNames generates the list of valid DaemonSet names.

@@ -631,6 +631,66 @@ e2e_untaint:
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-untaint-tests
   retry: 2
 
+e2e_componenthealth:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    # Needs the operator image (the suite deploys the operator and asserts its metrics).
+    - "trigger_e2e_operator_image"
+    - "prepare_e2e_plugins"
+  timeout: 70m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    # ComponentHealth is a recent feature; pin a single recent Kubernetes version
+    # rather than running the full e2e matrix.
+    K8S_VERSION: "1.30"
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  rules:
+    - *skip_e2e_on_release_bundle_branch
+    # Skip when a root *.md file changed (docs-only or docs mixed with code); the
+    # hard `needs` above itself skips on root markdown changes, so letting this
+    # job run would leave it depending on an absent need (mirrors e2e_untaint).
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
+    # Disable on Conductor-triggered jobs (ex: nightly)
+    - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Run automatically on changes to component-health controller / suite code.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "internal/controller/componenthealth_controller.go"
+          - "internal/controller/componenthealth_snapshot_emitter.go"
+          - "pkg/componenthealth/**/*"
+          # Component-health wiring whose regression breaks this exact E2E flow:
+          # cmd/main.go (flags/env + enabling pod-status caching), setup.go
+          # (controller + emitter wiring), and pkg/config/config.go (the cache
+          # transform that retains Pod.Status for detection).
+          - "cmd/main.go"
+          - "internal/controller/setup.go"
+          - "pkg/config/config.go"
+          - "test/e2e/tests/componenthealth_suite/**/*"
+          - "test/e2e/provisioners/kind.go"
+        compare_to: "refs/heads/main"
+      when: on_success
+    # On pipelines that don't touch component-health code, expose it as an optional
+    # manual button (allow_failure scopes to this fallback rule only).
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running component-health controller e2e tests with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-componenthealth-tests
+  retry: 2
+
 publish_public_main:
   stage: release
   # Images are read from the registry; do not download E2E preparation artifacts.
