@@ -1765,16 +1765,22 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_GlobalConfig(ref common.Refe
 					},
 					"useVSock": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false'",
+							Description: "UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false' Deprecated: Use VSock.Enabled instead. When VSock is set, this field is ignored.",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"vsock": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VSock configures VSock communication for the Agent.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.VSockConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogCredentials", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.Endpoint", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeletConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LocalService", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkPolicyConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OriginDetectionUnified", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretConfig", "k8s.io/api/core/v1.EnvVar"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogCredentials", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.Endpoint", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeletConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LocalService", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkPolicyConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OriginDetectionUnified", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.VSockConfig", "k8s.io/api/core/v1.EnvVar"},
 	}
 }
 
