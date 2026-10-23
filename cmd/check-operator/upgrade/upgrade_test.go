@@ -238,11 +238,16 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 	}
 }
 
-func TestCountOutdatedNotReadyNodes(t *testing.T) {
+func TestGetOutdatedNotReadyNodes(t *testing.T) {
 	defaultDS := testAgentDaemonSet("agent-agent", "agent", "5")
 	profileDS := testAgentDaemonSet("profile-agent", "agent", "3")
 	profileDS.Spec.Template.Spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
 	otherDDADS := testAgentDaemonSet("other-agent", "other", "5")
+	otherComponentDS := testAgentDaemonSet("agent-cluster-checks", "agent", "5")
+	otherComponentDS.Labels[apicommon.AgentDeploymentComponentLabelKey] = "cluster-checks-runner"
+	// The current template no longer targets "node-unlabeled", e.g. a profile label was added to it.
+	selectorDS := testAgentDaemonSet("selector-agent", "agent", "2")
+	selectorDS.Spec.Template.Spec.NodeSelector = map[string]string{"pool": "agents"}
 
 	// Generation changed, but the revision hash is the current one (template revert).
 	revertedPod := testAgentPod("reverted", defaultDS, "4", "node-revert", time.Hour)
@@ -252,22 +257,30 @@ func TestCountOutdatedNotReadyNodes(t *testing.T) {
 	// DaemonSet default tolerations do not cover it.
 	taintedNode := testNode("node-tainted", corev1.ConditionUnknown)
 	taintedNode.Spec.Taints = []corev1.Taint{{Key: corev1.TaintNodeUnreachable, Effect: corev1.TaintEffectNoSchedule}}
+	labeledNode := testNode("node-labeled", corev1.ConditionUnknown)
+	labeledNode.Labels = map[string]string{"pool": "agents"}
 
 	objects := []client.Object{
 		taintedNode,
+		labeledNode,
 		testNode("node-ready", corev1.ConditionTrue),
 		testNode("node-not-ready", corev1.ConditionFalse),
 		testNode("node-unknown", corev1.ConditionUnknown),
 		testNode("node-two-outdated", corev1.ConditionUnknown),
-		testNode("node-oldest-updated", corev1.ConditionUnknown),
+		testNode("node-oldest-updated-a", corev1.ConditionUnknown),
+		testNode("node-oldest-updated-z", corev1.ConditionUnknown),
 		testNode("node-terminal", corev1.ConditionUnknown),
 		testNode("node-revert", corev1.ConditionUnknown),
-		defaultDS, profileDS, otherDDADS,
-		// A pod on the current generation, so that "hash-5" is the current revision hash.
+		testNode("node-unlabeled", corev1.ConditionUnknown),
+		defaultDS, profileDS, otherDDADS, otherComponentDS, selectorDS,
+		// Pods on the current generation, so that the current revision hashes are known.
 		testAgentPod("updated-ready", defaultDS, "5", "node-ready", time.Minute),
 		testAgentPod("profile-updated-ready", profileDS, "3", "node-ready", time.Minute),
+		testAgentPod("other-dda-updated-ready", otherDDADS, "5", "node-ready", time.Minute),
+		testAgentPod("other-component-updated-ready", otherComponentDS, "5", "node-ready", time.Minute),
+		testAgentPod("selector-updated-ready", selectorDS, "2", "node-ready", time.Minute),
 
-		// Counted: 1 node each.
+		// Skipped.
 		testAgentPod("outdated-not-ready", defaultDS, "4", "node-not-ready", time.Hour),
 		deleting(testAgentPod("outdated-stuck-terminating", defaultDS, "4", "node-unknown", time.Hour), corev1.PodRunning),
 		testAgentPod("outdated-a", defaultDS, "3", "node-two-outdated", 2*time.Hour),
@@ -275,32 +288,45 @@ func TestCountOutdatedNotReadyNodes(t *testing.T) {
 		testAgentPod("profile-outdated-unknown", profileDS, "2", "node-unknown", time.Hour),
 		// The profile tolerates every taint, so the DaemonSet status counts this node.
 		testAgentPod("profile-outdated-tainted", profileDS, "2", "node-tainted", time.Hour),
+		testAgentPod("selector-outdated-labeled", selectorDS, "1", "node-labeled", time.Hour),
 
-		// Not counted.
+		// Not skipped.
 		testAgentPod("outdated-ready", defaultDS, "4", "node-ready", time.Hour),
-		testAgentPod("oldest-updated", defaultDS, "5", "node-oldest-updated", 2*time.Hour),
-		// Named to be listed first, so the test fails if the oldest pod is not picked.
-		testAgentPod("a-younger-outdated", defaultDS, "4", "node-oldest-updated", time.Hour),
+		// The oldest pod is up to date. The younger out-of-date pod is listed first on one node
+		// and last on the other, so that only picking the oldest pod passes.
+		testAgentPod("b-oldest-updated", defaultDS, "5", "node-oldest-updated-a", 2*time.Hour),
+		testAgentPod("a-younger-outdated", defaultDS, "4", "node-oldest-updated-a", time.Hour),
+		testAgentPod("b-oldest-updated-z", defaultDS, "5", "node-oldest-updated-z", 2*time.Hour),
+		testAgentPod("z-younger-outdated", defaultDS, "4", "node-oldest-updated-z", time.Hour),
 		deleting(testAgentPod("outdated-terminal-deleted", defaultDS, "4", "node-terminal", time.Hour), corev1.PodFailed),
 		revertedPod,
 		testAgentPod("outdated-deleted-node", defaultDS, "4", "node-deleted", time.Hour),
 		testAgentPod("other-dda-outdated-unknown", otherDDADS, "4", "node-unknown", time.Hour),
+		testAgentPod("other-component-outdated-unknown", otherComponentDS, "4", "node-unknown", time.Hour),
 		// The default DaemonSet does not tolerate the taint, so its status does not count this node.
 		testAgentPod("outdated-tainted", defaultDS, "4", "node-tainted", time.Hour),
+		testAgentPod("selector-outdated-unlabeled", selectorDS, "1", "node-unlabeled", time.Hour),
 	}
 
 	o := testOptions(t, objects...)
 
-	skipped, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 100)
 	require.NoError(t, err)
-	assert.Equal(t, int32(5), skipped)
+	assert.ElementsMatch(t, []string{
+		"agent-agent/node-not-ready",
+		"agent-agent/node-unknown",
+		"agent-agent/node-two-outdated",
+		"profile-agent/node-unknown",
+		"profile-agent/node-tainted",
+		"selector-agent/node-labeled",
+	}, skipped)
 
-	skipped, err = o.countOutdatedNotReadyNodes(context.Background(), 4)
+	skipped, err = o.getOutdatedNotReadyNodes(context.Background(), 5)
 	require.NoError(t, err)
-	assert.Equal(t, int32(0), skipped, "above maxSkipped, no node is skipped")
+	assert.Empty(t, skipped, "above maxSkipped, no node is skipped")
 }
 
-func TestCountOutdatedNotReadyNodesUnknownRevisionHash(t *testing.T) {
+func TestGetOutdatedNotReadyNodesUnknownRevisionHash(t *testing.T) {
 	ds := testAgentDaemonSet("agent-agent", "agent", "5")
 	// No pod on generation 5 yet, so the current revision hash is unknown. After a template revert,
 	// "hash-5" may be the current hash and the DaemonSet status may count this pod as updated.
@@ -315,12 +341,32 @@ func TestCountOutdatedNotReadyNodesUnknownRevisionHash(t *testing.T) {
 		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
 	)
 
-	skipped, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 100)
 	require.NoError(t, err)
-	assert.Equal(t, int32(0), skipped)
+	assert.Empty(t, skipped)
 }
 
-func TestCountOutdatedNotReadyNodesLookupCap(t *testing.T) {
+func TestGetOutdatedNotReadyNodesSharedSelector(t *testing.T) {
+	// With update-metadata disabled, the Agent DaemonSets share a selector. The only pod on
+	// generation 5 belongs to the other DaemonSet, so the current hash of "agent-agent" is unknown.
+	ds := testAgentDaemonSet("agent-agent", "agent", "5")
+	otherDS := testAgentDaemonSet("profile-agent", "agent", "5")
+	otherDS.Spec.Selector = ds.Spec.Selector
+
+	o := testOptions(t,
+		ds, otherDS,
+		testNode("node-ready", corev1.ConditionTrue),
+		testNode("node-unknown", corev1.ConditionUnknown),
+		testAgentPod("other-updated", otherDS, "5", "node-ready", time.Minute),
+		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
+	)
+
+	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 100)
+	require.NoError(t, err)
+	assert.Empty(t, skipped)
+}
+
+func TestGetOutdatedNotReadyNodesLookupCap(t *testing.T) {
 	ds := testAgentDaemonSet("agent-agent", "agent", "5")
 	objects := []client.Object{ds, testAgentPod("updated", ds, "5", "node-ready", time.Minute)}
 	for _, name := range []string{"dead-1", "dead-2", "dead-3"} {
@@ -328,17 +374,17 @@ func TestCountOutdatedNotReadyNodesLookupCap(t *testing.T) {
 	}
 
 	o := testOptions(t, objects...)
-	skipped, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 100)
 	require.NoError(t, err)
-	assert.Equal(t, int32(3), skipped)
+	assert.Len(t, skipped, 3)
 
 	o.maxNodeLookups = 2
-	skipped, err = o.countOutdatedNotReadyNodes(context.Background(), 100)
+	skipped, err = o.getOutdatedNotReadyNodes(context.Background(), 100)
 	require.NoError(t, err)
-	assert.Equal(t, int32(0), skipped, "above maxNodeLookups, no node is skipped")
+	assert.Empty(t, skipped, "above maxNodeLookups, no node is skipped")
 }
 
-func TestCountOutdatedNotReadyNodesAPIErrors(t *testing.T) {
+func TestGetOutdatedNotReadyNodesAPIErrors(t *testing.T) {
 	ds := testAgentDaemonSet("agent-agent", "agent", "5")
 	objects := []client.Object{
 		ds,
@@ -391,7 +437,7 @@ func TestCountOutdatedNotReadyNodesAPIErrors(t *testing.T) {
 			o := testOptions(t, objects...)
 			o.Client = interceptor.NewClient(o.Client.(client.WithWatch), tt.funcs)
 
-			_, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+			_, err := o.getOutdatedNotReadyNodes(context.Background(), 100)
 			require.ErrorContains(t, err, tt.wantError)
 
 			// The check falls back to the plain threshold: 19/20 is not above 95%.
