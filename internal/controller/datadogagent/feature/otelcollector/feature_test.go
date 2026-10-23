@@ -528,7 +528,7 @@ func TestApplyOTelCollectorDDASharedDependencies(t *testing.T) {
 			})
 			managers := feature.NewResourceManagers(depsStore)
 
-			err := applyOTelCollectorDDASharedDependencies(tt.dda, &tt.dda.Spec, tt.dda, &tt.dda.Spec, managers)
+			err := applyOTelCollectorDDASharedDependencies(tt.dda, &tt.dda.Spec, tt.dda, &tt.dda.Spec, nil, managers)
 			assert.NoError(t, err)
 
 			serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
