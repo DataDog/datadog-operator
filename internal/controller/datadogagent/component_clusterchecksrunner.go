@@ -87,6 +87,6 @@ func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(dda *datadoghqv2alph
 	return false
 }
 
-func (c *ClusterChecksRunnerComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *ClusterChecksRunnerComponent) CleanupDependencies(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }

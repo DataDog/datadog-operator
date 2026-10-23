@@ -84,7 +84,6 @@ func newRevisionIntegrationReconciler(t *testing.T) (*Reconciler, client.Client)
 		scheme:       s,
 		platformInfo: kubernetes.PlatformInfo{},
 		recorder:     recorder,
-		log:          logf.Log.WithName(t.Name()),
 		forwarders:   dummyManager{},
 		options: ReconcilerOptions{
 			CreateControllerRevisions: true,
