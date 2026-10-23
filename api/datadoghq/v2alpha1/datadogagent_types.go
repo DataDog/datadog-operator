@@ -1106,10 +1106,10 @@ type EventCollectionFeatureConfig struct {
 	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
 
 	// CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.
-	// "poll" re-opens a watch on every check run. "watch" streams events through a single
+	// `poll` re-opens a watch on every check run. `watch` streams events through a single
 	// persistent reflector-backed watch, which avoids dropping events in high-churn clusters.
 	// Requires Cluster Agent 7.81.1+.
-	// Default: unset (the Cluster Agent default, currently poll)
+	// Default: unset (the Cluster Agent's default is `poll`)
 	// +optional
 	// +kubebuilder:validation:Enum=poll;watch
 	CollectionMode *string `json:"collectionMode,omitempty"`
