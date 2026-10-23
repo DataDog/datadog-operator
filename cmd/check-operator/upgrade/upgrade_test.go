@@ -15,8 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -231,6 +233,8 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 		agentCompletionPct: 0.95,
 		agentCompletionMin: 0,
 		skipNotReadyNodes:  true,
+		maxNodeLookups:     300,
+		maxSkippedRatio:    0.10,
 	}
 }
 
@@ -261,6 +265,7 @@ func TestCountOutdatedNotReadyNodes(t *testing.T) {
 		defaultDS, profileDS, otherDDADS,
 		// A pod on the current generation, so that "hash-5" is the current revision hash.
 		testAgentPod("updated-ready", defaultDS, "5", "node-ready", time.Minute),
+		testAgentPod("profile-updated-ready", profileDS, "3", "node-ready", time.Minute),
 
 		// Counted: 1 node each.
 		testAgentPod("outdated-not-ready", defaultDS, "4", "node-not-ready", time.Hour),
@@ -295,6 +300,138 @@ func TestCountOutdatedNotReadyNodes(t *testing.T) {
 	assert.Equal(t, int32(0), skipped, "above maxSkipped, no node is skipped")
 }
 
+func TestCountOutdatedNotReadyNodesUnknownRevisionHash(t *testing.T) {
+	ds := testAgentDaemonSet("agent-agent", "agent", "5")
+	// No pod on generation 5 yet, so the current revision hash is unknown. After a template revert,
+	// "hash-5" may be the current hash and the DaemonSet status may count this pod as updated.
+	revertedPod := testAgentPod("reverted", ds, "4", "node-revert", time.Hour)
+	revertedPod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
+
+	o := testOptions(t,
+		ds,
+		testNode("node-revert", corev1.ConditionUnknown),
+		testNode("node-unknown", corev1.ConditionUnknown),
+		revertedPod,
+		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
+	)
+
+	skipped, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), skipped)
+}
+
+func TestCountOutdatedNotReadyNodesLookupCap(t *testing.T) {
+	ds := testAgentDaemonSet("agent-agent", "agent", "5")
+	objects := []client.Object{ds, testAgentPod("updated", ds, "5", "node-ready", time.Minute)}
+	for _, name := range []string{"dead-1", "dead-2", "dead-3"} {
+		objects = append(objects, testNode(name, corev1.ConditionUnknown), testAgentPod(name, ds, "4", name, time.Hour))
+	}
+
+	o := testOptions(t, objects...)
+	skipped, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+	require.NoError(t, err)
+	assert.Equal(t, int32(3), skipped)
+
+	o.maxNodeLookups = 2
+	skipped, err = o.countOutdatedNotReadyNodes(context.Background(), 100)
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), skipped, "above maxNodeLookups, no node is skipped")
+}
+
+func TestCountOutdatedNotReadyNodesAPIErrors(t *testing.T) {
+	ds := testAgentDaemonSet("agent-agent", "agent", "5")
+	objects := []client.Object{
+		ds,
+		testAgentPod("updated", ds, "5", "node-ready", time.Minute),
+		testNode("node-unknown", corev1.ConditionUnknown),
+		testAgentPod("outdated", ds, "4", "node-unknown", time.Hour),
+	}
+	errAPI := errors.NewForbidden(schema.GroupResource{}, "", nil)
+
+	tests := []struct {
+		name      string
+		funcs     interceptor.Funcs
+		wantError string
+	}{
+		{
+			name: "list DaemonSets",
+			funcs: interceptor.Funcs{List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+				if _, ok := list.(*appsv1.DaemonSetList); ok {
+					return errAPI
+				}
+				return c.List(ctx, list, opts...)
+			}},
+			wantError: "unable to list Agent DaemonSets",
+		},
+		{
+			name:      "list out-of-date pods",
+			funcs:     failNthPodList(1, errAPI),
+			wantError: "unable to list out-of-date pods of DaemonSet agent-agent",
+		},
+		{
+			name:      "list current pods",
+			funcs:     failNthPodList(2, errAPI),
+			wantError: "unable to list current pods of DaemonSet agent-agent",
+		},
+		{
+			name:      "list pods on node",
+			funcs:     failNthPodList(3, errAPI),
+			wantError: "unable to list pods of DaemonSet agent-agent on node node-unknown",
+		},
+		{
+			name: "get node",
+			funcs: interceptor.Funcs{Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				return errAPI
+			}},
+			wantError: "unable to get node node-unknown",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := testOptions(t, objects...)
+			o.Client = interceptor.NewClient(o.Client.(client.WithWatch), tt.funcs)
+
+			_, err := o.countOutdatedNotReadyNodes(context.Background(), 100)
+			require.ErrorContains(t, err, tt.wantError)
+
+			// The check falls back to the plain threshold: 19/20 is not above 95%.
+			assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 20, UpToDate: 19}))
+			assert.Contains(t, o.Out.(*bytes.Buffer).String(), "unable to count not-Ready nodes, not skipping any")
+		})
+	}
+}
+
+// failNthPodList fails the nth pod List call of each countOutdatedNotReadyNodes run. With one
+// candidate node, the calls are: out-of-date pods, current pods, pods on the node.
+func failNthPodList(n int, err error) interceptor.Funcs {
+	var calls int
+	return interceptor.Funcs{List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+		if _, ok := list.(*corev1.PodList); ok {
+			calls++
+			if (calls-1)%3 == n-1 {
+				return err
+			}
+		}
+		return c.List(ctx, list, opts...)
+	}}
+}
+
+func TestIsCountedDaemonPod(t *testing.T) {
+	ds := testAgentDaemonSet("agent-agent", "agent", "5")
+	assert.True(t, isCountedDaemonPod(testAgentPod("bound", ds, "5", "node", time.Minute), ds))
+	assert.False(t, isCountedDaemonPod(testAgentPod("unbound", ds, "5", "", time.Minute), ds))
+	assert.False(t, isCountedDaemonPod(testAgentPod("other-owner", testAgentDaemonSet("other", "agent", "5"), "5", "node", time.Minute), ds))
+	assert.True(t, isCountedDaemonPod(deleting(testAgentPod("terminating", ds, "5", "node", time.Minute), corev1.PodRunning), ds))
+	assert.False(t, isCountedDaemonPod(deleting(testAgentPod("terminal", ds, "5", "node", time.Minute), corev1.PodSucceeded), ds))
+}
+
+func TestIsNodeReady(t *testing.T) {
+	assert.True(t, isNodeReady(testNode("ready", corev1.ConditionTrue)))
+	assert.False(t, isNodeReady(testNode("not-ready", corev1.ConditionFalse)))
+	assert.False(t, isNodeReady(testNode("unknown", corev1.ConditionUnknown)))
+	assert.False(t, isNodeReady(&corev1.Node{}), "no Ready condition")
+}
+
 func TestIsAgentDoneSkippingNotReadyNodes(t *testing.T) {
 	ds := testAgentDaemonSet("agent-agent", "agent", "5")
 	objects := []client.Object{ds, testAgentPod("updated", ds, "5", "node-ready", time.Minute), testNode("node-ready", corev1.ConditionTrue)}
@@ -308,12 +445,14 @@ func TestIsAgentDoneSkippingNotReadyNodes(t *testing.T) {
 	tests := []struct {
 		name              string
 		skipNotReadyNodes bool
+		maxSkippedRatio   float64
 		status            *v2alpha1.DaemonSetStatus
 		want              bool
 	}{
 		{name: "disabled", skipNotReadyNodes: false, status: status, want: false},
 		{name: "enabled", skipNotReadyNodes: true, status: status, want: true},
 		{name: "above the 10% skip cap", skipNotReadyNodes: true, status: &v2alpha1.DaemonSetStatus{Current: 20, UpToDate: 17}, want: false},
+		{name: "within a raised 15% skip cap", skipNotReadyNodes: true, maxSkippedRatio: 0.15, status: &v2alpha1.DaemonSetStatus{Current: 20, UpToDate: 17}, want: true},
 		{name: "plain check passes", skipNotReadyNodes: false, status: &v2alpha1.DaemonSetStatus{Current: 40, UpToDate: 40}, want: true},
 		{name: "no status", skipNotReadyNodes: true, status: nil, want: true},
 	}
@@ -321,6 +460,9 @@ func TestIsAgentDoneSkippingNotReadyNodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			o := testOptions(t, objects...)
 			o.skipNotReadyNodes = tt.skipNotReadyNodes
+			if tt.maxSkippedRatio != 0 {
+				o.maxSkippedRatio = tt.maxSkippedRatio
+			}
 			assert.Equal(t, tt.want, o.isAgentDoneSkippingNotReadyNodes(context.Background(), tt.status))
 		})
 	}
@@ -379,4 +521,29 @@ func TestNewOptionsSkipNotReadyNodes(t *testing.T) {
 
 	t.Setenv("AGENT_SKIP_NOT_READY_NODES", "true")
 	assert.True(t, NewOptions(genericclioptions.IOStreams{}).skipNotReadyNodes)
+
+	t.Setenv("AGENT_SKIP_NOT_READY_NODES", "not-a-bool")
+	assert.False(t, NewOptions(genericclioptions.IOStreams{}).skipNotReadyNodes)
+}
+
+func TestNewOptionsMaxSkippedRatio(t *testing.T) {
+	assert.InDelta(t, 0.10, NewOptions(genericclioptions.IOStreams{}).maxSkippedRatio, 1e-9)
+
+	t.Setenv("AGENT_SKIP_NOT_READY_MAX_PCT", "15")
+	assert.InDelta(t, 0.15, NewOptions(genericclioptions.IOStreams{}).maxSkippedRatio, 1e-9)
+
+	for _, invalid := range []string{"not-a-number", "-1", "101"} {
+		t.Setenv("AGENT_SKIP_NOT_READY_MAX_PCT", invalid)
+		assert.InDelta(t, 0.10, NewOptions(genericclioptions.IOStreams{}).maxSkippedRatio, 1e-9, invalid)
+	}
+}
+
+func TestNewOptionsMaxNodeLookups(t *testing.T) {
+	assert.Equal(t, 300, NewOptions(genericclioptions.IOStreams{}).maxNodeLookups)
+
+	t.Setenv("AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS", "500")
+	assert.Equal(t, 500, NewOptions(genericclioptions.IOStreams{}).maxNodeLookups)
+
+	t.Setenv("AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS", "not-a-number")
+	assert.Equal(t, 300, NewOptions(genericclioptions.IOStreams{}).maxNodeLookups)
 }

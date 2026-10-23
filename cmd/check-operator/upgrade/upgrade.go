@@ -36,15 +36,6 @@ const (
 	// on DaemonSets and their pods. A pod is up to date when both values match.
 	daemonSetTemplateGenerationAnnotation = "deprecated.daemonset.template.generation"
 	podTemplateGenerationLabel            = "pod-template-generation"
-
-	// maxNodeLookups caps the node GETs done in one check, to bound API calls (client-go default
-	// rate limit is 5 QPS). Above this cap the check does not discount any node.
-	maxNodeLookups = 200
-
-	// maxSkippedRatio caps the share of scheduled Agent nodes that the check can discount. Above it,
-	// the not-Ready nodes are more likely an outage than background churn, so the check does not
-	// discount any node.
-	maxSkippedRatio = 0.10
 )
 
 // daemonSetDefaultTolerations are the tolerations that the DaemonSet controller adds to every
@@ -71,9 +62,16 @@ type Options struct {
 	agentCompletionMin int32
 	dcaMinUpToDate     int32
 	clcMinUpToDate     int32
-	// skipNotReadyNodes discounts out-of-date Agent pods on not-Ready nodes. Kubernetes cannot
-	// replace these pods, so they would otherwise hold the check until its timeout.
+	// skipNotReadyNodes discounts out-of-date Agent pods on not-Ready nodes. These nodes usually
+	// cannot run the new pod, so they would otherwise hold the check until its timeout.
 	skipNotReadyNodes bool
+	// maxNodeLookups caps the node GETs done in one check, to bound API calls (client-go default
+	// rate limit is 5 QPS). Above this cap the check does not discount any node.
+	maxNodeLookups int
+	// maxSkippedRatio caps the share of scheduled Agent nodes that the check can discount. Above it,
+	// the not-Ready nodes are more likely an outage than background churn, so the check does not
+	// discount any node.
+	maxSkippedRatio float64
 }
 
 // NewOptions provides an instance of Options with default values.
@@ -86,6 +84,8 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 		agentCompletionMin: 10,
 		dcaMinUpToDate:     1,
 		clcMinUpToDate:     2,
+		maxNodeLookups:     300,
+		maxSkippedRatio:    0.10,
 	}
 
 	opts.SetConfigFlags()
@@ -117,6 +117,18 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 	if val, found := os.LookupEnv("AGENT_SKIP_NOT_READY_NODES"); found {
 		if bVal, err := strconv.ParseBool(val); err == nil {
 			opts.skipNotReadyNodes = bVal
+		}
+	}
+
+	if val, found := os.LookupEnv("AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS"); found {
+		if iVal, err := strconv.ParseInt(val, 10, 32); err == nil {
+			opts.maxNodeLookups = int(iVal)
+		}
+	}
+
+	if val, found := os.LookupEnv("AGENT_SKIP_NOT_READY_MAX_PCT"); found {
+		if fVal, err := strconv.ParseFloat(val, 64); err == nil && fVal >= 0 && fVal <= 100 {
+			opts.maxSkippedRatio = fVal / 100
 		}
 	}
 
@@ -222,7 +234,8 @@ func isReconcileError(conditions []metav1.Condition) error {
 
 // Run use to run the command.
 func (o *Options) Run() error {
-	o.printOutf("Start checking rolling-update status")
+	o.printOutf("Start checking rolling-update status (timeout: %s, agent pct: %f, agent min: %d, dca min: %d, clc min: %d, skip not-Ready nodes: %t, max node lookups: %d, max skipped ratio: %f)",
+		o.checkTimeout, o.agentCompletionPct, o.agentCompletionMin, o.dcaMinUpToDate, o.clcMinUpToDate, o.skipNotReadyNodes, o.maxNodeLookups, o.maxSkippedRatio)
 	checkFunc := func(ctx context.Context) (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
 		var status common.StatusWrapper
@@ -314,7 +327,7 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 	}
 
 	// Skip the API calls if the check cannot pass even with the most nodes skipped.
-	maxSkipped := int32(float64(status.Current) * maxSkippedRatio)
+	maxSkipped := int32(float64(status.Current) * o.maxSkippedRatio)
 	bestCase := *status
 	bestCase.Current -= maxSkipped
 	if !o.reachedAgentThreshold(&bestCase) {
@@ -342,7 +355,8 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 //   - only pods that are both terminal and deleted are ignored. A pod stuck in Terminating on an
 //     unreachable node is still counted;
 //   - a pod is up to date if its template generation or its revision hash matches;
-//   - deleted nodes are not counted, as the DaemonSet status does not count them.
+//   - deleted nodes are not counted, as the DaemonSet status does not count them;
+//   - a DaemonSet with no up-to-date pod yet is not counted, as its revision hash is unknown.
 //
 // It lists the out-of-date pods, then the pods of each not-Ready candidate node, instead of all
 // Agent pods: a list of all Agent pods can take minutes on large clusters. It does not check node
@@ -376,8 +390,8 @@ func (o *Options) countOutdatedNotReadyNodes(ctx context.Context, maxSkipped int
 		}
 	}
 
-	if len(nodeNames) > maxNodeLookups {
-		o.printOutf("[Agent] %d nodes have an out-of-date Agent pod, above the %d node lookups cap: not skipping any", len(nodeNames), maxNodeLookups)
+	if len(nodeNames) > o.maxNodeLookups {
+		o.printOutf("[Agent] %d nodes have an out-of-date Agent pod, above the %d node lookups cap: not skipping any", len(nodeNames), o.maxNodeLookups)
 		return 0, nil
 	}
 
@@ -410,6 +424,11 @@ func (o *Options) countOutdatedNotReadyNodes(ctx context.Context, maxSkipped int
 				}
 				currentHash = &hash
 			}
+			// Without an up-to-date pod the current revision hash is unknown, and after a template
+			// revert a pod that the DaemonSet status counts as updated would be skipped.
+			if *currentHash == "" {
+				break
+			}
 			outdated, err := o.isOldestPodOutdated(ctx, ds, name, *currentHash)
 			if err != nil {
 				return 0, err
@@ -421,7 +440,7 @@ func (o *Options) countOutdatedNotReadyNodes(ctx context.Context, maxSkipped int
 	}
 
 	if skipped > maxSkipped {
-		o.printOutf("[Agent] %d not-Ready nodes have an out-of-date Agent pod, above the %d cap (%.0f%% of scheduled nodes): not skipping any", skipped, maxSkipped, maxSkippedRatio*100)
+		o.printOutf("[Agent] %d not-Ready nodes have an out-of-date Agent pod, above the %d cap (%.0f%% of scheduled nodes): not skipping any", skipped, maxSkipped, o.maxSkippedRatio*100)
 		return 0, nil
 	}
 
@@ -495,7 +514,7 @@ func (o *Options) isOldestPodOutdated(ctx context.Context, ds *appsv1.DaemonSet,
 	if oldest.Labels[podTemplateGenerationLabel] == ds.Annotations[daemonSetTemplateGenerationAnnotation] {
 		return false, nil
 	}
-	return currentHash == "" || oldest.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentHash, nil
+	return oldest.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentHash, nil
 }
 
 // getCurrentRevisionHash returns the revision hash of a pod on the current template generation, or
