@@ -285,6 +285,8 @@ func TestValidateWorkerSpec_Pipeline(t *testing.T) {
 		{name: "scalar", pipelineConfig: ptr.To("sources"), want: "spec.pipelineConfig: Invalid value: null: must be a YAML mapping: "},
 		{name: "list", pipelineConfig: ptr.To("- sources\n"), want: "spec.pipelineConfig: Invalid value: null: must be a YAML mapping: "},
 		{name: "multiple documents", pipelineConfig: ptr.To("sources: {}\n---\nsinks: {}\n"), want: "spec.pipelineConfig: Invalid value: null: must contain a single YAML document"},
+		{name: "multiple documents with CR line breaks", pipelineConfig: ptr.To("sources: {}\r---\rsinks: {}"), want: "spec.pipelineConfig: Invalid value: null: must contain a single YAML document"},
+		{name: "trailing document end marker", pipelineConfig: ptr.To("sources: {}\n...\n")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
