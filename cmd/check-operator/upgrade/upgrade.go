@@ -71,10 +71,10 @@ type Options struct {
 	// maxNodeLookups caps the node GETs done in one check, to bound API calls (client-go default
 	// rate limit is 5 QPS). Above this cap the check does not discount any node.
 	maxNodeLookups int
-	// maxSkippedRatio caps the share of scheduled Agent nodes that the check can discount. Above it,
+	// maxSkippedPct caps the share of scheduled Agent nodes that the check can discount. Above it,
 	// the not-Ready nodes are more likely an outage than background churn, so the check does not
 	// discount any node.
-	maxSkippedRatio float64
+	maxSkippedPct float64
 }
 
 // NewOptions provides an instance of Options with default values.
@@ -88,7 +88,7 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 		dcaMinUpToDate:     1,
 		clcMinUpToDate:     2,
 		maxNodeLookups:     300,
-		maxSkippedRatio:    0.10,
+		maxSkippedPct:      10,
 	}
 
 	opts.SetConfigFlags()
@@ -124,14 +124,14 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 	}
 
 	if val, found := os.LookupEnv("AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS"); found {
-		if iVal, err := strconv.ParseInt(val, 10, 32); err == nil {
+		if iVal, err := strconv.ParseInt(val, 10, 32); err == nil && iVal > 0 {
 			opts.maxNodeLookups = int(iVal)
 		}
 	}
 
 	if val, found := os.LookupEnv("AGENT_SKIP_NOT_READY_MAX_PCT"); found {
 		if fVal, err := strconv.ParseFloat(val, 64); err == nil && fVal >= 0 && fVal <= 100 {
-			opts.maxSkippedRatio = fVal / 100
+			opts.maxSkippedPct = fVal
 		}
 	}
 
@@ -237,8 +237,8 @@ func isReconcileError(conditions []metav1.Condition) error {
 
 // Run use to run the command.
 func (o *Options) Run() error {
-	o.printOutf("Start checking rolling-update status (timeout: %s, agent pct: %f, agent min: %d, dca min: %d, clc min: %d, skip not-Ready nodes: %t, max node lookups: %d, max skipped ratio: %f)",
-		o.checkTimeout, o.agentCompletionPct, o.agentCompletionMin, o.dcaMinUpToDate, o.clcMinUpToDate, o.skipNotReadyNodes, o.maxNodeLookups, o.maxSkippedRatio)
+	o.printOutf("Start checking rolling-update status (timeout: %s, agent pct: %f, agent min: %d, dca min: %d, clc min: %d, skip not-Ready nodes: %t, max node lookups: %d, max skipped pct: %.0f)",
+		o.checkTimeout, o.agentCompletionPct, o.agentCompletionMin, o.dcaMinUpToDate, o.clcMinUpToDate, o.skipNotReadyNodes, o.maxNodeLookups, o.maxSkippedPct)
 	checkFunc := func(ctx context.Context) (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
 		var status common.StatusWrapper
@@ -329,13 +329,17 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 		return false
 	}
 
+	maxSkipped := int32(float64(status.Current) * o.maxSkippedPct / 100)
+	minSkipped := int32(1)
+	for minSkipped <= maxSkipped && !o.reachedAgentThreshold(status.Current-minSkipped, status.UpToDate) {
+		minSkipped++
+	}
 	// Skip the API calls if the check cannot pass even with the most nodes skipped.
-	maxSkipped := int32(float64(status.Current) * o.maxSkippedRatio)
-	if !o.reachedAgentThreshold(status.Current-maxSkipped, status.UpToDate) {
+	if minSkipped > maxSkipped {
 		return false
 	}
 
-	skipped, err := o.getOutdatedNotReadyNodes(ctx, maxSkipped)
+	skipped, err := o.getOutdatedNotReadyNodes(ctx, minSkipped, maxSkipped)
 	if err != nil {
 		o.printOutf("[Agent] unable to count not-Ready nodes, not skipping any: %v", err)
 		return false
@@ -358,8 +362,9 @@ type agentDaemonSet struct {
 
 // getOutdatedNotReadyNodes returns the "<DaemonSet>/<node>" pairs to remove from the Agent status
 // Current count: not-Ready nodes whose oldest Agent pod is out of date, counted with the same rules
-// as the DaemonSet controller status. It returns none if more than maxSkipped pairs qualify.
-func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32) ([]string, error) {
+// as the DaemonSet controller status. It returns none if fewer than minSkipped or more than
+// maxSkipped pairs qualify, and stops its API calls as soon as it knows.
+func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxSkipped int32) ([]string, error) {
 	dsList := &appsv1.DaemonSetList{}
 	if err := o.Client.List(
 		ctx,
@@ -374,6 +379,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32
 	}
 
 	var daemonSets []agentDaemonSet
+	var outdatedPairs int32
 	nodeNames := map[string]struct{}{}
 	for i := range dsList.Items {
 		ds := &dsList.Items[i]
@@ -389,11 +395,15 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32
 			return nil, err
 		}
 		daemonSets = append(daemonSets, agentDaemonSet{ds: ds, selector: selector, outdatedNodes: nodes})
+		outdatedPairs += int32(len(nodes))
 		for _, name := range nodes {
 			nodeNames[name] = struct{}{}
 		}
 	}
 
+	if outdatedPairs < minSkipped {
+		return nil, nil
+	}
 	if len(nodeNames) > o.maxNodeLookups {
 		o.printOutf("[Agent] %d nodes have an out-of-date Agent pod, above the %d node lookups cap: not skipping any", len(nodeNames), o.maxNodeLookups)
 		return nil, nil
@@ -413,19 +423,26 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32
 		}
 	}
 
-	var skipped []string
-	for _, d := range daemonSets {
+	var candidatePairs int32
+	candidates := make([][]string, len(daemonSets))
+	for i, d := range daemonSets {
 		affinity := nodeaffinity.NewRequiredNodeAffinity(d.ds.Spec.Template.Spec.NodeSelector, d.ds.Spec.Template.Spec.Affinity)
-		var candidates []string
 		for _, name := range d.outdatedNodes {
 			if node, found := notReadyNodes[name]; found && shouldRunOnNode(d.ds, affinity, node) {
-				candidates = append(candidates, name)
+				candidates[i] = append(candidates[i], name)
 			}
 		}
-		if len(candidates) == 0 {
+		candidatePairs += int32(len(candidates[i]))
+	}
+	if candidatePairs < minSkipped {
+		return nil, nil
+	}
+
+	var skipped []string
+	for i, d := range daemonSets {
+		if len(candidates[i]) == 0 {
 			continue
 		}
-
 		currentHash, err := o.getCurrentRevisionHash(ctx, d.ds, d.selector)
 		if err != nil {
 			return nil, err
@@ -434,7 +451,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32
 		if currentHash == "" {
 			continue
 		}
-		for _, name := range candidates {
+		for _, name := range candidates[i] {
 			outdated, err := o.isOldestPodOutdated(ctx, d.ds, d.selector, name, currentHash)
 			if err != nil {
 				return nil, err
@@ -442,11 +459,17 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, maxSkipped int32
 			if outdated {
 				skipped = append(skipped, d.ds.Name+"/"+name)
 			}
+			if int32(len(skipped)) > maxSkipped {
+				break
+			}
 		}
 	}
 
+	if int32(len(skipped)) < minSkipped {
+		return nil, nil
+	}
 	if int32(len(skipped)) > maxSkipped {
-		o.printOutf("[Agent] %d not-Ready nodes have an out-of-date Agent pod, above the %d cap (%.0f%% of scheduled nodes): not skipping any", len(skipped), maxSkipped, o.maxSkippedRatio*100)
+		o.printOutf("[Agent] %d not-Ready nodes have an out-of-date Agent pod, above the %d cap (%.0f%% of scheduled nodes): not skipping any", len(skipped), maxSkipped, o.maxSkippedPct)
 		return nil, nil
 	}
 
@@ -461,7 +484,7 @@ func (o *Options) getOutdatedPodNodes(ctx context.Context, ds *appsv1.DaemonSet,
 	}
 
 	pods := &corev1.PodList{}
-	if err = o.Client.List(ctx, pods, client.InNamespace(o.UserNamespace), client.MatchingLabelsSelector{Selector: selector.Add(*outdatedReq)}); err != nil {
+	if err = o.Client.List(ctx, pods, client.InNamespace(o.UserNamespace), client.MatchingLabelsSelector{Selector: selector.Add(*outdatedReq)}, fromWatchCache()); err != nil {
 		return nil, fmt.Errorf("unable to list out-of-date pods of DaemonSet %s: %w", ds.Name, err)
 	}
 
@@ -484,6 +507,7 @@ func (o *Options) isOldestPodOutdated(ctx context.Context, ds *appsv1.DaemonSet,
 		client.InNamespace(o.UserNamespace),
 		client.MatchingLabelsSelector{Selector: selector},
 		client.MatchingFields{"spec.nodeName": nodeName},
+		fromWatchCache(),
 	); err != nil {
 		return false, fmt.Errorf("unable to list pods of DaemonSet %s on node %s: %w", ds.Name, nodeName, err)
 	}
@@ -526,6 +550,13 @@ func (o *Options) getCurrentRevisionHash(ctx context.Context, ds *appsv1.DaemonS
 		return "", nil
 	}
 	return pods.Items[0].Labels[appsv1.DefaultDaemonSetUniqueLabelKey], nil
+}
+
+// fromWatchCache serves a List from the API server watch cache, not etcd. Before Kubernetes 1.31,
+// a List with a field selector otherwise reads every pod of the namespace from etcd. It is built for
+// each call, as the client writes the request options into Raw.
+func fromWatchCache() client.ListOption {
+	return &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}}
 }
 
 // isCountedDaemonPod returns true if the DaemonSet controller counts this pod in its status: it is
