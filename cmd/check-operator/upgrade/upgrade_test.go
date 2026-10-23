@@ -165,7 +165,7 @@ func testAgentDaemonSet(name, ddaName, generation string) *appsv1.DaemonSet {
 			Name:        name,
 			Namespace:   "test-namespace",
 			UID:         types.UID(name + "-uid"),
-			Annotations: map[string]string{daemonSetTemplateGenerationAnnotation: generation},
+			Annotations: map[string]string{appsv1.DeprecatedTemplateGeneration: generation},
 			Labels: map[string]string{
 				apicommon.AgentDeploymentNameLabelKey:      ddaName,
 				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,

@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -34,12 +35,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
-const (
-	// daemonSetTemplateGenerationAnnotation and podTemplateGenerationLabel are set by Kubernetes
-	// on DaemonSets and their pods. A pod is up to date when both values match.
-	daemonSetTemplateGenerationAnnotation = "deprecated.daemonset.template.generation"
-	podTemplateGenerationLabel            = "pod-template-generation"
-)
+// podTemplateGenerationLabel is the DaemonSet template generation that Kubernetes sets on the pods.
+const podTemplateGenerationLabel = "pod-template-generation"
 
 // daemonSetDefaultTolerations are the tolerations that the DaemonSet controller adds to every
 // DaemonSet pod (AddOrUpdateDaemonPodTolerations). The network-unavailable toleration is added
@@ -65,16 +62,9 @@ type Options struct {
 	agentCompletionMin int32
 	dcaMinUpToDate     int32
 	clcMinUpToDate     int32
-	// skipNotReadyNodes discounts out-of-date Agent pods on not-Ready nodes. These nodes usually
-	// cannot run the new pod, so they would otherwise hold the check until its timeout.
-	skipNotReadyNodes bool
-	// maxNodeLookups caps the node GETs done in one check, to bound API calls (client-go default
-	// rate limit is 5 QPS). Above this cap the check does not discount any node.
-	maxNodeLookups int
-	// maxSkippedPct caps the share of scheduled Agent nodes that the check can discount. Above it,
-	// the not-Ready nodes are more likely an outage than background churn, so the check does not
-	// discount any node.
-	maxSkippedPct float64
+	skipNotReadyNodes  bool
+	maxNodeLookups     int
+	maxSkippedPct      float64
 }
 
 // NewOptions provides an instance of Options with default values.
@@ -350,7 +340,11 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 
 	adjusted := *status
 	adjusted.Current -= int32(len(skipped))
-	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod", len(skipped))
+	names := skipped
+	if len(names) > 20 {
+		names = append(names[:20:20], fmt.Sprintf("and %d more", len(skipped)-20))
+	}
+	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d: %s", len(skipped), adjusted.Current, status.Current, strings.Join(names, ", "))
 	return o.isAgentDone(&adjusted)
 }
 
@@ -383,7 +377,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 	nodeNames := map[string]struct{}{}
 	for i := range dsList.Items {
 		ds := &dsList.Items[i]
-		if _, found := ds.Annotations[daemonSetTemplateGenerationAnnotation]; !found || ds.Spec.Selector == nil {
+		if _, found := ds.Annotations[appsv1.DeprecatedTemplateGeneration]; !found || ds.Spec.Selector == nil {
 			continue
 		}
 		selector, err := metav1.LabelSelectorAsSelector(ds.Spec.Selector)
@@ -478,7 +472,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 
 // getOutdatedPodNodes returns the nodes that run an out-of-date pod of the DaemonSet.
 func (o *Options) getOutdatedPodNodes(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector) ([]string, error) {
-	outdatedReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.NotEquals, []string{ds.Annotations[daemonSetTemplateGenerationAnnotation]})
+	outdatedReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.NotEquals, []string{ds.Annotations[appsv1.DeprecatedTemplateGeneration]})
 	if err != nil {
 		return nil, err
 	}
@@ -528,7 +522,7 @@ func (o *Options) isOldestPodOutdated(ctx context.Context, ds *appsv1.DaemonSet,
 		return false, nil
 	}
 
-	if oldest.Labels[podTemplateGenerationLabel] == ds.Annotations[daemonSetTemplateGenerationAnnotation] {
+	if oldest.Labels[podTemplateGenerationLabel] == ds.Annotations[appsv1.DeprecatedTemplateGeneration] {
 		return false, nil
 	}
 	return oldest.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentHash, nil
@@ -537,7 +531,7 @@ func (o *Options) isOldestPodOutdated(ctx context.Context, ds *appsv1.DaemonSet,
 // getCurrentRevisionHash returns the revision hash of a pod on the current template generation, or
 // "" if there is none.
 func (o *Options) getCurrentRevisionHash(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector) (string, error) {
-	currentReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.Equals, []string{ds.Annotations[daemonSetTemplateGenerationAnnotation]})
+	currentReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.Equals, []string{ds.Annotations[appsv1.DeprecatedTemplateGeneration]})
 	if err != nil {
 		return "", err
 	}
