@@ -53,6 +53,7 @@ type privateActionRunnerFeature struct {
 	clusterConfigData         string
 	clusterServiceAccountName string
 	k8sRemediationEnabled     bool
+	configErr                 error
 }
 
 // ID returns the ID of the Feature
@@ -62,13 +63,21 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
-// Configure configures the feature from annotations on the DatadogAgent object.
+// Configure configures the feature from the spec, falling back to legacy annotations.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+	*f = privateActionRunnerFeature{owner: dda, logger: f.logger}
+	var spec *v2alpha1.PrivateActionRunnerFeatureConfig
+	if ddaSpec.Features != nil {
+		spec = ddaSpec.Features.PrivateActionRunner
+	}
+	node, cluster := resolveConfiguration(dda, spec)
 
-	// Check for Node Agent configuration (annotation-based)
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
+	if node.enabled {
 		f.nodeEnabled = true
+		f.nodeConfigData = node.configData
+		if spec != nil {
+			f.nodeConfigData, f.configErr = enabledConfigData(f.nodeConfigData)
+		}
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
 		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
@@ -81,13 +90,6 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
 		}
 
-		// Use config data from annotation directly, or fall back to default
-		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
-			f.nodeConfigData = configData
-		} else {
-			f.nodeConfigData = defaultConfigData
-		}
-
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{
@@ -97,23 +99,35 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		}
 	}
 
-	// Check for Cluster Agent configuration (annotation-based)
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
-		// Use config data from annotation directly, or fall back to default
-		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
-			f.clusterConfigData = configData
-		} else {
-			f.clusterConfigData = defaultConfigData
+	if cluster.enabled {
+		f.clusterConfigData = cluster.configData
+		if spec != nil {
+			var err error
+			f.clusterConfigData, err = enabledConfigData(f.clusterConfigData)
+			if err != nil {
+				f.configErr = err
+			}
+			// Keep the component required so configuration errors are surfaced by ManageDependencies.
+			reqComp.ClusterAgent = feature.RequiredComponent{
+				IsRequired: new(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			}
+		}
+		if f.configErr != nil {
+			return reqComp
 		}
 
 		clusterConfig, err := parsePrivateActionRunnerConfig(f.clusterConfigData)
 		if err != nil {
+			if spec != nil {
+				f.configErr = err
+			}
 			f.logger.Error(err, "failed to parse private action runner config")
 			return reqComp
 		}
 		if !clusterConfig.Enabled {
 			// Due-diligence
-			f.logger.V(1).Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
+			f.logger.V(1).Info("private_action_runner.enabled=false in configdata is overridden by the feature enable setting")
 			clusterConfig.Enabled = true
 			f.clusterConfigData, err = overrideEnabledValueInConfigData(f.clusterConfigData, true)
 			if err != nil {
@@ -138,9 +152,12 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	// Handle Node Agent dependencies (ConfigMap for annotation-based config)
+	if f.configErr != nil {
+		return fmt.Errorf("invalid Private Action Runner configuration: %w", f.configErr)
+	}
+	// Handle Node Agent dependencies.
 	if f.nodeEnabled {
-		// Create ConfigMap with the config content (either from annotation or default)
+		// Create ConfigMap with the resolved configuration.
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      f.getConfigMapName(),
@@ -158,7 +175,7 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 
 	// Handle Cluster Agent dependencies (ConfigMap for config and RBAC for secret access)
 	if f.clusterConfig != nil && f.clusterConfig.Enabled {
-		// Create ConfigMap with the config content (either from annotation or default)
+		// Create ConfigMap with the resolved configuration.
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      f.getClusterAgentConfigMapName(),
@@ -219,6 +236,9 @@ func (f *privateActionRunnerFeature) getRbacResourcesName() string {
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	if f.configErr != nil {
+		return fmt.Errorf("invalid Private Action Runner configuration: %w", f.configErr)
+	}
 	if f.clusterConfig == nil || !f.clusterConfig.Enabled {
 		return nil
 	}
@@ -259,6 +279,9 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	if f.configErr != nil {
+		return fmt.Errorf("invalid Private Action Runner configuration: %w", f.configErr)
+	}
 	if !f.nodeEnabled {
 		return nil
 	}

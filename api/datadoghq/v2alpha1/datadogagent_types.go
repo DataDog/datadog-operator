@@ -90,6 +90,9 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// PrivateActionRunner configuration for the Node Agent and Cluster Agent.
+	// +optional
+	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
@@ -131,6 +134,58 @@ type DatadogFeatures struct {
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
 	KubernetesActions *KubernetesActionsFeatureConfig `json:"kubernetesActions,omitempty"`
+}
+
+// PrivateActionRunnerFeatureConfig contains Private Action Runner configuration.
+// When present, this block replaces the enable and configdata annotations.
+// Split mode, host systemd access and legacy Kubernetes remediation permissions
+// remain configured through annotations. Use features.kubernetesActions for Kubernetes actions.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerFeatureConfig struct {
+	// Enabled enables Private Action Runner on both the Node Agent and Cluster Agent.
+	// Component-specific enabled settings take precedence.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ConfigData contains YAML configuration, including the private_action_runner key,
+	// shared by both agents. The enabled field is controlled by Enabled instead.
+	// Configure allowed action patterns with private_action_runner.actions_allowlist.
+	// Default: "private_action_runner:\n  enabled: true\n"
+	// +optional
+	ConfigData *string `json:"configData,omitempty"`
+
+	// NodeAgent overrides the shared Private Action Runner settings for the Node Agent.
+	// +optional
+	NodeAgent *PrivateActionRunnerNodeAgentConfig `json:"nodeAgent,omitempty"`
+
+	// ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.
+	// +optional
+	ClusterAgent *PrivateActionRunnerClusterAgentConfig `json:"clusterAgent,omitempty"`
+}
+
+// PrivateActionRunnerNodeAgentConfig contains Node Agent Private Action Runner overrides.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerNodeAgentConfig struct {
+	// Enabled overrides the shared enabled setting for the Node Agent.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ConfigData replaces the entire shared YAML configuration for the Node Agent.
+	// +optional
+	ConfigData *string `json:"configData,omitempty"`
+}
+
+// PrivateActionRunnerClusterAgentConfig contains Cluster Agent Private Action Runner overrides.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerClusterAgentConfig struct {
+	// Enabled overrides the shared enabled setting for the Cluster Agent.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ConfigData replaces the entire shared YAML configuration for the Cluster Agent.
+	// +optional
+	ConfigData *string `json:"configData,omitempty"`
 }
 
 // KubernetesActionsFeatureConfig allows configuration of the Kubernetes Actions feature.

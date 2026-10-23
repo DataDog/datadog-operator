@@ -2893,6 +2893,43 @@ spec:
                                   type: object
                               type: object
                           type: object
+                        privateActionRunner:
+                          description: PrivateActionRunner configuration for the Node Agent and Cluster Agent.
+                          properties:
+                            clusterAgent:
+                              description: ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.
+                              properties:
+                                configData:
+                                  description: ConfigData replaces the entire shared YAML configuration for the Cluster Agent.
+                                  type: string
+                                enabled:
+                                  description: Enabled overrides the shared enabled setting for the Cluster Agent.
+                                  type: boolean
+                              type: object
+                            configData:
+                              description: |-
+                                ConfigData contains YAML configuration, including the private_action_runner key,
+                                shared by both agents. The enabled field is controlled by Enabled instead.
+                                Configure allowed action patterns with private_action_runner.actions_allowlist.
+                                Default: "private_action_runner:\n  enabled: true\n"
+                              type: string
+                            enabled:
+                              description: |-
+                                Enabled enables Private Action Runner on both the Node Agent and Cluster Agent.
+                                Component-specific enabled settings take precedence.
+                                Default: false
+                              type: boolean
+                            nodeAgent:
+                              description: NodeAgent overrides the shared Private Action Runner settings for the Node Agent.
+                              properties:
+                                configData:
+                                  description: ConfigData replaces the entire shared YAML configuration for the Node Agent.
+                                  type: string
+                                enabled:
+                                  description: Enabled overrides the shared enabled setting for the Node Agent.
+                                  type: boolean
+                              type: object
+                          type: object
                         processDiscovery:
                           description: ProcessDiscovery configuration.
                           properties:
