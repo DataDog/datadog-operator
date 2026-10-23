@@ -32,6 +32,13 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
+	// Process passwd mounts depend on the image that will actually run.
+	// ManageNodeAgent runs before image/container overrides and receives only
+	// pod managers. Retain the CR metadata and node-agent overrides from Configure
+	// so mount selection can account for the final image, renamed containers,
+	// and provider restrictions instead of relying on the pre-override pod.
+	owner          metav1.Object
+	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	runInCoreAgent bool
 }
 
@@ -51,6 +58,7 @@ func (p *processDiscoveryFeature) NodeAgentProviderCapabilities() providercaps.P
 }
 
 func (p *processDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	p.owner, p.nodeOverride = dda, ddaSpec.Override[v2alpha1.NodeAgentComponentName]
 	var reqComp feature.RequiredComponents
 	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddaSpec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
@@ -110,7 +118,8 @@ func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers featur
 
 func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+	mountPath := featutils.ProcessPasswdMountPath(p.owner, p.nodeOverride, agentContainerName, managers.PodTemplateSpec())
+	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, mountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
