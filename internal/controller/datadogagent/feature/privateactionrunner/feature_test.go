@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -715,6 +716,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 		name                      string
 		configData                string
 		expectedClusterConfigData string
+		expectedRBACSecretName    string
 	}{
 		{
 			name: "self-enroll with identity secret",
@@ -726,6 +728,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
   enabled: true
   self_enroll: true
   identity_secret_name: my-par-identity`,
+			expectedRBACSecretName: "my-par-identity",
 		},
 		{
 			name: "manual enrollment with URN and private key",
@@ -758,11 +761,28 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
     - com.datadoghq.http.request
     - com.datadoghq.kubernetes.core.listPod
     - com.datadoghq.traceroute`,
+			expectedRBACSecretName: defaultIdentitySecretName,
 		},
 		{
 			name:                      "default config (minimal)",
 			configData:                defaultConfigData,
 			expectedClusterConfigData: defaultConfigData,
+			expectedRBACSecretName:    defaultIdentitySecretName,
+		},
+		{
+			name:                      "no configdata annotation",
+			expectedClusterConfigData: defaultConfigData,
+			expectedRBACSecretName:    defaultIdentitySecretName,
+		},
+		{
+			name: "omitted self-enroll with custom identity secret",
+			configData: `private_action_runner:
+  enabled: true
+  identity_secret_name: custom-par-identity`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_secret_name: custom-par-identity`,
+			expectedRBACSecretName: "custom-par-identity",
 		},
 	}
 
@@ -774,10 +794,12 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 					Name:      "test-dda",
 					Namespace: "default",
 					Annotations: map[string]string{
-						"cluster-agent.datadoghq.com/private-action-runner-enabled":    "true",
-						"cluster-agent.datadoghq.com/private-action-runner-configdata": tt.configData,
+						"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
 					},
 				},
+			}
+			if tt.configData != "" {
+				dda.Annotations["cluster-agent.datadoghq.com/private-action-runner-configdata"] = tt.configData
 			}
 			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
 
@@ -805,6 +827,26 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			// Verify the ConfigMap contains the expected config data
 			yamlContent := configMap.Data["privateactionrunner.yaml"]
 			assert.Equal(t, tt.expectedClusterConfigData, yamlContent, "ConfigMap content should match expected")
+
+			role, roleFound := resourceManagers.Store().Get(kubernetes.RolesKind, "default", "test-dda-private-action-runner")
+			binding, bindingFound := resourceManagers.Store().Get(kubernetes.RoleBindingKind, "default", "test-dda-private-action-runner")
+			wantRBAC := tt.expectedRBACSecretName != ""
+			require.Equal(t, wantRBAC, roleFound, "enrollment Role")
+			require.Equal(t, wantRBAC, bindingFound, "enrollment RoleBinding")
+			if wantRBAC {
+				assert.Equal(t, getClusterAgentRBACPolicyRules(tt.expectedRBACSecretName), role.(*rbacv1.Role).Rules)
+				roleBinding := binding.(*rbacv1.RoleBinding)
+				assert.Equal(t, rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     "Role",
+					Name:     "test-dda-private-action-runner",
+				}, roleBinding.RoleRef)
+				assert.Equal(t, []rbacv1.Subject{{
+					Kind:      "ServiceAccount",
+					Name:      "test-dda-cluster-agent",
+					Namespace: "default",
+				}}, roleBinding.Subjects)
+			}
 
 			// Create test managers with a container
 			podTmpl := corev1.PodTemplateSpec{
