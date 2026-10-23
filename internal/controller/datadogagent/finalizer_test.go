@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_handleFinalizer(t *testing.T) {
@@ -138,7 +137,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	err := reconciler.finalizeDad(context.Background(), logf.Log.WithName("Handle Finalizer V2 test"), dda)
+	err := reconciler.finalizeDad(context.Background(), dda)
 	assert.NoError(t, err)
 
 	// With DDAI always enabled, the DDA finalizer no longer deletes cluster-level resources
@@ -173,6 +172,5 @@ func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
 		recorder:   record.NewBroadcaster().NewRecorder(s, corev1.EventSource{}),
 		forwarders: dummyManager{},
 		options:    ReconcilerOptions{},
-		log:        logf.Log.WithName("reconciler"),
 	}
 }

@@ -129,7 +129,6 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
@@ -203,7 +202,6 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}

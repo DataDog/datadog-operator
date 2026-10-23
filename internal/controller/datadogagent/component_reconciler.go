@@ -14,6 +14,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -25,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
@@ -95,12 +97,11 @@ type ComponentReconciler interface {
 	ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, requiredComponents feature.RequiredComponents) bool
 
 	// CleanupDependencies deletes any dependencies associated with the component
-	CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
+	CleanupDependencies(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
 }
 
 // ReconcileComponentParams bundles common parameters needed by all components
 type ReconcileComponentParams struct {
-	Logger             logr.Logger
 	DDA                *datadoghqv2alpha1.DatadogAgent
 	RequiredComponents feature.RequiredComponents
 	Features           []feature.Feature
@@ -173,20 +174,21 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	return result, nil
 }
 
-// Reconcile reconciles component
-func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	var result reconcile.Result
+// reconcileComponent reconciles a single component
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
-	deploymentLogger := params.Logger.WithValues("component", component.Name())
 
 	// Start by creating the Default Cluster-Agent deployment
 	// Pass params.DDA directly (not GetObjectMeta()) so that getCommonLabels can
 	// type-assert to *v2alpha1.DatadogAgent and read spec.global.commonLabels.
 	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
@@ -208,7 +210,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 	// Apply override if defined for the component
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
-		override.PodTemplateSpec(deploymentLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
+		override.PodTemplateSpec(objLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
 	}
 
@@ -226,7 +228,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
 	}
 
-	res, err := r.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, component.UpdateStatus)
+	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDA, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
 		// Update condition to success since the deployment was created or updated successfully
@@ -245,7 +247,9 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 }
 
 // Cleanup removes the component deployment, associated resources and updates status
-func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
 
 	// Apply the name override so we delete the correct deployment
@@ -253,14 +257,20 @@ func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileCompon
 		override.Deployment(deployment, componentOverride)
 	}
 
-	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
+	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues(
+		"object.kind", "Deployment",
+		"object.namespace", deployment.Namespace,
+		"object.name", deployment.Name,
+	))
+
+	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.DDA, deployment)
 
 	if err != nil {
 		return result, err
 	}
 
 	// Do status and other resource cleanup if the deployment was deleted successfully
-	if result, err = component.CleanupDependencies(ctx, params.Logger, params.DDA, params.ResourceManagers); err != nil {
+	if result, err = component.CleanupDependencies(ctx, params.DDA, params.ResourceManagers); err != nil {
 		return result, err
 	}
 	component.DeleteStatus(params.Status, component.GetConditionType())

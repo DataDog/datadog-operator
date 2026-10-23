@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/tools/record"
@@ -49,6 +48,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentationcrd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kueue"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/logcollection"
@@ -115,6 +115,8 @@ type ReconcilerOptions struct {
 	// APIReader is an uncached, direct-to-apiserver reader used to validate
 	// experiment rollback targets. A cached/informer-backed client's stale
 	// NotFound could be mistaken for a permanently-lost baseline revision.
+	// It is also used to read unscheduled agent pods, because the pod cache
+	// drops their node affinity.
 	APIReader client.Reader
 }
 
@@ -124,7 +126,6 @@ type Reconciler struct {
 	client            client.Client
 	platformInfo      kubernetes.PlatformInfo
 	scheme            *runtime.Scheme
-	log               logr.Logger
 	recorder          record.EventRecorder
 	forwarders        datadog.MetricsForwardersManager
 	fieldManager      *managedfields.FieldManager
@@ -141,7 +142,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
+	scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
 	if options.APIReader == nil {
 		return nil, fmt.Errorf("ReconcilerOptions.APIReader must not be nil")
@@ -152,7 +153,6 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		client:       client,
 		platformInfo: platformInfo,
 		scheme:       scheme,
-		log:          log,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
 	}
