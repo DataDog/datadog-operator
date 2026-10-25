@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/utils"
 )
 
 type MonitorHandler struct {
@@ -35,6 +36,22 @@ func (h *MonitorHandler) updateResource(auth context.Context, instance *v1alpha1
 	_, err := updateMonitor(auth, h.client, instance)
 	return err
 }
+
+// remoteMatchesSpec opts monitors in to skipping force-sync updates that would
+// not change the remote monitor.
+func (h *MonitorHandler) remoteMatchesSpec(auth context.Context, instance *v1alpha1.DatadogGenericResource) (bool, error) {
+	remote, err := getMonitor(auth, h.client, instance.Status.Id)
+	if err != nil {
+		return false, err
+	}
+	desired := datadogV1.MonitorUpdateRequest{}
+	if err = json.Unmarshal([]byte(instance.Spec.JsonSpec), &desired); err != nil {
+		return false, nil //nolint:nilerr // An invalid spec cannot match; the update reports it.
+	}
+	matches, err := utils.MonitorMatchesUpdateRequest(desired, remote)
+	return err == nil && matches, nil
+}
+
 func (h *MonitorHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	return deleteMonitor(auth, h.client, instance.Status.Id)
 }

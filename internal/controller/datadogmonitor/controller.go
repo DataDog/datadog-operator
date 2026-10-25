@@ -33,6 +33,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -203,7 +204,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			// A force sync periodically reapplies the desired monitor definition
 			// to correct out-of-band changes. Check that the remote monitor still
 			// exists first so an out-of-band deletion takes the create path.
-			_, err = r.get(auth, instance, newStatus)
+			m, err = r.get(auth, instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -211,6 +212,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				} else {
 					result.RequeueAfter = defaultErrRequeuePeriod
 				}
+			} else if remoteMatchesSpec(logger, instance, m) {
+				// Nothing drifted, so validating and reapplying the definition
+				// would be no-ops.
+				logger.V(1).Info("Monitor already matches the desired definition; skipping force-sync update", "Monitor ID", instance.Status.ID)
+				recordForceSync(newStatus, now)
 			} else {
 				shouldUpdate = true
 			}
@@ -392,8 +398,7 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 
 	// Set Updated Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeUpdated, corev1.ConditionTrue, "DatadogMonitor Updated")
-	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
-	status.MonitorLastForceSyncTime = &now
+	recordForceSync(status, now)
 	status.CurrentHash = instanceSpecHash
 	logger.V(1).Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
@@ -408,6 +413,13 @@ func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1
 		return m, err
 	}
 	return m, nil
+}
+
+// recordForceSync records that the remote monitor matches the desired
+// definition as of now, whether or not an update was needed to get there.
+func recordForceSync(status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
+	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+	status.MonitorLastForceSyncTime = &now
 }
 
 func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
@@ -511,6 +523,27 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 
 func getRequiredTags() []string {
 	return []string{requiredTag}
+}
+
+// remoteMatchesSpec reports whether the remote monitor already has the
+// definition that updating it from the spec would send.
+func remoteMatchesSpec(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, remote datadogV1.Monitor) bool {
+	// An update also adds missing required tags to the spec, so it cannot be skipped.
+	if !apiutils.BoolValue(datadogMonitor.Spec.ControllerOptions.DisableRequiredTags) {
+		for _, rT := range getRequiredTags() {
+			if !slices.Contains(datadogMonitor.Spec.Tags, rT) {
+				return false
+			}
+		}
+	}
+
+	_, desired := buildMonitor(logger, datadogMonitor)
+	matches, err := controllerutils.MonitorMatchesUpdateRequest(*desired, remote)
+	if err != nil {
+		logger.Error(err, "unable to compare the remote monitor with the desired definition")
+		return false
+	}
+	return matches
 }
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor

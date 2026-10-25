@@ -7,6 +7,7 @@ package datadogmonitor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -1747,4 +1748,122 @@ func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
 			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
 		})
 	}
+}
+
+func TestReconcileDatadogMonitor_ForceSyncSkipsUpdateWhenRemoteMatches(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	// The remote monitor as Datadog reports it after applying forceSyncMonitor's
+	// spec: read-only fields and option defaults are added, the type and
+	// message are normalized and the tags are reordered.
+	const matchingRemote = `{"id":12345,"name":"test monitor","message":"something is wrong","query":"avg(last_10m):avg:system.cpu.user{*} > 1",` +
+		`"type":"query alert","priority":null,"restricted_roles":null,"tags":["team:a","generated:kubernetes"],"overall_state":"OK",` +
+		`"options":{"thresholds":{"critical":1},"renotify_interval":30,"notify_audit":false,"include_tags":true,"new_host_delay":300}}`
+	driftedRemote := strings.Replace(matchingRemote, `"renotify_interval":30`, `"renotify_interval":120`, 1)
+
+	tests := []struct {
+		name       string
+		remote     string
+		wantWrites int32
+	}{
+		{name: "remote matches the spec", remote: matchingRemote, wantWrites: 0},
+		{name: "remote drifted from the spec", remote: driftedRemote, wantWrites: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var validateCount, updateCount atomic.Int32
+			httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor/validate":
+					validateCount.Add(1)
+					fmt.Fprint(w, `{}`)
+				case r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor/12345":
+					fmt.Fprint(w, tt.remote)
+				case r.Method == http.MethodPut && r.URL.Path == "/api/v1/monitor/12345":
+					updateCount.Add(1)
+					fmt.Fprint(w, matchingRemote)
+				default:
+					http.Error(w, "unexpected request", http.StatusNotFound)
+				}
+			}))
+			defer httpServer.Close()
+
+			t.Setenv("DD_URL", httpServer.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+			testConfig := datadogapi.NewConfiguration()
+			testConfig.HTTPClient = httpServer.Client()
+			ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+
+			dm := forceSyncMonitor()
+			lastForceSync := metav1.NewTime(time.Now().Add(-2 * defaultForceSyncPeriod).Truncate(time.Second))
+			dm.Status.MonitorLastForceSyncTime = &lastForceSync
+
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+			r := &Reconciler{
+				client:        c,
+				datadogClient: ddClient,
+				credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+				scheme:        s,
+				recorder:      record.NewFakeRecorder(10),
+				log:           logf.Log.WithName(tt.name),
+				requeuePeriod: defaultRequeuePeriod,
+			}
+
+			_, err := r.Reconcile(context.Background(), dm)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantWrites, validateCount.Load(), "validate requests")
+			assert.Equal(t, tt.wantWrites, updateCount.Load(), "update requests")
+
+			assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(dm), dm))
+			assert.True(t, dm.Status.MonitorLastForceSyncTime.After(lastForceSync.Time), "a successful force sync must be recorded")
+			assert.Equal(t, datadoghqv1alpha1.MonitorStateSyncStatusOK, dm.Status.MonitorStateSyncStatus)
+		})
+	}
+}
+
+func Test_remoteMatchesSpec(t *testing.T) {
+	logger := logf.Log.WithName("remote-matches-spec")
+	remote := datadogV1.Monitor{}
+	assert.NoError(t, json.Unmarshal([]byte(`{"id":12345,"name":"test monitor","message":"something is wrong","query":"avg(last_10m):avg:system.cpu.user{*} > 1",`+
+		`"type":"query alert","tags":["team:a"],"options":{"thresholds":{"critical":1},"renotify_interval":30}}`), &remote))
+
+	dm := forceSyncMonitor()
+	dm.Spec.Tags = []string{"team:a"}
+	assert.False(t, remoteMatchesSpec(logger, dm, remote), "the update path must add the missing required tag")
+
+	dm.Spec.ControllerOptions.DisableRequiredTags = ptr.To(true)
+	assert.True(t, remoteMatchesSpec(logger, dm, remote))
+}
+
+func forceSyncMonitor() *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.cpu.user{*} > 1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong\n",
+			Tags:    []string{"generated:kubernetes", "team:a"},
+			Options: datadoghqv1alpha1.DatadogMonitorOptions{
+				Thresholds:       &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{Critical: ptr.To("1")},
+				RenotifyInterval: ptr.To(int64(30)),
+			},
+		},
+		Status: datadoghqv1alpha1.DatadogMonitorStatus{
+			ID:                         12345,
+			MonitorStateLastUpdateTime: ptr.To(metav1.Now()),
+		},
+	}
+	dm.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&dm.Spec)
+	return dm
 }

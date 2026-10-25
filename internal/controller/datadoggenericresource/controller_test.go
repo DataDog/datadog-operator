@@ -548,6 +548,114 @@ func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing
 	assert.Equal(t, 1, mockUpdateCalls)
 }
 
+func TestReconcileGenericResource_ForceSyncComparison(t *testing.T) {
+	tests := []struct {
+		name              string
+		handler           ResourceHandler
+		remoteMatchesSpec bool
+		wantCompareCalls  int
+		wantGetCalls      int
+		wantUpdateCalls   int
+	}{
+		{
+			name:              "opted-in handler skips the update when the remote matches",
+			handler:           &MockComparingHandler{},
+			remoteMatchesSpec: true,
+			wantCompareCalls:  1,
+		},
+		{
+			name:             "opted-in handler updates a drifted remote",
+			handler:          &MockComparingHandler{},
+			wantCompareCalls: 1,
+			wantUpdateCalls:  1,
+		},
+		{
+			name:              "other handlers always update",
+			handler:           &MockHandler{},
+			remoteMatchesSpec: true,
+			wantGetCalls:      1,
+			wantUpdateCalls:   1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetMockHandlerState()
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+			instance := mockGenericResource()
+			instance.Finalizers = []string{datadogGenericResourceFinalizer}
+			instance.Status.Id = mockResourceID
+			instance.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&instance.Spec)
+			instance.Status.SyncStatus = datadoghqv1alpha1.DatadogSyncStatusGetError
+			staleForceSync := metav1.NewTime(time.Now().Add(-2 * defaultForceSyncPeriod).Truncate(time.Second))
+			instance.Status.LastForceSyncTime = &staleForceSync
+
+			r := NewReconciler(
+				fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(instance).Build(),
+				config.NewCredentialManager(fake.NewClientBuilder().Build()),
+				s,
+				logf.Log.WithName(tt.name),
+				record.NewFakeRecorder(10),
+			)
+			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+				mockSubresource: tt.handler,
+			}
+			mockRemoteMatchesSpec = tt.remoteMatchesSpec
+
+			result, err := reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+			assert.NoError(t, err)
+			assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
+			assert.Equal(t, tt.wantCompareCalls, mockCompareCalls)
+			assert.Equal(t, tt.wantGetCalls, mockGetCalls)
+			assert.Equal(t, tt.wantUpdateCalls, mockUpdateCalls)
+
+			obj := &datadoghqv1alpha1.DatadogGenericResource{}
+			assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(instance), obj))
+			assert.True(t, obj.Status.LastForceSyncTime.After(staleForceSync.Time), "a successful force sync must be recorded")
+			assert.Equal(t, datadoghqv1alpha1.DatadogSyncStatusOK, obj.Status.SyncStatus)
+		})
+	}
+}
+
+func TestReconcileGenericResource_ForceSyncComparisonNotFoundRecreates(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	instance := mockGenericResource()
+	instance.Finalizers = []string{datadogGenericResourceFinalizer}
+	instance.Status.Id = "deleted-id"
+	instance.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&instance.Spec)
+
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(instance).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logf.Log.WithName("force-sync-comparison-not-found"),
+		record.NewFakeRecorder(10),
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockComparingHandler{},
+	}
+	mockGetErr = fmt.Errorf("error getting resource: 404 Not Found")
+
+	_, err := reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockCompareCalls)
+	assert.Equal(t, 1, mockCreateCalls, "a remote deleted out of band must be recreated")
+	assert.Equal(t, 0, mockUpdateCalls)
+}
+
 func TestReconcileGenericResource_ForceSyncFailureDoesNotDeferRetry(t *testing.T) {
 	resetMockHandlerState()
 	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")

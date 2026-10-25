@@ -181,7 +181,7 @@ The `DatadogGenericResource` controller exposes several tuning options for large
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. |
+| `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. `monitor` resources are only updated when a field set in `jsonSpec` differs from the monitor in Datadog; other resource types are updated on every check. |
 | `--datadogGenericResourceRequeuePeriod` / `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s` | Scheduled requeue interval for each `DatadogGenericResource` after a successful reconcile. On idle requeues, the controller also polls Datadog-side live state for resource types that expose it, currently `monitor` and `slo`. Accepts Go duration strings such as `30s` or `5m`. |
 | `--datadogGenericResourceMaxConcurrentReconciles` / `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` | Maximum number of `DatadogGenericResource` objects that the controller reconciles at the same time. |
 

@@ -30,3 +30,15 @@ type ResourceHandler interface {
 	// StateSynced condition.
 	refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error)
 }
+
+// forceSyncComparer is an optional extension of ResourceHandler. Handlers that
+// implement it opt in to skipping the periodic force-sync update when the
+// remote resource already matches the spec; other handlers always update.
+type forceSyncComparer interface {
+	// remoteMatchesSpec fetches the remote resource, in place of getResource,
+	// and reports whether it already holds every field that updating it from
+	// the spec would set. It returns an error only when the remote resource
+	// cannot be fetched; a spec that cannot be compared reports false so that
+	// the update runs and surfaces any problem with the spec.
+	remoteMatchesSpec(auth context.Context, instance *v1alpha1.DatadogGenericResource) (bool, error)
+}

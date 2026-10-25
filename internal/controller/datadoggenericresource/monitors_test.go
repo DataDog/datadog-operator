@@ -6,13 +6,18 @@
 package datadoggenericresource
 
 import (
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 func Test_applyResourceState(t *testing.T) {
@@ -89,6 +94,49 @@ func Test_applyResourceState(t *testing.T) {
 			assert.Equal(t, tt.wantTransitionTime, status.StateLastTransitionTime, "unexpected transition time")
 			assert.NotNil(t, status.StateLastUpdateTime, "expected StateLastUpdateTime to be set")
 			assert.Equal(t, now, *status.StateLastUpdateTime, "expected StateLastUpdateTime == now")
+		})
+	}
+}
+
+func Test_monitorHandler_remoteMatchesSpec(t *testing.T) {
+	const jsonSpec = `{"name":"High CPU","type":"query alert","query":"avg(last_5m):avg:system.cpu.user{*} > 80","options":{"thresholds":{"critical":80}}}`
+	const remote = `{"id":12345,"name":"High CPU","type":"query alert","query":"avg(last_5m):avg:system.cpu.user{*} > 80",` +
+		`"overall_state":"OK","tags":["team:a"],"options":{"thresholds":{"critical":80},"notify_audit":false,"include_tags":true}}`
+
+	tests := []struct {
+		name       string
+		jsonSpec   string
+		statusCode int
+		body       string
+		want       bool
+		wantErr    bool
+	}{
+		{name: "remote matches the fields the spec manages", jsonSpec: jsonSpec, statusCode: http.StatusOK, body: remote, want: true},
+		{name: "remote drifted", jsonSpec: strings.Replace(jsonSpec, "High CPU", "Renamed", 1), statusCode: http.StatusOK, body: remote},
+		{name: "invalid spec falls back to update", jsonSpec: `{"name":`, statusCode: http.StatusOK, body: remote},
+		{name: "remote not found", jsonSpec: jsonSpec, statusCode: http.StatusNotFound, body: `{"errors":["Monitor not found"]}`, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newTestHTTPServer(tt.statusCode, tt.body)
+			defer server.Close()
+
+			cfg := datadogapi.NewConfiguration()
+			cfg.HTTPClient = server.Client()
+			h := &MonitorHandler{client: datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(cfg))}
+			instance := &v1alpha1.DatadogGenericResource{
+				Spec:   v1alpha1.DatadogGenericResourceSpec{Type: v1alpha1.Monitor, JsonSpec: tt.jsonSpec},
+				Status: v1alpha1.DatadogGenericResourceStatus{Id: "12345"},
+			}
+
+			got, err := h.remoteMatchesSpec(setupTestAuth(server.URL), instance)
+			if tt.wantErr {
+				assert.ErrorContains(t, err, ctrutils.NotFoundString)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
