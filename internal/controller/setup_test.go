@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -104,4 +105,39 @@ func TestStartUntaint_NewUntaintReconcilerErrorIsWrapped(t *testing.T) {
 	err = startUntaint(logr.Discard(), mgr, kubernetes.PlatformInfo{}, SetupOptions{UntaintControllerEnabled: true}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "untaint controller setup")
+}
+
+func TestMonitorStatePollInterval(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		options SetupOptions
+		want    time.Duration
+	}{
+		{name: "no monitor state controller", options: SetupOptions{DatadogAgentEnabled: true}, want: 0},
+		{name: "DatadogMonitor default", options: SetupOptions{DatadogMonitorEnabled: true}, want: time.Minute},
+		{name: "DatadogMonitor requeue period", options: SetupOptions{DatadogMonitorEnabled: true, DatadogMonitorRequeue: 5 * time.Minute}, want: 5 * time.Minute},
+		{
+			name: "shortest enabled requeue period",
+			options: SetupOptions{
+				DatadogMonitorEnabled:         true,
+				DatadogMonitorRequeue:         5 * time.Minute,
+				DatadogGenericResourceEnabled: true,
+				DatadogGenericResourceRequeue: 2 * time.Minute,
+			},
+			want: 2 * time.Minute,
+		},
+		{
+			name: "disabled controllers are ignored",
+			options: SetupOptions{
+				DatadogMonitorRequeue:         30 * time.Second,
+				DatadogGenericResourceEnabled: true,
+				DatadogGenericResourceRequeue: 2 * time.Minute,
+			},
+			want: 2 * time.Minute,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, monitorStatePollInterval(tc.options))
+		})
+	}
 }

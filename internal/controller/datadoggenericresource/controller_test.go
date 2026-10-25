@@ -3,18 +3,25 @@ package datadoggenericresource
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,8 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 )
 
 const (
@@ -654,6 +663,102 @@ func TestReconcileGenericResource_ForceSyncComparisonNotFoundRecreates(t *testin
 	assert.Equal(t, 1, mockCompareCalls)
 	assert.Equal(t, 1, mockCreateCalls, "a remote deleted out of band must be recreated")
 	assert.Equal(t, 0, mockUpdateCalls)
+}
+
+func TestReconcileGenericResource_BatchStatePolling(t *testing.T) {
+	resetMockHandlerState()
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	var listRequests, getRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor":
+			listRequests.Add(1)
+			assert.Equal(t, "12345", r.URL.Query().Get("monitor_ids"))
+			fmt.Fprint(w, `[{"id":12345,"name":"High CPU","type":"query alert","query":"q","overall_state":"Alert"}]`)
+		default:
+			getRequests.Add(1)
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("DD_URL", server.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+	cfg := datadogapi.NewConfiguration()
+	cfg.HTTPClient = server.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(cfg))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	poller := monitorpoller.New(ddClient, logf.Log.WithName("monitor-state-poller"), monitorpoller.Options{Interval: time.Hour, NewMonitorDelay: time.Millisecond})
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
+	defer queue.ShutDown()
+
+	// The monitor handler opts in to batch state polling; the mock handler does not.
+	monitor := mockGenericResource()
+	monitor.Name = "monitor"
+	monitor.Spec.Type = datadoghqv1alpha1.Monitor
+	other := mockGenericResource()
+	other.Name = "other"
+	for _, instance := range []*datadoghqv1alpha1.DatadogGenericResource{monitor, other} {
+		instance.Finalizers = []string{datadogGenericResourceFinalizer}
+		instance.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&instance.Spec)
+		instance.Status.LastForceSyncTime = ptr.To(metav1.Now())
+	}
+	monitor.Status.Id = "12345"
+	other.Status.Id = mockResourceID
+	mockRefreshStateResult = ptr.To("mock-state")
+
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(monitor, other).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logf.Log.WithName("batch-state-polling"),
+		record.NewFakeRecorder(10),
+		ReconcilerOptions{StatePoller: poller},
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		datadoghqv1alpha1.Monitor: &MonitorHandler{client: ddClient},
+		mockSubresource:           &MockHandler{},
+	}
+	require.NoError(t, r.StateSource().Start(ctx, queue))
+
+	reconcileResource := func(instance *datadoghqv1alpha1.DatadogGenericResource) reconcile.Result {
+		t.Helper()
+		result, err := reconcileRequest(r, ctx, newRequest(resourcesNamespace, instance.Name))
+		require.NoError(t, err)
+		require.NoError(t, r.client.Get(ctx, client.ObjectKeyFromObject(instance), instance))
+		return result
+	}
+
+	result := reconcileResource(monitor)
+	assert.Greater(t, result.RequeueAfter, 59*time.Minute, "only the force sync needs scheduling")
+	assert.Nil(t, monitor.Status.StateLastUpdateTime)
+	result = reconcileResource(other)
+	assert.Equal(t, defaultRequeuePeriod, result.RequeueAfter)
+	assert.Equal(t, 1, mockRefreshStateCalls, "handlers that do not opt in keep refreshing their own state")
+	assert.Equal(t, "mock-state", other.Status.State)
+
+	go func() { _ = poller.Start(ctx) }()
+	require.Eventually(t, func() bool { return queue.Len() == 1 }, 5*time.Second, 10*time.Millisecond)
+	request, _ := queue.Get()
+	assert.Equal(t, "monitor", request.Name)
+
+	reconcileResource(monitor)
+	assert.Equal(t, int32(1), listRequests.Load())
+	assert.Equal(t, int32(0), getRequests.Load())
+	assert.Equal(t, string(datadoghqv1alpha1.DatadogMonitorStateAlert), monitor.Status.State)
+	assert.NotNil(t, monitor.Status.StateLastUpdateTime)
+	stateSynced := meta.FindStatusCondition(monitor.Status.Conditions, string(condition.DatadogConditionTypeStateSynced))
+	require.NotNil(t, stateSynced)
+	assert.Equal(t, metav1.ConditionTrue, stateSynced.Status)
 }
 
 func TestReconcileGenericResource_ForceSyncFailureDoesNotDeferRetry(t *testing.T) {

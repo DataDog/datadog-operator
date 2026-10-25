@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"context"
 
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -41,4 +42,16 @@ type forceSyncComparer interface {
 	// cannot be fetched; a spec that cannot be compared reports false so that
 	// the update runs and surfaces any problem with the spec.
 	remoteMatchesSpec(auth context.Context, instance *v1alpha1.DatadogGenericResource) (bool, error)
+}
+
+// monitorStateHandler is an optional extension of ResourceHandler for
+// resources whose live state is the state of a Datadog monitor. Handlers that
+// implement it opt in to having that state fetched by the shared monitor state
+// poller, in batches shared with other resources, instead of by refreshState.
+type monitorStateHandler interface {
+	// stateMonitorID returns the ID of the monitor whose state the resource
+	// with the given status reports.
+	stateMonitorID(status *v1alpha1.DatadogGenericResourceStatus) (int64, error)
+	// stateFromMonitor returns the resource state that a polled monitor reports.
+	stateFromMonitor(monitor datadogV1.Monitor) string
 }

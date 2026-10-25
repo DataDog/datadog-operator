@@ -22,6 +22,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogmonitor"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -41,6 +42,7 @@ type DatadogMonitorReconciler struct {
 type DatadogMonitorReconcilerOptions struct {
 	MaxConcurrentReconciles int
 	RequeuePeriod           time.Duration
+	StatePoller             *monitorpoller.Poller
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors,verbs=get;list;watch;create;update;patch;delete
@@ -56,6 +58,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr, datadogmonitor.ReconcilerOptions{
 		RequeuePeriod: r.Options.RequeuePeriod,
+		StatePoller:   r.Options.StatePoller,
 	})
 
 	builder := ctrl.NewControllerManagedBy(mgr)
@@ -75,7 +78,13 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 	// delivered after controller startup. This ensures that every existing
 	// DatadogMonitor is reconciled promptly; only controller-scheduled
 	// background requeues are assigned low priority by the internal reconciler.
-	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).WithOptions(ctrlcontroller.Options{
+	builder = builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{})
+	// The shared state poller enqueues DatadogMonitors at low priority once it
+	// has fetched their monitor's state.
+	if stateSource := r.internal.StateSource(); stateSource != nil {
+		builder = builder.WatchesRawSource(stateSource)
+	}
+	if err := builder.WithOptions(ctrlcontroller.Options{
 		MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
 	}).Complete(or); err != nil {
 		return err

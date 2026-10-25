@@ -21,8 +21,10 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -70,6 +72,10 @@ type SetupOptions struct {
 	ComponentHealthIntakeURL          string
 	ComponentHealthSnapshotInterval   time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
+
+	// monitorStatePoller is shared by the controllers that report monitor
+	// state. SetupControllers creates it.
+	monitorStatePoller *monitorpoller.Poller
 }
 
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
@@ -97,6 +103,12 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kube
 		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo, options.CredsManager)
 	}
 
+	var err error
+	if options.monitorStatePoller, err = newMonitorStatePoller(mgr, options); err != nil {
+		// Controllers fall back to polling the state of each monitor separately.
+		logger.Error(err, "Couldn't start the monitor state poller")
+	}
+
 	for controller, starter := range controllerStarters {
 		if err := starter(logger, mgr, platformInfo, options, metricForwardersMgr); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
@@ -104,6 +116,46 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kube
 	}
 
 	return nil
+}
+
+// newMonitorStatePoller returns the poller that fetches monitor state in
+// batches for every controller that reports it, or nil if none is enabled.
+func newMonitorStatePoller(mgr manager.Manager, options SetupOptions) (*monitorpoller.Poller, error) {
+	interval := monitorStatePollInterval(options)
+	if interval == 0 {
+		return nil, nil
+	}
+
+	poller := monitorpoller.New(datadogclient.InitMonitorClient(), ctrl.Log.WithName("monitor-state-poller"), monitorpoller.Options{Interval: interval})
+	if err := mgr.Add(poller); err != nil {
+		return nil, err
+	}
+	return poller, nil
+}
+
+// monitorStatePollInterval returns the shortest requeue period of the enabled
+// controllers that report monitor state, or 0 if none is enabled.
+func monitorStatePollInterval(options SetupOptions) time.Duration {
+	var interval time.Duration
+	for _, consumer := range []struct {
+		enabled       bool
+		requeuePeriod time.Duration
+	}{
+		{options.DatadogMonitorEnabled, options.DatadogMonitorRequeue},
+		{options.DatadogGenericResourceEnabled, options.DatadogGenericResourceRequeue},
+	} {
+		if !consumer.enabled {
+			continue
+		}
+		period := consumer.requeuePeriod
+		if period <= 0 {
+			period = monitorpoller.DefaultInterval
+		}
+		if interval == 0 || period < interval {
+			interval = period
+		}
+	}
+	return interval
 }
 
 func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
@@ -173,6 +225,7 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		Options: DatadogMonitorReconcilerOptions{
 			MaxConcurrentReconciles: options.DatadogMonitorMaxWorkers,
 			RequeuePeriod:           options.DatadogMonitorRequeue,
+			StatePoller:             options.monitorStatePoller,
 		},
 	}
 
@@ -211,6 +264,7 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 		Options: DatadogGenericResourceReconcilerOptions{
 			MaxConcurrentReconciles: options.DatadogGenericResourceMaxWorkers,
 			RequeuePeriod:           options.DatadogGenericResourceRequeue,
+			StatePoller:             options.monitorStatePoller,
 		},
 	}
 

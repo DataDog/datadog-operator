@@ -20,6 +20,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	ddgr "github.com/DataDog/datadog-operator/internal/controller/datadoggenericresource"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
 	"github.com/DataDog/datadog-operator/pkg/config"
 )
 
@@ -37,6 +38,7 @@ type DatadogGenericResourceReconciler struct {
 type DatadogGenericResourceReconcilerOptions struct {
 	MaxConcurrentReconciles int
 	RequeuePeriod           time.Duration
+	StatePoller             *monitorpoller.Poller
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
@@ -51,12 +53,19 @@ func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instan
 func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, ddgr.ReconcilerOptions{
 		RequeuePeriod: r.Options.RequeuePeriod,
+		StatePoller:   r.Options.StatePoller,
 	})
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogGenericResource](r.Client, r)
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogGenericResource{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{})
+	// The shared state poller enqueues DatadogGenericResources at low priority
+	// once it has fetched their monitor's state.
+	if stateSource := r.internal.StateSource(); stateSource != nil {
+		builder = builder.WatchesRawSource(stateSource)
+	}
+	return builder.
 		WithOptions(ctrlcontroller.Options{
 			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
 		}).

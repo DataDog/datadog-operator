@@ -67,8 +67,18 @@ func (h *MonitorHandler) refreshState(auth context.Context, instance *v1alpha1.D
 	if err != nil {
 		return nil, err
 	}
-	state := string(m.GetOverallState())
+	state := h.stateFromMonitor(m)
 	return &state, nil
+}
+
+// stateMonitorID opts monitors in to batch state polling: their state is the
+// state of the monitor itself.
+func (h *MonitorHandler) stateMonitorID(status *v1alpha1.DatadogGenericResourceStatus) (int64, error) {
+	return resourceStringToInt64ID(status.Id)
+}
+
+func (h *MonitorHandler) stateFromMonitor(monitor datadogV1.Monitor) string {
+	return string(monitor.GetOverallState())
 }
 
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {
