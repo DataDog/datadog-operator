@@ -16,7 +16,7 @@ import (
 // NewAPIClient creates a Datadog API client identified by the operator build version.
 func NewAPIClient() *datadogapi.APIClient {
 	config := datadogapi.NewConfiguration()
-	config.UserAgent = "datadog-operator/" + version.GetVersion()
+	config.UserAgent = "Datadog Operator/" + version.GetVersion()
 	return datadogapi.NewAPIClient(config)
 }
 
