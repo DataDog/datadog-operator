@@ -6337,6 +6337,11 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podManagementPolicy:
+                          enum:
+                            - OrderedReady
+                            - Parallel
+                          type: string
                         replicas:
                           format: int32
                           minimum: 0
@@ -13791,6 +13796,11 @@ spec:
                                   - type: string
                                 x-kubernetes-int-or-string: true
                             type: object
+                          podManagementPolicy:
+                            enum:
+                              - OrderedReady
+                              - Parallel
+                            type: string
                           ports:
                             items:
                               properties:
@@ -18955,6 +18965,11 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podManagementPolicy:
+                          enum:
+                            - OrderedReady
+                            - Parallel
+                          type: string
                         replicas:
                           format: int32
                           minimum: 0

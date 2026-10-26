@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -73,6 +74,7 @@ func TestApply(t *testing.T) {
 					},
 				},
 			},
+			PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 		},
 		Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
@@ -87,7 +89,8 @@ func TestApply(t *testing.T) {
 					},
 				},
 			},
-			Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 		},
 		Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
 			Name: "logs",
@@ -251,6 +254,7 @@ func TestApplyIndexerDefaults(t *testing.T) {
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				DatadogBYOCClusterComponentSpec: defaultComponent,
 				Storage:                         defaultStorage,
+				PodManagementPolicy:             ptr.To(appsv1.ParallelPodManagement),
 			},
 		},
 		{
@@ -261,7 +265,8 @@ func TestApplyIndexerDefaults(t *testing.T) {
 					Resources:                     &corev1.ResourceRequirements{},
 					TerminationGracePeriodSeconds: ptr.To[int64](600),
 				},
-				Storage: customStorage.DeepCopy(),
+				Storage:             customStorage.DeepCopy(),
+				PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 			},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
@@ -269,7 +274,8 @@ func TestApplyIndexerDefaults(t *testing.T) {
 					Resources:                     &corev1.ResourceRequirements{},
 					TerminationGracePeriodSeconds: ptr.To[int64](600),
 				},
-				Storage: customStorage.DeepCopy(),
+				Storage:             customStorage.DeepCopy(),
+				PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 			},
 		},
 		{
@@ -280,6 +286,7 @@ func TestApplyIndexerDefaults(t *testing.T) {
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				DatadogBYOCClusterComponentSpec: defaultComponent,
 				Storage:                         &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+				PodManagementPolicy:             ptr.To(appsv1.ParallelPodManagement),
 			},
 		},
 	}
@@ -312,6 +319,7 @@ func TestApplySearcherDefaults(t *testing.T) {
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
+				PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 			},
 		},
 		{
@@ -326,6 +334,7 @@ func TestApplySearcherDefaults(t *testing.T) {
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
 				},
+				PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 			},
 		},
 	}

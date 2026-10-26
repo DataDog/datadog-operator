@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1154,6 +1155,11 @@ func (in *DatadogBYOCClusterStatefulComponentSpec) DeepCopyInto(out *DatadogBYOC
 		in, out := &in.Storage, &out.Storage
 		*out = new(DatadogBYOCClusterStorageSpec)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.PodManagementPolicy != nil {
+		in, out := &in.PodManagementPolicy, &out.PodManagementPolicy
+		*out = new(appsv1.PodManagementPolicyType)
+		**out = **in
 	}
 }
 

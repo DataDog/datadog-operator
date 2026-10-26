@@ -1943,6 +1943,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
 						},
 					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PipelineID identifies an existing Observability Pipeline to use.",
@@ -2234,6 +2241,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {
@@ -2703,6 +2717,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -5197,6 +5218,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {

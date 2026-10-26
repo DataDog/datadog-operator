@@ -379,6 +379,7 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 					Digest:     ptr.To("sha256:deadbeef"),
 				}
 				worker.Spec.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: ptr.To(resource.MustParse("1Gi"))}}
+				worker.Spec.PodManagementPolicy = ptr.To(appsv1.OrderedReadyPodManagement)
 				worker.Spec.Autoscaling = &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 					MinReplicas: ptr.To[int32](2),
 					MaxReplicas: ptr.To[int32](10),
@@ -408,7 +409,7 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 				},
 				Spec: appsv1.StatefulSetSpec{
 					ServiceName:         "byoc-pipeline",
-					PodManagementPolicy: appsv1.ParallelPodManagement,
+					PodManagementPolicy: appsv1.OrderedReadyPodManagement,
 					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
 						"app.kubernetes.io/name":     "observability-pipelines-worker",
 						"app.kubernetes.io/instance": "byoc-pipeline",
@@ -726,6 +727,7 @@ func testWorker() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 							},
 						},
 					},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 				Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
 					{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
