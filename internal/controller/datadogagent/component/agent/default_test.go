@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -138,6 +139,45 @@ func TestCommonEnvVars(t *testing.T) {
 
 			assert.Equal(t, tt.expectedServiceName, clusterAgentServiceName)
 			assert.Equal(t, tt.expectedSecretName, clusterAgentTokenName)
+		})
+	}
+}
+
+func TestNodeAgentPodNameEnvVar(t *testing.T) {
+	dda := &metav1.ObjectMeta{
+		Name:      "foo",
+		Namespace: "default",
+		Labels:    map[string]string{},
+	}
+
+	tests := []struct {
+		name      string
+		container corev1.Container
+	}{
+		{
+			name:      "core agent",
+			container: coreAgentContainer(dda),
+		},
+		{
+			name:      "single container agent",
+			container: agentSingleContainer(dda)[0],
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var podNameEnv *corev1.EnvVar
+			for i := range tt.container.Env {
+				if tt.container.Env[i].Name == DDPodName {
+					podNameEnv = &tt.container.Env[i]
+					break
+				}
+			}
+
+			require.NotNil(t, podNameEnv)
+			require.NotNil(t, podNameEnv.ValueFrom)
+			require.NotNil(t, podNameEnv.ValueFrom.FieldRef)
+			assert.Equal(t, common.FieldPathMetaName, podNameEnv.ValueFrom.FieldRef.FieldPath)
 		})
 	}
 }

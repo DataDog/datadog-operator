@@ -63,7 +63,12 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
-// Configure configures the feature from the spec, falling back to legacy annotations.
+// kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
+// because Kubernetes Actions communicates through it: the runner self-enrolls and stores its
+// identity in the secret covered by the Cluster Agent RBAC.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n"
+
+// Configure configures the feature from the spec, falling back to legacy annotations and Kubernetes Actions.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	*f = privateActionRunnerFeature{owner: dda, logger: f.logger}
 	var spec *v2alpha1.PrivateActionRunnerFeatureConfig
@@ -71,6 +76,15 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		spec = ddaSpec.Features.PrivateActionRunner
 	}
 	node, cluster := resolveConfiguration(dda, spec)
+	// Explicit PAR spec configuration takes precedence over automatic configuration
+	// from Kubernetes Actions, just as it does over the legacy annotations.
+	if spec == nil && featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
+		_, configured := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation)
+		if !cluster.enabled && !configured {
+			cluster.configData = kubernetesActionsDefaultConfigData
+		}
+		cluster.enabled = true
+	}
 
 	if node.enabled {
 		f.nodeEnabled = true

@@ -237,6 +237,16 @@ func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2
 	return dsStatus
 }
 
+// UpdateDaemonSetStatusDDAIFailed sets the DaemonSet status to Failed, keeping the counts of ds if it is not nil.
+func UpdateDaemonSetStatusDDAIFailed(dsName string, ds *appsv1.DaemonSet, dsStatus *v2alpha1.DaemonSetStatus, updateTime *metav1.Time) *v2alpha1.DaemonSetStatus {
+	dsStatus = UpdateDaemonSetStatusDDAI(dsName, ds, dsStatus, updateTime)
+	if ds != nil {
+		dsStatus.State = string(DatadogAgentStateFailed)
+		dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", DatadogAgentStateFailed, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	}
+	return dsStatus
+}
+
 func getCombinedState(currentState, newState string) string {
 	currentNum := assignNumeralState(currentState)
 	newNum := assignNumeralState(newState)

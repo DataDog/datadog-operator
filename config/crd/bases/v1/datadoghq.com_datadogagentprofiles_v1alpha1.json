@@ -1825,6 +1825,14 @@
                       "type": "array",
                       "x-kubernetes-list-type": "atomic"
                     },
+                    "collectionMode": {
+                      "description": "CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.\n`poll` re-opens a watch on every check run. `watch` streams events through a single\npersistent reflector-backed watch, which avoids dropping events in high-churn clusters.\nRequires Cluster Agent 7.81.1+.\nDefault: unset (the Cluster Agent's default is `poll`)",
+                      "enum": [
+                        "poll",
+                        "watch"
+                      ],
+                      "type": "string"
+                    },
                     "unbundleEvents": {
                       "description": "UnbundleEvents enables collection of Kubernetes events as individual events.\nDefault: false",
                       "type": "boolean"
@@ -2305,8 +2313,37 @@
                   "additionalProperties": false,
                   "description": "KubernetesActions configuration.",
                   "properties": {
+                    "communication": {
+                      "additionalProperties": false,
+                      "description": "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.\nAt least one channel must be enabled; both can be enabled at the same time.",
+                      "properties": {
+                        "privateActionRunner": {
+                          "additionalProperties": false,
+                          "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "remoteConfiguration": {
+                          "additionalProperties": false,
+                          "description": "RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
-                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
                       "type": "boolean"
                     }
                   },
@@ -2945,7 +2982,7 @@
                       "type": "object"
                     },
                     "configData": {
-                      "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled instead.\nConfigure allowed action patterns with private_action_runner.actions_allowlist.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
+                      "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled.\nConfigure allowed action patterns with private_action_runner.actions_allowlist.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
                       "type": "string"
                     },
                     "enabled": {

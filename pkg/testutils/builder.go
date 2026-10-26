@@ -642,6 +642,13 @@ func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithEventCollectionMode(mode string) *DatadogAgentBuilder {
+	builder.initEventCollection()
+	builder.datadogAgent.Spec.Features.EventCollection.CollectionMode = new(mode)
+
+	return builder
+}
+
 // Remote Config
 func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
@@ -1085,6 +1092,15 @@ func (builder *DatadogAgentBuilder) initKubernetesActions() {
 func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initKubernetesActions()
 	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKubernetesActionsCommunication(rc, par bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Communication = &v2alpha1.KubernetesActionsCommunicationConfig{
+		RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(rc)},
+		PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(par)},
+	}
 	return builder
 }
 

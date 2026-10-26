@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -65,7 +66,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
-			r.log.V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
+			ctrl.LoggerFrom(ctx).V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
 			for k, v := range node.Labels {
 				if _, ok := labelsToRemove[k]; ok {
 					continue
@@ -165,7 +166,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 					Name:      agentPod.Name,
 				},
 			}
-			r.log.Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
+			ctrl.LoggerFrom(ctx).Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
 			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
 				return err
 			}

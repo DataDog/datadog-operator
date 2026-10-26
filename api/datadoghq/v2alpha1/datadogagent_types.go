@@ -149,7 +149,7 @@ type PrivateActionRunnerFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// ConfigData contains YAML configuration, including the private_action_runner key,
-	// shared by both agents. The enabled field is controlled by Enabled instead.
+	// shared by both agents. The enabled field is controlled by Enabled.
 	// Configure allowed action patterns with private_action_runner.actions_allowlist.
 	// Default: "private_action_runner:\n  enabled: true\n"
 	// +optional
@@ -194,7 +194,49 @@ type PrivateActionRunnerClusterAgentConfig struct {
 // +k8s:openapi-gen=true
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Requires Cluster Agent 7.84.0 or greater.
 	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
+	// At least one channel must be enabled; both can be enabled at the same time.
+	// +optional
+	Communication *KubernetesActionsCommunicationConfig `json:"communication,omitempty"`
+}
+
+// KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.
+// +k8s:openapi-gen=true
+type KubernetesActionsCommunicationConfig struct {
+	// RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+	// +optional
+	RemoteConfiguration *KubernetesActionsRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
+
+	// PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// +optional
+	PrivateActionRunner *KubernetesActionsPrivateActionRunnerConfig `json:"privateActionRunner,omitempty"`
+}
+
+// KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.
+// +k8s:openapi-gen=true
+type KubernetesActionsRemoteConfigurationConfig struct {
+	// Enabled enables delivery of Kubernetes actions through Remote Configuration.
+	// Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent
+// Private Action Runner.
+// +k8s:openapi-gen=true
+type KubernetesActionsPrivateActionRunnerConfig struct {
+	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+	// configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -1161,6 +1203,15 @@ type EventCollectionFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+
+	// CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.
+	// `poll` re-opens a watch on every check run. `watch` streams events through a single
+	// persistent reflector-backed watch, which avoids dropping events in high-churn clusters.
+	// Requires Cluster Agent 7.81.1+.
+	// Default: unset (the Cluster Agent's default is `poll`)
+	// +optional
+	// +kubebuilder:validation:Enum=poll;watch
+	CollectionMode *string `json:"collectionMode,omitempty"`
 }
 
 // EventTypes defines the kind and reasons of events to collect.

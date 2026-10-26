@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -31,15 +30,14 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	reqLogger := ctrl.LoggerFrom(ctx).WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
-	reqLogger.Info("Reconciling DatadogAgent")
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
 
 	// 1. Validate the resource.
@@ -48,7 +46,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 2. Handle finalizer logic.
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -62,7 +60,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstance(ctx, reqLogger, instanceCopy, rawSpec)
+	return r.reconcileInstance(ctx, instanceCopy, rawSpec)
 }
 
 // Force GCR registry if not set to avoid defaulting to Datadog registry
@@ -85,7 +83,8 @@ func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
-func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstance(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
 		f, err := newFieldManager(ctx, r.client, r.scheme, getDDAIGVK())
@@ -116,7 +115,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// ordinary ServiceAccount permits. Resolve (and always verify) the ServiceAccount
 	// before generating the DDAI, so the pod spec and the RBAC binding both pick the
 	// value up through constants.GetAgentServiceAccount.
-	r.reconcileOpenShiftSCC(ctx, logger, instance, provider, newDDAStatus, now)
+	r.reconcileOpenShiftSCC(ctx, instance, provider, newDDAStatus, now)
 
 	if r.options.CreateControllerRevisions {
 		revList, err := r.listRevisions(ctx, instance)
@@ -181,7 +180,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		if e != nil {
 			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
@@ -235,7 +234,7 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *
 
 	setDeprecatedConfigStatus(agentdeployment, newStatus, now)
 
-	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
+	r.setMetricsForwarderStatus(ctx, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
@@ -259,7 +258,7 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
-func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+func (r *Reconciler) setMetricsForwarderStatus(ctx context.Context, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
 			condition.UpdateDatadogAgentStatusConditions(
@@ -272,7 +271,7 @@ func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployme
 				true,
 			)
 		} else {
-			logger.V(1).Info("metrics conditions status could not be set")
+			ctrl.LoggerFrom(ctx).V(1).Info("metrics conditions status could not be set")
 		}
 	}
 }
@@ -360,12 +359,12 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 // rejected.
 func (r *Reconciler) reconcileOpenShiftSCC(
 	ctx context.Context,
-	logger logr.Logger,
 	instance *datadoghqv2alpha1.DatadogAgent,
 	provider string,
 	status *datadoghqv2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 ) {
+	logger := ctrl.LoggerFrom(ctx)
 	if !kubernetes.IsOpenShiftProvider(provider) || r.options.SCCAuthorizer == nil {
 		return
 	}

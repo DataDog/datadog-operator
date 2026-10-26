@@ -286,6 +286,9 @@ spec:
 `features.eventCollection.collectedEventTypes`
 : CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ]
 
+`features.eventCollection.collectionMode`
+: CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server. `poll` re-opens a watch on every check run. `watch` streams events through a single persistent reflector-backed watch, which avoids dropping events in high-churn clusters. Requires Cluster Agent 7.81.1+. Default: unset (the Cluster Agent's default is `poll`)
+
 `features.eventCollection.unbundleEvents`
 : UnbundleEvents enables collection of Kubernetes events as individual events. Default: false
 
@@ -343,8 +346,14 @@ spec:
 `features.kubeStateMetricsCore.shardingEnabled`
 : `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset.
 
+`features.kubernetesActions.communication.privateActionRunner.enabled`
+: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
+
+`features.kubernetesActions.communication.remoteConfiguration.enabled`
+: Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true
+
 `features.kubernetesActions.enabled`
-: Enables the Kubernetes Actions feature on the Cluster Agent. Default: false
+: Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false
 
 `features.kueue.collectWorkloadEvents`
 : CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true

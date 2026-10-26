@@ -28,15 +28,16 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 	const shared = "private_action_runner:\n  actions_allowlist:\n    - com.datadoghq.script.runPredefinedScript\n  task_concurrency: 3\n"
 	const custom = "private_action_runner:\n  self_enroll: true\n  identity_secret_name: cluster-par-identity\n"
 	tests := []struct {
-		name        string
-		config      v2alpha1.PrivateActionRunnerFeatureConfig
-		annotations map[string]string
-		agentTag    string
-		wantNode    bool
-		wantCluster bool
-		wantSplit   bool
-		wantNodeYML string
-		wantClusYML string
+		name              string
+		config            v2alpha1.PrivateActionRunnerFeatureConfig
+		annotations       map[string]string
+		agentTag          string
+		kubernetesActions bool
+		wantNode          bool
+		wantCluster       bool
+		wantSplit         bool
+		wantNodeYML       string
+		wantClusYML       string
 	}{
 		{
 			name:     "shared enable and config apply to both agents",
@@ -127,12 +128,35 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			},
 			wantNode: true, wantCluster: true, wantNodeYML: shared, wantClusYML: shared,
 		},
+		{
+			name:              "explicit shared config takes precedence over Kubernetes Actions defaults",
+			config:            v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(shared)},
+			kubernetesActions: true,
+			wantNode:          true, wantCluster: true, wantSplit: true,
+			wantNodeYML: shared, wantClusYML: shared,
+		},
+		{
+			name: "explicit cluster disable takes precedence over Kubernetes Actions",
+			config: v2alpha1.PrivateActionRunnerFeatureConfig{
+				Enabled: new(true), ConfigData: new(shared),
+				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(false)},
+			},
+			kubernetesActions: true,
+			wantNode:          true, wantSplit: true, wantNodeYML: shared,
+		},
+		{
+			name:              "empty spec block overrides automatic Kubernetes Actions configuration",
+			kubernetesActions: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default", Annotations: tt.annotations},
 				Spec:       v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: &tt.config}},
+			}
+			if tt.kubernetesActions {
+				dda.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{Enabled: new(true)}
 			}
 			if tt.agentTag != "" {
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{

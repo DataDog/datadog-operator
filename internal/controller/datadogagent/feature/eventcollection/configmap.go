@@ -13,8 +13,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-func buildDefaultConfigMap(namespace, name string, unbundleEvents bool, collectedEventTypes []v2alpha1.EventTypes) (*corev1.ConfigMap, error) {
-	content, err := kubeAPIServerCheckConfig(unbundleEvents, collectedEventTypes)
+func buildDefaultConfigMap(namespace, name string, unbundleEvents bool, collectedEventTypes []v2alpha1.EventTypes, collectionMode string) (*corev1.ConfigMap, error) {
+	content, err := kubeAPIServerCheckConfig(unbundleEvents, collectedEventTypes, collectionMode)
 	if err != nil {
 		return nil, err
 	}
@@ -30,14 +30,27 @@ func buildDefaultConfigMap(namespace, name string, unbundleEvents bool, collecte
 	}, nil
 }
 
-func kubeAPIServerCheckConfig(unbundleEvents bool, collectedEventTypes []v2alpha1.EventTypes) (string, error) {
+func kubeAPIServerCheckConfig(unbundleEvents bool, collectedEventTypes []v2alpha1.EventTypes, collectionMode string) (string, error) {
+	instance := map[string]any{
+		"unbundle_events": unbundleEvents,
+	}
+
+	// only set collected_event_types when there are some, so a watch-only config
+	// doesn't carry an empty list - effectively omitempty
+	if len(collectedEventTypes) > 0 {
+		instance["collected_event_types"] = collectedEventTypes
+	}
+
+	// conditionally set event_collection_mode so that an explicit empty string ""
+	// does not cause a misconfiguration - effectively omitempty
+	if collectionMode != "" {
+		instance["event_collection_mode"] = collectionMode
+	}
+
 	cm := map[string]any{
 		"init_config": nil,
 		"instances": []map[string]any{
-			{
-				"unbundle_events":       unbundleEvents,
-				"collected_event_types": collectedEventTypes,
-			},
+			instance,
 		},
 	}
 
