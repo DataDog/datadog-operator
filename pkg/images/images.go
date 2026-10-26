@@ -257,10 +257,9 @@ func (i *Image) ToString() string {
 	return fmt.Sprintf("%s/%s:%s%s", i.registry, i.name, i.tag, suffix)
 }
 
-// ParseTagSuffixes extracts FIPS, JMX, and Full suffix flags from a tag string.
+// parseTagSuffixes extracts FIPS, JMX, and Full suffix flags from a tag string.
 // Suffixes are parsed right to left: Full -> JMX -> FIPS, matching the order they appear in the tag.
-// Non-variant suffixes such as -rc.1 and -devel are preserved.
-func ParseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
+func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
 	isFull = strings.HasSuffix(tag, FullTagSuffix)
 	if isFull {
 		tag = strings.TrimSuffix(tag, FullTagSuffix)
@@ -295,7 +294,7 @@ func FromString(stringImage string) *Image {
 	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
 
 	name := splitName[0]
-	tag, isJMX, isFIPS, isFull := ParseTagSuffixes(splitName[1])
+	tag, isJMX, isFIPS, isFull := parseTagSuffixes(splitName[1])
 
 	return newImage(registry, name, tag, isJMX, isFIPS, isFull)
 }
@@ -312,7 +311,7 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 		return FromString(imageConfig.Name)
 	}
 
-	imageTag, isJMX, isFIPS, isFull := ParseTagSuffixes(imageConfig.Tag)
+	imageTag, isJMX, isFIPS, isFull := parseTagSuffixes(imageConfig.Tag)
 	isJMX = isJMX || imageConfig.JMXEnabled
 
 	return newImage("", imageConfig.Name, imageTag, isJMX, isFIPS, isFull)
