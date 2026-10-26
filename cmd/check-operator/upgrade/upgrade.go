@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	corev1helpers "k8s.io/component-helpers/scheduling/corev1"
 	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -349,9 +350,8 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 }
 
 type agentDaemonSet struct {
-	ds       *appsv1.DaemonSet
-	selector labels.Selector
-	// oldestOutdated maps each node that runs an out-of-date pod to the oldest such pod.
+	ds             *appsv1.DaemonSet
+	selector       labels.Selector
 	oldestOutdated map[string]*corev1.Pod
 }
 
@@ -360,7 +360,7 @@ type agentDaemonSet struct {
 // as the DaemonSet controller status. It returns none if fewer than minSkipped or more than
 // maxSkipped pairs qualify, and stops its API calls as soon as it knows.
 func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxSkipped int32) ([]string, error) {
-	// 1. List the Agent DaemonSets of the DatadogAgent.
+	// 1. Agent DaemonSets of the DatadogAgent.
 	dsList := &appsv1.DaemonSetList{}
 	if err := o.Client.List(
 		ctx,
@@ -374,7 +374,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, fmt.Errorf("unable to list Agent DaemonSets: %w", err)
 	}
 
-	// 2. For each DaemonSet, find the nodes running a pod on an older template generation.
+	// 2. Nodes running an out-of-date pod, with their oldest such pod.
 	var daemonSets []agentDaemonSet
 	var outdatedPairs int32
 	nodeNames := map[string]struct{}{}
@@ -406,7 +406,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, nil
 	}
 
-	// 3. Get these nodes and keep the not-Ready ones.
+	// 3. Keep the not-Ready nodes.
 	notReadyNodes := map[string]*corev1.Node{}
 	for name := range nodeNames {
 		node := &corev1.Node{}
@@ -421,7 +421,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		}
 	}
 
-	// 4. Keep the nodes that the current template still targets, as only these are in Current.
+	// 4. Keep the nodes that the current template targets: only these are in Current.
 	var candidatePairs int32
 	candidates := make([][]string, len(daemonSets))
 	for i, d := range daemonSets {
@@ -437,8 +437,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, nil
 	}
 
-	// 5. Skip a node unless its oldest pod has the current revision hash, which the status counts
-	// as updated.
+	// 5. Skip a node unless its oldest pod has the current revision hash, which counts as updated.
 	var skipped []string
 	for i, d := range daemonSets {
 		if len(candidates[i]) == 0 {
@@ -475,8 +474,9 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 }
 
 // getOldestOutdatedPods returns, for each node that runs a pod of the DaemonSet on an older template
-// generation, the oldest such pod. The DaemonSet controller only looks at the oldest pod of a node to
-// count it as updated, and generations only grow over time, so that pod is always in this list.
+// generation, the oldest such pod. The DaemonSet controller judges a node by its oldest pod, which is
+// in this list as generations grow over time. A recreated DaemonSet that adopts pods of a higher
+// generation breaks this, but the Operator does not recreate Agent DaemonSets in practice.
 func (o *Options) getOldestOutdatedPods(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector) (map[string]*corev1.Pod, error) {
 	outdatedReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.NotEquals, []string{ds.Annotations[appsv1.DeprecatedTemplateGeneration]})
 	if err != nil {
@@ -529,8 +529,8 @@ func fromWatchCache() client.ListOption {
 	return &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}}
 }
 
-// isCountedDaemonPod returns true if the DaemonSet controller counts this pod in its status: it is
-// controlled by the DaemonSet, bound to a node, and not both terminal and deleted.
+// isCountedDaemonPod returns true if the pod is controlled by the DaemonSet, bound to a node, and not
+// both terminal and deleted. The controller also counts unbound pods; ignoring them skips fewer nodes.
 func isCountedDaemonPod(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
 	if !metav1.IsControlledBy(pod, ds) || pod.Spec.NodeName == "" {
 		return false
@@ -553,30 +553,16 @@ func shouldRunOnNode(ds *appsv1.DaemonSet, affinity nodeaffinity.RequiredNodeAff
 }
 
 // toleratesNodeTaints returns true if a pod of the DaemonSet tolerates every NoSchedule and
-// NoExecute taint of the node. Like the DaemonSet controller, it adds the default DaemonSet
-// tolerations to the pod template ones.
+// NoExecute taint of the node, with the default DaemonSet tolerations, like the DaemonSet controller.
 func toleratesNodeTaints(ds *appsv1.DaemonSet, node *corev1.Node) bool {
-	tolerations := append(append([]corev1.Toleration{}, ds.Spec.Template.Spec.Tolerations...), daemonSetDefaultTolerations...)
+	tolerations := slices.Concat(ds.Spec.Template.Spec.Tolerations, daemonSetDefaultTolerations)
 	if ds.Spec.Template.Spec.HostNetwork {
 		tolerations = append(tolerations, corev1.Toleration{Key: corev1.TaintNodeNetworkUnavailable, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule})
 	}
-	for i := range node.Spec.Taints {
-		taint := &node.Spec.Taints[i]
-		if taint.Effect != corev1.TaintEffectNoSchedule && taint.Effect != corev1.TaintEffectNoExecute {
-			continue
-		}
-		tolerated := false
-		for j := range tolerations {
-			if tolerations[j].ToleratesTaint(klog.Background(), taint, false) {
-				tolerated = true
-				break
-			}
-		}
-		if !tolerated {
-			return false
-		}
-	}
-	return true
+	_, untolerated := corev1helpers.FindMatchingUntoleratedTaint(klog.Background(), node.Spec.Taints, tolerations, func(t *corev1.Taint) bool {
+		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
+	}, false)
+	return !untolerated
 }
 
 func isNodeReady(node *corev1.Node) bool {
