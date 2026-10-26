@@ -6,6 +6,7 @@
 package utils
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -16,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
@@ -23,15 +25,22 @@ import (
 
 // Keep version selection aligned with Helm's process-passwd-mount-path helper.
 // This covers Process Check/Discovery only; Gohai still uses local user lookup.
-var processHostPasswdMinVersion = semver.MustParse("7.86.0")
+var (
+	processHostPasswdMinVersion          = semver.MustParse("7.86.0")
+	processHostPasswdMinAllowlistVersion = semver.MustParse("1.0.8")
+	processAllowlistVersionRegexp        = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+)
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility. HOST_ETC is initialized by the Agent;
 // do not override an explicitly configured HOST_ETC or ignore_host_etc here.
 func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, containerName apicommon.AgentContainerName, pod *corev1.PodTemplateSpec) string {
-	// Published Autopilot allowlists still require /etc/passwd. Windows does not
-	// use the Unix host-passwd resolver.
-	if dda != nil && (experimental.IsAutopilotEnabled(dda) || dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider) {
+	// Windows does not use the Unix host-passwd resolver. Older Autopilot
+	// allowlist pins permit only the legacy destination.
+	if dda != nil && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
+		return common.PasswdMountPath
+	}
+	if experimental.IsAutopilotEnabled(dda) && !autopilotSupportsProcessHostPasswd(dda) {
 		return common.PasswdMountPath
 	}
 
@@ -41,7 +50,9 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	}
 	// Strip build variants, not prereleases such as -devel or -rc.1.
 	tag := pkgutils.GetTagFromImageName(image)
-	tag, _, _, _ = images.ParseTagSuffixes(strings.TrimSuffix(tag, images.WindowsServerCoreTagSuffix)) //nolint:dogsled // Only the base tag is needed for version comparison.
+	for _, suffix := range []string{images.WindowsServerCoreTagSuffix, images.FullTagSuffix, images.JMXTagSuffix, images.FIPSTagSuffix} {
+		tag = strings.TrimSuffix(tag, suffix)
+	}
 	if tag == "7" || tag == "latest" {
 		tag = images.AgentLatestVersion
 	}
@@ -52,6 +63,18 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 		return "/host/etc/passwd"
 	}
 	return common.PasswdMountPath
+}
+
+// autopilotSupportsProcessHostPasswd follows CreateAllowlistSynchronizer's
+// override validation: missing or malformed pins use the shared default.
+// Valid older pins must retain /etc/passwd even with a compatible Agent image.
+func autopilotSupportsProcessHostPasswd(dda metav1.Object) bool {
+	version := dda.GetAnnotations()[experimental.ExperimentalAnnotationPrefix+"/"+experimental.ExperimentalAutopilotAllowlistVersionSubkey]
+	if !processAllowlistVersionRegexp.MatchString(version) {
+		version = allowlistsynchronizer.DefaultWorkloadAllowlistVersion
+	}
+	allowlistVersion, err := semver.NewVersion(version)
+	return err == nil && !allowlistVersion.LessThan(processHostPasswdMinAllowlistVersion)
 }
 
 // resolveProcessAgentImage predicts the image after component and experimental

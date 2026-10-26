@@ -16,6 +16,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
@@ -29,6 +30,7 @@ import (
 
 // This test only assembles pod templates in memory. It does not use a cluster.
 func TestBothProcessFeaturesPasswdMount(t *testing.T) {
+	const allowlistAnnotation = experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotAllowlistVersionSubkey
 	for _, tt := range []struct {
 		name         string
 		tag          string
@@ -36,6 +38,7 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 		security     bool
 		systemProbe  bool
 		talos        bool
+		annotations  map[string]string
 		expectedPath string
 	}{
 		{name: "core", tag: "7.86.0", expectedPath: "/host/etc/passwd"},
@@ -51,6 +54,14 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 		{name: "old core with security agent", tag: "7.85.0", security: true, expectedPath: "/etc/passwd"},
 		{name: "old core with system probe", tag: "7.85.0", security: true, systemProbe: true, expectedPath: "/etc/passwd"},
 		{name: "Talos exclusion", tag: "7.86.0", talos: true},
+		{name: "Autopilot default allowlist", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/host/etc/passwd"},
+		{name: "Autopilot explicit new allowlist", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, allowlistAnnotation: "v1.0.8"}, expectedPath: "/host/etc/passwd"},
+		{name: "Autopilot pinned old allowlist", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, allowlistAnnotation: "v1.0.7"}, expectedPath: "/etc/passwd"},
+		{name: "Autopilot old Agent", tag: "7.85.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/etc/passwd"},
+		{name: "Autopilot prerelease Agent", tag: "7.87.0-rc.1", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/etc/passwd"},
+		{name: "Autopilot separate process agent", tag: "7.59.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/etc/passwd"},
+		{name: "Autopilot experimental opt-in", tag: "7.86.0", annotations: map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"}, expectedPath: "/host/etc/passwd"},
+		{name: "Autopilot malformed pin uses default", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, allowlistAnnotation: "v1.0.7-rc.1"}, expectedPath: "/host/etc/passwd"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			nodeOverride := v2alpha1.DatadogAgentComponentOverride{
@@ -60,7 +71,7 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			dda := testutils.NewDatadogAgentBuilder().WithLiveProcessEnabled(true).WithProcessDiscoveryEnabled(true).
 				WithSingleContainerStrategy(tt.single).WithCSPMEnabled(tt.security).WithCWSEnabled(tt.security).
 				WithCSPMRunInSystemProbe(tt.systemProbe).WithCWSDirectSendFromSystemProbe(tt.systemProbe).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, nodeOverride).Build()
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, nodeOverride).WithAnnotations(tt.annotations).Build()
 			if tt.talos {
 				dda.Annotations = map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.TalosProvider}
 			}

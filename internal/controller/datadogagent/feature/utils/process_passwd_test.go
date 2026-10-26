@@ -77,9 +77,15 @@ func TestProcessPasswdMountPath(t *testing.T) {
 		{name: "original container name ignored after rename", image: "agent:7.86.0", nameOverride: new("custom-agent"), annotations: map[string]string{imageOverride: `{"agent":{"tag":"7.85.0"}}`}, expectedPath: host},
 		{name: "other container ignored", image: "agent:7.86.0", annotations: map[string]string{imageOverride: `{"trace-agent":{"tag":"7.85.0"}}`}, expectedPath: host},
 		{name: "malformed annotation", image: "agent:7.86.0", annotations: map[string]string{imageOverride: `{`}, expectedPath: legacy},
-		{name: "autopilot provider", image: "agent:7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: legacy},
-		{name: "autopilot annotation", image: "agent:7.86.0", annotations: map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"}, expectedPath: legacy},
+		{name: "autopilot provider", image: "agent:7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: host},
+		{name: "autopilot annotation", image: "agent:7.86.0", annotations: map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"}, expectedPath: host},
+		{name: "autopilot old stable", image: "agent:7.85.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: legacy},
+		{name: "autopilot future RC", image: "agent:7.87.0-rc.1", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: legacy},
+		{name: "autopilot digest", image: "agent:7.86.0@sha256:aaaaaaaa", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: legacy},
+		{name: "autopilot per container downgrade", image: "agent:7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, imageOverride: `{"agent":{"tag":"7.85.0"}}`}, expectedPath: legacy},
+		{name: "autopilot per container upgrade", image: "agent:7.85.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, imageOverride: `{"agent":{"tag":"7.86.0"}}`}, expectedPath: host},
 		{name: "windows", image: "agent:7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}, expectedPath: legacy},
+		{name: "windows with autopilot annotation", image: "agent:7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider, experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"}, expectedPath: legacy},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -95,5 +101,51 @@ func TestProcessPasswdMountPath(t *testing.T) {
 			assert.Equal(t, tt.expectedPath, ProcessPasswdMountPath(owner, nodeOverride, apicommon.CoreAgentContainerName, pod))
 			assert.Equal(t, expectedPod, pod, "selection must not mutate image or environment")
 		})
+	}
+}
+
+func TestProcessPasswdMountPathAutopilotAllowlist(t *testing.T) {
+	const host = "/host/etc/passwd"
+	const legacy = common.PasswdMountPath
+	const allowlistAnnotation = experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotAllowlistVersionSubkey
+	tests := []struct {
+		name         string
+		version      string
+		expectedPath string
+	}{
+		{name: "default", expectedPath: host},
+		{name: "first compatible allowlist", version: "v1.0.8", expectedPath: host},
+		{name: "newer patch", version: "v1.0.9", expectedPath: host},
+		{name: "newer minor", version: "v1.1.0", expectedPath: host},
+		{name: "newer major", version: "v2.0.0", expectedPath: host},
+		{name: "previous allowlist", version: "v1.0.7", expectedPath: legacy},
+		{name: "older allowlist", version: "v1.0.0", expectedPath: legacy},
+		{name: "leading zero old version", version: "v01.00.007", expectedPath: legacy},
+		{name: "missing prefix falls back to default", version: "1.0.7", expectedPath: host},
+		{name: "prerelease falls back to default", version: "v1.0.7-rc.1", expectedPath: host},
+		{name: "metadata falls back to default", version: "v1.0.7+build", expectedPath: host},
+		{name: "abbreviated version falls back to default", version: "v1.0", expectedPath: host},
+		{name: "whitespace falls back to default", version: " v1.0.7 ", expectedPath: host},
+		{name: "malformed falls back to default", version: "invalid", expectedPath: host},
+		{name: "unparseable accepted format is conservative", version: "v18446744073709551616.0.0", expectedPath: legacy},
+	}
+	for _, provider := range []struct{ name, key, value string }{
+		{"provider", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider},
+		{"experimental", experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey, "TrUe"},
+	} {
+		for _, containerName := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.ProcessAgentContainerName} {
+			for _, tt := range tests {
+				t.Run(provider.name+"/"+string(containerName)+"/"+tt.name, func(t *testing.T) {
+					owner := &metav1.ObjectMeta{Annotations: map[string]string{
+						provider.key:        provider.value,
+						allowlistAnnotation: tt.version,
+					}}
+					pod := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: string(containerName), Image: "agent:7.86.0"}}}}
+					expectedPod := pod.DeepCopy()
+					assert.Equal(t, tt.expectedPath, ProcessPasswdMountPath(owner, nil, containerName, pod))
+					assert.Equal(t, expectedPod, pod, "selection must not mutate the pod")
+				})
+			}
+		}
 	}
 }
