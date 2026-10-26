@@ -467,7 +467,7 @@ spec:
 : Overrides the shared enabled setting for the Cluster Agent.
 
 `features.privateActionRunner.configData`
-: ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled instead. Configure allowed action patterns with private_action_runner.actions_allowlist. Default: "private_action_runner:\n  enabled: true\n"
+: ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled. Configure allowed action patterns with private_action_runner.actions_allowlist. Default: "private_action_runner:\n  enabled: true\n"
 
 `features.privateActionRunner.enabled`
 : Enables Private Action Runner on both the Node Agent and Cluster Agent. Component-specific enabled settings take precedence. Default: false
