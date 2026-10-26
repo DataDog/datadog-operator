@@ -132,7 +132,6 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -205,7 +204,6 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),

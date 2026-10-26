@@ -1,16 +1,7 @@
 package datadogagent
 
 import (
-	"context"
-
-	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -41,30 +32,4 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 		status.CurrentRevisionObservedAnnotationsHash = ddaStatus.CurrentRevisionObservedAnnotationsHash
 	}
 	return status
-}
-
-// deleteDeploymentWithEvent deletes a deployment and records DDA event only if deletion was successful
-func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment) (reconcile.Result, error) {
-	nsName := types.NamespacedName{
-		Name:      deployment.GetName(),
-		Namespace: deployment.GetNamespace(),
-	}
-
-	// Existing deployment attached to this instance
-	existingDeployment := &appsv1.Deployment{}
-	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
-		if apierrors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
-	}
-	ctrl.LoggerFrom(ctx).Info("Deleting Deployment")
-	if err := r.client.Delete(ctx, existingDeployment); err != nil {
-		return reconcile.Result{}, err
-	}
-	// Record event only if deletion was successful
-	event := buildEventInfo(existingDeployment.Name, existingDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
-	r.recordEvent(dda, event)
-
-	return reconcile.Result{}, nil
 }

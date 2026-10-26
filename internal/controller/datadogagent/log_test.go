@@ -108,13 +108,6 @@ func TestHelpersUseContextLogger(t *testing.T) {
 				return r.createOrUpdateDatadogCSIDriver(ctx, testutils.NewInitializedDatadogAgentBuilder("ns", "dda").BuildWithDefaults())
 			},
 		},
-		{
-			name: "deployment lookup",
-			run: func(ctx context.Context, r *Reconciler) error {
-				_, err := r.getCurrentDeployment(ctx, &v2alpha1.DatadogAgent{}, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "missing", Namespace: "ns"}})
-				return err
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
