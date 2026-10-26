@@ -167,7 +167,8 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 	return config.PrivateActionRunner, nil
 }
 
-// enabledConfigData validates spec configuration and keeps enabled consistent with the feature.
+// enabledConfigData validates spec configuration and enables its PAR section,
+// creating the section when absent.
 func enabledConfigData(configData string) (string, error) {
 	config, err := parsePrivateActionRunnerConfig(configData)
 	if err != nil {
@@ -176,29 +177,35 @@ func enabledConfigData(configData string) (string, error) {
 	if config.Enabled {
 		return configData, nil
 	}
-	return overrideEnabledValueInConfigData(configData, true)
+	return setEnabledValueInConfigData(configData, true, true)
 }
 
 // overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
-// matches the desired value.
+// matches the desired value without adding a missing private_action_runner section.
 func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
+	return setEnabledValueInConfigData(configData, enabled, false)
+}
+
+func setEnabledValueInConfigData(configData string, enabled, createMissingSection bool) (string, error) {
 	var data map[string]any
 	if err := yaml.Unmarshal([]byte(configData), &data); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
 
-	if data == nil {
-		data = make(map[string]any)
-	}
 	parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any)
-	if !ok {
+	if !ok && createMissingSection {
 		if data[privateActionRunnerConfigKey] != nil {
 			return "", fmt.Errorf("%s must be a YAML mapping", privateActionRunnerConfigKey)
+		}
+		if data == nil {
+			data = make(map[string]any)
 		}
 		parConfig = make(map[string]any)
 		data[privateActionRunnerConfigKey] = parConfig
 	}
-	parConfig[privateActionRunnerEnabledKey] = enabled
+	if parConfig != nil {
+		parConfig[privateActionRunnerEnabledKey] = enabled
+	}
 
 	updatedYAML, err := yaml.Marshal(data)
 	if err != nil {

@@ -25,8 +25,6 @@ import (
 )
 
 func TestPrivateActionRunnerSpec(t *testing.T) {
-	const shared = "private_action_runner:\n  actions_allowlist:\n    - com.datadoghq.script.runPredefinedScript\n  task_concurrency: 3\n"
-	const custom = "private_action_runner:\n  self_enroll: true\n  identity_secret_name: cluster-par-identity\n"
 	tests := []struct {
 		name              string
 		config            v2alpha1.PrivateActionRunnerFeatureConfig
@@ -40,65 +38,152 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 		wantClusYML       string
 	}{
 		{
-			name:     "shared enable and config apply to both agents",
-			config:   v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(shared)},
+			name: "shared enable and config apply to both agents",
+			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`)},
 			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: shared, wantClusYML: shared,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name:     "default config enables both agents",
 			config:   v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)},
 			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: defaultConfigData, wantClusYML: defaultConfigData,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+`,
 		},
 		{
 			name: "node config overrides shared config without affecting cluster",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(shared),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{ConfigData: new(custom)},
+				Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`),
+				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{ConfigData: new(`private_action_runner:
+  self_enroll: true
+  identity_secret_name: cluster-par-identity
+`)},
 			},
 			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: custom, wantClusYML: shared,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: cluster-par-identity
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name: "cluster config overrides shared config without affecting node",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(shared),
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{ConfigData: new(custom)},
+				Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`),
+				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{ConfigData: new(`private_action_runner:
+  self_enroll: true
+  identity_secret_name: cluster-par-identity
+`)},
 			},
 			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: shared, wantClusYML: custom,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: cluster-par-identity
+`,
 		},
 		{
 			name: "disable node only",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(shared),
+				Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`),
 				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{Enabled: new(false)},
 			},
-			wantCluster: true, wantClusYML: shared,
+			wantCluster: true,
+			wantClusYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name: "disable cluster only",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(shared),
+				Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`),
 				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(false)},
 			},
-			wantNode: true, wantSplit: true, wantNodeYML: shared,
+			wantNode: true, wantSplit: true,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name: "enable node despite shared disable",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(false), ConfigData: new(shared),
+				Enabled: new(false), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`),
 				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{Enabled: new(true)},
 			},
-			wantNode: true, wantSplit: true, wantNodeYML: shared,
+			wantNode: true, wantSplit: true,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name: "enable cluster without shared enable",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
 				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(true)},
 			},
-			wantCluster: true, wantClusYML: defaultConfigData,
+			wantCluster: true,
+			wantClusYML: `private_action_runner:
+  enabled: true
+`,
 		},
 		{
 			name: "old node agent cannot use split mode",
@@ -106,7 +191,12 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 				Enabled: new(true),
 			},
 			agentTag: "7.83.0", wantNode: true, wantCluster: true,
-			wantNodeYML: defaultConfigData, wantClusYML: defaultConfigData,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+`,
 		},
 		{
 			name: "empty spec block overrides legacy enable annotations",
@@ -116,8 +206,12 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			},
 		},
 		{
-			name:   "spec overrides enable and config annotations but preserves split and remediation annotations",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(shared)},
+			name: "spec overrides enable and config annotations but preserves split and remediation annotations",
+			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`)},
 			annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation:                  "false",
 				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation:      "false",
@@ -126,27 +220,92 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation:  "invalid: [",
 				featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled: "true",
 			},
-			wantNode: true, wantCluster: true, wantNodeYML: shared, wantClusYML: shared,
+			wantNode: true, wantCluster: true,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
-			name:              "explicit shared config takes precedence over Kubernetes Actions defaults",
-			config:            v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(shared)},
+			name: "explicit shared config takes precedence over Kubernetes Actions defaults",
+			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`)},
 			kubernetesActions: true,
 			wantNode:          true, wantCluster: true, wantSplit: true,
-			wantNodeYML: shared, wantClusYML: shared,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name: "explicit cluster disable takes precedence over Kubernetes Actions",
 			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(shared),
+				Enabled: new(true), ConfigData: new(`private_action_runner:
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`),
 				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(false)},
 			},
 			kubernetesActions: true,
-			wantNode:          true, wantSplit: true, wantNodeYML: shared,
+			wantNode:          true, wantSplit: true,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+  task_concurrency: 3
+`,
 		},
 		{
 			name:              "empty spec block overrides automatic Kubernetes Actions configuration",
 			kubernetesActions: true,
+		},
+		{
+			name:     "empty spec config data still enables both agents",
+			config:   v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new("")},
+			wantNode: true, wantCluster: true, wantSplit: true,
+			wantNodeYML: `private_action_runner:
+  enabled: true
+`,
+			wantClusYML: `private_action_runner:
+  enabled: true
+`,
+		},
+		{
+			name: "spec adds a missing PAR section and preserves unrelated config",
+			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`some_other_config:
+  key: value
+`)},
+			wantNode: true, wantCluster: true, wantSplit: true,
+			wantNodeYML: `some_other_config:
+  key: value
+private_action_runner:
+  enabled: true
+`,
+			wantClusYML: `some_other_config:
+  key: value
+private_action_runner:
+  enabled: true
+`,
 		},
 	}
 	for _, tt := range tests {
@@ -163,6 +322,7 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
 				}
 			}
+			before := dda.DeepCopy()
 			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
 			req := f.Configure(dda, &dda.Spec, nil)
 			require.NoError(t, f.configErr)
@@ -171,14 +331,12 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			assert.Equal(t, tt.wantSplit, f.splitEnabled)
 			if tt.wantNode {
 				assert.Contains(t, req.Agent.Containers, apicommon.PrivateActionRunnerContainerName)
-				assertRunnerConfig(t, tt.wantNodeYML, f.nodeConfigData)
+				assert.YAMLEq(t, tt.wantNodeYML, f.nodeConfigData)
 			}
 			if tt.wantCluster {
-				assertRunnerConfig(t, tt.wantClusYML, f.clusterConfigData)
+				assert.YAMLEq(t, tt.wantClusYML, f.clusterConfigData)
 			}
-			if tt.config.ConfigData != nil {
-				assert.Equal(t, shared, *tt.config.ConfigData, "shared input must remain unchanged")
-			}
+			assert.Equal(t, before.Spec, dda.Spec, "configuring the runner must not modify the spec")
 			wantRemediation := tt.annotations[featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled] == "true"
 			assert.Equal(t, tt.wantCluster && wantRemediation, f.k8sRemediationEnabled)
 
@@ -203,13 +361,6 @@ func TestPrivateActionRunnerSpec(t *testing.T) {
 			}
 		})
 	}
-}
-
-func assertRunnerConfig(t *testing.T, expected, actual string) {
-	t.Helper()
-	data, err := overrideEnabledValueInConfigData(expected, true)
-	require.NoError(t, err)
-	assert.YAMLEq(t, data, actual)
 }
 
 func TestPrivateActionRunnerSpecInvalidConfig(t *testing.T) {

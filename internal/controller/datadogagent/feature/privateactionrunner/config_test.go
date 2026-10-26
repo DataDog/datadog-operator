@@ -462,13 +462,11 @@ func TestEnsureEnabledInConfigData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "add private_action_runner section if missing",
+			name: "do nothing if private_action_runner section is missing",
 			inputYAML: `some_other_config:
   key: value`,
 			enabled: false,
-			expectedResult: `private_action_runner:
-    enabled: false
-some_other_config:
+			expectedResult: `some_other_config:
     key: value
 `,
 			wantErr: false,
