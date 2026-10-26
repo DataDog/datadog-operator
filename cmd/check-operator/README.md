@@ -24,6 +24,6 @@ The Kubernetes node lifecycle controller adds the `node.kubernetes.io/not-ready:
 
 The check counts nodes like the DaemonSet status does, so it skips a node only if the current Agent template still targets it (node selector, affinity and taints).
 
-API calls: the check makes them only when skipping could make it pass. Then, on each poll, it lists the Agent DaemonSets and their out-of-date pods, gets each node that runs an out-of-date pod, and lists the pods of each not-Ready one. Pod lists are served from the API server cache.
+API calls: the check makes them only when skipping could make it pass. Then, on each poll, it lists the Agent DaemonSets and their out-of-date pods, and gets each node that runs an out-of-date pod. If a DaemonSet has not-Ready candidates, it also lists one of its up-to-date pods to read the current revision hash. The out-of-date pod list is served from the API server cache.
 
 Permissions: give the service account `list` on `pods` and `daemonsets` in the DatadogAgent namespace, and `get` on `nodes`. Nodes are cluster-scoped, so `get` on `nodes` needs a ClusterRole. If a permission is missing, the check logs the error and uses the plain threshold.
