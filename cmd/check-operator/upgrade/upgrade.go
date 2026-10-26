@@ -60,7 +60,7 @@ type Options struct {
 	checkPeriod        time.Duration
 	checkTimeout       time.Duration
 	agentCompletionPct float64
-	agentCompletionMin int32
+	agentCompletionMin int
 	dcaMinUpToDate     int32
 	clcMinUpToDate     int32
 	skipNotReadyNodes  bool
@@ -92,7 +92,7 @@ func NewOptions(streams genericclioptions.IOStreams) *Options {
 
 	if val, found := os.LookupEnv("AGENT_COMPLETION_MIN"); found {
 		if iVal, err := strconv.ParseInt(val, 10, 32); err == nil {
-			opts.agentCompletionMin = int32(iVal)
+			opts.agentCompletionMin = int(iVal)
 		}
 	}
 
@@ -300,7 +300,7 @@ func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
 		return true
 	}
 
-	if o.reachedAgentThreshold(status.Current, status.UpToDate) {
+	if o.reachedAgentThreshold(int(status.Current), int(status.UpToDate)) {
 		o.printOutf("[Agent] upgrade is now finished (reached threshold): %d, nb updated pods: %d, threshold pct: %f, min threshold: %d", status.Current, status.UpToDate, o.agentCompletionPct, o.agentCompletionMin)
 
 		return true
@@ -320,17 +320,29 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 		return false
 	}
 
-	maxSkipped := int32(float64(status.Current) * o.maxSkippedPct / 100)
-	minSkipped := int32(1)
-	for minSkipped <= maxSkipped && !o.reachedAgentThreshold(status.Current-minSkipped, status.UpToDate) {
-		minSkipped++
-	}
 	// Skip the API calls if the check cannot pass even with the most nodes skipped.
-	if minSkipped > maxSkipped {
+	if _, _, ok := o.skipBounds(int(status.Current), int(status.UpToDate)); !ok {
 		return false
 	}
 
-	skipped, err := o.getOutdatedNotReadyNodes(ctx, minSkipped, maxSkipped)
+	daemonSets, err := o.listAgentDaemonSets(ctx)
+	if err != nil {
+		o.printOutf("[Agent] unable to count not-Ready nodes, not skipping any: %v", err)
+		return false
+	}
+	// The DatadogAgent status is copied from the DaemonSets at reconcile time, so it can lag behind
+	// them and their pods. Count from the live DaemonSet status instead.
+	current, upToDate, ok := liveAgentStatus(daemonSets)
+	if !ok {
+		o.printOutf("[Agent] an Agent DaemonSet status does not match its spec yet: not skipping any")
+		return false
+	}
+	minSkipped, maxSkipped, ok := o.skipBounds(current, upToDate)
+	if !ok {
+		return false
+	}
+
+	skipped, err := o.getOutdatedNotReadyNodes(ctx, daemonSets, minSkipped, maxSkipped)
 	if err != nil {
 		o.printOutf("[Agent] unable to count not-Ready nodes, not skipping any: %v", err)
 		return false
@@ -339,28 +351,27 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 		return false
 	}
 
-	adjusted := *status
-	adjusted.Current -= int32(len(skipped))
 	names := skipped
 	if len(names) > 20 {
 		names = append(names[:20:20], fmt.Sprintf("and %d more", len(skipped)-20))
 	}
-	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d: %s", len(skipped), adjusted.Current, status.Current, strings.Join(names, ", "))
-	return o.isAgentDone(&adjusted)
+	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d: %s", len(skipped), current-len(skipped), current, strings.Join(names, ", "))
+	return o.isAgentDone(&v2alpha1.DaemonSetStatus{Current: int32(current - len(skipped)), UpToDate: int32(upToDate)})
 }
 
-type agentDaemonSet struct {
-	ds             *appsv1.DaemonSet
-	selector       labels.Selector
-	oldestOutdated map[string]*corev1.Pod
+// skipBounds returns the fewest nodes to skip for the Agent threshold to pass, and the most nodes the
+// check can skip. It returns false if no number of skipped nodes within the cap passes.
+func (o *Options) skipBounds(current, upToDate int) (minSkipped, maxSkipped int, ok bool) {
+	maxSkipped = int(float64(current) * o.maxSkippedPct / 100)
+	for minSkipped = 1; minSkipped <= maxSkipped; minSkipped++ {
+		if o.reachedAgentThreshold(current-minSkipped, upToDate) {
+			return minSkipped, maxSkipped, true
+		}
+	}
+	return 0, 0, false
 }
 
-// getOutdatedNotReadyNodes returns the "<DaemonSet>/<node>" pairs to remove from the Agent status
-// Current count: not-Ready nodes whose oldest Agent pod is out of date, counted with the same rules
-// as the DaemonSet controller status. It returns none if fewer than minSkipped or more than
-// maxSkipped pairs qualify, and stops its API calls as soon as it knows.
-func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxSkipped int32) ([]string, error) {
-	// 1. Agent DaemonSets of the DatadogAgent.
+func (o *Options) listAgentDaemonSets(ctx context.Context) ([]appsv1.DaemonSet, error) {
 	dsList := &appsv1.DaemonSetList{}
 	if err := o.Client.List(
 		ctx,
@@ -373,13 +384,40 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 	); err != nil {
 		return nil, fmt.Errorf("unable to list Agent DaemonSets: %w", err)
 	}
+	return dsList.Items, nil
+}
 
-	// 2. Nodes running an out-of-date pod, with their oldest such pod.
+// liveAgentStatus sums the scheduled and updated nodes of the DaemonSets. It returns false if one is
+// being deleted, or if its status does not reflect its current spec yet.
+func liveAgentStatus(daemonSets []appsv1.DaemonSet) (current, upToDate int, ok bool) {
+	for i := range daemonSets {
+		ds := &daemonSets[i]
+		if ds.DeletionTimestamp != nil || ds.Status.ObservedGeneration != ds.Generation {
+			return 0, 0, false
+		}
+		current += int(ds.Status.CurrentNumberScheduled)
+		upToDate += int(ds.Status.UpdatedNumberScheduled)
+	}
+	return current, upToDate, true
+}
+
+type agentDaemonSet struct {
+	ds             *appsv1.DaemonSet
+	selector       labels.Selector
+	oldestOutdated map[string]*corev1.Pod
+}
+
+// getOutdatedNotReadyNodes returns the "<DaemonSet>/<node>" pairs to remove from the Agent status
+// Current count: not-Ready nodes whose oldest Agent pod is out of date, counted with the same rules
+// as the DaemonSet controller status. It returns none if fewer than minSkipped or more than
+// maxSkipped pairs qualify, and stops its API calls as soon as it knows.
+func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, agentDaemonSets []appsv1.DaemonSet, minSkipped, maxSkipped int) ([]string, error) {
+	// 1. Nodes running an out-of-date pod, with their oldest such pod.
 	var daemonSets []agentDaemonSet
-	var outdatedPairs int32
+	var outdatedPairs int
 	nodeNames := map[string]struct{}{}
-	for i := range dsList.Items {
-		ds := &dsList.Items[i]
+	for i := range agentDaemonSets {
+		ds := &agentDaemonSets[i]
 		if _, found := ds.Annotations[appsv1.DeprecatedTemplateGeneration]; !found || ds.Spec.Selector == nil {
 			continue
 		}
@@ -392,7 +430,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 			return nil, err
 		}
 		daemonSets = append(daemonSets, agentDaemonSet{ds: ds, selector: selector, oldestOutdated: oldest})
-		outdatedPairs += int32(len(oldest))
+		outdatedPairs += len(oldest)
 		for name := range oldest {
 			nodeNames[name] = struct{}{}
 		}
@@ -406,7 +444,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, nil
 	}
 
-	// 3. Keep the not-Ready nodes.
+	// 2. Keep the not-Ready nodes.
 	notReadyNodes := map[string]*corev1.Node{}
 	for name := range nodeNames {
 		node := &corev1.Node{}
@@ -421,8 +459,8 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		}
 	}
 
-	// 4. Keep the nodes that the current template targets: only these are in Current.
-	var candidatePairs int32
+	// 3. Keep the nodes that the current template targets: only these are in Current.
+	var candidatePairs int
 	candidates := make([][]string, len(daemonSets))
 	for i, d := range daemonSets {
 		affinity := nodeaffinity.NewRequiredNodeAffinity(d.ds.Spec.Template.Spec.NodeSelector, d.ds.Spec.Template.Spec.Affinity)
@@ -431,13 +469,13 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 				candidates[i] = append(candidates[i], name)
 			}
 		}
-		candidatePairs += int32(len(candidates[i]))
+		candidatePairs += len(candidates[i])
 	}
 	if candidatePairs < minSkipped {
 		return nil, nil
 	}
 
-	// 5. Skip a node unless its oldest pod has the current revision hash, which counts as updated.
+	// 4. Skip a node unless its oldest pod has the current revision hash, which counts as updated.
 	var skipped []string
 	for i, d := range daemonSets {
 		if len(candidates[i]) == 0 {
@@ -456,16 +494,16 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 				continue
 			}
 			skipped = append(skipped, d.ds.Name+"/"+name)
-			if int32(len(skipped)) > maxSkipped {
+			if len(skipped) > maxSkipped {
 				break
 			}
 		}
 	}
 
-	if int32(len(skipped)) < minSkipped {
+	if len(skipped) < minSkipped {
 		return nil, nil
 	}
-	if int32(len(skipped)) > maxSkipped {
+	if len(skipped) > maxSkipped {
 		o.printOutf("[Agent] %d not-Ready nodes have an out-of-date Agent pod, above the %d cap (%.0f%% of scheduled nodes): not skipping any", len(skipped), maxSkipped, o.maxSkippedPct)
 		return nil, nil
 	}
@@ -574,7 +612,7 @@ func isNodeReady(node *corev1.Node) bool {
 	return false
 }
 
-func (o *Options) reachedAgentThreshold(current, upToDate int32) bool {
+func (o *Options) reachedAgentThreshold(current, upToDate int) bool {
 	return float64(upToDate) > float64(current)*o.agentCompletionPct || current-upToDate <= o.agentCompletionMin
 }
 

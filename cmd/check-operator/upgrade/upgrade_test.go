@@ -172,11 +172,13 @@ func testNode(name string, ready corev1.ConditionStatus) *corev1.Node {
 	return node
 }
 
-// testAgentDaemonSet returns an Agent DaemonSet that tolerates every taint, like production Agents.
+// testAgentDaemonSet returns an Agent DaemonSet that tolerates every taint, like production Agents,
+// with a status that matches its spec.
 func testAgentDaemonSet(name, ddaName, generation string) *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
+			Generation:  2,
 			Namespace:   "test-namespace",
 			UID:         types.UID(name + "-uid"),
 			Annotations: map[string]string{appsv1.DeprecatedTemplateGeneration: generation},
@@ -191,6 +193,7 @@ func testAgentDaemonSet(name, ddaName, generation string) *appsv1.DaemonSet {
 				Tolerations: []corev1.Toleration{{Operator: corev1.TolerationOpExists}},
 			}},
 		},
+		Status: appsv1.DaemonSetStatus{ObservedGeneration: 2},
 	}
 }
 
@@ -260,6 +263,15 @@ func revertedOldest(name string, ds *appsv1.DaemonSet, nodeName string) *corev1.
 	return pod
 }
 
+func getOutdatedNotReadyNodes(t *testing.T, o *Options, minSkipped, maxSkipped int) []string {
+	t.Helper()
+	daemonSets, err := o.listAgentDaemonSets(context.Background())
+	require.NoError(t, err)
+	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), daemonSets, minSkipped, maxSkipped)
+	require.NoError(t, err)
+	return skipped
+}
+
 func TestGetOutdatedNotReadyNodes(t *testing.T) {
 	defaultDS := testAgentDaemonSet("agent-agent", "agent", "5")
 	profileDS := testAgentDaemonSet("profile-agent", "agent", "3")
@@ -323,8 +335,7 @@ func TestGetOutdatedNotReadyNodes(t *testing.T) {
 
 	o := testOptions(t, objects...)
 
-	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 1, 100)
-	require.NoError(t, err)
+	skipped := getOutdatedNotReadyNodes(t, o, 1, 100)
 	assert.ElementsMatch(t, []string{
 		"agent-agent/node-not-ready",
 		"agent-agent/node-unknown",
@@ -334,8 +345,7 @@ func TestGetOutdatedNotReadyNodes(t *testing.T) {
 		"selector-agent/node-labeled",
 	}, skipped)
 
-	skipped, err = o.getOutdatedNotReadyNodes(context.Background(), 1, 5)
-	require.NoError(t, err)
+	skipped = getOutdatedNotReadyNodes(t, o, 1, 5)
 	assert.Empty(t, skipped, "above maxSkipped, no node is skipped")
 }
 
@@ -354,9 +364,7 @@ func TestGetOutdatedNotReadyNodesUnknownRevisionHash(t *testing.T) {
 		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
 	)
 
-	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 1, 100)
-	require.NoError(t, err)
-	assert.Empty(t, skipped)
+	assert.Empty(t, getOutdatedNotReadyNodes(t, o, 1, 100))
 }
 
 func TestGetOutdatedNotReadyNodesSharedSelector(t *testing.T) {
@@ -374,15 +382,19 @@ func TestGetOutdatedNotReadyNodesSharedSelector(t *testing.T) {
 		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
 	)
 
-	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 1, 100)
-	require.NoError(t, err)
-	assert.Empty(t, skipped)
+	assert.Empty(t, getOutdatedNotReadyNodes(t, o, 1, 100))
 }
 
-// deadNodes returns an Agent DaemonSet with one up-to-date pod, and 3 not-Ready nodes with an
-// out-of-date pod.
-func deadNodes() []client.Object {
+// deadNodes returns an Agent DaemonSet on 40 nodes, 37 of them up to date, with one up-to-date pod,
+// and 3 not-Ready nodes with an out-of-date pod.
+func deadNodes(dsStatus ...func(*appsv1.DaemonSetStatus)) []client.Object {
 	ds := testAgentDaemonSet("agent-agent", "agent", "5")
+	ds.Status.CurrentNumberScheduled, ds.Status.UpdatedNumberScheduled = 40, 37
+	for _, f := range dsStatus {
+		if f != nil {
+			f(&ds.Status)
+		}
+	}
 	objects := []client.Object{ds, testAgentPod("updated", ds, "5", "node-ready", time.Minute)}
 	for _, name := range []string{"dead-1", "dead-2", "dead-3"} {
 		objects = append(objects, testNode(name, corev1.ConditionUnknown), testAgentPod(name, ds, "4", name, time.Hour))
@@ -392,17 +404,14 @@ func deadNodes() []client.Object {
 
 func TestGetOutdatedNotReadyNodesLimits(t *testing.T) {
 	o := testOptions(t, deadNodes()...)
-	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), 1, 100)
-	require.NoError(t, err)
+	skipped := getOutdatedNotReadyNodes(t, o, 1, 100)
 	assert.Len(t, skipped, 3)
 
-	skipped, err = o.getOutdatedNotReadyNodes(context.Background(), 4, 100)
-	require.NoError(t, err)
+	skipped = getOutdatedNotReadyNodes(t, o, 4, 100)
 	assert.Empty(t, skipped, "below minSkipped, no node is skipped")
 
 	o.maxNodeLookups = 2
-	skipped, err = o.getOutdatedNotReadyNodes(context.Background(), 1, 100)
-	require.NoError(t, err)
+	skipped = getOutdatedNotReadyNodes(t, o, 1, 100)
 	assert.Empty(t, skipped, "above maxNodeLookups, no node is skipped")
 }
 
@@ -451,20 +460,31 @@ func TestRunSkipsNotReadyNodes(t *testing.T) {
 			Agent: &v2alpha1.DaemonSetStatus{Current: 40, UpToDate: 37},
 		},
 	}
-	objects := append(deadNodes(), dda, testNode("node-ready", corev1.ConditionTrue))
 
-	for _, skip := range []bool{false, true} {
-		t.Run(fmt.Sprintf("skip=%t", skip), func(t *testing.T) {
-			o := testOptions(t, objects...)
-			o.skipNotReadyNodes = skip
+	tests := []struct {
+		name     string
+		skip     bool
+		dsStatus func(*appsv1.DaemonSetStatus)
+		wantPass bool
+	}{
+		{name: "disabled", skip: false, wantPass: false},
+		{name: "enabled", skip: true, wantPass: true},
+		// A new rollout started and the DatadogAgent status still shows the previous one.
+		{name: "DaemonSet status behind its spec", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.ObservedGeneration = 1 }, wantPass: false},
+		{name: "live DaemonSet status behind the DatadogAgent status", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.UpdatedNumberScheduled = 10 }, wantPass: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := testOptions(t, append(deadNodes(tt.dsStatus), dda, testNode("node-ready", corev1.ConditionTrue))...)
+			o.skipNotReadyNodes = tt.skip
 			o.checkPeriod = 10 * time.Millisecond
 			o.checkTimeout = 100 * time.Millisecond
 
 			err := o.Run()
-			if skip {
+			if tt.wantPass {
 				assert.NoError(t, err, "the 3 not-Ready nodes are skipped")
 			} else {
-				assert.True(t, wait.Interrupted(err), "the check times out on the 3 not-Ready nodes: %v", err)
+				assert.True(t, wait.Interrupted(err), "the check times out: %v", err)
 			}
 		})
 	}
