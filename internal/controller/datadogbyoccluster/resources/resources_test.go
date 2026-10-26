@@ -37,7 +37,7 @@ func TestResources_Objects(t *testing.T) {
 		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		searcherAutoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		readOnlyMetastore   *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
-		compactor           *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor           *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 		want                []string
 	}{
 		{
@@ -56,7 +56,7 @@ func TestResources_Objects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 			want: []string{
 				"*v1.ConfigMap/byoc", "*v1.ServiceAccount/byoc", "*v1.Service/byoc-headless",
 				"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore", "*v1.PodDisruptionBudget/byoc-metastore",
@@ -65,7 +65,7 @@ func TestResources_Objects(t *testing.T) {
 				"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane", "*v1.PodDisruptionBudget/byoc-control-plane",
 				"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor", "*v1.PodDisruptionBudget/byoc-janitor",
 				"*v1.Service/byoc-read-only-metastore", "*v1.Deployment/byoc-read-only-metastore", "*v1.PodDisruptionBudget/byoc-read-only-metastore",
-				"*v1.Service/byoc-compactor", "*v1.Deployment/byoc-compactor", "*v1.PodDisruptionBudget/byoc-compactor",
+				"*v1.Service/byoc-compactor", "*v1.Deployment/byoc-compactor", "*v2.HorizontalPodAutoscaler/byoc-compactor", "*v1.PodDisruptionBudget/byoc-compactor",
 			},
 		},
 		{
@@ -124,7 +124,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		searcherAutoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		readOnlyMetastore   *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
-		compactor           *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor           *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 		want                []client.Object
 	}{
 		{
@@ -134,9 +134,11 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
 				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
 				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("read-only-metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
 				&corev1.Service{ObjectMeta: metadata("compactor")},
 				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("compactor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
 			},
 		},
@@ -145,7 +147,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 		},
 		{
 			name:               "retain read-only metastore and indexer autoscaling",
@@ -155,18 +157,21 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
 				&corev1.Service{ObjectMeta: metadata("compactor")},
 				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("compactor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
 			},
 		},
 		{
 			name:                "retain compactor and searcher autoscaling",
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 			want: []client.Object{
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
 				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
 				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("read-only-metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("compactor")},
 			},
 		},
 		{
@@ -175,7 +180,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 			want: []client.Object{
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("indexer")},
@@ -193,8 +198,11 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+				},
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			},
 			want: []client.Object{
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
@@ -210,7 +218,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 			want: []client.Object{
 				&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: "testing"}},
 			},
@@ -221,7 +229,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 		},
 	}
 
@@ -687,6 +695,8 @@ func TestBuildResources_Indexer(t *testing.T) {
 				want.StatefulSet.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
 					component:          "indexer",
+					kind:               "StatefulSet",
+					minReplicas:        2,
 					averageUtilization: 70,
 					scaleUpWindow:      0,
 					scaleDownWindow:    300,
@@ -819,6 +829,8 @@ func TestBuildResources_Searcher(t *testing.T) {
 				want.StatefulSet.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
 					component:          "searcher",
+					kind:               "StatefulSet",
+					minReplicas:        2,
 					averageUtilization: 50,
 					scaleUpWindow:      60,
 					scaleDownWindow:    300,
@@ -1098,7 +1110,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 		want      func() *ComponentResources
 	}{
 		{
@@ -1109,18 +1121,39 @@ func TestBuildResources_Compactor(t *testing.T) {
 		},
 		{
 			name:      "defaults",
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 			want: func() *ComponentResources {
 				return wantDefault(60, "54s")
 			},
 		},
 		{
 			name: "termination grace period",
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				TerminationGracePeriodSeconds: ptr.To[int64](120),
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					TerminationGracePeriodSeconds: ptr.To[int64](120),
+				},
 			},
 			want: func() *ComponentResources {
 				return wantDefault(120, "108s")
+			},
+		},
+		{
+			name: "autoscaling",
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			},
+			want: func() *ComponentResources {
+				want := wantDefault(60, "54s")
+				want.Deployment.Spec.Replicas = nil
+				want.HPA = wantAutoscaling(wantAutoscalingOptions{
+					component:          "compactor",
+					kind:               "Deployment",
+					minReplicas:        1,
+					averageUtilization: 80,
+					scaleUpWindow:      60,
+					scaleDownWindow:    300,
+				})
+				return want
 			},
 		},
 	}
@@ -1469,6 +1502,8 @@ func wantDefaultPodDisruptionBudget(workload wantWorkload) *policyv1.PodDisrupti
 
 type wantAutoscalingOptions struct {
 	component          string
+	kind               string
+	minReplicas        int32
 	averageUtilization int32
 	scaleUpWindow      int32
 	scaleDownWindow    int32
@@ -1490,8 +1525,8 @@ func wantAutoscaling(options wantAutoscalingOptions) *autoscalingv2.HorizontalPo
 			Annotations: map[string]string{"example.com/owner": "operator"},
 		},
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: resourceName},
-			MinReplicas:    ptr.To[int32](2),
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: options.kind, Name: resourceName},
+			MinReplicas:    ptr.To(options.minReplicas),
 			MaxReplicas:    10,
 			Metrics: []autoscalingv2.MetricSpec{{
 				Type: autoscalingv2.ResourceMetricSourceType,

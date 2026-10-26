@@ -92,7 +92,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							},
 						},
 					},
-					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 				},
 			},
 		}
@@ -160,7 +160,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 								},
 							},
 						},
-						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 					},
 				},
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
@@ -845,7 +845,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 								},
 							},
 						},
-						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 					},
 				},
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{

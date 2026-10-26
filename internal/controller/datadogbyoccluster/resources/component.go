@@ -98,16 +98,16 @@ func metastoreComponent(name, quickwitService, databaseURIEnv string, spec *data
 	return c
 }
 
-func compactorComponent(spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) component {
+func compactorComponent(spec *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec) component {
 	c := component{
 		name:              CompactorComponentName,
 		quickwitService:   quickwitCompactorServiceName,
 		configVolumeMount: configFileVolumeMount(),
 	}
 	if spec != nil {
-		c.spec = spec
-		c.workload = deploymentWorkload{replicas: *spec.Replicas}
-		c.extraEnv = []corev1.EnvVar{decommissionTimeoutEnv(envQuickwitCompactorDecommissionTimeout, spec)}
+		c.spec = &spec.DatadogBYOCClusterComponentSpec
+		c.workload = autoscalableDeploymentWorkload{deploymentWorkload: deploymentWorkload{replicas: *spec.Replicas}, autoscaling: spec.Autoscaling}
+		c.extraEnv = []corev1.EnvVar{decommissionTimeoutEnv(envQuickwitCompactorDecommissionTimeout, c.spec)}
 	}
 	return c
 }
@@ -184,6 +184,7 @@ func disabledComponentObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c c
 	return []client.Object{
 		&corev1.Service{ObjectMeta: metadata},
 		&appsv1.Deployment{ObjectMeta: metadata},
+		&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata},
 		&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
 	}
 }

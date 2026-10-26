@@ -41,6 +41,11 @@ const (
 	defaultSearcherTargetCPUUtilization   int32 = 50
 	defaultSearcherScaleUpWindowSeconds   int32 = 60
 	defaultSearcherScaleDownWindowSeconds int32 = 300
+	// The chart sets no scale-down window for the Compactor, which leaves the Kubernetes default of 300 seconds.
+	defaultCompactorAutoscalingMinReplicas int32 = 1
+	defaultCompactorTargetCPUUtilization   int32 = 80
+	defaultCompactorScaleUpWindowSeconds   int32 = 60
+	defaultCompactorScaleDownWindowSeconds int32 = 300
 
 	// Storage
 	defaultStorageSize = "30Gi"
@@ -82,7 +87,7 @@ func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelin
 	if pipeline.TerminationGracePeriodSeconds == nil {
 		pipeline.TerminationGracePeriodSeconds = new(defaultPipelineTerminationGracePeriodSeconds)
 	}
-	applyAutoscalingDefaults(pipeline.Autoscaling, defaultPipelineTargetCPUUtilization, defaultPipelineScaleUpWindowSeconds, defaultPipelineScaleDownWindowSeconds)
+	applyAutoscalingDefaults(pipeline.Autoscaling, defaultAutoscalingMinReplicas, defaultPipelineTargetCPUUtilization, defaultPipelineScaleUpWindowSeconds, defaultPipelineScaleDownWindowSeconds)
 
 	if pipeline.Storage == nil {
 		pipeline.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
@@ -110,7 +115,7 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 	if indexer.TerminationGracePeriodSeconds == nil {
 		indexer.TerminationGracePeriodSeconds = new(defaultIndexerTerminationGracePeriodSeconds)
 	}
-	applyAutoscalingDefaults(indexer.Autoscaling, defaultIndexerTargetCPUUtilization, defaultIndexerScaleUpWindowSeconds, defaultIndexerScaleDownWindowSeconds)
+	applyAutoscalingDefaults(indexer.Autoscaling, defaultAutoscalingMinReplicas, defaultIndexerTargetCPUUtilization, defaultIndexerScaleUpWindowSeconds, defaultIndexerScaleDownWindowSeconds)
 
 	if indexer.Storage == nil {
 		indexer.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
@@ -135,7 +140,7 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 
 func applySearcherDefaults(searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
 	applyComponentDefaults(&searcher.DatadogBYOCClusterComponentSpec, defaultSearcherReplicas, statefulResources())
-	applyAutoscalingDefaults(searcher.Autoscaling, defaultSearcherTargetCPUUtilization, defaultSearcherScaleUpWindowSeconds, defaultSearcherScaleDownWindowSeconds)
+	applyAutoscalingDefaults(searcher.Autoscaling, defaultAutoscalingMinReplicas, defaultSearcherTargetCPUUtilization, defaultSearcherScaleUpWindowSeconds, defaultSearcherScaleDownWindowSeconds)
 	if searcher.Storage == nil {
 		searcher.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -147,11 +152,12 @@ func applyMetastoreDefaults(metastore *datadoghqv1alpha1.DatadogBYOCClusterMetas
 	applyComponentDefaults(&metastore.DatadogBYOCClusterComponentSpec, defaultMetastoreReplicas, deploymentResources())
 }
 
-func applyCompactorDefaults(compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) {
-	applyComponentDefaults(compactor, defaultCompactorReplicas, nil)
+func applyCompactorDefaults(compactor *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec) {
+	applyComponentDefaults(&compactor.DatadogBYOCClusterComponentSpec, defaultCompactorReplicas, nil)
 	if compactor.TerminationGracePeriodSeconds == nil {
 		compactor.TerminationGracePeriodSeconds = new(defaultCompactorTerminationGracePeriodSeconds)
 	}
+	applyAutoscalingDefaults(compactor.Autoscaling, defaultCompactorAutoscalingMinReplicas, defaultCompactorTargetCPUUtilization, defaultCompactorScaleUpWindowSeconds, defaultCompactorScaleDownWindowSeconds)
 }
 
 func applyComponentDefaults(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, replicas int32, resources *corev1.ResourceRequirements) {
@@ -163,13 +169,13 @@ func applyComponentDefaults(component *datadoghqv1alpha1.DatadogBYOCClusterCompo
 	}
 }
 
-func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec, averageUtilization, scaleUpWindow, scaleDownWindow int32) {
+func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec, minReplicas, averageUtilization, scaleUpWindow, scaleDownWindow int32) {
 	if autoscaling == nil {
 		return
 	}
 	// Keep an omitted bound consistent with the configured bound.
 	if autoscaling.MinReplicas == nil {
-		autoscaling.MinReplicas = new(min(defaultAutoscalingMinReplicas, ptr.Deref(autoscaling.MaxReplicas, defaultAutoscalingMinReplicas)))
+		autoscaling.MinReplicas = new(min(minReplicas, ptr.Deref(autoscaling.MaxReplicas, minReplicas)))
 	}
 	if autoscaling.MaxReplicas == nil {
 		autoscaling.MaxReplicas = new(max(defaultAutoscalingMaxReplicas, *autoscaling.MinReplicas))
