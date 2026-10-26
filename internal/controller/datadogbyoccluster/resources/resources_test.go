@@ -1151,8 +1151,8 @@ func TestBuildResources_Compactor(t *testing.T) {
 					minReplicas:        1,
 					averageUtilization: 80,
 					scaleUpWindow:      60,
-					scaleDownWindow:    300,
 				})
+				want.HPA.Spec.Behavior.ScaleDown = nil
 				return want
 			},
 		},

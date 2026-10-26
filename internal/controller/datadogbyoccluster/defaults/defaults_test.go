@@ -449,8 +449,7 @@ func TestApplyCompactorDefaults(t *testing.T) {
 						},
 					}},
 					Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
-						ScaleUp:   &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](60)},
-						ScaleDown: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](300)},
+						ScaleUp: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](60)},
 					},
 				},
 			},
@@ -480,7 +479,7 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 		minReplicas        int32
 		averageUtilization int32
 		scaleUpWindow      int32
-		scaleDownWindow    int32
+		scaleDownWindow    *int32
 		want               *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 	}{
 		{
@@ -489,7 +488,7 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](2),
 				MaxReplicas: ptr.To[int32](10),
@@ -517,7 +516,7 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](20),
 				MaxReplicas: ptr.To[int32](20),
@@ -545,7 +544,7 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](1),
 				MaxReplicas: ptr.To[int32](1),
@@ -573,7 +572,7 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](3),
 				MaxReplicas: ptr.To[int32](10),
@@ -601,7 +600,7 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](2),
 				MaxReplicas: ptr.To[int32](5),
@@ -622,12 +621,36 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			},
 		},
 		{
+			name:               "no scale-down window",
+			autoscaling:        &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			minReplicas:        1,
+			averageUtilization: 80,
+			scaleUpWindow:      60,
+			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+				MinReplicas: ptr.To[int32](1),
+				MaxReplicas: ptr.To[int32](10),
+				Metrics: []autoscalingv2.MetricSpec{{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceCPU,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: ptr.To[int32](80),
+						},
+					},
+				}},
+				Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
+					ScaleUp: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](60)},
+				},
+			},
+		},
+		{
 			name:               "preserves custom values",
 			autoscaling:        custom.DeepCopy(),
 			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want:               custom.DeepCopy(),
 		},
 	}
