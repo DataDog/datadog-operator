@@ -129,11 +129,9 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -203,11 +201,9 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -551,7 +547,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with APM and CWS enables, create Daemonset with four agents",
+			name: "DatadogAgent with APM and CWS enables, create Daemonset with three agents",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -564,18 +560,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
+				// CWS sends its events from the system-probe by default, so there is no security-agent.
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
-					string(apicommon.SecurityAgentContainerName),
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
-			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with four agents",
+			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with three agents",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -593,7 +589,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
-					string(apicommon.SecurityAgentContainerName),
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)

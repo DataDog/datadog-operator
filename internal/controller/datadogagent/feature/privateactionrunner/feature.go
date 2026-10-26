@@ -74,6 +74,11 @@ func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) s
 	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
 }
 
+// kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
+// because Kubernetes Actions communicates through it: the runner self-enrolls and stores its
+// identity in the secret covered by the Cluster Agent RBAC.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n"
+
 // Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -115,13 +120,17 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		}
 	}
 
-	// Check for Cluster Agent configuration (annotation-based)
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
+	// Check for Cluster Agent configuration (annotation-based, or implied by Kubernetes Actions
+	// communicating through the Private Action Runner)
+	clusterAnnotationEnabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation)
+	if clusterAnnotationEnabled || featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
 			f.clusterConfigData = configData
-		} else {
+		} else if clusterAnnotationEnabled {
 			f.clusterConfigData = defaultConfigData
+		} else {
+			f.clusterConfigData = kubernetesActionsDefaultConfigData
 		}
 
 		clusterConfig, err := parsePrivateActionRunnerConfig(f.clusterConfigData)

@@ -65,6 +65,8 @@ type ksmFeature struct {
 	// podCollectionOnNode is true).
 	nodeAgentConfigMapName string
 
+	shardingEnabled bool
+
 	rbacSuffix         string
 	serviceAccountName string
 
@@ -219,6 +221,30 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 		}
 
+		if apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.ShardingEnabled) {
+			f.shardingEnabled = true
+
+			if !f.runInClusterChecksRunner {
+				f.logger.Info(
+					"ShardingEnabled requires that the KSM check runs on cluster check runners",
+				)
+				f.shardingEnabled = false
+			}
+
+			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgentOverride != nil {
+				if clusterAgentOverride.Image != nil {
+					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
+					if !utils.IsAboveMinVersion(agentVersion, ksmShardingMinVersion, nil) {
+						f.logger.Info(
+							"ShardingEnabled requires agent >= 7.83; falling back to default",
+							"version", agentVersion,
+						)
+						f.shardingEnabled = false
+					}
+				}
+			}
+		}
+
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
 
@@ -309,6 +335,13 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		Name:  DDKubeStateMetricsCoreConfigMap,
 		Value: f.configConfigMapName,
 	})
+
+	if f.shardingEnabled {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDKubeStateMetricsShardingEnabled,
+			Value: "true",
+		})
+	}
 
 	return nil
 }

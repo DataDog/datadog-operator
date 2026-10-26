@@ -40,14 +40,7 @@ func newComponentResources(in podInput, c component) (*ComponentResources, error
 		Service:             newService(serviceObjectMeta(cluster, c), selectorLabels(cluster, c.name), c.servicePorts()),
 		PodDisruptionBudget: podDisruptionBudget,
 	}
-	if c.stateful == nil {
-		r.Deployment = newDeployment(workloadObjectMeta(cluster, c), selectorLabels(cluster, c.name), template, *c.spec.Replicas, c.strategy)
-		return r, nil
-	}
-	r.StatefulSet = newStatefulSet(workloadObjectMeta(cluster, c), selectorLabels(cluster, c.name), template, headlessServiceName(cluster.Name), c.stateful)
-	if c.stateful.Autoscaling != nil {
-		r.HPA = newHPA(workloadObjectMeta(cluster, c), c.stateful.Autoscaling)
-	}
+	c.workload.populate(r, workloadObjectMeta(cluster, c), selectorLabels(cluster, c.name), template)
 	return r, nil
 }
 
@@ -108,7 +101,7 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 	}
 	volumes := slices.Concat(
 		[]corev1.Volume{configVolume},
-		c.dataVolumes(),
+		c.workload.dataVolumes(),
 		controllerutils.MergeVolumes(global.Volumes, spec.Volumes),
 	)
 	volumeMounts := slices.Concat(
@@ -207,7 +200,7 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 	if cluster.Spec.Components.Compactor != nil {
 		env = append(env, corev1.EnvVar{Name: envQuickwitStandaloneCompactors, Value: "true"})
 	}
-	env = append(env, c.env()...)
+	env = append(env, c.extraEnv...)
 	env = append(env,
 		corev1.EnvVar{Name: envNoColor, Value: "true"},
 		corev1.EnvVar{Name: envQuickwitDisableIngestV1, Value: "true"},

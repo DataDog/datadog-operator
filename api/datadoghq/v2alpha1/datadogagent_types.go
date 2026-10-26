@@ -125,6 +125,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
+	// Kueue configuration.
+	Kueue *KueueFeatureConfig `json:"kueue,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
@@ -137,7 +139,49 @@ type DatadogFeatures struct {
 // +k8s:openapi-gen=true
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Requires Cluster Agent 7.84.0 or greater.
 	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
+	// At least one channel must be enabled; both can be enabled at the same time.
+	// +optional
+	Communication *KubernetesActionsCommunicationConfig `json:"communication,omitempty"`
+}
+
+// KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.
+// +k8s:openapi-gen=true
+type KubernetesActionsCommunicationConfig struct {
+	// RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+	// +optional
+	RemoteConfiguration *KubernetesActionsRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
+
+	// PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// +optional
+	PrivateActionRunner *KubernetesActionsPrivateActionRunnerConfig `json:"privateActionRunner,omitempty"`
+}
+
+// KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.
+// +k8s:openapi-gen=true
+type KubernetesActionsRemoteConfigurationConfig struct {
+	// Enabled enables delivery of Kubernetes actions through Remote Configuration.
+	// Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent
+// Private Action Runner.
+// +k8s:openapi-gen=true
+type KubernetesActionsPrivateActionRunnerConfig struct {
+	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -729,9 +773,10 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
-	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
+	// payloads directly, without using the security-agent.
+	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
@@ -746,7 +791,8 @@ type CSPMHostBenchmarksConfig struct {
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
-// CWS runs in the Security Agent.
+// CWS runs in the System Probe, which also sends the events unless
+// DirectSendFromSystemProbe is disabled, in which case the Security Agent sends them.
 type CWSFeatureConfig struct {
 	// Enabled enables Cloud Workload Security.
 	// Default: false
@@ -759,8 +805,8 @@ type CWSFeatureConfig struct {
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
 	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// Requires Agent 7.63.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
@@ -1102,6 +1148,15 @@ type EventCollectionFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+
+	// CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.
+	// `poll` re-opens a watch on every check run. `watch` streams events through a single
+	// persistent reflector-backed watch, which avoids dropping events in high-churn clusters.
+	// Requires Cluster Agent 7.81.1+.
+	// Default: unset (the Cluster Agent's default is `poll`)
+	// +optional
+	// +kubebuilder:validation:Enum=poll;watch
+	CollectionMode *string `json:"collectionMode,omitempty"`
 }
 
 // EventTypes defines the kind and reasons of events to collect.
@@ -1214,6 +1269,15 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other
+	// resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins
+	// cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,
+	// `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	ShardingEnabled *bool `json:"shardingEnabled,omitempty"`
 }
 
 // KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.
@@ -1851,6 +1915,54 @@ type HelmCheckFeatureConfig struct {
 	// Default: {}
 	// +optional
 	ValuesAsTags map[string]string `json:"valuesAsTags,omitempty"`
+}
+
+// KueueFeatureConfig allows configuration of the Kueue feature.
+// +k8s:openapi-gen=true
+type KueueFeatureConfig struct {
+	// Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,
+	// which runs as an endpoints check against each Kueue controller pod.
+	// The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.
+	// With `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics`
+	// non-resource URL separately, as Kueue authorizes metrics scrapes against it.
+	// (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,
+	// and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.
+	// Default: true
+	// +optional
+	CollectWorkloadEvents *bool `json:"collectWorkloadEvents,omitempty"`
+
+	// MetricsService identifies the Service exposing the Kueue controller metrics.
+	// +optional
+	MetricsService *KueueMetricsServiceConfig `json:"metricsService,omitempty"`
+
+	// Conf overrides the configuration for the Kueue check. It replaces the generated configuration,
+	// so it must keep `advanced_ad_identifiers.kube_endpoints` and `cluster_check: true` to scrape every Kueue replica.
+	// Ignored when cluster checks are disabled.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+}
+
+// KueueMetricsServiceConfig identifies the Service exposing the Kueue controller metrics.
+// +k8s:openapi-gen=true
+type KueueMetricsServiceConfig struct {
+	// Name is the name of the Kueue metrics Service.
+	// Default: kueue-controller-manager-metrics-service
+	// +optional
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Name *string `json:"name,omitempty"`
+
+	// Namespace is the namespace of the Kueue metrics Service.
+	// Default: kueue-system
+	// +optional
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // Generic support structs

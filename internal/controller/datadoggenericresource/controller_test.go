@@ -686,3 +686,60 @@ func setupTestAuth(apiURL string) context.Context {
 
 	return testAuth
 }
+
+// Model a reconcile reading an old cache entry before another status write is
+// visible. The fake API server enforces resource versions, so the stale write
+// conflicts and the retry reads the newer status.
+func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		originalID     string
+		latestID       string
+		preserveLatest bool
+	}{
+		{name: "failed stale create preserves newly stored ID", originalID: "", latestID: "old-id", preserveLatest: true},
+		{name: "intentional reset of observed ID is allowed", originalID: "old-id", latestID: "old-id"},
+		{name: "stale reset preserves replacement ID", originalID: "old-id", latestID: "new-id", preserveLatest: true},
+		{name: "ID-less error status can still be updated", originalID: "", latestID: ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build()
+			instance := &datadoghqv1alpha1.DatadogGenericResource{
+				ObjectMeta: metav1.ObjectMeta{Name: "stale-status", Namespace: "default"},
+			}
+			assert.NoError(t, c.Create(ctx, instance))
+			instance.Status.Id = tt.originalID
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			stale := instance.DeepCopy()
+
+			instance.Status.Id = tt.latestID
+			instance.Status.CurrentHash = "latest-successful-hash"
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			latestStatus := instance.Status.DeepCopy()
+			latestVersion := instance.ResourceVersion
+
+			desired := stale.Status.DeepCopy()
+			desired.Id = ""
+			desired.CurrentHash = "stale-attempt-hash"
+			r := &Reconciler{client: c, requeuePeriod: defaultRequeuePeriod}
+			scheduled := ctrl.Result{RequeueAfter: time.Minute}
+			result, err := r.updateStatusIfNeeded(ctx, stale, desired, scheduled)
+			assert.NoError(t, err)
+			assert.Equal(t, scheduled, result)
+			assert.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(instance), instance))
+			if tt.preserveLatest {
+				assert.Equal(t, tt.latestID, instance.Status.Id)
+				assert.True(t, assert.ObjectsAreEqual(*latestStatus, instance.Status), "preserve the entire newer status, including conditions and hash")
+				assert.Equal(t, latestVersion, instance.ResourceVersion, "skipping must not perform a status write")
+			} else {
+				assert.Equal(t, "", instance.Status.Id)
+				assert.Equal(t, desired.CurrentHash, instance.Status.CurrentHash)
+			}
+			assert.True(t, assert.ObjectsAreEqual(instance.Status, stale.Status), "refresh the caller's status too")
+			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
+		})
+	}
+}

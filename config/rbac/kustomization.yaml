@@ -4,7 +4,7 @@ resources:
 - role_binding.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
-# Permissions of the DatadogBYOCCluster controller, kept separate from manager-role.
+# Permissions of the DatadogBYOCCluster and DatadogObservabilityPipelinesWorker controllers, kept separate from manager-role.
 - byoc
 # The following RBAC configurations are used to protect
 # the metrics endpoint with authn/authz. These configurations

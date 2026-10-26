@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -392,18 +393,41 @@ func configSyncEnvVars() []*corev1.EnvVar {
 	}
 }
 
-// RunInSystemProbe is resolved in Configure rather than in the defaulting pass, so that a CSPM
-// enabled through Remote Configuration gets the same value as one enabled in the spec. The resolved
-// value is written back to the spec, where the system-probe seccomp profile reads it.
+// Remote Configuration can enable CSPM after the defaulting pass has run. RunInSystemProbe is
+// defaulted in Configure, after the merge, so a remotely enabled CSPM runs in the system-probe too.
+func Test_cspmFeature_ConfigureFromRemoteConfig(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Status: v2alpha1.DatadogAgentStatus{
+			RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
+	require.False(t, *dda.Spec.Features.CSPM.Enabled, "CSPM is off in the spec before the merge")
+
+	f := &cspmFeature{}
+	reqComp := f.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	assert.True(t, f.runInSystemProbe)
+	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+}
+
 func Test_cspmFeature_RunInSystemProbeDefault(t *testing.T) {
 	tests := []struct {
 		name             string
+		agentTag         string
 		runInSystemProbe *bool
 		want             bool
 	}{
-		{name: "unset resolves to the default", want: defaultRunInSystemProbe},
-		{name: "explicit false is kept", runInSystemProbe: ptr.To(false), want: false},
-		{name: "explicit true is kept", runInSystemProbe: ptr.To(true), want: true},
+		{name: "unset, no Agent image override", want: true},
+		{name: "unset, Agent too old", agentTag: "7.76.0", want: false},
+		{name: "unset, Agent recent enough", agentTag: "7.77.0", want: true},
+		{name: "unset, unparsable Agent tag is assumed recent enough", agentTag: "latest", want: true},
+		{name: "explicit false wins", runInSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true wins on an older Agent", agentTag: "7.76.0", runInSystemProbe: ptr.To(true), want: true},
 	}
 
 	for _, tt := range tests {
@@ -415,11 +439,17 @@ func Test_cspmFeature_RunInSystemProbeDefault(t *testing.T) {
 					},
 				},
 			}
+			if tt.agentTag != "" {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
+				}
+			}
 
 			f := &cspmFeature{}
 			f.Configure(dda, &dda.Spec, nil)
 
 			assert.Equal(t, tt.want, f.runInSystemProbe)
+			// the system-probe seccomp profile reads the value from the spec
 			require.NotNil(t, dda.Spec.Features.CSPM.RunInSystemProbe)
 			assert.Equal(t, tt.want, *dda.Spec.Features.CSPM.RunInSystemProbe)
 		})

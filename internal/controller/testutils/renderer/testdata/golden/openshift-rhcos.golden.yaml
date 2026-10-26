@@ -1334,7 +1334,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 285ad8c616f4659168d9c7724f279aeb
+    agent.datadoghq.com/agentspechash: 7ff5179ee4ce48811d4ee24bc04003fc
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1398,6 +1398,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1638,6 +1642,8 @@ spec:
         - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1889,7 +1895,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 82ba42f5bf5471fde1c7da69f4b004c6
+    agent.datadoghq.com/agentspechash: 09b38ab5e402282533dbfb77917510c0
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2111,6 +2117,8 @@ spec:
           name: datadog-agent-auth
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
         - mountPath: /etc/datadog-agent/conf.d/kube_apiserver_metrics.d
           name: kube-apiserver-metrics-config
           readOnly: true
@@ -2129,8 +2137,6 @@ spec:
         - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
           name: orchestrator-explorer-config
           readOnly: true
-        - mountPath: /opt/datadog-agent/run/
-          name: datadogrun
       serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
@@ -2146,6 +2152,8 @@ spec:
         name: datadog-agent-auth
       - emptyDir: {}
         name: tmpdir
+      - emptyDir: {}
+        name: datadogrun
       - configMap:
           items:
           - key: kube_apiserver_metrics.yaml
@@ -2176,5 +2184,3 @@ spec:
       - configMap:
           name: datadog-agent-orchestrator-explorer-config
         name: orchestrator-explorer-config
-      - emptyDir: {}
-        name: datadogrun

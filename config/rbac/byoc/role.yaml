@@ -47,6 +47,7 @@ rules:
   - datadoghq.com
   resources:
   - datadogbyocclusters
+  - datadogobservabilitypipelinesworkers
   verbs:
   - create
   - delete
@@ -59,12 +60,14 @@ rules:
   - datadoghq.com
   resources:
   - datadogbyocclusters/finalizers
+  - datadogobservabilitypipelinesworkers/finalizers
   verbs:
   - update
 - apiGroups:
   - datadoghq.com
   resources:
   - datadogbyocclusters/status
+  - datadogobservabilitypipelinesworkers/status
   verbs:
   - get
   - patch

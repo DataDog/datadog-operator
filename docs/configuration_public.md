@@ -206,7 +206,7 @@ spec:
 : Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true
 
 `features.cspm.runInSystemProbe`
-: RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+: RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send payloads directly, without using the security-agent. Requires Agent 7.77.0 or above; on older Agents this defaults to false. Default: true
 
 `features.cws.customPolicies.configData`
 : ConfigData corresponds to the configuration file content.
@@ -218,7 +218,7 @@ spec:
 : Is the name of the ConfigMap.
 
 `features.cws.directSendFromSystemProbe`
-: DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+: DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. Requires Agent 7.63.0 or above; on older Agents this defaults to false. Default: true
 
 `features.cws.enabled`
 : Enables Cloud Workload Security. Default: false
@@ -286,6 +286,9 @@ spec:
 `features.eventCollection.collectedEventTypes`
 : CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ]
 
+`features.eventCollection.collectionMode`
+: CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server. `poll` re-opens a watch on every check run. `watch` streams events through a single persistent reflector-backed watch, which avoids dropping events in high-churn clusters. Requires Cluster Agent 7.81.1+. Default: unset (the Cluster Agent's default is `poll`)
+
 `features.eventCollection.unbundleEvents`
 : UnbundleEvents enables collection of Kubernetes events as individual events. Default: false
 
@@ -340,8 +343,38 @@ spec:
 `features.kubeStateMetricsCore.podCollectionMode`
 : PodCollectionMode controls where the KSM check collects pod metrics.  When set to "node_kubelet" the operator splits the kubernetes_state_core check into two: the cluster-side instance keeps every collector except scheduled pods (only unscheduled pods are kept on that side), and a dedicated pods-only instance is deployed on every node agent to read pods locally from its Kubelet via workloadmeta. In the generated agent check YAML this corresponds to the snake_case check options `pod_collection_mode: cluster_unassigned` on the cluster side and `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the node side; this CRD field itself is the camelCase `podCollectionMode` per Kubernetes API convention.  Useful in large clusters where a single KSM instance is a bottleneck. The cluster-aggregate `.total` metrics (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total) carry a reduced tag set with no host or node, so they cannot be collected correctly by every node agent independently without colliding at ingestion. To avoid this, the operator also enables `cluster_aggregates_enabled` on the cluster-side and node-side instances, which silences those aggregate metrics on both, and schedules a dedicated `cluster_aggregates_only` instance on the cluster-side component to collect them instead. Requires Agent / Cluster Agent 7.82+.  When `features.kubeStateMetricsCore.conf` is also set, the operator deploys the node-side check but does NOT modify the user-supplied cluster-side config. To avoid double pod collection in that case, the user's cluster-side instance must either omit `pods` from its `collectors` list OR set the `pod_collection_mode: cluster_unassigned` check option themselves. Omitting `collectors` entirely falls back to upstream KSM defaults, which include `pods`.  Default behavior is unchanged when this field is unset.
 
+`features.kubeStateMetricsCore.shardingEnabled`
+: `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset.
+
+`features.kubernetesActions.communication.privateActionRunner.enabled`
+: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
+
+`features.kubernetesActions.communication.remoteConfiguration.enabled`
+: Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true
+
 `features.kubernetesActions.enabled`
-: Enables the Kubernetes Actions feature on the Cluster Agent. Default: false
+: Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false
+
+`features.kueue.collectWorkloadEvents`
+: CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true
+
+`features.kueue.conf.configData`
+: ConfigData corresponds to the configuration file content.
+
+`features.kueue.conf.configMap.items`
+: Maps a ConfigMap data `key` to a file `path` mount.
+
+`features.kueue.conf.configMap.name`
+: Is the name of the ConfigMap.
+
+`features.kueue.enabled`
+: Enables Kueue metadata collection in the Cluster Agent and the Kueue check, which runs as an endpoints check against each Kueue controller pod. The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes. With `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics` non-resource URL separately, as Kueue authorizes metrics scrapes against it. (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.) Default: false
+
+`features.kueue.metricsService.name`
+: Is the name of the Kueue metrics Service. Default: kueue-controller-manager-metrics-service
+
+`features.kueue.metricsService.namespace`
+: Is the namespace of the Kueue metrics Service. Default: kueue-system
 
 `features.liveContainerCollection.enabled`
 : Enables container collection for the Live Container View. Default: true
