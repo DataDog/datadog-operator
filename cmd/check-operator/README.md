@@ -22,6 +22,8 @@ The main use case is to run it as a [Helm chart test](https://helm.sh/docs/topic
 
 The setting only helps if the Agent tolerates the `node.kubernetes.io/not-ready:NoSchedule` and `node.kubernetes.io/unreachable:NoSchedule` taints, for example with `tolerations: [{operator: Exists}]`. The Kubernetes node lifecycle controller adds these taints to not-Ready nodes. If the Agent does not tolerate them, the DaemonSet status already leaves these nodes out, and the setting changes nothing.
 
+The DatadogAgent status is copied from the Agent DaemonSets when the Operator reconciles, so it can lag behind them. When the check skips nodes, it uses the live status of the Agent DaemonSets instead, and skips none while a DaemonSet status does not match its spec yet.
+
 The check counts nodes like the DaemonSet status does, so it skips a node only if the current Agent template still targets it (node selector, affinity and taints).
 
 The skip adds to the `AGENT_COMPLETION_PCT` tolerance. With the defaults, the check can pass with up to about 14.5% of the Agent nodes out of date: up to 10% skipped as not Ready, plus up to 5% of the remaining nodes, which can be Ready.
