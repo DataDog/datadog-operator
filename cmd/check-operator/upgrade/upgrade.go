@@ -349,9 +349,10 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 }
 
 type agentDaemonSet struct {
-	ds            *appsv1.DaemonSet
-	selector      labels.Selector
-	outdatedNodes []string
+	ds       *appsv1.DaemonSet
+	selector labels.Selector
+	// oldestOutdated maps each node that runs an out-of-date pod to the oldest such pod.
+	oldestOutdated map[string]*corev1.Pod
 }
 
 // getOutdatedNotReadyNodes returns the "<DaemonSet>/<node>" pairs to remove from the Agent status
@@ -359,6 +360,7 @@ type agentDaemonSet struct {
 // as the DaemonSet controller status. It returns none if fewer than minSkipped or more than
 // maxSkipped pairs qualify, and stops its API calls as soon as it knows.
 func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxSkipped int32) ([]string, error) {
+	// 1. List the Agent DaemonSets of the DatadogAgent.
 	dsList := &appsv1.DaemonSetList{}
 	if err := o.Client.List(
 		ctx,
@@ -372,6 +374,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, fmt.Errorf("unable to list Agent DaemonSets: %w", err)
 	}
 
+	// 2. For each DaemonSet, find the nodes running a pod on an older template generation.
 	var daemonSets []agentDaemonSet
 	var outdatedPairs int32
 	nodeNames := map[string]struct{}{}
@@ -384,13 +387,13 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		if err != nil {
 			return nil, fmt.Errorf("invalid selector on DaemonSet %s: %w", ds.Name, err)
 		}
-		nodes, err := o.getOutdatedPodNodes(ctx, ds, selector)
+		oldest, err := o.getOldestOutdatedPods(ctx, ds, selector)
 		if err != nil {
 			return nil, err
 		}
-		daemonSets = append(daemonSets, agentDaemonSet{ds: ds, selector: selector, outdatedNodes: nodes})
-		outdatedPairs += int32(len(nodes))
-		for _, name := range nodes {
+		daemonSets = append(daemonSets, agentDaemonSet{ds: ds, selector: selector, oldestOutdated: oldest})
+		outdatedPairs += int32(len(oldest))
+		for name := range oldest {
 			nodeNames[name] = struct{}{}
 		}
 	}
@@ -403,6 +406,7 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, nil
 	}
 
+	// 3. Get these nodes and keep the not-Ready ones.
 	notReadyNodes := map[string]*corev1.Node{}
 	for name := range nodeNames {
 		node := &corev1.Node{}
@@ -417,11 +421,12 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		}
 	}
 
+	// 4. Keep the nodes that the current template still targets, as only these are in Current.
 	var candidatePairs int32
 	candidates := make([][]string, len(daemonSets))
 	for i, d := range daemonSets {
 		affinity := nodeaffinity.NewRequiredNodeAffinity(d.ds.Spec.Template.Spec.NodeSelector, d.ds.Spec.Template.Spec.Affinity)
-		for _, name := range d.outdatedNodes {
+		for _, name := range slices.Sorted(maps.Keys(d.oldestOutdated)) {
 			if node, found := notReadyNodes[name]; found && shouldRunOnNode(d.ds, affinity, node) {
 				candidates[i] = append(candidates[i], name)
 			}
@@ -432,6 +437,8 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 		return nil, nil
 	}
 
+	// 5. Skip a node unless its oldest pod has the current revision hash, which the status counts
+	// as updated.
 	var skipped []string
 	for i, d := range daemonSets {
 		if len(candidates[i]) == 0 {
@@ -446,13 +453,10 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 			continue
 		}
 		for _, name := range candidates[i] {
-			outdated, err := o.isOldestPodOutdated(ctx, d.ds, d.selector, name, currentHash)
-			if err != nil {
-				return nil, err
+			if d.oldestOutdated[name].Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == currentHash {
+				continue
 			}
-			if outdated {
-				skipped = append(skipped, d.ds.Name+"/"+name)
-			}
+			skipped = append(skipped, d.ds.Name+"/"+name)
 			if int32(len(skipped)) > maxSkipped {
 				break
 			}
@@ -470,8 +474,10 @@ func (o *Options) getOutdatedNotReadyNodes(ctx context.Context, minSkipped, maxS
 	return skipped, nil
 }
 
-// getOutdatedPodNodes returns the nodes that run an out-of-date pod of the DaemonSet.
-func (o *Options) getOutdatedPodNodes(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector) ([]string, error) {
+// getOldestOutdatedPods returns, for each node that runs a pod of the DaemonSet on an older template
+// generation, the oldest such pod. The DaemonSet controller only looks at the oldest pod of a node to
+// count it as updated, and generations only grow over time, so that pod is always in this list.
+func (o *Options) getOldestOutdatedPods(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector) (map[string]*corev1.Pod, error) {
 	outdatedReq, err := labels.NewRequirement(podTemplateGenerationLabel, selection.NotEquals, []string{ds.Annotations[appsv1.DeprecatedTemplateGeneration]})
 	if err != nil {
 		return nil, err
@@ -482,50 +488,20 @@ func (o *Options) getOutdatedPodNodes(ctx context.Context, ds *appsv1.DaemonSet,
 		return nil, fmt.Errorf("unable to list out-of-date pods of DaemonSet %s: %w", ds.Name, err)
 	}
 
-	nodes := map[string]struct{}{}
-	for i := range pods.Items {
-		if pod := &pods.Items[i]; isCountedDaemonPod(pod, ds) {
-			nodes[pod.Spec.NodeName] = struct{}{}
-		}
-	}
-	return slices.Sorted(maps.Keys(nodes)), nil
-}
-
-// isOldestPodOutdated returns true if the oldest counted pod of the DaemonSet on the node is out of
-// date. The DaemonSet controller only looks at this pod to count the node as updated.
-func (o *Options) isOldestPodOutdated(ctx context.Context, ds *appsv1.DaemonSet, selector labels.Selector, nodeName, currentHash string) (bool, error) {
-	pods := &corev1.PodList{}
-	if err := o.Client.List(
-		ctx,
-		pods,
-		client.InNamespace(o.UserNamespace),
-		client.MatchingLabelsSelector{Selector: selector},
-		client.MatchingFields{"spec.nodeName": nodeName},
-		fromWatchCache(),
-	); err != nil {
-		return false, fmt.Errorf("unable to list pods of DaemonSet %s on node %s: %w", ds.Name, nodeName, err)
-	}
-
-	var oldest *corev1.Pod
+	oldest := map[string]*corev1.Pod{}
 	for i := range pods.Items {
 		pod := &pods.Items[i]
 		if !isCountedDaemonPod(pod, ds) {
 			continue
 		}
 		// Same order as the DaemonSet controller: creation time, then name.
-		if oldest == nil || pod.CreationTimestamp.Before(&oldest.CreationTimestamp) ||
-			(pod.CreationTimestamp.Equal(&oldest.CreationTimestamp) && pod.Name < oldest.Name) {
-			oldest = pod
+		current, found := oldest[pod.Spec.NodeName]
+		if !found || pod.CreationTimestamp.Before(&current.CreationTimestamp) ||
+			(pod.CreationTimestamp.Equal(&current.CreationTimestamp) && pod.Name < current.Name) {
+			oldest[pod.Spec.NodeName] = pod
 		}
 	}
-	if oldest == nil {
-		return false, nil
-	}
-
-	if oldest.Labels[podTemplateGenerationLabel] == ds.Annotations[appsv1.DeprecatedTemplateGeneration] {
-		return false, nil
-	}
-	return oldest.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentHash, nil
+	return oldest, nil
 }
 
 // getCurrentRevisionHash returns the revision hash of a pod on the current template generation, or
@@ -547,8 +523,8 @@ func (o *Options) getCurrentRevisionHash(ctx context.Context, ds *appsv1.DaemonS
 }
 
 // fromWatchCache serves a List from the API server watch cache, not etcd. Before Kubernetes 1.31,
-// a List with a field selector otherwise reads every pod of the namespace from etcd. It is built for
-// each call, as the client writes the request options into Raw.
+// a List otherwise reads every pod of the namespace from etcd. It is built for each call, as the
+// client writes the request options into Raw.
 func fromWatchCache() client.ListOption {
 	return &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}}
 }

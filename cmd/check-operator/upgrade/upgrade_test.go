@@ -224,9 +224,6 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 			Client: fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(objects...).
-				WithIndex(&corev1.Pod{}, "spec.nodeName", func(obj client.Object) []string {
-					return []string{obj.(*corev1.Pod).Spec.NodeName}
-				}).
 				Build(),
 			UserNamespace: "test-namespace",
 		},
@@ -237,6 +234,13 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 		maxNodeLookups:     300,
 		maxSkippedPct:      10,
 	}
+}
+
+// revertedOldest returns a pod on generation 3 with the revision hash of generation 5.
+func revertedOldest(name string, ds *appsv1.DaemonSet, nodeName string) *corev1.Pod {
+	pod := testAgentPod(name, ds, "3", nodeName, 2*time.Hour)
+	pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
+	return pod
 }
 
 func TestGetOutdatedNotReadyNodes(t *testing.T) {
@@ -268,8 +272,8 @@ func TestGetOutdatedNotReadyNodes(t *testing.T) {
 		testNode("node-not-ready", corev1.ConditionFalse),
 		testNode("node-unknown", corev1.ConditionUnknown),
 		testNode("node-two-outdated", corev1.ConditionUnknown),
-		testNode("node-oldest-updated-a", corev1.ConditionUnknown),
-		testNode("node-oldest-updated-z", corev1.ConditionUnknown),
+		testNode("node-oldest-reverted-a", corev1.ConditionUnknown),
+		testNode("node-oldest-reverted-z", corev1.ConditionUnknown),
 		testNode("node-terminal", corev1.ConditionUnknown),
 		testNode("node-revert", corev1.ConditionUnknown),
 		testNode("node-unlabeled", corev1.ConditionUnknown),
@@ -293,12 +297,13 @@ func TestGetOutdatedNotReadyNodes(t *testing.T) {
 
 		// Not skipped.
 		testAgentPod("outdated-ready", defaultDS, "4", "node-ready", time.Hour),
-		// The oldest pod is up to date. The younger out-of-date pod is listed first on one node
-		// and last on the other, so that only picking the oldest pod passes.
-		testAgentPod("b-oldest-updated", defaultDS, "5", "node-oldest-updated-a", 2*time.Hour),
-		testAgentPod("a-younger-outdated", defaultDS, "4", "node-oldest-updated-a", time.Hour),
-		testAgentPod("b-oldest-updated-z", defaultDS, "5", "node-oldest-updated-z", 2*time.Hour),
-		testAgentPod("z-younger-outdated", defaultDS, "4", "node-oldest-updated-z", time.Hour),
+		// The oldest pod has the current revision hash (template revert). The younger out-of-date
+		// pod is listed first on one node and last on the other, so that only picking the oldest
+		// pod passes.
+		revertedOldest("b-oldest-reverted", defaultDS, "node-oldest-reverted-a"),
+		testAgentPod("a-younger-outdated", defaultDS, "4", "node-oldest-reverted-a", time.Hour),
+		revertedOldest("b-oldest-reverted-z", defaultDS, "node-oldest-reverted-z"),
+		testAgentPod("z-younger-outdated", defaultDS, "4", "node-oldest-reverted-z", time.Hour),
 		deleting(testAgentPod("outdated-terminal-deleted", defaultDS, "4", "node-terminal", time.Hour), corev1.PodFailed),
 		revertedPod,
 		testAgentPod("outdated-deleted-node", defaultDS, "4", "node-deleted", time.Hour),
@@ -423,11 +428,6 @@ func TestGetOutdatedNotReadyNodesAPIErrors(t *testing.T) {
 			name:      "list current pods",
 			funcs:     failPodList(func(lo *client.ListOptions) bool { return lo.Limit == 1 }, errAPI),
 			wantError: "unable to list current pods of DaemonSet agent-agent",
-		},
-		{
-			name:      "list pods on node",
-			funcs:     failPodList(func(lo *client.ListOptions) bool { return lo.FieldSelector != nil }, errAPI),
-			wantError: "unable to list pods of DaemonSet agent-agent on node node-unknown",
 		},
 		{
 			name: "get node",
