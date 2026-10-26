@@ -11,156 +11,21 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	controllercommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 )
-
-const (
-	updateSucceeded = "UpdateSucceeded"
-	createSucceeded = "CreateSucceeded"
-	patchSucceeded  = "PatchSucceeded"
-)
-
-type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-
-func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, dda *v2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *v2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-	ctx = ctrl.LoggerInto(ctx, logger)
-
-	var result reconcile.Result
-	var err error
-
-	// Set DatadogAgent instance as the owner and controller
-	if err = controllerutil.SetControllerReference(dda, deployment, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
-	controllercommon.FinalizeAppArmorProfile(&deployment.Spec.Template, r.platformInfo)
-
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this deployment with the current one (if it exists).
-	var hash string
-	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&deployment.ObjectMeta, deployment.Spec)
-	if err != nil {
-		return result, err
-	}
-
-	// Get the current deployment and compare
-	currentDeployment, err := r.getCurrentDeployment(ctx, dda, deployment)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	alreadyExists := true
-	if currentDeployment == nil {
-		logger.Info("deployment is not found")
-		alreadyExists = false
-	}
-
-	if alreadyExists {
-		// check owner reference
-		if shouldUpdateOwnerReference(currentDeployment.OwnerReferences) {
-			logger.Info("Updating Deployment owner reference")
-			now := metav1.NewTime(time.Now())
-			patch, e := createOwnerReferencePatch(currentDeployment.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
-			if e != nil {
-				logger.Error(e, "Unable to patch Deployment owner reference")
-				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
-				return reconcile.Result{}, e
-			}
-			// use merge patch to replace the entire existing owner reference list
-			err = r.client.Patch(ctx, currentDeployment, client.RawPatch(types.MergePatchType, patch))
-			if err != nil {
-				logger.Error(err, "Unable to patch Deployment owner reference")
-				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
-				return reconcile.Result{}, err
-			}
-			logger.Info("Deployment owner reference patched")
-		}
-		if restartDeployment(deployment, currentDeployment) {
-			// if its a helm cluster checks runner deployment, delete the workload and dependents
-			helmCCRDeployment := currentDeployment.GetLabels()[kubernetes.AppKubernetesComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
-			if helmCCRDeployment {
-				if err = deleteAllWorkloadsAndDependentsBackground(ctx, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
-					return result, err
-				}
-				return result, nil
-			} else {
-				if err = deleteObjectAndOrphanDependents(ctx, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
-					return result, err
-				}
-			}
-			return result, nil
-		}
-
-		// check if same hash
-		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
-		if !needUpdate {
-			// no need to update hasn't changed
-			now := metav1.NewTime(time.Now())
-			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "DeploymentUpToDate", "Deployment up-to-date")
-			return reconcile.Result{}, nil
-		}
-
-		logger.Info("Updating Deployment")
-
-		// TODO: these parameters can be added to the override.PodTemplateSpec. (It exists in v1alpha1)
-		keepAnnotationsFilter := ""
-		keepLabelsFilter := ""
-
-		// Copy possibly changed fields
-		updateDeployment := deployment.DeepCopy()
-		updateDeployment.Spec = *deployment.Spec.DeepCopy()
-		updateDeployment.Spec.Replicas = getReplicas(currentDeployment.Spec.Replicas, updateDeployment.Spec.Replicas)
-		updateDeployment.Annotations = mergeAnnotationsLabels(ctx, currentDeployment.GetAnnotations(), deployment.GetAnnotations(), keepAnnotationsFilter)
-		updateDeployment.Labels = mergeAnnotationsLabels(ctx, currentDeployment.GetLabels(), deployment.GetLabels(), keepLabelsFilter)
-
-		now := metav1.NewTime(time.Now())
-		err = kubernetes.UpdateFromObject(ctx, r.client, updateDeployment, currentDeployment.ObjectMeta)
-		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Deployment")
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, kubernetes.DeploymentKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Deployment updated")
-	} else {
-		now := metav1.NewTime(time.Now())
-
-		err = r.client.Create(ctx, deployment)
-		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Deployment")
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(deployment.Name, deployment.Namespace, kubernetes.DeploymentKind, datadog.CreationEvent)
-		r.recordEvent(dda, event)
-		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, createSucceeded, "Deployment created")
-	}
-
-	logger.Info("Creating Deployment")
-
-	return result, err
-}
 
 func (r *Reconciler) createOrUpdateDDAI(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (err error) {
 	span, ctx := trace.StartSpan(ctx, trace.Tag("object.name", ddai.Name))
@@ -221,67 +86,6 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(ctx context.Context, status *v2alp
 	}
 
 	return nil
-}
-
-// getCurrentDeployment returns the current deployment for a given DDA
-func (r *Reconciler) getCurrentDeployment(ctx context.Context, dda, deployment metav1.Object) (*appsv1.Deployment, error) {
-	// Helm-migrated deployment
-	if helm.IsHelmMigration(dda) {
-		componentType := deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]
-		if componentType == "" {
-			ctrl.LoggerFrom(ctx).Info("No component label found in deployment, using default")
-			componentType = constants.DefaultAgentResourceSuffix
-		}
-		dsList := appsv1.DeploymentList{}
-		matchLabels := client.MatchingLabels{
-			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
-			kubernetes.AppKubernetesNameLabelKey:       dda.GetName(),
-			apicommon.AgentDeploymentComponentLabelKey: componentType,
-		}
-
-		if err := r.client.List(ctx, &dsList, matchLabels); err != nil {
-			return nil, err
-		}
-
-		switch len(dsList.Items) {
-		case 0: // Migration has completed; check for default deployment
-			ctrl.LoggerFrom(ctx).Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
-		case 1:
-			ctrl.LoggerFrom(ctx).Info("Found Helm-managed deployment", "helmDeployment.name", dsList.Items[0].Name)
-			return &dsList.Items[0], nil
-		default:
-			return nil, fmt.Errorf("expected 1 deployment for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
-		}
-	}
-
-	// Default deployment
-	nsName := types.NamespacedName{
-		Name:      deployment.GetName(),
-		Namespace: deployment.GetNamespace(),
-	}
-	currentDeployment := &appsv1.Deployment{}
-	if err := r.client.Get(ctx, nsName, currentDeployment); err != nil {
-		if apierrors.IsNotFound(err) {
-			ctrl.LoggerFrom(ctx).Info("deployment is not found")
-			return nil, nil
-		}
-		return nil, err
-	}
-	return currentDeployment, nil
-}
-
-func restartDeployment(deployment, currentDeployment *appsv1.Deployment) bool {
-	// name change
-	if deployment.Name != currentDeployment.Name {
-		return true
-	}
-
-	// selectors are immutable
-	if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
-		return true
-	}
-
-	return false
 }
 
 func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.DatadogAgentStatus) bool {

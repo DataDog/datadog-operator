@@ -122,22 +122,13 @@ type ReconcilerOptions struct {
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options           ReconcilerOptions
-	client            client.Client
-	platformInfo      kubernetes.PlatformInfo
-	scheme            *runtime.Scheme
-	recorder          record.EventRecorder
-	forwarders        datadog.MetricsForwardersManager
-	fieldManager      *managedfields.FieldManager
-	componentRegistry *ComponentRegistry
-}
-
-func (r *Reconciler) initializeComponentRegistry() {
-	r.componentRegistry = NewComponentRegistry(r)
-	// Register all components
-	r.componentRegistry.Register(NewClusterAgentComponent(r))
-	r.componentRegistry.Register(NewClusterChecksRunnerComponent(r))
-	r.componentRegistry.Register(NewOtelAgentGatewayComponent(r))
+	options      ReconcilerOptions
+	client       client.Client
+	platformInfo kubernetes.PlatformInfo
+	scheme       *runtime.Scheme
+	recorder     record.EventRecorder
+	forwarders   datadog.MetricsForwardersManager
+	fieldManager *managedfields.FieldManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
@@ -162,9 +153,6 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 	if r.options.SCCAuthorizer == nil {
 		r.options.SCCAuthorizer = openshift.NewSARAuthorizer(client)
 	}
-
-	// Initialize component registry
-	r.initializeComponentRegistry()
 
 	return r, nil
 }
