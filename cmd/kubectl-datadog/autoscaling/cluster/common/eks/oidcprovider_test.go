@@ -13,20 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fakeProvider struct {
-	url          string
-	clientIDList []string
-}
-
 type fakeIAM struct {
-	providers map[string]*fakeProvider // arn -> provider
+	providers map[string][]string // arn -> client IDs
 
-	createCalls       int
-	createInput       *iam.CreateOpenIDConnectProviderInput // captured on Create
-	createErr         error
 	listErr           error
 	getErr            error
-	addClientIDCalls  int
+	getCalls          int
 	addClientIDInputs []*iam.AddClientIDToOpenIDConnectProviderInput
 }
 
@@ -42,159 +34,125 @@ func (f *fakeIAM) ListOpenIDConnectProviders(_ context.Context, _ *iam.ListOpenI
 }
 
 func (f *fakeIAM) GetOpenIDConnectProvider(_ context.Context, params *iam.GetOpenIDConnectProviderInput, _ ...func(*iam.Options)) (*iam.GetOpenIDConnectProviderOutput, error) {
+	f.getCalls++
 	if f.getErr != nil {
 		return nil, f.getErr
 	}
-	p, ok := f.providers[aws.ToString(params.OpenIDConnectProviderArn)]
+	clientIDs, ok := f.providers[aws.ToString(params.OpenIDConnectProviderArn)]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, &iamtypes.NoSuchEntityException{}
 	}
-	return &iam.GetOpenIDConnectProviderOutput{
-		Url:          aws.String(p.url),
-		ClientIDList: p.clientIDList,
-	}, nil
-}
-
-func (f *fakeIAM) CreateOpenIDConnectProvider(_ context.Context, params *iam.CreateOpenIDConnectProviderInput, _ ...func(*iam.Options)) (*iam.CreateOpenIDConnectProviderOutput, error) {
-	f.createCalls++
-	f.createInput = params
-	if f.createErr != nil {
-		return nil, f.createErr
-	}
-	normalized := normalizeOIDCURL(aws.ToString(params.Url))
-	arn := "arn:aws:iam::123456789012:oidc-provider/" + normalized
-	if f.providers == nil {
-		f.providers = map[string]*fakeProvider{}
-	}
-	f.providers[arn] = &fakeProvider{url: normalized, clientIDList: params.ClientIDList}
-	return &iam.CreateOpenIDConnectProviderOutput{OpenIDConnectProviderArn: aws.String(arn)}, nil
+	return &iam.GetOpenIDConnectProviderOutput{ClientIDList: clientIDs}, nil
 }
 
 func (f *fakeIAM) AddClientIDToOpenIDConnectProvider(_ context.Context, params *iam.AddClientIDToOpenIDConnectProviderInput, _ ...func(*iam.Options)) (*iam.AddClientIDToOpenIDConnectProviderOutput, error) {
-	f.addClientIDCalls++
 	f.addClientIDInputs = append(f.addClientIDInputs, params)
-	if p, ok := f.providers[aws.ToString(params.OpenIDConnectProviderArn)]; ok {
-		p.clientIDList = append(p.clientIDList, aws.ToString(params.ClientID))
-	}
 	return &iam.AddClientIDToOpenIDConnectProviderOutput{}, nil
 }
 
-func TestEnsureOIDCProvider(t *testing.T) {
+func TestReuseOIDCProvider(t *testing.T) {
 	const (
-		issuerURL   = "https://oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
-		issuerStore = "oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
-		issuerArn   = "arn:aws:iam::123456789012:oidc-provider/" + issuerStore
+		issuerURL = "https://oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
+		issuerArn = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
+		otherArn  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/OTHER"
 	)
+	sts := []string{"sts.amazonaws.com"}
 
 	for _, tc := range []struct {
-		name          string
-		existing      map[string]*fakeProvider
-		listErr       error
-		createErr     error
-		issuerURL     string
-		expectError   bool
-		errorContains string
-		// When Create is NOT expected: expectArn is checked against the returned ARN.
-		// When Create IS expected: expectCreateURL holds the URL Create must receive.
+		name      string
+		existing  map[string][]string
+		listErr   error
+		getErr    error
+		issuerURL string
+		// expectArn is the returned ARN, empty when no provider is registered
+		// for the issuer and the stack must create one.
 		expectArn       string
-		expectCreateURL string
 		expectAddClient bool // true when the existing provider must be patched to add the STS audience
+		expectGetCalls  int
+		expectError     string
 	}{
 		{
-			name:      "provider already exists with STS audience",
-			existing:  map[string]*fakeProvider{issuerArn: {url: issuerStore, clientIDList: []string{"sts.amazonaws.com"}}},
-			issuerURL: issuerURL,
-			expectArn: issuerArn,
+			name:           "provider already exists with STS audience",
+			existing:       map[string][]string{otherArn: nil, issuerArn: sts},
+			issuerURL:      issuerURL,
+			expectArn:      issuerArn,
+			expectGetCalls: 1, // only the matching provider is described
 		},
 		{
 			name:            "provider exists without STS audience is patched in place",
-			existing:        map[string]*fakeProvider{issuerArn: {url: issuerStore, clientIDList: []string{"other.audience"}}},
+			existing:        map[string][]string{issuerArn: {"other.audience"}},
 			issuerURL:       issuerURL,
 			expectArn:       issuerArn,
 			expectAddClient: true,
+			expectGetCalls:  1,
 		},
 		{
-			name:      "host match is case-insensitive (RFC 3986)",
-			existing:  map[string]*fakeProvider{issuerArn: {url: issuerStore, clientIDList: []string{"sts.amazonaws.com"}}},
-			issuerURL: "https://OIDC.EKS.EU-WEST-3.AMAZONAWS.COM/id/ABCDEF",
-			expectArn: issuerArn,
+			name:           "host match is case-insensitive (RFC 3986)",
+			existing:       map[string][]string{issuerArn: sts},
+			issuerURL:      "https://OIDC.EKS.EU-WEST-3.AMAZONAWS.COM/id/ABCDEF",
+			expectArn:      issuerArn,
+			expectGetCalls: 1,
 		},
 		{
-			name: "path match is case-sensitive (RFC 3986)",
-			existing: map[string]*fakeProvider{
-				"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/abcdef": {
-					url:          "oidc.eks.eu-west-3.amazonaws.com/id/abcdef",
-					clientIDList: []string{"sts.amazonaws.com"},
-				},
-			},
-			issuerURL:       issuerURL,
-			expectCreateURL: issuerURL,
+			name:      "path match is case-sensitive (RFC 3986)",
+			existing:  map[string][]string{"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/abcdef": sts},
+			issuerURL: issuerURL,
 		},
 		{
-			name:            "creates when list is an empty map",
-			existing:        map[string]*fakeProvider{},
-			issuerURL:       "https://oidc.eks.eu-west-3.amazonaws.com/id/NEW",
-			expectCreateURL: "https://oidc.eks.eu-west-3.amazonaws.com/id/NEW",
+			name:      "no provider when list is an empty map",
+			existing:  map[string][]string{},
+			issuerURL: issuerURL,
 		},
 		{
-			name:            "creates when list is nil",
-			existing:        nil,
-			issuerURL:       "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ",
-			expectCreateURL: "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ",
+			name:      "no provider when list is nil",
+			existing:  nil,
+			issuerURL: issuerURL,
 		},
 		{
-			name:          "list error propagates",
-			listErr:       errors.New("api throttled"),
-			issuerURL:     issuerURL,
-			expectError:   true,
-			errorContains: "failed to list OIDC providers",
+			name:           "provider deleted between list and get",
+			existing:       map[string][]string{issuerArn: nil},
+			getErr:         &iamtypes.NoSuchEntityException{},
+			issuerURL:      issuerURL,
+			expectGetCalls: 1,
 		},
 		{
-			name:          "create error propagates",
-			existing:      map[string]*fakeProvider{},
-			createErr:     errors.New("quota exceeded"),
-			issuerURL:     issuerURL,
-			expectError:   true,
-			errorContains: "failed to create OIDC provider",
+			name:           "get error propagates",
+			existing:       map[string][]string{issuerArn: nil},
+			getErr:         errors.New("access denied"),
+			issuerURL:      issuerURL,
+			expectGetCalls: 1,
+			expectError:    "failed to get OIDC provider",
+		},
+		{
+			name:        "list error propagates",
+			listErr:     errors.New("api throttled"),
+			issuerURL:   issuerURL,
+			expectError: "failed to list OIDC providers",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &fakeIAM{
 				providers: tc.existing,
 				listErr:   tc.listErr,
-				createErr: tc.createErr,
+				getErr:    tc.getErr,
 			}
 
-			arn, err := EnsureOIDCProvider(t.Context(), f, tc.issuerURL)
+			arn, err := ReuseOIDCProvider(t.Context(), f, tc.issuerURL)
 
-			if tc.expectError {
-				require.Error(t, err)
-				if tc.errorContains != "" {
-					assert.Contains(t, err.Error(), tc.errorContains)
-				}
+			assert.Equal(t, tc.expectGetCalls, f.getCalls)
+			if tc.expectError != "" {
+				require.ErrorContains(t, err, tc.expectError)
 				return
 			}
 			require.NoError(t, err)
 
-			if tc.expectCreateURL == "" {
-				assert.Equal(t, 0, f.createCalls, "Create must not be called when an existing provider matches")
-				assert.Equal(t, tc.expectArn, arn)
-				if tc.expectAddClient {
-					assert.Equal(t, 1, f.addClientIDCalls, "AddClientIDToOpenIDConnectProvider should have been called")
-					require.Len(t, f.addClientIDInputs, 1)
-					assert.Equal(t, "sts.amazonaws.com", aws.ToString(f.addClientIDInputs[0].ClientID))
-				} else {
-					assert.Equal(t, 0, f.addClientIDCalls, "AddClientIDToOpenIDConnectProvider must not be called when STS audience is already registered")
-				}
-				return
+			assert.Equal(t, tc.expectArn, arn)
+			if tc.expectAddClient {
+				require.Len(t, f.addClientIDInputs, 1, "AddClientIDToOpenIDConnectProvider should have been called")
+				assert.Equal(t, "sts.amazonaws.com", aws.ToString(f.addClientIDInputs[0].ClientID))
+			} else {
+				assert.Empty(t, f.addClientIDInputs, "AddClientIDToOpenIDConnectProvider must not be called when STS audience is already registered")
 			}
-
-			assert.Equal(t, 1, f.createCalls)
-			require.NotNil(t, f.createInput)
-			assert.Equal(t, tc.expectCreateURL, aws.ToString(f.createInput.Url))
-			assert.Equal(t, []string{"sts.amazonaws.com"}, f.createInput.ClientIDList)
-			assert.Nil(t, f.createInput.ThumbprintList, "ThumbprintList must be omitted so IAM auto-fetches it")
-			assert.Contains(t, arn, "oidc-provider/")
 		})
 	}
 }

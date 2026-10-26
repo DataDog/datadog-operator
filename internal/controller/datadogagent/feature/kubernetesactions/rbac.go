@@ -29,4 +29,10 @@ var kubernetesActionsRBACPolicyRules = []rbacv1.PolicyRule{
 		Resources: []string{"deployments/status"},
 		Verbs:     []string{rbac.GetVerb},
 	},
+	{
+		// rollbackDeployment lists the Deployment's ReplicaSets to find the target revision.
+		APIGroups: []string{rbac.AppsAPIGroup},
+		Resources: []string{rbac.ReplicasetsResource},
+		Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
+	},
 }

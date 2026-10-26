@@ -20,8 +20,17 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
+)
+
+const (
+	collectionModePoll  = "poll"
+	collectionModeWatch = "watch"
+
+	collectionModeWatchMinVersion = "7.81.1-0"
 )
 
 func init() {
@@ -49,6 +58,7 @@ type eventCollectionFeature struct {
 	configMapName      string
 	unbundleEvents     bool
 	unbundleEventTypes []v2alpha1.EventTypes
+	collectionMode     string
 
 	logger logr.Logger
 }
@@ -68,14 +78,41 @@ func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
+		// If there is an override we mount the configmap, otherwise keep the default that is already present on the
+		// Cluster Agent image
+		var requiresConfigOverride bool
+
 		if apiutils.BoolValue(ddaSpec.Features.EventCollection.UnbundleEvents) {
 			if len(ddaSpec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
+				requiresConfigOverride = true
 				f.unbundleEvents = *ddaSpec.Features.EventCollection.UnbundleEvents
 				f.unbundleEventTypes = ddaSpec.Features.EventCollection.CollectedEventTypes
 			} else {
 				f.logger.Info("UnbundleEvents is enabled but no CollectedEventTypes are specified, disabling unbundleEvents")
 			}
+		}
+
+		requestedCollectionMode := apiutils.StringValue(ddaSpec.Features.EventCollection.CollectionMode)
+		switch requestedCollectionMode {
+		case "", collectionModePoll:
+			// Does not require any change, this is the default behavior
+		case collectionModeWatch:
+			clusterAgentVersion := images.ClusterAgentLatestVersion
+			if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent != nil && clusterAgent.Image != nil {
+				clusterAgentVersion = common.GetAgentVersionFromImage(*clusterAgent.Image)
+			}
+			if !pkgutils.IsAboveMinVersion(clusterAgentVersion, collectionModeWatchMinVersion, nil) {
+				f.logger.Info("features.eventCollection.collectionMode watch requires a newer Cluster Agent, ignoring and using the Cluster Agent default", "version", clusterAgentVersion, "minVersion", collectionModeWatchMinVersion)
+				break
+			}
+			requiresConfigOverride = true // Only watch requires a config override
+			f.collectionMode = collectionModeWatch
+		default:
+			f.logger.Info("Invalid features.eventCollection.collectionMode, ignoring and using the Cluster Agent default", "value", requestedCollectionMode, "allowed", []string{collectionModePoll, collectionModeWatch})
+		}
+
+		if requiresConfigOverride {
+			f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -112,7 +149,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 
 	if f.configMapName != "" {
 		// creating ConfigMap for event collection if required
-		cm, err := buildDefaultConfigMap(f.owner.GetNamespace(), f.configMapName, f.unbundleEvents, f.unbundleEventTypes)
+		cm, err := buildDefaultConfigMap(f.owner.GetNamespace(), f.configMapName, f.unbundleEvents, f.unbundleEventTypes, f.collectionMode)
 		if err != nil {
 			return err
 		}

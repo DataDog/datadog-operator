@@ -116,10 +116,7 @@ func (r *ComponentResources) objects() []client.Object {
 
 func (r *ComponentResources) obsoleteObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
 	metadata := componentObjectMeta(cluster, c.name)
-	var objects []client.Object
-	if c.stateful != nil && r.HPA == nil {
-		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata})
-	}
+	objects := c.workload.obsoleteObjects(metadata)
 	if r.PodDisruptionBudget == nil {
 		objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
 	}

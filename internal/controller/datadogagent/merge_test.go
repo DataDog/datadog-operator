@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -211,7 +210,6 @@ func Test_ssaMergeCRD(t *testing.T) {
 		assert.NoError(t, err)
 
 		fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&tt.ddai, crd).Build()
-		logger := logf.Log.WithName("Test_ssaMergeCRD")
 		eventBroadcaster := record.NewBroadcaster()
 		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_ssaMergeCRD"})
 		fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
@@ -220,7 +218,6 @@ func Test_ssaMergeCRD(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
 				client:       fakeClient,
-				log:          logger,
 				scheme:       sch,
 				recorder:     recorder,
 				fieldManager: fieldManager,
@@ -234,7 +231,7 @@ func Test_ssaMergeCRD(t *testing.T) {
 				crd)
 			assert.NoError(t, err)
 
-			ddai, err := r.ssaMergeCRD(&tt.ddai, &tt.profile)
+			ddai, err := r.ssaMergeCRD(context.Background(), &tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			obj, ok := ddai.(*v1alpha1.DatadogAgentInternal)
 			assert.True(t, ok)
@@ -314,7 +311,6 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 	}
 
 	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&ddai, crd).Build()
-	logger := logf.Log.WithName("Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields")
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields"})
 	fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
@@ -322,13 +318,14 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 
 	r := &Reconciler{
 		client:       fakeClient,
-		log:          logger,
 		scheme:       sch,
 		recorder:     recorder,
 		fieldManager: fieldManager,
 	}
 
-	merged, err := r.ssaMergeCRD(&ddai, &profile)
+	ctx, checkLogs := tracedLogContext(t)
+	merged, err := r.ssaMergeCRD(ctx, &ddai, &profile)
+	checkLogs()
 	assert.NoError(t, err)
 	obj, ok := merged.(*v1alpha1.DatadogAgentInternal)
 	assert.True(t, ok)

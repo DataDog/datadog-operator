@@ -9,7 +9,26 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// deploymentWorkload runs a component as a Deployment with ephemeral data.
+type deploymentWorkload struct {
+	replicas int32
+	strategy appsv1.DeploymentStrategyType
+}
+
+func (w deploymentWorkload) dataVolumes() []corev1.Volume {
+	return []corev1.Volume{{Name: dataVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}}
+}
+
+func (w deploymentWorkload) populate(r *ComponentResources, metadata metav1.ObjectMeta, selector map[string]string, template corev1.PodTemplateSpec) {
+	r.Deployment = newDeployment(metadata, selector, template, w.replicas, w.strategy)
+}
+
+func (w deploymentWorkload) obsoleteObjects(metav1.ObjectMeta) []client.Object {
+	return nil
+}
 
 func newDeployment(metadata metav1.ObjectMeta, selector map[string]string, template corev1.PodTemplateSpec, replicas int32, strategy appsv1.DeploymentStrategyType) *appsv1.Deployment {
 	return &appsv1.Deployment{

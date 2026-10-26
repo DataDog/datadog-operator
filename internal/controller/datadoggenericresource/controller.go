@@ -298,6 +298,7 @@ func applyResourceState(state string, status *v1alpha1.DatadogGenericResourceSta
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		originalID := instance.Status.Id
 		desiredStatus := status.DeepCopy()
 		instance.Status = *desiredStatus.DeepCopy()
 		err := r.client.Status().Update(ctx, instance)
@@ -312,7 +313,12 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha
 					return getErr
 				}
 
-				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+				// A stale reconcile may have failed to create a resource whose ID
+				// has since been persisted. Keep the entire newer status rather
+				// than replacing it with that stale error. Still allow an intentional
+				// reset of the ID this reconcile observed (e.g. after a remote 404).
+				preserveLatestID := desiredStatus.Id == "" && latest.Status.Id != "" && latest.Status.Id != originalID
+				if preserveLatestID || apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
 					instance.ResourceVersion = latest.ResourceVersion
 					instance.Status = latest.Status
 					return nil

@@ -1294,7 +1294,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 93e72e5661f9348d6cd3dd03f2623465
+    agent.datadoghq.com/agentspechash: 7c3ba75ac8a4f52e97174e16d83693ba
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1359,6 +1359,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE

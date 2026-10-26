@@ -743,7 +743,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	fieldsToSkip := []string{
 		"controller",           // "datadogagentinternal", present in log name
 		"controllerGroup",      // "datadoghq.com", unnecessary
-		"controllerKind",       // "DatadogAgentInternal", use `kind` instead since it's shorter
+		"controllerKind",       // "DatadogAgentInternal", present in log name
 		"DatadogAgentInternal", // {"name":"datadog-agent","namespace":"default"}, duplicate of namespace and name
 	}
 	encoder := newFilteringEncoder(baseEncoder, fieldsToSkip)

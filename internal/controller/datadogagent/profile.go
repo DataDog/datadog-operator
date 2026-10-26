@@ -212,7 +212,7 @@ func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.
 	return nil, fmt.Errorf("no valid daemonset found")
 }
 
-func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := []*v1alpha1.DatadogAgentInternal{}
 
 	// For all profiles, create DDAI objects
@@ -225,7 +225,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.Dat
 		if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 			sourceDDAI = defaultDDAI
 		}
-		mergedDDAI, err := r.computeProfileMerge(sourceDDAI, profile)
+		mergedDDAI, err := r.computeProfileMerge(ctx, sourceDDAI, profile)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.Dat
 	return ddais, nil
 }
 
-func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) computeProfileMerge(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
 	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
 	profileDDAI := ddai.DeepCopy()
 	baseDDAI := ddai.DeepCopy()
@@ -250,7 +250,7 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	baseDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
 	profileDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
 	// Server side apply to merge DDAIs
-	obj, err := r.ssaMergeCRD(baseDDAI, profileDDAI)
+	obj, err := r.ssaMergeCRD(ctx, baseDDAI, profileDDAI)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func (r *Reconciler) addDDAIStatusToProfileStatus(ctx context.Context, profile *
 	ddai := &v1alpha1.DatadogAgentInternal{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiName, Namespace: ddaiNamespace}, ddai); err != nil {
 		if !apierrors.IsNotFound(err) {
-			r.log.Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			ctrl.LoggerFrom(ctx).Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 			return
 		}
 		// Leave a new profile untouched until its DDAI is created, but clear

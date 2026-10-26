@@ -287,7 +287,7 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 		logger.Info("Updating Daemonset")
 		err = kubernetes.UpdateFromObject(ctx, r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
-			updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
+			updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, kubernetes.DaemonSetKind, datadog.UpdateEvent)

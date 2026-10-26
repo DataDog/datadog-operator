@@ -15,7 +15,6 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,19 +23,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
+func mergeAnnotationsLabels(ctx context.Context, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
 	var globFilter glob.Glob
 	var err error
 	if filter != "" {
 		globFilter, err = glob.Compile(filter)
 		if err != nil {
-			logger.Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
+			ctrl.LoggerFrom(ctx).Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
 		}
 	}
 
@@ -157,7 +157,8 @@ func getDDAIGVK() schema.GroupVersionKind {
 
 // Delete specific workload and dependents with background propagation
 // Only used for Helm-managed cluster checks runner deployment
-func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, c client.Client, obj client.Object, component string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	propagationPolicy := metav1.DeletePropagationBackground
 	selector := labels.SelectorFromSet(labels.Set{
 		apicommon.AgentDeploymentComponentLabelKey: component,
@@ -166,7 +167,7 @@ func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, logger logr.
 	logger.Info("deleting all workloads and dependents for matching DDA with background propagation", "labels", selector.String())
 	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			logger.Info("object not found, skipping deletion")
 			return nil
 		}
 		return err
@@ -175,7 +176,8 @@ func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, logger logr.
 }
 
 // delete ALL workloads for a given DDA/DDAI and orphan pods
-func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+func deleteObjectAndOrphanDependents(ctx context.Context, c client.Client, obj client.Object, component string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	propagationPolicy := metav1.DeletePropagationOrphan
 	selector := labels.SelectorFromSet(labels.Set{
 		kubernetes.AppKubernetesPartOfLabelKey:     obj.GetLabels()[kubernetes.AppKubernetesPartOfLabelKey],
@@ -184,7 +186,7 @@ func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c 
 	logger.Info("deleting all workloads for matching DDA", "labels", selector.String())
 	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			logger.Info("object not found, skipping deletion")
 			return nil
 		}
 		return err
