@@ -399,6 +399,64 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 			},
 			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill"),
 		},
+		{
+			name: "cspm host benchmarks in system-probe",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)},
+						RunInSystemProbe: ptr.To(true),
+					},
+				},
+			},
+			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill", "chroot", "fchdir", "mlock", "munlock"),
+		},
+		{
+			name: "cspm host benchmarks in security-agent",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)},
+						RunInSystemProbe: ptr.To(false),
+					},
+				},
+			},
+			expectedSyscalls: DefaultSyscallsForSystemProbe(),
+		},
+		{
+			name: "cspm in system-probe without host benchmarks",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(false)},
+						RunInSystemProbe: ptr.To(true),
+					},
+				},
+			},
+			expectedSyscalls: DefaultSyscallsForSystemProbe(),
+		},
+		{
+			name: "cws enforcement and cspm host benchmarks in system-probe",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: ptr.To(true),
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: ptr.To(true),
+						},
+					},
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)},
+						RunInSystemProbe: ptr.To(true),
+					},
+				},
+			},
+			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill", "chroot", "fchdir", "mlock", "munlock"),
+		},
 	}
 
 	for _, tt := range tests {
