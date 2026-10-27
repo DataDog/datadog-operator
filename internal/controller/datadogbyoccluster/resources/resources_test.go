@@ -827,6 +827,32 @@ func TestBuildResources_Searcher(t *testing.T) {
 			},
 		},
 		{
+			name: "probes",
+			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					StartupProbe: &corev1.Probe{
+						ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}},
+						PeriodSeconds:    5,
+						TimeoutSeconds:   3,
+						FailureThreshold: 120,
+					},
+					ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString("rest")}}},
+				},
+			},
+			want: func() *ComponentResources {
+				want := wantDefault()
+				container := &want.StatefulSet.Spec.Template.Spec.Containers[0]
+				container.StartupProbe = &corev1.Probe{
+					ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}},
+					PeriodSeconds:    5,
+					TimeoutSeconds:   3,
+					FailureThreshold: 120,
+				}
+				container.ReadinessProbe = &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString("rest")}}}
+				return want
+			},
+		},
+		{
 			name: "volume claim template",
 			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
