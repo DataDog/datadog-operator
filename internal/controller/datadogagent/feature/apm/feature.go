@@ -102,6 +102,8 @@ type instrumentationConfig struct {
 	injector           *injector
 	injectionMode      string
 	targets            []v2alpha1.SSITarget
+	// apmBasicEnabled is nil when features.apm.instrumentation.apmBasic.enabled is unset.
+	apmBasicEnabled *bool
 }
 
 type languageDetection struct {
@@ -222,6 +224,9 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			} else {
 				f.logger.Info(fmt.Sprintf("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= %s", minInstrumentationTargetsVersion))
 			}
+		}
+		if apm.SingleStepInstrumentation.APMBasic != nil {
+			f.singleStepInstrumentation.apmBasicEnabled = apm.SingleStepInstrumentation.APMBasic.Enabled
 		}
 		reqComp.ClusterAgent = feature.RequiredComponent{
 			IsRequired: new(true),
@@ -472,6 +477,12 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAPMInstrumentationTargets,
 				Value: string(js),
+			})
+		}
+		if f.singleStepInstrumentation.apmBasicEnabled != nil {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationAPMBasicEnabled,
+				Value: apiutils.BoolToString(f.singleStepInstrumentation.apmBasicEnabled),
 			})
 		}
 

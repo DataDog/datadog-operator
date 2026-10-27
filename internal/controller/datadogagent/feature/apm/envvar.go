@@ -17,6 +17,7 @@ const (
 	DDAPMInstrumentationDisabledNamespaces = "DD_APM_INSTRUMENTATION_DISABLED_NAMESPACES"
 	DDAPMInstrumentationTargets            = "DD_APM_INSTRUMENTATION_TARGETS"
 	DDAPMInstrumentationLibVersions        = "DD_APM_INSTRUMENTATION_LIB_VERSIONS"
+	DDAPMInstrumentationAPMBasicEnabled    = "DD_APM_INSTRUMENTATION_APM_BASIC_ENABLED"
 	DDLanguageDetectionEnabled             = "DD_LANGUAGE_DETECTION_ENABLED"
 	DDLanguageDetectionReportingEnabled    = "DD_LANGUAGE_DETECTION_REPORTING_ENABLED"
 	DDTraceAgentHostSocketPath             = "DD_TRACE_AGENT_HOST_SOCKET_PATH"

@@ -445,6 +445,20 @@ type SingleStepInstrumentation struct {
 	// (Requires Cluster Agent 7.64.0+)
 	// +optional
 	Targets []SSITarget `json:"targets,omitempty"`
+
+	// APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods
+	// labeled `admission.datadoghq.com/apm-basic.enabled: "true"` to report RED metrics without sending traces.
+	// It does not require Enabled to be true.
+	// +optional
+	APMBasic *APMBasicConfig `json:"apmBasic,omitempty"`
+}
+
+// APMBasicConfig contains the APM Basic configuration.
+type APMBasicConfig struct {
+	// Enabled enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: "true"`.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.

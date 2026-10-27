@@ -799,6 +799,18 @@ spec:
                             See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm
                             Enabled Default: false
                           properties:
+                            apmBasic:
+                              description: |-
+                                APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods
+                                labeled `admission.datadoghq.com/apm-basic.enabled: "true"` to report RED metrics without sending traces.
+                                It does not require Enabled to be true.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: "true"`.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             disabledNamespaces:
                               description: DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.
                               items:
@@ -10427,6 +10439,18 @@ spec:
                                 See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm
                                 Enabled Default: false
                               properties:
+                                apmBasic:
+                                  description: |-
+                                    APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods
+                                    labeled `admission.datadoghq.com/apm-basic.enabled: "true"` to report RED metrics without sending traces.
+                                    It does not require Enabled to be true.
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: "true"`.
+                                        Default: false
+                                      type: boolean
+                                  type: object
                                 disabledNamespaces:
                                   description: DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.
                                   items:

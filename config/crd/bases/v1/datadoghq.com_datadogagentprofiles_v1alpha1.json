@@ -743,6 +743,17 @@
                       "additionalProperties": false,
                       "description": "SingleStepInstrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster.\nFeature is in beta.\nSee also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm\nEnabled Default: false",
                       "properties": {
+                        "apmBasic": {
+                          "additionalProperties": false,
+                          "description": "APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods\nlabeled `admission.datadoghq.com/apm-basic.enabled: \"true\"` to report RED metrics without sending traces.\nIt does not require Enabled to be true.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: \"true\"`.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "disabledNamespaces": {
                           "description": "DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.",
                           "items": {

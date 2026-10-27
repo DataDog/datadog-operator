@@ -100,6 +100,7 @@ spec:
 | features.apm.errorTrackingStandalone.enabled | Enables Error Tracking for backend services. Default: false |
 | features.apm.hostPortConfig.enabled | Enables host port configuration |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.apm.instrumentation.apmBasic.enabled | Enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: "true"`. Default: false |
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |

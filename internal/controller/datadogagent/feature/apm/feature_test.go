@@ -577,6 +577,22 @@ func TestAPMFeature(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationOnDemand(false),
 		},
+		{
+			Name: "apm basic enabled without single step instrumentation",
+			DDA: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithAPMEnabled(true).
+					WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
+					WithAPMUDSEnabled(true, apmSocketHostPath).
+					WithAPMSingleStepInstrumentationEnabled(false, nil, nil, nil, false, "", nil, "").
+					WithAdmissionControllerEnabled(true).
+					Build()
+				dda.Spec.Features.APM.SingleStepInstrumentation.APMBasic = &v2alpha1.APMBasicConfig{Enabled: ptr.To(true)}
+				return dda
+			}(),
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationAPMBasic(),
+		},
 	}
 
 	tests.Run(t, buildAPMFeature)
@@ -988,6 +1004,43 @@ func testAPMInstrumentationOnDemand(onDemand bool) *test.ComponentTest {
 				{
 					Name:  DDAPMInstrumentationOnDemand,
 					Value: apiutils.BoolToString(&onDemand),
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationAPMBasic() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
+					Name:  DDAPMInstrumentationEnabled,
+					Value: "false",
+				},
+				{
+					Name:  DDAPMInstrumentationOnDemand,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMInstrumentationAPMBasicEnabled,
+					Value: "true",
 				},
 			}
 			assert.True(
