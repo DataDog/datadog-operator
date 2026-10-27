@@ -152,7 +152,6 @@ func defaultNodeConfig() map[string]any {
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 		},
-		quickwitIndexerServiceName:  map[string]any{"split_store_max_num_splits": 10000},
-		quickwitSearcherServiceName: map[string]any{"aggregation_memory_limit": "500M"},
+		quickwitIndexerServiceName: map[string]any{"split_store_max_num_splits": 10000},
 	}
 }

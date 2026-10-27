@@ -248,16 +248,35 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 
 func TestBuildResources_ConfigMap(t *testing.T) {
 	type nodeConfigValues struct {
-		splitStoreMaxNumBytes         int64
-		maxQueueDiskUsage             any
-		maxQueueMemoryUsage           any
-		aggregationMemoryLimit        any
-		fastFieldCacheCapacity        any
-		maxNumConcurrentSplitSearches int64
-		partialRequestCacheCapacity   any
-		splitFooterCacheCapacity      any
-		createLogsIndex               bool
-		createTracesIndex             bool
+		indexer   map[string]any
+		ingestAPI map[string]any
+		searcher  map[string]any
+		cloudprem map[string]any
+	}
+	capacity := func(value any) map[string]any {
+		return map[string]any{"capacity": value}
+	}
+	defaultIndexer := map[string]any{
+		"split_store_max_num_bytes":  12240656794,
+		"split_store_max_num_splits": 10000,
+	}
+	defaultIngestAPI := map[string]any{
+		"max_queue_disk_usage":   int64(10307921510),
+		"max_queue_memory_usage": int64(5153960755),
+	}
+	defaultSearcher := map[string]any{
+		"aggregation_memory_limit":          "500M",
+		"fast_field_cache":                  capacity(int64(6979321856)),
+		"max_num_concurrent_split_searches": 50,
+		"partial_request_cache":             capacity(int64(268435456)),
+		"split_footer_cache":                capacity(int64(536870912)),
+	}
+	defaultCloudPrem := map[string]any{
+		"mtls_header":              "X-Amzn-Mtls-Clientcert",
+		"create_dd_logs_index":     true,
+		"create_dd_metrics_index":  false,
+		"create_dd_sketches_index": false,
+		"create_dd_traces_index":   false,
 	}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
@@ -268,31 +287,16 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			"data_dir":              "/quickwit/qwdata",
 			"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
 			"health":                map[string]any{"listen_port": 7284},
-			"cloudprem": map[string]any{
-				"mtls_header":              "X-Amzn-Mtls-Clientcert",
-				"create_dd_logs_index":     values.createLogsIndex,
-				"create_dd_metrics_index":  false,
-				"create_dd_sketches_index": false,
-				"create_dd_traces_index":   values.createTracesIndex,
-			},
+			"cloudprem":             values.cloudprem,
 			"docs_clustering": []any{
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 			},
-			"indexer": map[string]any{"split_store_max_num_bytes": values.splitStoreMaxNumBytes, "split_store_max_num_splits": 10000},
-			"ingest_api": map[string]any{
-				"max_queue_disk_usage":   values.maxQueueDiskUsage,
-				"max_queue_memory_usage": values.maxQueueMemoryUsage,
-			},
-			"searcher": map[string]any{
-				"aggregation_memory_limit":          values.aggregationMemoryLimit,
-				"fast_field_cache_capacity":         values.fastFieldCacheCapacity,
-				"max_num_concurrent_split_searches": values.maxNumConcurrentSplitSearches,
-				"partial_request_cache_capacity":    values.partialRequestCacheCapacity,
-				"split_footer_cache_capacity":       values.splitFooterCacheCapacity,
-			},
+			"indexer":    values.indexer,
+			"ingest_api": values.ingestAPI,
+			"searcher":   values.searcher,
 		}
 		nodeConfig, err := yaml.Marshal(config)
 		if err != nil {
@@ -323,15 +327,10 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			name:        "default",
 			clusterFunc: func(*datadoghqv1alpha1.DatadogBYOCCluster) {},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -344,15 +343,40 @@ ingest_api:
   max_queue_memory_usage: 1GiB`)}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           "1GiB",
-				aggregationMemoryLimit:        "1G",
-				fastFieldCacheCapacity:        "2G",
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
+				indexer:   defaultIndexer,
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(10307921510), "max_queue_memory_usage": "1GiB"},
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "1G",
+					"fast_field_cache_capacity":         "2G",
+					"max_num_concurrent_split_searches": 50,
+					"partial_request_cache":             capacity(int64(268435456)),
+					"split_footer_cache":                capacity(int64(536870912)),
+				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with cache node config overrides",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`searcher:
+  fast_field_cache:
+    capacity: 280G
+    policy: s3-fifo
+  partial_request_cache: 40G
+  split_footer_cache:
+    policy: s3-fifo`)}
+			},
+			want: nodeConfigValues{
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  map[string]any{"capacity": "280G", "policy": "s3-fifo"},
+					"max_num_concurrent_split_searches": 50,
+					"partial_request_cache":             "40G",
+					"split_footer_cache":                map[string]any{"capacity": int64(536870912), "policy": "s3-fifo"},
+				},
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -366,15 +390,16 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         17394617549,
-				maxQueueDiskUsage:             int64(5153960755),
-				maxQueueMemoryUsage:           int64(2576980377),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(13958643712),
-				maxNumConcurrentSplitSearches: 100,
-				partialRequestCacheCapacity:   int64(536870912),
-				splitFooterCacheCapacity:      int64(1073741824),
-				createLogsIndex:               true,
+				indexer:   map[string]any{"split_store_max_num_bytes": 17394617549, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(5153960755), "max_queue_memory_usage": int64(2576980377)},
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  capacity(int64(13958643712)),
+					"max_num_concurrent_split_searches": 100,
+					"partial_request_cache":             capacity(int64(536870912)),
+					"split_footer_cache":                capacity(int64(1073741824)),
+				},
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -388,15 +413,16 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         15784004813,
-				maxQueueDiskUsage:             int64(6764573491),
-				maxQueueMemoryUsage:           int64(3382286745),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(4580179968),
-				maxNumConcurrentSplitSearches: 33,
-				partialRequestCacheCapacity:   int64(176160768),
-				splitFooterCacheCapacity:      int64(352321536),
-				createLogsIndex:               true,
+				indexer:   map[string]any{"split_store_max_num_bytes": 15784004813, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(6764573491), "max_queue_memory_usage": int64(3382286745)},
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  capacity(int64(4580179968)),
+					"max_num_concurrent_split_searches": 33,
+					"partial_request_cache":             capacity(int64(176160768)),
+					"split_footer_cache":                capacity(int64(352321536)),
+				},
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -405,15 +431,10 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs)
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -422,15 +443,16 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createTracesIndex:             true,
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher:  defaultSearcher,
+				cloudprem: map[string]any{
+					"mtls_header":              "X-Amzn-Mtls-Clientcert",
+					"create_dd_logs_index":     false,
+					"create_dd_metrics_index":  false,
+					"create_dd_sketches_index": false,
+					"create_dd_traces_index":   true,
+				},
 			},
 		},
 		{
@@ -438,19 +460,19 @@ ingest_api:
 			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
 				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cloudprem:
-  create_dd_logs_index: true`)}
+  create_datadog_index: true`)}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
-				createTracesIndex:             true,
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher:  defaultSearcher,
+				cloudprem: map[string]any{
+					"mtls_header":              "X-Amzn-Mtls-Clientcert",
+					"create_datadog_index":     true,
+					"create_dd_metrics_index":  false,
+					"create_dd_sketches_index": false,
+					"create_dd_traces_index":   true,
+				},
 			},
 		},
 	}
