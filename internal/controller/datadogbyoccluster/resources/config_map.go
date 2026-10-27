@@ -45,10 +45,8 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 		"max_queue_disk_usage":   maxQueueDiskUsage,
 		"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
 	}
-	searcher := map[string]any{
-		"aggregation_memory_limit":          "500M",
-		"max_num_concurrent_split_searches": int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125)),
-	}
+	searcher := config[quickwitSearcherServiceName].(map[string]any)
+	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125))
 	if !overrideSets(override, []string{quickwitSearcherServiceName, "fast_field_cache_capacity"}) {
 		searcher["fast_field_cache"] = map[string]any{"capacity": searcherMemoryBytes * 13 / 32}
 	}
@@ -61,7 +59,6 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
-	config[quickwitSearcherServiceName] = searcher
 	signal := datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
 	if cluster.Spec.Signal != nil {
 		signal = *cluster.Spec.Signal
