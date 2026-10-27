@@ -8,6 +8,16 @@ metadata:
   annotations:
     experimental.agent.datadoghq.com/autopilot: "true"
 spec:
+  override:
+    nodeAgent:
+      image:
+        # Exercise the next Agent release rather than the Operator's stable default.
+        tag: 7-rc
+        pullPolicy: Always
+    clusterAgent:
+      image:
+        tag: rc
+        pullPolicy: Always
   features:
     dataPlane:
       enabled: true
