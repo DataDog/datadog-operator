@@ -25841,7 +25841,6 @@
                     "type": "object"
                   },
                   "name": {
-                    "maxLength": 10,
                     "minLength": 1,
                     "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
                     "type": "string"
