@@ -40,7 +40,7 @@ var (
 		ReadOnly:  true,
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{tracingfsVolumeMount}
-	wantIpcPortEnvVars = []*corev1.EnvVar{
+	wantIpcPortEnvVars  = []*corev1.EnvVar{
 		{Name: common.DDAgentIpcPort, Value: "5009"},
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
 	}

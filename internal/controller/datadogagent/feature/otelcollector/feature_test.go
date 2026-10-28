@@ -34,11 +34,11 @@ type expectedEnvVars struct {
 	agent_ipc_use_socket expectedEnvVar
 	agent_ipc_port       expectedEnvVar
 	agent_ipc_refresh    expectedEnvVar
-	enabled             expectedEnvVar
-	extension_timeout   expectedEnvVar
-	extension_url       expectedEnvVar
-	converter_features  expectedEnvVar
-	installation_method expectedEnvVar
+	enabled              expectedEnvVar
+	extension_timeout    expectedEnvVar
+	extension_url        expectedEnvVar
+	converter_features   expectedEnvVar
+	installation_method  expectedEnvVar
 }
 
 type expectedEnvVar struct {
@@ -63,7 +63,7 @@ var (
 		agent_ipc_port: expectedEnvVar{
 			present: true,
 			value:   "5009",
-			},
+		},
 		agent_ipc_refresh: expectedEnvVar{
 			present: true,
 			value:   "60",
@@ -85,7 +85,7 @@ var (
 		agent_ipc_port: expectedEnvVar{
 			present: true,
 			value:   "5009",
-			},
+		},
 		agent_ipc_refresh: expectedEnvVar{
 			present: true,
 			value:   "60",
@@ -267,7 +267,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					agent_ipc_port: expectedEnvVar{
 						present: true,
 						value:   "5009",
-						},
+					},
 					agent_ipc_refresh: expectedEnvVar{
 						present: true,
 						value:   "60",
@@ -309,7 +309,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					agent_ipc_port: expectedEnvVar{
 						present: true,
 						value:   "5009",
-						},
+					},
 					agent_ipc_refresh: expectedEnvVar{
 						present: true,
 						value:   "60",
@@ -368,7 +368,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				agent_ipc_port: expectedEnvVar{
 					present: true,
 					value:   "5009",
-					},
+				},
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -399,7 +399,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				agent_ipc_port: expectedEnvVar{
 					present: true,
 					value:   "5009",
-					},
+				},
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -431,7 +431,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				agent_ipc_port: expectedEnvVar{
 					present: true,
 					value:   "5009",
-					},
+				},
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",

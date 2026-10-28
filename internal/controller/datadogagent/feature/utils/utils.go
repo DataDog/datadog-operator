@@ -28,10 +28,10 @@ const (
 	// AgentIPCUnixSocketMinVersion is the minimum Agent version supporting the
 	// agent_ipc unix socket transport; older agents ignore it and would silently
 	// lose config sync, so they keep the TCP port.
-	AgentIPCUnixSocketMinVersion = "7.85.0-0"
-	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
+	AgentIPCUnixSocketMinVersion  = "7.85.0-0"
+	EnableADPAnnotation           = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation  = "agent.datadoghq.com/host-profiler-enabled"
 	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
 	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
 	// set to "false" to disable both the seccomp profile and its setup init container.
