@@ -12,11 +12,11 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) *autoscalingv2.HorizontalPodAutoscaler {
+func newHPA(metadata metav1.ObjectMeta, kind string, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) *autoscalingv2.HorizontalPodAutoscaler {
 	return &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metadata,
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: metadata.Name},
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: kind, Name: metadata.Name},
 			MinReplicas:    autoscaling.MinReplicas,
 			MaxReplicas:    *autoscaling.MaxReplicas,
 			Metrics:        autoscaling.Metrics,

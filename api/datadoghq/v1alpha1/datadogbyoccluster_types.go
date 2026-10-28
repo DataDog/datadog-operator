@@ -303,7 +303,7 @@ type DatadogBYOCClusterComponentsSpec struct {
 
 	// Compactor configures the Compactor workload.
 	// +optional
-	Compactor *DatadogBYOCClusterComponentSpec `json:"compactor,omitempty"`
+	Compactor *DatadogBYOCClusterCompactorComponentSpec `json:"compactor,omitempty"`
 
 	// Janitor configures the Janitor workload.
 	// +kubebuilder:validation:Required
@@ -422,6 +422,18 @@ type DatadogBYOCClusterComponentSpec struct {
 	// TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+
+	// StartupProbe replaces the startup probe of the component container.
+	// +optional
+	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
+
+	// LivenessProbe replaces the liveness probe of the component container.
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// ReadinessProbe replaces the readiness probe of the component container.
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // DatadogBYOCClusterPodDisruptionBudgetSpec defines the availability constraint for voluntary Pod disruptions.
@@ -456,6 +468,16 @@ type DatadogBYOCClusterStatefulComponentSpec struct {
 	// +optional
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy *appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+}
+
+// DatadogBYOCClusterCompactorComponentSpec defines settings for the Compactor workload.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterCompactorComponentSpec struct {
+	DatadogBYOCClusterComponentSpec `json:",inline"`
+
+	// Autoscaling configures horizontal autoscaling for the component.
+	// +optional
+	Autoscaling *DatadogBYOCClusterAutoscalingSpec `json:"autoscaling,omitempty"`
 }
 
 // DatadogBYOCClusterMetastoreComponentSpec defines settings for a Metastore workload.

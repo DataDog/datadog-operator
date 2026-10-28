@@ -6,6 +6,7 @@
 package resources
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 
@@ -88,10 +89,11 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 				{Name: "cloudprem", ContainerPort: cloudpremPort, Protocol: corev1.ProtocolTCP},
 				{Name: "health", ContainerPort: healthPort, Protocol: corev1.ProtocolTCP},
 			},
-			Resources:     ptr.Deref(spec.Resources, corev1.ResourceRequirements{}),
-			VolumeMounts:  volumeMounts,
-			StartupProbe:  &corev1.Probe{ProbeHandler: healthProbeHandler(startupProbePath), FailureThreshold: startupProbeFailureThreshold, PeriodSeconds: startupProbePeriodSeconds},
-			LivenessProbe: &corev1.Probe{ProbeHandler: healthProbeHandler(livenessProbePath), TimeoutSeconds: livenessProbeTimeoutSeconds},
+			Resources:      ptr.Deref(spec.Resources, corev1.ResourceRequirements{}),
+			VolumeMounts:   volumeMounts,
+			StartupProbe:   cmp.Or(spec.StartupProbe, &corev1.Probe{ProbeHandler: healthProbeHandler(startupProbePath), FailureThreshold: startupProbeFailureThreshold, PeriodSeconds: startupProbePeriodSeconds}),
+			LivenessProbe:  cmp.Or(spec.LivenessProbe, &corev1.Probe{ProbeHandler: healthProbeHandler(livenessProbePath), TimeoutSeconds: livenessProbeTimeoutSeconds}),
+			ReadinessProbe: spec.ReadinessProbe,
 			SecurityContext: &corev1.SecurityContext{
 				RunAsNonRoot:           new(true),
 				RunAsUser:              new(pomskyUserID),

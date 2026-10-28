@@ -40,6 +40,28 @@ func (w deploymentWorkload) obsoleteObjects(metav1.ObjectMeta) []client.Object {
 	return nil
 }
 
+// autoscalableDeploymentWorkload runs a component as a Deployment, optionally autoscaled.
+type autoscalableDeploymentWorkload struct {
+	deploymentWorkload
+	autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+}
+
+func (w autoscalableDeploymentWorkload) populate(r *ComponentResources, metadata metav1.ObjectMeta, selector map[string]string, template corev1.PodTemplateSpec) {
+	w.deploymentWorkload.populate(r, metadata, selector, template)
+	if w.autoscaling != nil {
+		// The HPA sets the replicas of an autoscaled Deployment.
+		r.Deployment.Spec.Replicas = nil
+		r.HPA = newHPA(metadata, "Deployment", w.autoscaling)
+	}
+}
+
+func (w autoscalableDeploymentWorkload) obsoleteObjects(metadata metav1.ObjectMeta) []client.Object {
+	if w.autoscaling != nil {
+		return nil
+	}
+	return []client.Object{&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata}}
+}
+
 // statefulSetWorkload runs a component as a StatefulSet, optionally autoscaled.
 type statefulSetWorkload struct {
 	spec        *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
@@ -57,7 +79,7 @@ func (w statefulSetWorkload) dataVolumes() []corev1.Volume {
 func (w statefulSetWorkload) populate(r *ComponentResources, metadata metav1.ObjectMeta, selector map[string]string, template corev1.PodTemplateSpec) {
 	r.StatefulSet = newStatefulSet(metadata, selector, template, w.serviceName, w.spec)
 	if w.spec.Autoscaling != nil {
-		r.HPA = newHPA(metadata, w.spec.Autoscaling)
+		r.HPA = newHPA(metadata, "StatefulSet", w.spec.Autoscaling)
 	}
 }
 

@@ -380,6 +380,8 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 				}
 				worker.Spec.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: ptr.To(resource.MustParse("1Gi"))}}
 				worker.Spec.PodManagementPolicy = ptr.To(appsv1.OrderedReadyPodManagement)
+				worker.Spec.StartupProbe = &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(8686)}}, PeriodSeconds: 10, FailureThreshold: 30}
+				worker.Spec.ReadinessProbe = &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromInt32(8686)}}}
 				worker.Spec.Autoscaling = &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 					MinReplicas: ptr.To[int32](2),
 					MaxReplicas: ptr.To[int32](10),
@@ -466,12 +468,12 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 									FailureThreshold:    5,
 								},
 								ReadinessProbe: &corev1.Probe{
-									ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(8686)}},
-									InitialDelaySeconds: 15,
-									TimeoutSeconds:      15,
-									PeriodSeconds:       10,
-									SuccessThreshold:    1,
-									FailureThreshold:    3,
+									ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health", Port: intstr.FromInt32(8686)}},
+								},
+								StartupProbe: &corev1.Probe{
+									ProbeHandler:     corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(8686)}},
+									PeriodSeconds:    10,
+									FailureThreshold: 30,
 								},
 							}},
 							Volumes: []corev1.Volume{
