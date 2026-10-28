@@ -16,6 +16,10 @@ const (
 	privateActionRunnerRunVolumeName   = "private-action-runner-run"
 	privateActionRunnerGracePeriod     = int64(190)
 
+	// packetCaptureMinVersion is the first Agent whose system-probe serves the
+	// capture-only socket.
+	packetCaptureMinVersion = "7.86.0-0"
+
 	privateActionRunnerVolumeNameSuffix = "privateactionrunner-config"
 	privateActionRunnerFileName         = "privateactionrunner.yaml"
 	privateActionRunnerSuffix           = "private-action-runner"
