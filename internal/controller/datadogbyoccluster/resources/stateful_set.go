@@ -23,7 +23,7 @@ func newStatefulSet(metadata metav1.ObjectMeta, selector map[string]string, temp
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:             replicas,
 			ServiceName:          serviceName,
-			PodManagementPolicy:  appsv1.OrderedReadyPodManagement,
+			PodManagementPolicy:  *spec.PodManagementPolicy,
 			Selector:             &metav1.LabelSelector{MatchLabels: selector},
 			Template:             template,
 			VolumeClaimTemplates: newVolumeClaimTemplates(spec.Storage),

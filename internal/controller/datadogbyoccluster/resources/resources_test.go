@@ -773,6 +773,17 @@ func TestBuildResources_Indexer(t *testing.T) {
 				return want
 			},
 		},
+		{
+			name: "pod management policy",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
+			},
+			want: func() *ComponentResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.PodManagementPolicy = appsv1.OrderedReadyPodManagement
+				return want
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1285,7 +1296,7 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *ComponentResources 
 			Spec: appsv1.StatefulSetSpec{
 				Replicas:            workload.replicas,
 				ServiceName:         "byoc-headless",
-				PodManagementPolicy: appsv1.OrderedReadyPodManagement,
+				PodManagementPolicy: appsv1.ParallelPodManagement,
 				Selector:            workload.selector,
 				Template:            workload.template,
 			},

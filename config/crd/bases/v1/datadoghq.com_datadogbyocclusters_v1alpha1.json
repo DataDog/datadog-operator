@@ -11576,6 +11576,13 @@
                   },
                   "type": "object"
                 },
+                "podManagementPolicy": {
+                  "enum": [
+                    "OrderedReady",
+                    "Parallel"
+                  ],
+                  "type": "string"
+                },
                 "readinessProbe": {
                   "additionalProperties": false,
                   "properties": {
@@ -24646,6 +24653,13 @@
                     },
                     "type": "object"
                   },
+                  "podManagementPolicy": {
+                    "enum": [
+                      "OrderedReady",
+                      "Parallel"
+                    ],
+                    "type": "string"
+                  },
                   "ports": {
                     "items": {
                       "additionalProperties": false,
@@ -33672,6 +33686,13 @@
                     }
                   },
                   "type": "object"
+                },
+                "podManagementPolicy": {
+                  "enum": [
+                    "OrderedReady",
+                    "Parallel"
+                  ],
+                  "type": "string"
                 },
                 "readinessProbe": {
                   "additionalProperties": false,

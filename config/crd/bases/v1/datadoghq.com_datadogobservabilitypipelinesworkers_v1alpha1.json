@@ -2922,6 +2922,13 @@
           },
           "type": "object"
         },
+        "podManagementPolicy": {
+          "enum": [
+            "OrderedReady",
+            "Parallel"
+          ],
+          "type": "string"
+        },
         "ports": {
           "items": {
             "additionalProperties": false,

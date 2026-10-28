@@ -908,6 +908,24 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorC
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"autoscaling": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Autoscaling configures horizontal autoscaling for the component.",
@@ -918,7 +936,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorC
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2248,6 +2266,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
 						},
 					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PipelineID identifies an existing Observability Pipeline to use.",
@@ -2557,6 +2582,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {
@@ -3044,6 +3076,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -5556,6 +5595,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {

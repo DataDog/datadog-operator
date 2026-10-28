@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -36,7 +37,8 @@ func TestApply(t *testing.T) {
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -73,7 +75,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -112,7 +115,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -151,7 +155,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -190,7 +195,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -229,7 +235,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -254,6 +261,7 @@ func TestApply(t *testing.T) {
 						Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 							VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
 						},
+						PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 					},
 				},
 			}},
@@ -275,6 +283,7 @@ func TestApply(t *testing.T) {
 					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 						VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
 					},
+					PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 				},
 			},
 		},

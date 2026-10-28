@@ -6,6 +6,7 @@
 package defaults
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -114,6 +115,9 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 	if indexer.TerminationGracePeriodSeconds == nil {
 		indexer.TerminationGracePeriodSeconds = new(defaultIndexerTerminationGracePeriodSeconds)
 	}
+	if indexer.PodManagementPolicy == nil {
+		indexer.PodManagementPolicy = new(appsv1.ParallelPodManagement)
+	}
 	applyAutoscalingDefaults(indexer.Autoscaling, defaultAutoscalingMinReplicas, defaultIndexerTargetCPUUtilization, defaultIndexerScaleUpWindowSeconds, new(defaultIndexerScaleDownWindowSeconds))
 
 	if indexer.Storage == nil {
@@ -139,6 +143,9 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 
 func applySearcherDefaults(searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
 	applyComponentDefaults(&searcher.DatadogBYOCClusterComponentSpec, defaultSearcherReplicas, statefulResources())
+	if searcher.PodManagementPolicy == nil {
+		searcher.PodManagementPolicy = new(appsv1.ParallelPodManagement)
+	}
 	applyAutoscalingDefaults(searcher.Autoscaling, defaultAutoscalingMinReplicas, defaultSearcherTargetCPUUtilization, defaultSearcherScaleUpWindowSeconds, new(defaultSearcherScaleDownWindowSeconds))
 	if searcher.Storage == nil {
 		searcher.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{

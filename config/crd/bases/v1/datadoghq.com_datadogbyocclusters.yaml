@@ -7277,6 +7277,11 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podManagementPolicy:
+                          enum:
+                            - OrderedReady
+                            - Parallel
+                          type: string
                         readinessProbe:
                           properties:
                             exec:
@@ -15496,6 +15501,11 @@ spec:
                                   - type: string
                                 x-kubernetes-int-or-string: true
                             type: object
+                          podManagementPolicy:
+                            enum:
+                              - OrderedReady
+                              - Parallel
+                            type: string
                           ports:
                             items:
                               properties:
@@ -21170,6 +21180,11 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podManagementPolicy:
+                          enum:
+                            - OrderedReady
+                            - Parallel
+                          type: string
                         readinessProbe:
                           properties:
                             exec:

@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -460,6 +461,13 @@ type DatadogBYOCClusterStatefulComponentSpec struct {
 	// When omitted, the component default is used.
 	// +optional
 	Storage *DatadogBYOCClusterStorageSpec `json:"storage,omitempty"`
+
+	// PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales,
+	// or all at once. Rolling updates replace one Pod at a time with either policy.
+	// A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 }
 
 // DatadogBYOCClusterCompactorComponentSpec defines settings for the Compactor workload.
