@@ -25,10 +25,9 @@ const (
 	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
 	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
-	// AgentIPCUnixSocketMinVersion is the minimum Agent version to use for the agent_ipc unix
-	// socket transport for config sync: it needs the socket listener plus the stale socket
-	// cleanup before binding. Older agents ignore agent_ipc.use_socket, which would disable
-	// the IPC server entirely and silently break config sync, so they keep the TCP port.
+	// AgentIPCUnixSocketMinVersion is the minimum Agent version supporting the
+	// agent_ipc unix socket transport; older agents ignore it and would silently
+	// lose config sync, so they keep the TCP port.
 	AgentIPCUnixSocketMinVersion = "7.85.0-0"
 	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
@@ -152,12 +151,9 @@ func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, platformI
 	return common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), forceEnableLocalService)
 }
 
-// AgentIPCConfigSyncEnvVars returns the agent_ipc env vars that config sync requires for
-// the given node agent version: the unix socket transport on agents that support it (the
-// socket is created in the run_path volume shared by the agent containers), the TCP port
-// otherwise. The unix socket transport is linux-only in the Agent; features enabling
-// config sync are excluded on the Windows provider, and the Windows pod transformation
-// strips *SOCKET* env vars as a safety net.
+// AgentIPCConfigSyncEnvVars returns the agent_ipc env vars that config sync
+// requires: the unix socket transport on agents that support it, the TCP port
+// otherwise.
 func AgentIPCConfigSyncEnvVars(agentVersion string) []*corev1.EnvVar {
 	transportEnvVar := &corev1.EnvVar{
 		Name:  common.DDAgentIpcPort,
@@ -175,15 +171,10 @@ func AgentIPCConfigSyncEnvVars(agentVersion string) []*corev1.EnvVar {
 	}
 }
 
-// EnableConfigSyncForDirectSend sets the agent_ipc env vars that config sync requires, on the
-// given containers. system-probe wires the no-op secrets component, so with direct send it cannot
-// resolve an ENC[...] api_key itself; config sync is what supplies the resolved value from the
-// core agent. Both a refresh interval and an IPC transport are needed, since the IPC server
-// is not enabled by default in the agent.
-//
-// Values match the otelcollector and hostprofiler features, which set the same core agent env
-// vars for the same reason; a mismatch there would leave the transport up to feature ordering.
-// User-provided values win.
+// EnableConfigSyncForDirectSend sets the agent_ipc env vars that config sync requires
+// on the given containers: with direct send, system-probe cannot resolve an ENC[...]
+// api_key itself and needs the value resolved by the core agent. Values match the
+// otelcollector and hostprofiler features; user-provided values win.
 func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, dda metav1.Object, containers []apicommon.AgentContainerName) {
 	keepCurrent := func(current, _ *corev1.EnvVar) (*corev1.EnvVar, error) { return current, nil }
 	for _, envVar := range AgentIPCConfigSyncEnvVars(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)) {

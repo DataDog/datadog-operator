@@ -195,10 +195,8 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
 
-	// agent_ipc env vars for config sync between the core agent and the host profiler:
-	// unix socket transport on agents that support it, TCP port otherwise. Enabling the
-	// IPC server is required to fetch the API key from the core agent when a secrets
-	// backend is used.
+	// agent_ipc env vars for config sync with the core agent, required to fetch
+	// the API key when a secrets backend is used.
 	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(common.GetComponentVersion(o.owner, v2alpha1.NodeAgentComponentName))
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
 		for _, envVar := range agentIpcEnvVars {

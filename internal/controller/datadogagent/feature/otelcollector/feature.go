@@ -364,10 +364,8 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
-	// agent_ipc env vars for config sync between the core agent and the OTel agent:
-	// unix socket transport on agents that support it, TCP port otherwise. Enabling the
-	// IPC server is required to fetch the API key from the core agent when a secrets
-	// backend is used. User-provided values win.
+	// agent_ipc env vars for config sync with the core agent, required to fetch
+	// the API key when a secrets backend is used. User-provided values win.
 	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(common.GetComponentVersion(o.owner, v2alpha1.NodeAgentComponentName))
 	// don't set env var if it was already set by user.
 	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
