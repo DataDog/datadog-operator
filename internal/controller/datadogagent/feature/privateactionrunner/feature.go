@@ -77,7 +77,8 @@ func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) s
 // kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
 // because Kubernetes Actions communicates through it: the runner self-enrolls and stores its
 // identity in the secret covered by the Cluster Agent RBAC.
-const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n"
+// Keep this explicit name stable across upgrades to reuse already-enrolled identities.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: datadog-private-action-runner-identity\n"
 
 // Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
