@@ -302,7 +302,7 @@ type DatadogBYOCClusterComponentsSpec struct {
 
 	// Compactor configures the Compactor workload.
 	// +optional
-	Compactor *DatadogBYOCClusterComponentSpec `json:"compactor,omitempty"`
+	Compactor *DatadogBYOCClusterCompactorComponentSpec `json:"compactor,omitempty"`
 
 	// Janitor configures the Janitor workload.
 	// +kubebuilder:validation:Required
@@ -448,6 +448,16 @@ type DatadogBYOCClusterStatefulComponentSpec struct {
 	// When omitted, the component default is used.
 	// +optional
 	Storage *DatadogBYOCClusterStorageSpec `json:"storage,omitempty"`
+}
+
+// DatadogBYOCClusterCompactorComponentSpec defines settings for the Compactor workload.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterCompactorComponentSpec struct {
+	DatadogBYOCClusterComponentSpec `json:",inline"`
+
+	// Autoscaling configures horizontal autoscaling for the component.
+	// +optional
+	Autoscaling *DatadogBYOCClusterAutoscalingSpec `json:"autoscaling,omitempty"`
 }
 
 // DatadogBYOCClusterMetastoreComponentSpec defines settings for a Metastore workload.

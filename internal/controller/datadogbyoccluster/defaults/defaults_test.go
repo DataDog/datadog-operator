@@ -123,9 +123,11 @@ func TestApply(t *testing.T) {
 				},
 			},
 		},
-		Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-			Replicas:                      ptr.To[int32](1),
-			TerminationGracePeriodSeconds: ptr.To[int64](60),
+		Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+				Replicas:                      ptr.To[int32](1),
+				TerminationGracePeriodSeconds: ptr.To[int64](60),
+			},
 		},
 		Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 			Replicas: ptr.To[int32](1),
@@ -395,26 +397,61 @@ func TestApplyComponentDefaults(t *testing.T) {
 func TestApplyCompactorDefaults(t *testing.T) {
 	tests := []struct {
 		name      string
-		compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
-		want      *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
+		want      *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 	}{
 		{
 			name:      "defaults",
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-			want: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas:                      ptr.To[int32](1),
-				TerminationGracePeriodSeconds: ptr.To[int64](60),
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
+			want: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					Replicas:                      ptr.To[int32](1),
+					TerminationGracePeriodSeconds: ptr.To[int64](60),
+				},
 			},
 		},
 		{
 			name: "preserves custom values",
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas:                      ptr.To[int32](3),
-				TerminationGracePeriodSeconds: ptr.To[int64](120),
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					Replicas:                      ptr.To[int32](3),
+					TerminationGracePeriodSeconds: ptr.To[int64](120),
+				},
 			},
-			want: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas:                      ptr.To[int32](3),
-				TerminationGracePeriodSeconds: ptr.To[int64](120),
+			want: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					Replicas:                      ptr.To[int32](3),
+					TerminationGracePeriodSeconds: ptr.To[int64](120),
+				},
+			},
+		},
+		{
+			name: "autoscaling",
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			},
+			want: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					Replicas:                      ptr.To[int32](1),
+					TerminationGracePeriodSeconds: ptr.To[int64](60),
+				},
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+					MinReplicas: ptr.To[int32](1),
+					MaxReplicas: ptr.To[int32](10),
+					Metrics: []autoscalingv2.MetricSpec{{
+						Type: autoscalingv2.ResourceMetricSourceType,
+						Resource: &autoscalingv2.ResourceMetricSource{
+							Name: corev1.ResourceCPU,
+							Target: autoscalingv2.MetricTarget{
+								Type:               autoscalingv2.UtilizationMetricType,
+								AverageUtilization: ptr.To[int32](80),
+							},
+						},
+					}},
+					Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
+						ScaleUp: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](60)},
+					},
+				},
 			},
 		},
 	}
@@ -439,17 +476,19 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 	tests := []struct {
 		name               string
 		autoscaling        *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		minReplicas        int32
 		averageUtilization int32
 		scaleUpWindow      int32
-		scaleDownWindow    int32
+		scaleDownWindow    *int32
 		want               *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 	}{
 		{
 			name:               "defaults",
 			autoscaling:        &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](2),
 				MaxReplicas: ptr.To[int32](10),
@@ -474,9 +513,10 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](20),
 			},
+			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](20),
 				MaxReplicas: ptr.To[int32](20),
@@ -501,9 +541,10 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MaxReplicas: ptr.To[int32](1),
 			},
+			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](1),
 				MaxReplicas: ptr.To[int32](1),
@@ -528,9 +569,10 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](3),
 			},
+			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](3),
 				MaxReplicas: ptr.To[int32](10),
@@ -555,9 +597,10 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MaxReplicas: ptr.To[int32](5),
 			},
+			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 				MinReplicas: ptr.To[int32](2),
 				MaxReplicas: ptr.To[int32](5),
@@ -578,18 +621,43 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 			},
 		},
 		{
+			name:               "no scale-down window",
+			autoscaling:        &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			minReplicas:        1,
+			averageUtilization: 80,
+			scaleUpWindow:      60,
+			want: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+				MinReplicas: ptr.To[int32](1),
+				MaxReplicas: ptr.To[int32](10),
+				Metrics: []autoscalingv2.MetricSpec{{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceCPU,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: ptr.To[int32](80),
+						},
+					},
+				}},
+				Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
+					ScaleUp: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To[int32](60)},
+				},
+			},
+		},
+		{
 			name:               "preserves custom values",
 			autoscaling:        custom.DeepCopy(),
+			minReplicas:        2,
 			averageUtilization: 70,
 			scaleUpWindow:      0,
-			scaleDownWindow:    300,
+			scaleDownWindow:    ptr.To[int32](300),
 			want:               custom.DeepCopy(),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			applyAutoscalingDefaults(tt.autoscaling, tt.averageUtilization, tt.scaleUpWindow, tt.scaleDownWindow)
+			applyAutoscalingDefaults(tt.autoscaling, tt.minReplicas, tt.averageUtilization, tt.scaleUpWindow, tt.scaleDownWindow)
 			if diff := cmp.Diff(tt.want, tt.autoscaling); diff != "" {
 				t.Errorf("applyAutoscalingDefaults() mismatch (-want +got):\n%s", diff)
 			}
@@ -607,7 +675,7 @@ func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 				Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 				Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
 				ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-				Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+				Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 				Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 			},
 		},
