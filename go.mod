@@ -330,7 +330,7 @@ require (
 	k8s.io/apiserver v0.37.1 // indirect
 	k8s.io/cloud-provider v0.35.0 // indirect
 	k8s.io/component-base v0.37.1 // indirect
-	k8s.io/component-helpers v0.37.1
+	k8s.io/component-helpers v0.37.1 // indirect
 	k8s.io/csi-translation-lib v0.35.0 // indirect
 	k8s.io/gengo/v2 v2.0.0-20260408192533-25e2208e0dc3 // indirect
 	k8s.io/streaming v0.37.1 // indirect

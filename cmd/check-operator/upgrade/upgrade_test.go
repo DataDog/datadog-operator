@@ -172,8 +172,7 @@ func testNode(name string, ready corev1.ConditionStatus) corev1.Node {
 	return node
 }
 
-// testAgentDaemonSet returns an Agent DaemonSet that tolerates every taint, like production Agents,
-// with a status that matches its spec.
+// testAgentDaemonSet returns an Agent DaemonSet with a status that matches its spec.
 func testAgentDaemonSet(name, ddaName, generation string) appsv1.DaemonSet {
 	return appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -186,11 +185,6 @@ func testAgentDaemonSet(name, ddaName, generation string) appsv1.DaemonSet {
 				apicommon.AgentDeploymentNameLabelKey:      ddaName,
 				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 			},
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
-				Tolerations: []corev1.Toleration{{Operator: corev1.TolerationOpExists}},
-			}},
 		},
 		Status: appsv1.DaemonSetStatus{ObservedGeneration: 2},
 	}
@@ -258,23 +252,16 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 func TestComputeNotReadyNodeDiscount(t *testing.T) {
 	defaultDS := testAgentDaemonSet("agent-agent", "agent", "5")
 	profileDS := testAgentDaemonSet("profile-agent", "agent", "3")
-	// Without the not-ready and unreachable NoSchedule tolerations, the status leaves not-Ready nodes out.
-	strictDS := testAgentDaemonSet("strict-agent", "agent", "5")
-	strictDS.Spec.Template.Spec.Tolerations = nil
 	// No pod on generation 5 yet, so the current revision hash is unknown.
 	newDS := testAgentDaemonSet("new-agent", "agent", "5")
-	// The current template no longer targets "node-unlabeled", e.g. a profile label was added to it.
-	selectorDS := testAgentDaemonSet("selector-agent", "agent", "2")
-	selectorDS.Spec.Template.Spec.NodeSelector = map[string]string{"pool": "agents"}
-	labeledNode := testNode("node-labeled", corev1.ConditionUnknown)
-	labeledNode.Labels = map[string]string{"pool": "agents"}
+	// Not listed: its pods are ignored.
+	otherDS := testAgentDaemonSet("other-agent", "other", "5")
 
 	// Generation changed, but the revision hash is the current one (template revert).
 	revertedPod := testAgentPod("reverted", &defaultDS, "3", "node-reverted", time.Hour)
 	revertedPod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
 
 	nodes := []corev1.Node{
-		labeledNode,
 		testNode("node-ready", corev1.ConditionTrue),
 		testNode("node-not-ready", corev1.ConditionFalse),
 		testNode("node-unknown", corev1.ConditionUnknown),
@@ -282,21 +269,18 @@ func TestComputeNotReadyNodeDiscount(t *testing.T) {
 		testNode("node-two-pods", corev1.ConditionUnknown),
 		testNode("node-reverted", corev1.ConditionUnknown),
 		testNode("node-terminal", corev1.ConditionUnknown),
-		testNode("node-unlabeled", corev1.ConditionUnknown),
 	}
 	pods := []corev1.Pod{
 		// Pods on the current generation, so that the current revision hashes are known.
 		testAgentPod("updated-ready", &defaultDS, "5", "node-ready", time.Minute),
 		testAgentPod("profile-updated-ready", &profileDS, "3", "node-ready", time.Minute),
-		testAgentPod("strict-updated-ready", &strictDS, "5", "node-ready", time.Minute),
-		testAgentPod("selector-updated-ready", &selectorDS, "2", "node-ready", time.Minute),
+		testAgentPod("other-updated-ready", &otherDS, "5", "node-ready", time.Minute),
 
 		// Skipped.
 		testAgentPod("outdated-not-ready", &defaultDS, "4", "node-not-ready", time.Hour),
 		deleting(testAgentPod("outdated-stuck-terminating", &defaultDS, "4", "node-unknown", time.Hour), corev1.PodRunning),
 		testAgentPod("outdated-no-condition", &defaultDS, "4", "node-no-condition", time.Hour),
 		testAgentPod("profile-outdated-unknown", &profileDS, "2", "node-unknown", time.Hour),
-		testAgentPod("selector-outdated-labeled", &selectorDS, "1", "node-labeled", time.Hour),
 
 		// Not skipped.
 		testAgentPod("outdated-ready", &defaultDS, "4", "node-ready", time.Hour),
@@ -305,11 +289,10 @@ func TestComputeNotReadyNodeDiscount(t *testing.T) {
 		revertedPod,
 		deleting(testAgentPod("outdated-terminal-deleted", &defaultDS, "4", "node-terminal", time.Hour), corev1.PodFailed),
 		testAgentPod("outdated-deleted-node", &defaultDS, "4", "node-deleted", time.Hour),
-		testAgentPod("strict-outdated-unknown", &strictDS, "4", "node-unknown", time.Hour),
 		testAgentPod("new-outdated-unknown", &newDS, "4", "node-unknown", time.Hour),
-		testAgentPod("selector-outdated-unlabeled", &selectorDS, "1", "node-unlabeled", time.Hour),
+		testAgentPod("other-outdated-unknown", &otherDS, "4", "node-unknown", time.Hour),
 	}
-	daemonSets := []appsv1.DaemonSet{defaultDS, profileDS, strictDS, newDS, selectorDS}
+	daemonSets := []appsv1.DaemonSet{defaultDS, profileDS, newDS}
 
 	skipped, err := computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 100)
 	require.NoError(t, err)
@@ -318,12 +301,11 @@ func TestComputeNotReadyNodeDiscount(t *testing.T) {
 		"agent-agent/node-not-ready",
 		"agent-agent/node-unknown",
 		"profile-agent/node-unknown",
-		"selector-agent/node-labeled",
 	}, skipped)
 
-	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 6, 100)
+	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 5, 100)
 	require.ErrorIs(t, err, errNoDiscount, "below minSkipped")
-	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 4)
+	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 3)
 	require.ErrorIs(t, err, errNoDiscount, "above maxSkipped")
 }
 
@@ -411,6 +393,8 @@ func TestRunSkipsNotReadyNodes(t *testing.T) {
 		// A new rollout started and the DatadogAgent status still shows the previous one.
 		{name: "DaemonSet status behind its spec", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.ObservedGeneration = 1 }, wantPass: false},
 		{name: "live DaemonSet status behind the DatadogAgent status", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.UpdatedNumberScheduled = 10 }, wantPass: false},
+		// For example, a not-Ready node with a taint that the Agent does not tolerate: it is not in Current.
+		{name: "misscheduled node", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.NumberMisscheduled = 1 }, wantPass: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

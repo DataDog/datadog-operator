@@ -19,11 +19,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	corev1helpers "k8s.io/component-helpers/scheduling/corev1"
-	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -35,18 +33,6 @@ import (
 
 // podTemplateGenerationLabel is the DaemonSet template generation that Kubernetes sets on the pods.
 const podTemplateGenerationLabel = "pod-template-generation"
-
-// daemonSetDefaultTolerations are the tolerations that the DaemonSet controller adds to every
-// DaemonSet pod (AddOrUpdateDaemonPodTolerations). The network-unavailable toleration is added
-// only for host-network pods.
-var daemonSetDefaultTolerations = []corev1.Toleration{
-	{Key: corev1.TaintNodeNotReady, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoExecute},
-	{Key: corev1.TaintNodeUnreachable, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoExecute},
-	{Key: corev1.TaintNodeDiskPressure, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
-	{Key: corev1.TaintNodeMemoryPressure, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
-	{Key: corev1.TaintNodePIDPressure, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
-	{Key: corev1.TaintNodeUnschedulable, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
-}
 
 // Options provides information required to manage canary.
 type Options struct {
@@ -377,7 +363,7 @@ func (o *Options) getSkipBounds(current, upToDate int) (minSkipped, maxSkipped i
 }
 
 // getAgentDaemonSets returns the Agent DaemonSets of the DatadogAgent, if all their statuses match
-// their spec.
+// their spec and count every node that runs one of their pods.
 func (o *Options) getAgentDaemonSets(ctx context.Context) ([]appsv1.DaemonSet, error) {
 	dsList := &appsv1.DaemonSetList{}
 	if err := o.Client.List(ctx, dsList, client.InNamespace(o.UserNamespace), o.agentLabels()); err != nil {
@@ -387,6 +373,11 @@ func (o *Options) getAgentDaemonSets(ctx context.Context) ([]appsv1.DaemonSet, e
 		ds := &dsList.Items[i]
 		if ds.DeletionTimestamp != nil || ds.Status.ObservedGeneration != ds.Generation {
 			return nil, fmt.Errorf("%w: the status of DaemonSet %s does not match its spec yet", errNoDiscount, ds.Name)
+		}
+		// A misscheduled node runs a pod but is not in Current, for example a not-Ready node with a
+		// taint that the Agent does not tolerate. It must not be removed from Current again.
+		if ds.Status.NumberMisscheduled > 0 {
+			return nil, fmt.Errorf("%w: DaemonSet %s has %d misscheduled nodes", errNoDiscount, ds.Name, ds.Status.NumberMisscheduled)
 		}
 	}
 	return dsList.Items, nil
@@ -420,51 +411,54 @@ func (o *Options) agentLabels() client.MatchingLabels {
 // in Current but not in UpToDate, on not-Ready nodes. It returns errNoDiscount if fewer than
 // minSkipped or more than maxSkipped pairs qualify.
 func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Pod, nodes []corev1.Node, minSkipped, maxSkipped int) ([]string, error) {
-	nodesByName := map[string]*corev1.Node{}
+	notReadyNodes := map[string]bool{}
 	for i := range nodes {
-		nodesByName[nodes[i].Name] = &nodes[i]
+		notReadyNodes[nodes[i].Name] = !isNodeReady(&nodes[i])
+	}
+	daemonSetsByUID := map[types.UID]*appsv1.DaemonSet{}
+	for i := range daemonSets {
+		daemonSetsByUID[daemonSets[i].UID] = &daemonSets[i]
+	}
+
+	// Group the pods by DaemonSet and node, and read the current revision hash of each DaemonSet.
+	type dsNode struct {
+		ds   *appsv1.DaemonSet
+		node string
+	}
+	podsByDSNode := map[dsNode][]*corev1.Pod{}
+	currentHashes := map[*appsv1.DaemonSet]string{}
+	for i := range pods {
+		pod := &pods[i]
+		owner := metav1.GetControllerOf(pod)
+		if owner == nil || !isCountedPod(pod) {
+			continue
+		}
+		ds, found := daemonSetsByUID[owner.UID]
+		if !found {
+			continue
+		}
+		key := dsNode{ds: ds, node: pod.Spec.NodeName}
+		podsByDSNode[key] = append(podsByDSNode[key], pod)
+		if pod.Labels[podTemplateGenerationLabel] == ds.Annotations[appsv1.DeprecatedTemplateGeneration] {
+			currentHashes[ds] = pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey]
+		}
 	}
 
 	var skipped []string
-	for i := range daemonSets {
-		ds := &daemonSets[i]
-		generation := ds.Annotations[appsv1.DeprecatedTemplateGeneration]
-
-		podsByNode := map[string][]*corev1.Pod{}
-		currentHash := ""
-		for j := range pods {
-			pod := &pods[j]
-			if !isCountedDaemonPod(pod, ds) {
-				continue
-			}
-			podsByNode[pod.Spec.NodeName] = append(podsByNode[pod.Spec.NodeName], pod)
-			if pod.Labels[podTemplateGenerationLabel] == generation {
-				currentHash = pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey]
-			}
-		}
+	for key, nodePods := range podsByDSNode {
+		currentHash := currentHashes[key.ds]
+		switch {
+		// The status counts a node with several pods by its oldest one. This is rare with maxSurge 0,
+		// and not skipping these nodes is the safe side.
+		case len(nodePods) != 1:
 		// Unknown hash: after a template revert, a pod that the status counts as updated would be skipped.
-		if currentHash == "" {
-			continue
-		}
-
-		affinity := nodeaffinity.NewRequiredNodeAffinity(ds.Spec.Template.Spec.NodeSelector, ds.Spec.Template.Spec.Affinity)
-		for nodeName, nodePods := range podsByNode {
-			// The status counts a node with several pods by its oldest one. This is rare with maxSurge 0,
-			// and not skipping these nodes is the safe side.
-			if len(nodePods) != 1 {
-				continue
-			}
-			pod := nodePods[0]
-			if pod.Labels[podTemplateGenerationLabel] == generation || pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == currentHash {
-				continue
-			}
-			// Deleted and Ready nodes are not skipped, nor nodes that the current template does not
-			// target, as they are not in Current.
-			node, found := nodesByName[nodeName]
-			if !found || isNodeReady(node) || !shouldRunOnNode(ds, affinity, node) {
-				continue
-			}
-			skipped = append(skipped, ds.Name+"/"+nodeName)
+		case currentHash == "":
+		case nodePods[0].Labels[podTemplateGenerationLabel] == key.ds.Annotations[appsv1.DeprecatedTemplateGeneration],
+			nodePods[0].Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == currentHash:
+		// Ready and deleted nodes.
+		case !notReadyNodes[key.node]:
+		default:
+			skipped = append(skipped, key.ds.Name+"/"+key.node)
 		}
 	}
 	slices.Sort(skipped)
@@ -485,40 +479,14 @@ func fromWatchCache() client.ListOption {
 	return &client.ListOptions{Raw: &metav1.ListOptions{ResourceVersion: "0"}}
 }
 
-// isCountedDaemonPod returns true if the pod is controlled by the DaemonSet, bound to a node, and not
-// both terminal and deleted. The controller also counts unbound pods; ignoring them skips fewer nodes.
-func isCountedDaemonPod(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
-	if !metav1.IsControlledBy(pod, ds) || pod.Spec.NodeName == "" {
+// isCountedPod returns true if the pod is bound to a node, and not both terminal and deleted. The
+// controller also counts unbound pods; ignoring them skips fewer nodes.
+func isCountedPod(pod *corev1.Pod) bool {
+	if pod.Spec.NodeName == "" {
 		return false
 	}
 	terminal := pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed
 	return pod.DeletionTimestamp == nil || !terminal
-}
-
-// shouldRunOnNode returns true if the DaemonSet status counts the node, like nodeShouldRunDaemonPod
-// in the DaemonSet controller. It uses the current template: the pod on the node may come from an
-// older one that matched.
-func shouldRunOnNode(ds *appsv1.DaemonSet, affinity nodeaffinity.RequiredNodeAffinity, node *corev1.Node) bool {
-	if nodeName := ds.Spec.Template.Spec.NodeName; nodeName != "" && nodeName != node.Name {
-		return false
-	}
-	if matches, err := affinity.Match(node); err != nil || !matches {
-		return false
-	}
-	return toleratesNodeTaints(ds, node)
-}
-
-// toleratesNodeTaints returns true if a pod of the DaemonSet tolerates every NoSchedule and
-// NoExecute taint of the node, with the default DaemonSet tolerations, like the DaemonSet controller.
-func toleratesNodeTaints(ds *appsv1.DaemonSet, node *corev1.Node) bool {
-	tolerations := slices.Concat(ds.Spec.Template.Spec.Tolerations, daemonSetDefaultTolerations)
-	if ds.Spec.Template.Spec.HostNetwork {
-		tolerations = append(tolerations, corev1.Toleration{Key: corev1.TaintNodeNetworkUnavailable, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule})
-	}
-	_, untolerated := corev1helpers.FindMatchingUntoleratedTaint(klog.Background(), node.Spec.Taints, tolerations, func(t *corev1.Taint) bool {
-		return t.Effect == corev1.TaintEffectNoSchedule || t.Effect == corev1.TaintEffectNoExecute
-	}, false)
-	return !untolerated
 }
 
 func isNodeReady(node *corev1.Node) bool {
