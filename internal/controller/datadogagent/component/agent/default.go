@@ -288,16 +288,22 @@ func DefaultSyscallsForSystemProbe() []string {
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
+	hostBenchmarks := ddaSpec.Features.CSPM != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+		ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+		ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)
 	if (ddaSpec.Features.CWS != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
 		ddaSpec.Features.CWS.Enforcement != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
-		(ddaSpec.Features.CSPM != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
-			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
-			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
+		hostBenchmarks {
 		syscalls = append(syscalls, "kill")
+	}
+	if hostBenchmarks {
+		// OpenSCAP enters the host root with chroot and fchdir, and
+		// libgcrypt locks its secure memory with mlock in FIPS mode.
+		syscalls = append(syscalls, "chroot", "fchdir", "mlock", "munlock")
 	}
 	return syscalls
 }
