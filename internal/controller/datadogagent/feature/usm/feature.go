@@ -34,6 +34,7 @@ func buildUSMFeature(options *feature.Options) feature.Feature {
 }
 
 type usmFeature struct {
+	owner      metav1.Object
 	directSend bool
 }
 
@@ -44,6 +45,7 @@ func (f *usmFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.owner = dda
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(ddaSpec, ddaRCStatus)
 
@@ -189,7 +191,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, cnmDirectSendEnvVar)
 
 	if f.directSend {
-		featureutils.EnableConfigSyncForDirectSend(managers, containersForEnvVars)
+		featureutils.EnableConfigSyncForDirectSend(managers, f.owner, containersForEnvVars)
 	}
 
 	// env vars for Process Agent only

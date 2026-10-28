@@ -34,6 +34,7 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 }
 
 type npmFeature struct {
+	owner           metav1.Object
 	collectDNSStats bool
 	enableConntrack bool
 	directSend      bool
@@ -46,6 +47,7 @@ func (f *npmFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.owner = dda
 	if ddaSpec.Features == nil {
 		return
 	}
@@ -190,7 +192,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, cnmDirectSendEnvVar)
 
 	if f.directSend {
-		featureutils.EnableConfigSyncForDirectSend(managers, containersForEnvVars)
+		featureutils.EnableConfigSyncForDirectSend(managers, f.owner, containersForEnvVars)
 	}
 
 	// env vars for Process Agent only

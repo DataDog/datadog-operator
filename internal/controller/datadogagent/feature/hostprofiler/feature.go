@@ -195,19 +195,15 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
 
-	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
-	// core agent when secrets backend is used.
-	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcPort,
-		Value: "5009",
-	}
-	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcConfigRefreshInterval,
-		Value: "60",
-	}
+	// agent_ipc env vars for config sync between the core agent and the host profiler:
+	// unix socket transport on agents that support it, TCP port otherwise. Enabling the
+	// IPC server is required to fetch the API key from the core agent when a secrets
+	// backend is used.
+	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(common.GetComponentVersion(o.owner, v2alpha1.NodeAgentComponentName))
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
-		managers.EnvVar().AddEnvVarToContainer(container, agentIpcPortEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(container, agentIpcConfigRefreshIntervalEnvVar)
+		for _, envVar := range agentIpcEnvVars {
+			managers.EnvVar().AddEnvVarToContainer(container, envVar)
+		}
 	}
 
 	return nil

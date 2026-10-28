@@ -38,6 +38,7 @@ const (
 	DDKubernetesUseEndpointSlices         = "DD_KUBERNETES_USE_ENDPOINT_SLICES"
 	DDCELWorkloadExclude                  = "DD_CEL_WORKLOAD_EXCLUDE"
 	DDAgentIpcPort                        = "DD_AGENT_IPC_PORT"
+	DDAgentIpcUseSocket                   = "DD_AGENT_IPC_USE_SOCKET"
 	DDAgentIpcConfigRefreshInterval       = "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint

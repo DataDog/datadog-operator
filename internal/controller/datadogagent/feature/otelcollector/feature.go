@@ -364,23 +364,19 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
-	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
-	// core agent when secrets backend is used.
-	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcPort,
-		Value: "5009",
-	}
-	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcConfigRefreshInterval,
-		Value: "60",
-	}
+	// agent_ipc env vars for config sync between the core agent and the OTel agent:
+	// unix socket transport on agents that support it, TCP port otherwise. Enabling the
+	// IPC server is required to fetch the API key from the core agent when a secrets
+	// backend is used. User-provided values win.
+	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(common.GetComponentVersion(o.owner, v2alpha1.NodeAgentComponentName))
 	// don't set env var if it was already set by user.
 	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
 		return current, nil
 	}
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent} {
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
+		for _, envVar := range agentIpcEnvVars {
+			managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, envVar, mergeFunc)
+		}
 	}
 
 	var enableEnvVar *corev1.EnvVar
