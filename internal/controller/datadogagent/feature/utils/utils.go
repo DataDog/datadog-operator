@@ -25,10 +25,11 @@ const (
 	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
 	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
-	// AgentIPCUnixSocketMinVersion is the minimum Agent version supporting the agent_ipc unix
-	// socket transport for config sync. Older agents ignore agent_ipc.use_socket, which would
-	// disable the IPC server entirely and silently break config sync, so they keep the TCP port.
-	AgentIPCUnixSocketMinVersion = "7.76.0-0"
+	// AgentIPCUnixSocketMinVersion is the minimum Agent version to use for the agent_ipc unix
+	// socket transport for config sync: it needs the socket listener plus the stale socket
+	// cleanup before binding. Older agents ignore agent_ipc.use_socket, which would disable
+	// the IPC server entirely and silently break config sync, so they keep the TCP port.
+	AgentIPCUnixSocketMinVersion = "7.85.0-0"
 	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"

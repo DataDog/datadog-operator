@@ -26,6 +26,13 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func withNodeAgentVersion(dda *v2alpha1.DatadogAgent, tag string) *v2alpha1.DatadogAgent {
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tag}},
+	}
+	return dda
+}
+
 var (
 	tracingfsVolumeMount = corev1.VolumeMount{
 		Name:      "tracingfs",
@@ -33,7 +40,11 @@ var (
 		ReadOnly:  true,
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{tracingfsVolumeMount}
-	wantIpcEnvVars      = []*corev1.EnvVar{
+	wantIpcPortEnvVars = []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: "5009"},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
+	}
+	wantIpcSocketEnvVars = []*corev1.EnvVar{
 		{Name: common.DDAgentIpcUseSocket, Value: "true"},
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
 	}
@@ -54,7 +65,15 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
+		},
+		{
+			Name: "host profiler enabled with an agent supporting the unix socket",
+			DDA: withNodeAgentVersion(testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
+				Build(), "7.85.0"),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcSocketEnvVars),
 		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
@@ -178,7 +197,7 @@ func Test_hostProfilerFeature_SELinuxTypeAnnotation(t *testing.T) {
 	assert.Equal(t, "custom_t", hpContainer.SecurityContext.SELinuxOptions.Type)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount, wantIpcEnvVars []*corev1.EnvVar) *test.ComponentTest {
 	// Pre-populate both containers so ManageNodeAgent can find and mutate the host-profiler SecurityContext.
 	// This mirrors the real flow where default.go's hostProfilerContainer() runs before features.
 	hostProfilerImage := "gcr.io/datadoghq/agent:7.99.0-fips"

@@ -86,8 +86,8 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  common.DDAgentIpcUseSocket,
-				Value: "true",
+				Name:  common.DDAgentIpcPort,
+				Value: featureutils.DefaultAgentIpcPort,
 			},
 			{
 				Name:  common.DDAgentIpcConfigRefreshInterval,
@@ -222,8 +222,8 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  common.DDAgentIpcUseSocket,
-				Value: "true",
+				Name:  common.DDAgentIpcPort,
+				Value: featureutils.DefaultAgentIpcPort,
 			},
 			{
 				Name:  common.DDAgentIpcConfigRefreshInterval,
@@ -347,7 +347,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 // secret handles itself, receives a resolved api_key from the core agent.
 func configSyncEnvVars() []*corev1.EnvVar {
 	return []*corev1.EnvVar{
-		{Name: common.DDAgentIpcUseSocket, Value: "true"},
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
 	}
 }
