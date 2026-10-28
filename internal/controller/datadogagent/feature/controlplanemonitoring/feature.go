@@ -47,9 +47,37 @@ type controlPlaneMonitoringFeature struct {
 	defaultConfigMapName   string
 	openshiftConfigMapName string
 	eksConfigMapName       string
+	talosConfigMapName     string
 	client                 client.Reader
 
 	etcdSecretPresent bool
+
+	// Whether the node agent tolerates the control-plane taint. If true the etcd
+	// check is configured and collects etcd metrics; otherwise etcd is disabled.
+	talosEtcdEnabled bool
+}
+
+// nodeAgentToleratesControlPlane reports whether the node agent's configured
+// tolerations tolerate the control-plane taint.
+//
+// Reads the spec, not the pod template: features run before overrides are
+// applied, so the user's tolerations are not in the template yet. Matches with
+// ToleratesTaint, which covers Exists, Equal and the empty-key form.
+func nodeAgentToleratesControlPlane(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	override, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]
+	if !ok || override == nil {
+		return false
+	}
+	taint := corev1.Taint{
+		Key:    controlPlaneTaintKey,
+		Effect: corev1.TaintEffectNoSchedule,
+	}
+	for i := range override.Tolerations {
+		if override.Tolerations[i].ToleratesTaint(logger, &taint, false) {
+			return true
+		}
+	}
+	return false
 }
 
 // ID returns the ID of the Feature
@@ -64,6 +92,7 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 	f.defaultConfigMapName = defaultConfigMapName
 	f.openshiftConfigMapName = openshiftConfigMapName
 	f.eksConfigMapName = eksConfigMapName
+	f.talosConfigMapName = talosConfigMapName
 
 	controlPlaneMonitoring := ddaSpec.Features.ControlPlaneMonitoring
 
@@ -71,6 +100,17 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 		f.enabled = true
 		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+
+		if f.provider == kubernetes.TalosProvider {
+			f.talosEtcdEnabled = nodeAgentToleratesControlPlane(f.logger, ddaSpec)
+			if f.talosEtcdEnabled {
+				// Only the etcd check runs on the node agent.
+				reqComp.Agent = feature.RequiredComponent{
+					IsRequired: new(true),
+					Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+				}
+			}
+		}
 	}
 	return reqComp
 }
@@ -113,6 +153,26 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, eksConfigMap); err != nil {
 			return fmt.Errorf("failed to add eks configmap to store: %w", err)
+		}
+	} else if f.provider == kubernetes.TalosProvider {
+		// Talos ConfigMap
+		talosConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.TalosProvider, f.talosConfigMapName)
+		if err2 != nil {
+			return fmt.Errorf("failed to build talos configmap: %w", err2)
+		}
+		talosConfigMap.Name = f.talosConfigMapName
+
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, talosConfigMap); err != nil {
+			return fmt.Errorf("failed to add talos configmap to store: %w", err)
+		}
+
+		if !f.talosEtcdEnabled {
+			f.logger.V(1).Info("Talos control plane monitoring is enabled without etcd",
+				"working", "kube_apiserver_metrics, kube_scheduler, kube_controller_manager",
+				"notCollected", "etcd",
+				"reason", fmt.Sprintf("node agent does not tolerate the %q taint, and etcd's client certs exist only on control-plane nodes", controlPlaneTaintKey),
+				"toEnable", fmt.Sprintf("add a toleration for %q (effect NoSchedule) under spec.override.nodeAgent.tolerations", controlPlaneTaintKey),
+				"alsoRequired", "scheduler and controller-manager metrics additionally need bind-address 0.0.0.0 via a Talos machine config patch")
 		}
 	}
 
@@ -198,6 +258,10 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 		configMapName = f.openshiftConfigMapName
 	} else if f.provider == kubernetes.EKSCloudProvider {
 		configMapName = f.eksConfigMapName
+	} else if f.provider == kubernetes.TalosProvider {
+		// apiserver, scheduler and controller-manager only; etcd mounts into the
+		// node agent instead (ManageNodeAgent).
+		configMapName = f.talosConfigMapName
 	} else {
 		return nil
 	}
@@ -327,6 +391,82 @@ func (f *controlPlaneMonitoringFeature) etcdCertsSecretAvailable() bool {
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
+
+	if f.provider == kubernetes.TalosProvider {
+		// The Agent image ships node-local autoconf for these three, which fires
+		// when the node agent runs on a control-plane node and double-collects
+		// alongside the cluster checks. Mask it so the cluster check is the only
+		// source.
+		// Ordered, not a map: map iteration order is randomized and would make the
+		// rendered pod spec differ between reconciles.
+		for _, m := range []struct{ name, mountPath string }{
+			{disableKubeApiserverMetricsAutoconfVolumeName, kubeApiserverMetricsMountPath},
+			{disableKubeControllerManagerAutoconfVolumeName, kubeControllerManagerMountPath},
+			{disableKubeSchedulerAutoconfVolumeName, kubeSchedulerMountPath},
+		} {
+			name, mountPath := m.name, m.mountPath
+			vol := &corev1.Volume{
+				Name:         name,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			}
+			managers.Volume().AddVolume(vol)
+
+			mount := corev1.VolumeMount{Name: name, MountPath: mountPath}
+			managers.VolumeMount().AddVolumeMountToContainer(&mount, apicommon.CoreAgentContainerName)
+		}
+
+		if !f.talosEtcdEnabled {
+			// No control-plane toleration, so the etcd certs are unreachable.
+			// Leave the node agent untouched; do not add a toleration.
+			return nil
+		}
+
+		etcdConfigVolume := &corev1.Volume{
+			Name: etcdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: f.talosConfigMapName,
+					},
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "etcd.yaml",
+							Path: "etcd.yaml",
+						},
+					},
+				},
+			},
+		}
+		managers.Volume().AddVolume(etcdConfigVolume)
+
+		// Mounting over conf.d/etcd.d also shadows the autoconf the image ships.
+		etcdConfigVolumeMount := corev1.VolumeMount{
+			Name:      etcdVolumeName,
+			MountPath: etcdMountPath,
+			ReadOnly:  true,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&etcdConfigVolumeMount, apicommon.CoreAgentContainerName)
+
+		etcdCertsVolume := &corev1.Volume{
+			Name: talosEtcdCertsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: talosEtcdCertsHostPath,
+				},
+			},
+		}
+		managers.Volume().AddVolume(etcdCertsVolume)
+
+		etcdCertsVolumeMount := corev1.VolumeMount{
+			Name:      talosEtcdCertsVolumeName,
+			MountPath: talosEtcdCertsMountPath,
+			ReadOnly:  true,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.CoreAgentContainerName)
+
+		return nil
+	}
+
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		// Only mount the etcd-certs secret when it is present; the volume is
 		// non-optional and would otherwise wedge the pod in ContainerCreating.

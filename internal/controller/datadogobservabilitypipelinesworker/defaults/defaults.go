@@ -7,6 +7,7 @@
 package defaults
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -47,6 +48,9 @@ func Apply(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) *datad
 	}
 	if component.TerminationGracePeriodSeconds == nil {
 		component.TerminationGracePeriodSeconds = new(defaultTerminationGracePeriodSeconds)
+	}
+	if component.PodManagementPolicy == nil {
+		component.PodManagementPolicy = new(appsv1.ParallelPodManagement)
 	}
 	applyAutoscalingDefaults(component.Autoscaling)
 

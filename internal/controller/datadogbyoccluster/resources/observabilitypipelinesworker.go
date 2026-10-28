@@ -1,0 +1,132 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+package resources
+
+import (
+	"fmt"
+	"net"
+	"slices"
+	"strconv"
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+)
+
+// BuildObservabilityPipelinesWorker builds a named child worker from a defaulted pipeline and shared BYOC settings.
+// The cluster and pipeline are not modified, and the returned worker does not share mutable settings with them.
+func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCCluster, pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec, image byocimage.ResolvedImage) (*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, error) {
+	workerName := ComponentResourceName(cluster.Name, PipelineComponentName+"-"+pipeline.Name)
+	// The worker name is also used for its Service.
+	if problems := validation.IsDNS1035Label(workerName); len(problems) > 0 {
+		return nil, fmt.Errorf("invalid worker resource name %q: %s", workerName, strings.Join(problems, ", "))
+	}
+	component := pipeline.DatadogBYOCClusterPipelineComponentSpec.DeepCopy()
+	if err := applyGlobalPipelineSettings(cluster, component); err != nil {
+		return nil, err
+	}
+
+	workerImage := datadoghqv1alpha1.DatadogBYOCImageSpec{
+		Repository:       new(image.Repository),
+		PullPolicy:       new(image.GetImagePullPolicy()),
+		ImagePullSecrets: slices.Clone(image.ImagePullSecrets),
+	}
+	if image.Digest != "" {
+		workerImage.Digest = new(image.Digest)
+	} else {
+		workerImage.Tag = new(image.Tag)
+	}
+	resolvedImage := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec(workerImage)
+
+	site := ptr.Deref(cluster.Spec.Datadog.Site, "datadoghq.com")
+	return &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      workerName,
+			Namespace: cluster.Namespace,
+		},
+		Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+			DatadogBYOCClusterPipelineComponentSpec: *component.DeepCopy(),
+			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
+				Site:            new(site),
+				APIKeySecretRef: cluster.Spec.Datadog.APIKeySecretRef.DeepCopy(),
+			},
+			Image: &resolvedImage,
+		},
+	}, nil
+}
+
+func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec) error {
+	scheme, err := indexerEndpointScheme(cluster)
+	if err != nil {
+		return err
+	}
+
+	global := cluster.Spec.Global
+	component := &pipeline.DatadogBYOCClusterComponentSpec
+
+	component.Labels = labels(cluster, componentLabel(PipelineComponentName), component.Labels)
+	component.Annotations = annotations(cluster, component.Annotations)
+	component.Env = controllerutils.MergeEnv(global.Env, component.Env)
+	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{
+		{
+			Name:  envPipelineDestinationEndpoint,
+			Value: scheme + "://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
+		},
+	})
+	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
+	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
+	component.VolumeMounts = controllerutils.MergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)
+	component.Tolerations = slices.Concat(global.Tolerations, component.Tolerations)
+	component.TopologySpreadConstraints = controllerutils.MergeTopologySpreadConstraints(global.TopologySpreadConstraints, component.TopologySpreadConstraints)
+	if global.Affinity != nil {
+		var err error
+		component.Affinity, err = controllerutils.MergeAffinity(global.Affinity, component.Affinity)
+		if err != nil {
+			return fmt.Errorf("merge pipeline affinity: %w", err)
+		}
+	}
+	if component.PodDisruptionBudget == nil {
+		component.PodDisruptionBudget = global.PodDisruptionBudget
+		if component.PodDisruptionBudget == nil {
+			component.PodDisruptionBudget = &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+				MaxUnavailable: new(intstr.FromInt32(1)),
+			}
+		}
+	}
+	return nil
+}
+
+func indexerEndpointScheme(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (string, error) {
+	const (
+		httpScheme  = "http"
+		httpsScheme = "https"
+	)
+
+	if cluster.Spec.NodeConfigOverrides == nil || len(cluster.Spec.NodeConfigOverrides.Raw) == 0 {
+		return httpScheme, nil
+	}
+
+	var nodeConfig struct {
+		REST struct {
+			TLS map[string]any `json:"tls"`
+		} `json:"rest"`
+	}
+	if err := yaml.Unmarshal(cluster.Spec.NodeConfigOverrides.Raw, &nodeConfig); err != nil {
+		return "", fmt.Errorf("decode spec.nodeConfigOverrides: %w", err)
+	}
+	if nodeConfig.REST.TLS != nil {
+		return httpsScheme, nil
+	}
+	return httpScheme, nil
+}

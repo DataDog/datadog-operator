@@ -574,9 +574,12 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 	tests := []struct {
 		name                      string
 		annotations               map[string]string
+		kubernetesActions         *v2alpha1.KubernetesActionsFeatureConfig
+		clusterAgentTag           string
 		wantClusterAgentEnabled   bool
 		wantNodeAgentEnabled      bool
 		wantK8sRemediationEnabled bool
+		wantSelfEnroll            bool
 		expectedClusterConfigData string
 	}{
 		{
@@ -670,6 +673,82 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			wantK8sRemediationEnabled: false,
 			expectedClusterConfigData: defaultConfigData,
 		},
+		{
+			name: "cluster agent enabled by kubernetes actions PAR communication",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "kubernetes actions PAR communication keeps annotation config data",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+			},
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			wantClusterAgentEnabled: true,
+			wantSelfEnroll:          true,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+		},
+		{
+			name: "kubernetes actions enables the cluster agent runner by default",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled: new(true),
+			},
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "kubernetes actions with PAR communication disabled does not enable cluster agent runner",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(false)}},
+			},
+			wantClusterAgentEnabled: false,
+		},
+		{
+			// Kubernetes Actions requires Cluster Agent 7.84.0: do not provision an orphan
+			// runner, ConfigMap and RBAC for an older Cluster Agent.
+			name: "kubernetes actions PAR communication ignored on a cluster agent without Kubernetes Actions support",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			clusterAgentTag:         "7.83.0",
+			wantClusterAgentEnabled: false,
+		},
+		{
+			name: "kubernetes actions PAR communication enables the runner at the minimum cluster agent version",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			clusterAgentTag:           "7.84.0",
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "kubernetes actions PAR communication ignored when feature disabled",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(false),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			wantClusterAgentEnabled: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -680,7 +759,15 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 					Annotations: tt.annotations,
 				},
 			}
-			reqComp := f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+			ddaSpec := &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{KubernetesActions: tt.kubernetesActions},
+			}
+			if tt.clusterAgentTag != "" {
+				ddaSpec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.clusterAgentTag}},
+				}
+			}
+			reqComp := f.Configure(dda, ddaSpec, nil)
 
 			assert.Equal(t, tt.wantClusterAgentEnabled, reqComp.ClusterAgent.IsEnabled())
 			assert.Equal(t, tt.wantNodeAgentEnabled, reqComp.Agent.IsEnabled())
@@ -697,6 +784,9 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 				// Validate the raw config data matches expected
 				if tt.expectedClusterConfigData != "" {
 					assert.Equal(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
+				}
+				if tt.wantSelfEnroll {
+					assert.Equal(t, new(true), parFeat.clusterConfig.SelfEnroll, "clusterConfig.SelfEnroll should be true")
 				}
 			} else {
 				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")

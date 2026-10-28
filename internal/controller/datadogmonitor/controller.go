@@ -421,6 +421,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 	condition.SetErrorActiveConditions(status, now, currentErr)
 
 	if !apiequality.Semantic.DeepEqual(&datadogMonitor.Status, status) {
+		originalID := datadogMonitor.Status.ID
 		desiredStatus := status.DeepCopy()
 		datadogMonitor.Status = *desiredStatus.DeepCopy()
 		err := r.client.Status().Update(context.TODO(), datadogMonitor)
@@ -435,7 +436,12 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 					return getErr
 				}
 
-				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+				// A stale reconcile may have failed to create a resource whose ID
+				// has since been persisted. Keep the entire newer status rather
+				// than replacing it with that stale error. Still allow an intentional
+				// reset of the ID this reconcile observed (e.g. after a remote 404).
+				preserveLatestID := desiredStatus.ID == 0 && latest.Status.ID != 0 && latest.Status.ID != originalID
+				if preserveLatestID || apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
 					datadogMonitor.ResourceVersion = latest.ResourceVersion
 					datadogMonitor.Status = latest.Status
 					return nil

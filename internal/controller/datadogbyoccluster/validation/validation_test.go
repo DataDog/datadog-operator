@@ -430,12 +430,18 @@ func TestValidateClusterSpec(t *testing.T) {
 						},
 						Resources: &corev1.ResourceRequirements{},
 					},
-					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-						PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
-							MinAvailable:   ptr.To(intstr.FromInt32(0)),
-							MaxUnavailable: ptr.To(intstr.FromInt32(0)),
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+								MinAvailable:   ptr.To(intstr.FromInt32(0)),
+								MaxUnavailable: ptr.To(intstr.FromInt32(0)),
+							},
+							Resources: &corev1.ResourceRequirements{},
 						},
-						Resources: &corev1.ResourceRequirements{},
+						Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+							MinReplicas: ptr.To[int32](5),
+							MaxReplicas: ptr.To[int32](1),
+						},
 					},
 					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
@@ -468,6 +474,7 @@ func TestValidateClusterSpec(t *testing.T) {
 				"spec.components.controlPlane.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.compactor.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.compactor.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
+				"spec.components.compactor.autoscaling.maxReplicas: must be greater than or equal to minReplicas (5)",
 				"spec.components.janitor.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.janitor.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 			},
@@ -534,8 +541,10 @@ func TestValidateClusterSpec(t *testing.T) {
 					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						Volumes: []corev1.Volume{{Name: "data"}},
 					},
-					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-						Volumes: []corev1.Volume{{Name: "data"}},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes: []corev1.Volume{{Name: "data"}},
+						},
 					},
 					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						Volumes: []corev1.Volume{{Name: "data"}},
