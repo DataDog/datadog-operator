@@ -12,7 +12,6 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -323,11 +322,7 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 		return false
 	}
 
-	names := skipped
-	if len(names) > 20 {
-		names = append(names[:20:20], fmt.Sprintf("and %d more", len(skipped)-20))
-	}
-	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d: %s", len(skipped), current-len(skipped), current, strings.Join(names, ", "))
+	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d", len(skipped), current-len(skipped), current)
 	return o.isAgentDone(&v2alpha1.DaemonSetStatus{Current: int32(current - len(skipped)), UpToDate: int32(upToDate)})
 }
 
