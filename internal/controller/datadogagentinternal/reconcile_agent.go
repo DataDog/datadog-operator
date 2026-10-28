@@ -37,7 +37,7 @@ import (
 )
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
-	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (result reconcile.Result, err error) {
+	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string, conditionMessages map[string][]string) (result reconcile.Result, err error) {
 	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(datadoghqv2alpha1.NodeAgentComponentName)))
 	defer trace.FinishSpan(span, &err)
 	var daemonset *appsv1.DaemonSet
@@ -215,8 +215,9 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-			condition.UpdateDatadogAgentInternalStatusConditions(
+			condition.AppendDatadogAgentInternalStatusConditions(
 				newStatus,
+				conditionMessages,
 				metav1.NewTime(time.Now()),
 				common.OverrideReconcileConflictConditionType,
 				metav1.ConditionTrue,
