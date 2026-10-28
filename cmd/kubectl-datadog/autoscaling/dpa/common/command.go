@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -256,6 +257,34 @@ func (o *annotationOptions) describe(ch change) string {
 	return fmt.Sprintf("%s/%s: %s → %s", ch.dpa.Namespace, ch.dpa.Name, currentAnnotation(ch.dpa.Annotations, o.spec.Key), ch.value)
 }
 
+// readByKey reads the current DatadogPodAutoscalers of changes. Objects
+// selected by name are read one by one, so that waiting requires no more
+// permissions than selecting and patching them (RBAC rules may grant get and
+// patch with resourceNames, but not list).
+func (o *annotationOptions) readByKey(ctx context.Context, changes []change) (map[client.ObjectKey]v1alpha2.DatadogPodAutoscaler, error) {
+	if len(o.names) > 0 && !o.allNamespaces {
+		return o.getByKey(ctx, changes)
+	}
+	return o.listByKey(ctx, changes)
+}
+
+// getByKey gets the DatadogPodAutoscalers of changes; deleted ones are left out.
+func (o *annotationOptions) getByKey(ctx context.Context, changes []change) (map[client.ObjectKey]v1alpha2.DatadogPodAutoscaler, error) {
+	byKey := map[client.ObjectKey]v1alpha2.DatadogPodAutoscaler{}
+	for _, ch := range changes {
+		key := client.ObjectKeyFromObject(&ch.dpa)
+		dpa := v1alpha2.DatadogPodAutoscaler{}
+		if err := o.Client.Get(ctx, key, &dpa); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		byKey[key] = dpa
+	}
+	return byKey, nil
+}
+
 // listByKey lists the DatadogPodAutoscalers of the namespaces of changes, with
 // one call per namespace rather than one per object.
 func (o *annotationOptions) listByKey(ctx context.Context, changes []change) (map[client.ObjectKey]v1alpha2.DatadogPodAutoscaler, error) {
@@ -300,12 +329,12 @@ func (o *annotationOptions) waitForConfirmation(ctx context.Context, changes []c
 	fmt.Fprintf(o.Out, "Waiting up to %s for the Cluster Agent to confirm...\n", o.timeout)
 	total := len(pending)
 	var (
-		listed   bool
+		read     bool
 		firstErr error
 	)
 	// The condition never fails: the only error is the timeout or an interruption.
 	_ = wait.PollUntilContextTimeout(ctx, waitInterval, o.timeout, true, func(ctx context.Context) (bool, error) {
-		current, err := o.listByKey(ctx, pending)
+		current, err := o.readByKey(ctx, pending)
 		if err != nil {
 			// Retried until the timeout: near the poll deadline, the client
 			// rate limiter fails at once rather than waiting past it, and an
@@ -317,7 +346,7 @@ func (o *annotationOptions) waitForConfirmation(ctx context.Context, changes []c
 			}
 			return false, nil
 		}
-		listed = true
+		read = true
 		var still []change
 		for _, ch := range pending {
 			dpa, found := current[client.ObjectKeyFromObject(&ch.dpa)]
@@ -342,8 +371,8 @@ func (o *annotationOptions) waitForConfirmation(ctx context.Context, changes []c
 	if confirmation.Advisory {
 		prefix = "Warning: "
 	}
-	if !listed {
-		// Every List failed: a real API problem (RBAC, connectivity) must stay
+	if !read {
+		// Every read failed: a real API problem (RBAC, connectivity) must stay
 		// visible, and nothing is known about the Cluster Agent.
 		fmt.Fprintf(o.ErrOut, "%sUnable to read the DatadogPodAutoscaler status: %v\n", prefix, firstErr)
 		o.listUnconfirmed(prefix, pending)

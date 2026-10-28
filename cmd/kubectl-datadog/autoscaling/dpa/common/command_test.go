@@ -476,6 +476,45 @@ func TestWaitForConfirmationRetriesListErrors(t *testing.T) {
 	}
 }
 
+func TestWaitForConfirmationGetsNamedObjects(t *testing.T) {
+	origInterval := waitInterval
+	waitInterval = 10 * time.Millisecond
+	t.Cleanup(func() { waitInterval = origInterval })
+	// RBAC limited to named objects: get and patch with resourceNames, no list.
+	forbidden := apierrors.NewForbidden(schema.GroupResource{Group: "datadoghq.com", Resource: "datadogpodautoscalers"}, "", errors.New(`User "u" cannot list resource "datadogpodautoscalers"`))
+	listForbidden := func(int32) error { return forbidden }
+	paused := withCondition(newDPA("ns", "a", nil, nil), active, corev1.ConditionFalse, LocallyPausedReason, pausedMsg)
+
+	t.Run("confirmed without list", func(t *testing.T) {
+		tt := newCommandTest(t, listErrClient(t, listForbidden, paused), pauseSpec, selection{names: []string{"a"}}, "")
+		tt.opts.timeout = time.Second
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), []change{{dpa: *newDPA("ns", "a", nil, nil), value: Set("true")}})
+		require.NoError(t, err)
+		assert.Zero(t, unconfirmed)
+		assert.Contains(t, tt.out.String(), "Confirmed by the Cluster Agent")
+	})
+
+	t.Run("deleted objects have nothing to confirm", func(t *testing.T) {
+		tt := newCommandTest(t, listErrClient(t, listForbidden), pauseSpec, selection{names: []string{"gone"}}, "")
+		tt.opts.timeout = time.Second
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), []change{{dpa: *newDPA("ns", "gone", nil, nil), value: Set("true")}})
+		require.NoError(t, err)
+		assert.Zero(t, unconfirmed)
+	})
+
+	t.Run("names with -A still list", func(t *testing.T) {
+		tt := newCommandTest(t, listErrClient(t, listForbidden, paused), pauseSpec, selection{names: []string{"a"}, allNamespaces: true}, "")
+		tt.opts.timeout = 50 * time.Millisecond
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), []change{{dpa: *newDPA("ns", "a", nil, nil), value: Set("true")}})
+		require.NoError(t, err)
+		assert.Equal(t, 1, unconfirmed)
+		assert.Contains(t, tt.errOut.String(), "Unable to read the DatadogPodAutoscaler status")
+	})
+}
+
 func TestWaitForConfirmationInterrupted(t *testing.T) {
 	tt := newCommandTest(t, newFakeClient(t, newDPA("ns", "a", nil, nil)), pauseSpec, selection{}, "")
 	tt.opts.timeout = time.Minute
