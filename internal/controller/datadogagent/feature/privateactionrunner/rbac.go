@@ -26,7 +26,13 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 			APIGroups:     []string{rbac.CoreAPIGroup},
 			Resources:     []string{rbac.SecretsResource},
 			ResourceNames: []string{identitySecretName},
-			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
+			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+		},
+		{
+			// Kubernetes cannot restrict create requests with resourceNames.
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.SecretsResource},
+			Verbs:     []string{rbac.CreateVerb},
 		},
 	}
 }

@@ -451,9 +451,11 @@ func TestPrivateActionRunnerSpecContainerSelection(t *testing.T) {
 			dda := testutils.NewDatadogAgentBuilder().BuildWithDefaults()
 			dda.Spec.Features.PrivateActionRunner = &v2alpha1.PrivateActionRunnerFeatureConfig{
 				Enabled: new(true),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{
-					Enabled: new(nodeEnabled),
-				},
+			}
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+					v2alpha1.AgentGeneralConfigFile: {Enabled: new(nodeEnabled)},
+				}},
 			}
 			_, enabled, components, _ := feature.BuildFeatures(dda, &dda.Spec, nil, &feature.Options{})
 			assert.True(t, components.ClusterAgent.IsEnabled())

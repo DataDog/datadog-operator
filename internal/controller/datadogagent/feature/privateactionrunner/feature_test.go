@@ -680,7 +680,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			},
 			wantClusterAgentEnabled:   true,
 			wantSelfEnroll:            true,
-			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n",
 		},
 		{
 			name: "kubernetes actions PAR communication keeps annotation config data",
@@ -708,7 +708,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			},
 			wantClusterAgentEnabled:   true,
 			wantSelfEnroll:            true,
-			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n",
 		},
 		{
 			name: "kubernetes actions with PAR communication disabled does not enable cluster agent runner",
@@ -738,7 +738,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			clusterAgentTag:           "7.84.0",
 			wantClusterAgentEnabled:   true,
 			wantSelfEnroll:            true,
-			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n",
 		},
 		{
 			name: "kubernetes actions PAR communication ignored when feature disabled",
@@ -782,7 +782,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 
 				// Validate the raw config data matches expected
 				if tt.expectedClusterConfigData != "" {
-					assert.Equal(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
+					assert.YAMLEq(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
 				}
 				if tt.wantSelfEnroll {
 					assert.True(t, parFeat.clusterConfig.SelfEnroll, "clusterConfig.SelfEnroll should be true")

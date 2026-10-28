@@ -89,13 +89,17 @@ func TestGetClusterAgentRBACPolicyRules(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := getClusterAgentRBACPolicyRules(tt.identitySecretName)
 
-			assert.Len(t, rules, 1, "Should have exactly one policy rule")
+			assert.Len(t, rules, 2, "Read/update and create need separate policy rules")
 
 			rule := rules[0]
 			assert.Equal(t, []string{rbac.CoreAPIGroup}, rule.APIGroups)
 			assert.Equal(t, []string{rbac.SecretsResource}, rule.Resources)
 			assert.Equal(t, []string{tt.expectedSecretName}, rule.ResourceNames)
-			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb}, rule.Verbs)
+			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb}, rule.Verbs)
+			assert.Equal(t, []string{rbac.CoreAPIGroup}, rules[1].APIGroups)
+			assert.Equal(t, []string{rbac.SecretsResource}, rules[1].Resources)
+			assert.Equal(t, []string{rbac.CreateVerb}, rules[1].Verbs)
+			assert.Empty(t, rules[1].ResourceNames, "Create must not be restricted by resourceNames")
 		})
 	}
 }

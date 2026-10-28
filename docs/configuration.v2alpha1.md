@@ -262,12 +262,8 @@ spec:
 | features.otlp.receiver.protocols.http.endpoint | For OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.otlp.receiver.protocols.http.hostPortConfig.enabled | Enables host port configuration |
 | features.otlp.receiver.protocols.http.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.privateActionRunner.clusterAgent.configData | ConfigData replaces the entire shared YAML configuration for the Cluster Agent. |
-| features.privateActionRunner.clusterAgent.enabled | Overrides the shared enabled setting for the Cluster Agent. |
-| features.privateActionRunner.configData | ConfigData contains YAML configuration, including the private_action_runner key, shared by both agents. The enabled field is controlled by Enabled. Configure allowed action patterns with private_action_runner.actions_allowlist. Default: "private_action_runner:\n  enabled: true\n" |
-| features.privateActionRunner.enabled | Enables Private Action Runner on both the Node Agent and Cluster Agent. Component-specific enabled settings take precedence. Default: false |
-| features.privateActionRunner.nodeAgent.configData | ConfigData replaces the entire shared YAML configuration for the Node Agent. |
-| features.privateActionRunner.nodeAgent.enabled | Overrides the shared enabled setting for the Node Agent. |
+| features.privateActionRunner.actionsAllowlist | ActionsAllowlist contains additional action patterns allowed on both agents. Component customConfigurations.actionsAllowlist replaces this list when set. An explicit empty list clears the additional action patterns; built-in actions remain controlled by private_action_runner.default_actions_enabled. |
+| features.privateActionRunner.enabled | Enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Component customConfigurations.enabled overrides this setting. Advanced options use private_action_runner in configData. Default: false |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
@@ -516,9 +512,11 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].createPodDisruptionBudget | Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component. Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod. |
 | [key].createRbac | Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component |
 | [key].customConfigurations `map[string]object` | CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. Each provided file replaces the corresponding default file from the Agent image without merging. Agent settings provided through environment variables take precedence over these files. |
-| [key].customConfigurations.[key].configData | ConfigData corresponds to the configuration file content. |
+| [key].customConfigurations.[key].actionsAllowlist `[]string` | ActionsAllowlist overrides features.privateActionRunner.actionsAllowlist for this component. Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and override.clusterAgent.customConfigurations["datadog-cluster.yaml"]. Takes precedence over private_action_runner.actions_allowlist in ConfigData or ConfigMap. An explicit empty list clears the inherited additional action patterns. |
+| [key].customConfigurations.[key].configData | ConfigData corresponds to the configuration file content, including advanced private_action_runner settings. |
 | [key].customConfigurations.[key].configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].customConfigurations.[key].configMap.name | Name is the name of the ConfigMap. |
+| [key].customConfigurations.[key].enabled | Enabled overrides features.privateActionRunner.enabled for this component. Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and override.clusterAgent.customConfigurations["datadog-cluster.yaml"]. Takes precedence over private_action_runner.enabled in ConfigData or ConfigMap. |
 | [key].disabled | Disabled force disables a component. |
 | [key].dnsConfig.nameservers | A list of DNS name server IP addresses. This will be appended to the base nameservers generated from DNSPolicy. Duplicated nameservers will be removed. |
 | [key].dnsConfig.options | A list of DNS resolver options. This will be merged with the base options generated from DNSPolicy. Duplicated entries will be removed. Resolution options given in Options will override those that appear in the base DNSPolicy. |

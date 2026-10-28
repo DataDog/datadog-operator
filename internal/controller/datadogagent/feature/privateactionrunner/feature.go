@@ -6,12 +6,14 @@
 package privateactionrunner
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -37,6 +39,7 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 	parFeat := &privateActionRunnerFeature{}
 	if options != nil {
 		parFeat.logger = options.Logger
+		parFeat.reader = options.Client
 	}
 	return parFeat
 }
@@ -44,6 +47,7 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 type privateActionRunnerFeature struct {
 	owner                     metav1.Object
 	logger                    logr.Logger
+	reader                    client.Reader
 	nodeEnabled               bool
 	nodeConfigData            string
 	splitEnabled              bool
@@ -63,35 +67,36 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
-// kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
-// because Kubernetes Actions communicates through it: the runner self-enrolls and stores its
-// identity in the secret covered by the Cluster Agent RBAC.
-const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n"
-
 // Configure configures the feature from the spec, falling back to legacy annotations and Kubernetes Actions.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	*f = privateActionRunnerFeature{owner: dda, logger: f.logger}
+	*f = privateActionRunnerFeature{owner: dda, logger: f.logger, reader: f.reader}
 	var spec *v2alpha1.PrivateActionRunnerFeatureConfig
 	if ddaSpec.Features != nil {
 		spec = ddaSpec.Features.PrivateActionRunner
 	}
-	node, cluster := resolveConfiguration(dda, spec)
+	node, cluster := legacyConfiguration(dda)
+	if spec != nil {
+		var nodeErr, clusterErr error
+		node, nodeErr = configurationFromOverride(dda, ddaSpec.Override[v2alpha1.NodeAgentComponentName], v2alpha1.AgentGeneralConfigFile, spec, f.reader)
+		cluster, clusterErr = configurationFromOverride(dda, ddaSpec.Override[v2alpha1.ClusterAgentComponentName], v2alpha1.ClusterAgentConfigFile, spec, f.reader)
+		f.configErr = errors.Join(nodeErr, clusterErr)
+	}
 	// Explicit PAR spec configuration takes precedence over automatic configuration
 	// from Kubernetes Actions, just as it does over the legacy annotations.
 	if spec == nil && featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
 		_, configured := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation)
 		if !cluster.enabled && !configured {
-			cluster.configData = kubernetesActionsDefaultConfigData
+			var err error
+			cluster, err = configurationFromOverride(dda, ddaSpec.Override[v2alpha1.ClusterAgentComponentName], v2alpha1.ClusterAgentConfigFile, &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, f.reader)
+			f.configErr = errors.Join(f.configErr, err)
+		} else {
+			cluster.enabled = true
 		}
-		cluster.enabled = true
 	}
 
 	if node.enabled {
 		f.nodeEnabled = true
 		f.nodeConfigData = node.configData
-		if spec != nil {
-			f.nodeConfigData, f.configErr = enabledConfigData(f.nodeConfigData)
-		}
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
 		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
@@ -115,12 +120,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 	if cluster.enabled {
 		f.clusterConfigData = cluster.configData
-		if spec != nil {
-			var err error
-			f.clusterConfigData, err = enabledConfigData(f.clusterConfigData)
-			if err != nil {
-				f.configErr = err
-			}
+		if spec != nil || cluster.settings != nil || f.configErr != nil {
 			// Keep the component required so configuration errors are surfaced by ManageDependencies.
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: new(true),
@@ -131,7 +131,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			return reqComp
 		}
 
-		clusterConfig, err := parsePrivateActionRunnerConfig(f.clusterConfigData)
+		clusterConfig := cluster.settings
+		var err error
+		if clusterConfig == nil {
+			clusterConfig, err = parsePrivateActionRunnerConfig(f.clusterConfigData)
+		}
 		if err != nil {
 			if spec != nil {
 				f.configErr = err
@@ -321,6 +325,15 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 
 	if f.splitEnabled {
+		// The split-mode control plane and executor must load the same typed
+		// allowlist, including an explicit empty override of the main config.
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.CoreAgentContainerName)
+		for i := range managers.PodTemplateSpec().Spec.Containers {
+			container := &managers.PodTemplateSpec().Spec.Containers[i]
+			if container.Name == string(apicommon.CoreAgentContainerName) {
+				container.Args = append(container.Args, fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath))
+			}
+		}
 		runVolume := corev1.Volume{
 			Name: privateActionRunnerRunVolumeName,
 			VolumeSource: corev1.VolumeSource{

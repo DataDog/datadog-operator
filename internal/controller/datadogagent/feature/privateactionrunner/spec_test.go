@@ -6,6 +6,7 @@
 package privateactionrunner
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,315 +14,85 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func TestPrivateActionRunnerSpec(t *testing.T) {
 	tests := []struct {
-		name              string
-		config            v2alpha1.PrivateActionRunnerFeatureConfig
-		annotations       map[string]string
-		agentTag          string
-		kubernetesActions bool
-		wantNode          bool
-		wantCluster       bool
-		wantSplit         bool
-		wantNodeYML       string
-		wantClusYML       string
+		name        string
+		spec        string
+		annotations map[string]string
+		wantNode    bool
+		wantCluster bool
+		wantSplit   bool
 	}{
-		{
-			name: "shared enable and config apply to both agents",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`)},
-			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name:     "default config enables both agents",
-			config:   v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)},
-			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-`,
-		},
-		{
-			name: "node config overrides shared config without affecting cluster",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{ConfigData: new(`private_action_runner:
-  self_enroll: true
-  identity_secret_name: cluster-par-identity
-`)},
-			},
-			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  self_enroll: true
-  identity_secret_name: cluster-par-identity
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name: "cluster config overrides shared config without affecting node",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`),
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{ConfigData: new(`private_action_runner:
-  self_enroll: true
-  identity_secret_name: cluster-par-identity
-`)},
-			},
-			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-  self_enroll: true
-  identity_secret_name: cluster-par-identity
-`,
-		},
-		{
-			name: "disable node only",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{Enabled: new(false)},
-			},
-			wantCluster: true,
-			wantClusYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name: "disable cluster only",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`),
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(false)},
-			},
-			wantNode: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name: "enable node despite shared disable",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(false), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeAgentConfig{Enabled: new(true)},
-			},
-			wantNode: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name: "enable cluster without shared enable",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(true)},
-			},
-			wantCluster: true,
-			wantClusYML: `private_action_runner:
-  enabled: true
-`,
-		},
-		{
-			name: "old node agent cannot use split mode",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true),
-			},
-			agentTag: "7.83.0", wantNode: true, wantCluster: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-`,
-		},
-		{
-			name: "empty spec block overrides legacy enable annotations",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation:             "true",
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
-			},
-		},
-		{
-			name: "spec overrides enable and config annotations but preserves split and remediation annotations",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`)},
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation:                  "false",
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation:      "false",
-				featureutils.EnablePrivateActionRunnerSplitAnnotation:             "false",
-				featureutils.PrivateActionRunnerConfigDataAnnotation:              "invalid: [",
-				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation:  "invalid: [",
-				featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled: "true",
-			},
-			wantNode: true, wantCluster: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name: "explicit shared config takes precedence over Kubernetes Actions defaults",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`)},
-			kubernetesActions: true,
-			wantNode:          true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name: "explicit cluster disable takes precedence over Kubernetes Actions",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: new(true), ConfigData: new(`private_action_runner:
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`),
-				ClusterAgent: &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(false)},
-			},
-			kubernetesActions: true,
-			wantNode:          true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-  actions_allowlist:
-    - com.datadoghq.script.runPredefinedScript
-  task_concurrency: 3
-`,
-		},
-		{
-			name:              "empty spec block overrides automatic Kubernetes Actions configuration",
-			kubernetesActions: true,
-		},
-		{
-			name:     "empty spec config data still enables both agents",
-			config:   v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new("")},
-			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `private_action_runner:
-  enabled: true
-`,
-			wantClusYML: `private_action_runner:
-  enabled: true
-`,
-		},
-		{
-			name: "spec adds a missing PAR section and preserves unrelated config",
-			config: v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ConfigData: new(`some_other_config:
-  key: value
-`)},
-			wantNode: true, wantCluster: true, wantSplit: true,
-			wantNodeYML: `some_other_config:
-  key: value
-private_action_runner:
-  enabled: true
-`,
-			wantClusYML: `some_other_config:
-  key: value
-private_action_runner:
-  enabled: true
-`,
-		},
+		{name: "minimal feature enables both agents", spec: `features:
+  privateActionRunner:
+    enabled: true
+`, wantNode: true, wantCluster: true, wantSplit: true},
+		{name: "explicit disable overrides annotations and Kubernetes Actions", spec: `features:
+  privateActionRunner:
+    enabled: false
+  kubernetesActions:
+    enabled: true
+`, annotations: map[string]string{
+			"agent.datadoghq.com/private-action-runner-enabled":         "true",
+			"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+		}},
+		{name: "empty feature block overrides automatic activation", spec: `features:
+  privateActionRunner: {}
+  kubernetesActions:
+    enabled: true
+`},
+		{name: "component custom config disables node PAR", spec: `features:
+  privateActionRunner:
+    enabled: true
+override:
+  nodeAgent:
+    customConfigurations:
+      datadog.yaml:
+        enabled: false
+`, wantCluster: true},
+		{name: "component custom config disables cluster PAR", spec: `features:
+  privateActionRunner:
+    enabled: true
+override:
+  clusterAgent:
+    customConfigurations:
+      datadog-cluster.yaml:
+        enabled: false
+`, wantNode: true, wantSplit: true},
+		{name: "spec ignores legacy config but retains split opt out", spec: `features:
+  privateActionRunner:
+    enabled: true
+`, annotations: map[string]string{
+			"agent.datadoghq.com/private-action-runner-enabled":            "false",
+			"cluster-agent.datadoghq.com/private-action-runner-enabled":    "false",
+			"agent.datadoghq.com/private-action-runner-configdata":         "invalid: [",
+			"cluster-agent.datadoghq.com/private-action-runner-configdata": "invalid: [",
+			"agent.datadoghq.com/private-action-runner-split-enabled":      "false",
+		}, wantNode: true, wantCluster: true},
+		{name: "old images retain legacy mode", spec: `features:
+  privateActionRunner:
+    enabled: true
+override:
+  nodeAgent:
+    image:
+      tag: 7.83.0
+`, wantNode: true, wantCluster: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := &v2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default", Annotations: tt.annotations},
-				Spec:       v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: &tt.config}},
-			}
-			if tt.kubernetesActions {
-				dda.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{Enabled: new(true)}
-			}
-			if tt.agentTag != "" {
-				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
-				}
-			}
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default", Annotations: tt.annotations}}
+			require.NoError(t, yaml.UnmarshalStrict([]byte(tt.spec), &dda.Spec))
 			before := dda.DeepCopy()
 			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
 			req := f.Configure(dda, &dda.Spec, nil)
@@ -329,141 +100,281 @@ private_action_runner:
 			assert.Equal(t, tt.wantNode, req.Agent.IsEnabled())
 			assert.Equal(t, tt.wantCluster, req.ClusterAgent.IsEnabled())
 			assert.Equal(t, tt.wantSplit, f.splitEnabled)
-			if tt.wantNode {
-				assert.Contains(t, req.Agent.Containers, apicommon.PrivateActionRunnerContainerName)
-				assert.YAMLEq(t, tt.wantNodeYML, f.nodeConfigData)
-			}
+			assert.Equal(t, before.Spec, dda.Spec)
 			if tt.wantCluster {
-				assert.YAMLEq(t, tt.wantClusYML, f.clusterConfigData)
+				assert.True(t, f.clusterConfig.SelfEnroll)
+				assert.Equal(t, "datadog-private-action-runner-identity", f.clusterConfig.IdentitySecretName)
 			}
-			assert.Equal(t, before.Spec, dda.Spec, "configuring the runner must not modify the spec")
-			wantRemediation := tt.annotations[featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled] == "true"
-			assert.Equal(t, tt.wantCluster && wantRemediation, f.k8sRemediationEnabled)
+		})
+	}
+}
 
-			scheme := runtime.NewScheme()
-			require.NoError(t, corev1.AddToScheme(scheme))
-			require.NoError(t, v2alpha1.AddToScheme(scheme))
-			resources := feature.NewResourceManagers(store.NewStore(dda, &store.StoreOptions{Scheme: scheme}))
-			require.NoError(t, f.ManageDependencies(resources))
-			for _, component := range []struct {
-				enabled bool
-				name    string
-				config  string
-			}{
-				{tt.wantNode, f.getConfigMapName(), f.nodeConfigData},
-				{tt.wantCluster, f.getClusterAgentConfigMapName(), f.clusterConfigData},
-			} {
-				obj, found := resources.Store().Get(kubernetes.ConfigMapKind, "default", component.name)
-				require.Equal(t, component.enabled, found)
-				if found {
-					assert.YAMLEq(t, component.config, obj.(*corev1.ConfigMap).Data[privateActionRunnerFileName])
+func TestPrivateActionRunnerCustomConfigurations(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default"}}
+	require.NoError(t, yaml.UnmarshalStrict([]byte(`features:
+  privateActionRunner:
+    enabled: true
+override:
+  nodeAgent:
+    customConfigurations:
+      datadog.yaml:
+        configData: |
+          private_action_runner:
+            actions_allowlist:
+              - com.datadoghq.script.runPredefinedScript
+            task_concurrency: 3
+  clusterAgent:
+    customConfigurations:
+      datadog-cluster.yaml:
+        configData: |
+          private_action_runner:
+            self_enroll: false
+            identity_secret_name: custom-identity
+            actions_allowlist: []
+`), &dda.Spec))
+	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+	f.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+	// User data stays in the main custom configuration file; the extra file supplies defaults only.
+	assert.YAMLEq(t, `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: datadog-private-action-runner-identity
+`, f.nodeConfigData)
+	assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", f.clusterConfigData)
+	assert.False(t, f.clusterConfig.SelfEnroll)
+	assert.Equal(t, "custom-identity", f.clusterConfig.IdentitySecretName)
+	assert.Empty(t, f.clusterConfig.ActionsAllowlist)
+	assert.NotContains(t, f.nodeConfigData, "actions_allowlist")
+	assert.NotContains(t, f.nodeConfigData, "task_concurrency")
+}
+
+func TestPrivateActionRunnerSharedConfigMap(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v2alpha1.AddToScheme(scheme))
+	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "shared-par", Namespace: "default"}, Data: map[string]string{
+		"par.yaml": `private_action_runner:
+  self_enroll: true
+  identity_secret_name: shared-identity
+  actions_allowlist:
+    - com.datadoghq.script.runPredefinedScript
+`,
+	}}
+	reader := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(cm).Build()
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default"}, Spec: v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}},
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{},
+	}}
+	for _, component := range []struct {
+		name v2alpha1.ComponentName
+		file v2alpha1.AgentConfigFileName
+	}{
+		{v2alpha1.NodeAgentComponentName, v2alpha1.AgentGeneralConfigFile},
+		{v2alpha1.ClusterAgentComponentName, v2alpha1.ClusterAgentConfigFile},
+	} {
+		dda.Spec.Override[component.name] = &v2alpha1.DatadogAgentComponentOverride{CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+			component.file: {ConfigMap: &v2alpha1.ConfigMapConfig{Name: "shared-par", Items: []corev1.KeyToPath{{Key: "par.yaml", Path: string(component.file)}}}},
+		}}
+	}
+	f := buildPrivateActionRunnerFeature(&feature.Options{Client: reader}).(*privateActionRunnerFeature)
+	before := dda.DeepCopy()
+	req := f.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+	assert.True(t, req.Agent.IsEnabled())
+	assert.True(t, req.ClusterAgent.IsEnabled())
+	assert.Equal(t, before.Spec, dda.Spec)
+	assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", f.nodeConfigData)
+	assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", f.clusterConfigData)
+	assert.Equal(t, "shared-identity", f.clusterConfig.IdentitySecretName)
+	assert.Equal(t, []string{"com.datadoghq.script.runPredefinedScript"}, f.clusterConfig.ActionsAllowlist)
+	resources := feature.NewResourceManagers(store.NewStore(dda, &store.StoreOptions{Scheme: scheme}))
+	require.NoError(t, f.ManageDependencies(resources))
+	for _, name := range []string{f.getConfigMapName(), f.getClusterAgentConfigMapName()} {
+		obj, found := resources.Store().Get(kubernetes.ConfigMapKind, "default", name)
+		require.True(t, found)
+		assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", obj.(*corev1.ConfigMap).Data[privateActionRunnerFileName])
+	}
+	// Configure may run more than once; its read-only client must survive the state reset.
+	f.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+}
+
+func TestPrivateActionRunnerCustomConfigurationErrors(t *testing.T) {
+	for _, data := range []string{"private_action_runner: [", "private_action_runner: false", "private_action_runner:\n  task_concurrency: invalid"} {
+		t.Run(data, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+						v2alpha1.ClusterAgentConfigFile: {ConfigData: new(data)},
+					}},
+				},
+			}}
+			f := buildPrivateActionRunnerFeature(nil)
+			req := f.Configure(dda, &dda.Spec, nil)
+			assert.True(t, req.ClusterAgent.IsEnabled(), "configuration errors must remain visible to dependency management")
+			require.Error(t, f.ManageDependencies(nil))
+		})
+	}
+}
+
+func TestPrivateActionRunnerConfigMapConfiguration(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	reader := clientfake.NewClientBuilder().WithScheme(scheme).WithObjects(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "custom", Namespace: "default"},
+		Data:       map[string]string{"datadog-cluster.yaml": "private_action_runner:\n  self_enroll: false\n  identity_secret_name: custom-identity\n"},
+	}).Build()
+	owner := &metav1.ObjectMeta{Namespace: "default"}
+	for _, tt := range []struct {
+		name  string
+		ref   v2alpha1.ConfigMapConfig
+		error string
+	}{
+		{name: "default key", ref: v2alpha1.ConfigMapConfig{Name: "custom"}},
+		{name: "missing ConfigMap", ref: v2alpha1.ConfigMapConfig{Name: "missing"}, error: "read custom configuration ConfigMap missing"},
+		{name: "missing key", ref: v2alpha1.ConfigMapConfig{Name: "custom", Items: []corev1.KeyToPath{{Key: "missing", Path: "datadog-cluster.yaml"}}}, error: "does not provide datadog-cluster.yaml"},
+		{name: "unmounted path", ref: v2alpha1.ConfigMapConfig{Name: "custom", Items: []corev1.KeyToPath{{Key: "datadog-cluster.yaml", Path: "other.yaml"}}}, error: "does not provide datadog-cluster.yaml"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := configurationFromOverride(owner, &v2alpha1.DatadogAgentComponentOverride{
+				CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+					v2alpha1.ClusterAgentConfigFile: {ConfigMap: &tt.ref, ConfigData: new("invalid: [")},
+				},
+			}, v2alpha1.ClusterAgentConfigFile, &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, reader)
+			if tt.error != "" {
+				require.ErrorContains(t, err, tt.error)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, config.enabled)
+			assert.False(t, config.settings.SelfEnroll)
+			assert.Equal(t, "custom-identity", config.settings.IdentitySecretName)
+			assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", config.configData)
+		})
+	}
+}
+
+func TestKubernetesActionsCustomPrivateActionRunnerConfiguration(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default"}}
+	require.NoError(t, yaml.UnmarshalStrict([]byte(`features:
+  kubernetesActions:
+    enabled: true
+override:
+  clusterAgent:
+    customConfigurations:
+      datadog-cluster.yaml:
+        configData: |
+          private_action_runner:
+            identity_secret_name: custom-identity
+            actions_allowlist:
+              - com.datadoghq.http.request
+`), &dda.Spec))
+	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+	req := f.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+	assert.False(t, req.Agent.IsEnabled())
+	assert.True(t, req.ClusterAgent.IsEnabled())
+	assert.Equal(t, "custom-identity", f.clusterConfig.IdentitySecretName)
+	assert.Equal(t, []string{"com.datadoghq.http.request"}, f.clusterConfig.ActionsAllowlist)
+	assert.True(t, f.clusterConfig.SelfEnroll)
+	dda.Spec.Override[v2alpha1.ClusterAgentComponentName].CustomConfigurations[v2alpha1.ClusterAgentConfigFile] = v2alpha1.AgentCustomConfig{ConfigData: new("private_action_runner: [")}
+	req = f.Configure(dda, &dda.Spec, nil)
+	assert.True(t, req.ClusterAgent.IsEnabled())
+	require.Error(t, f.ManageDependencies(nil))
+}
+
+func TestPrivateActionRunnerTypedSettings(t *testing.T) {
+	shared := []string{"com.datadoghq.script.runPredefinedScript"}
+	local := []string{"com.datadoghq.http.request"}
+	empty := []string{}
+	for _, tt := range []struct {
+		name          string
+		global        *v2alpha1.PrivateActionRunnerFeatureConfig
+		custom        v2alpha1.AgentCustomConfig
+		wantEnabled   bool
+		wantAllowlist []string
+	}{
+		{name: "allowlist is optional", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, wantEnabled: true},
+		{name: "inherit shared allowlist", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ActionsAllowlist: &shared}, wantEnabled: true, wantAllowlist: shared},
+		{name: "component replaces shared allowlist", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ActionsAllowlist: &shared}, custom: v2alpha1.AgentCustomConfig{ActionsAllowlist: &local}, wantEnabled: true, wantAllowlist: local},
+		{name: "empty component list clears shared and raw allowlists", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ActionsAllowlist: &shared}, custom: v2alpha1.AgentCustomConfig{ActionsAllowlist: &empty, ConfigData: new("private_action_runner:\n  actions_allowlist: [raw-action]\n")}, wantEnabled: true, wantAllowlist: empty},
+		{name: "shared typed list overrides raw allowlist", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ActionsAllowlist: &shared}, custom: v2alpha1.AgentCustomConfig{ConfigData: new("private_action_runner:\n  actions_allowlist: [raw-action]\n")}, wantEnabled: true, wantAllowlist: shared},
+		{name: "raw allowlist remains available without typed list", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, custom: v2alpha1.AgentCustomConfig{ConfigData: new("private_action_runner:\n  actions_allowlist: [raw-action]\n")}, wantEnabled: true, wantAllowlist: []string{"raw-action"}},
+		{name: "component enables PAR over global disable", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(false)}, custom: v2alpha1.AgentCustomConfig{Enabled: new(true)}, wantEnabled: true},
+		{name: "component disables PAR without parsing unused YAML", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, custom: v2alpha1.AgentCustomConfig{Enabled: new(false), ConfigData: new("invalid: [")}},
+		{name: "typed enable overrides raw disable", global: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, custom: v2alpha1.AgentCustomConfig{ConfigData: new("private_action_runner:\n  enabled: false\n")}, wantEnabled: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			override := &v2alpha1.DatadogAgentComponentOverride{CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{v2alpha1.AgentGeneralConfigFile: tt.custom}}
+			config, err := configurationFromOverride(&metav1.ObjectMeta{}, override, v2alpha1.AgentGeneralConfigFile, tt.global, nil)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantEnabled, config.enabled)
+			if tt.wantEnabled {
+				assert.Equal(t, tt.wantAllowlist, config.settings.ActionsAllowlist)
+				if tt.global.ActionsAllowlist != nil || tt.custom.ActionsAllowlist != nil {
+					extra, parseErr := parsePrivateActionRunnerConfig(config.configData)
+					require.NoError(t, parseErr)
+					assert.Equal(t, tt.wantAllowlist, extra.ActionsAllowlist)
 				}
 			}
 		})
 	}
 }
 
-func TestPrivateActionRunnerSpecInvalidConfig(t *testing.T) {
-	for _, data := range []string{"private_action_runner: [", "private_action_runner: false", "private_action_runner:\n  enabled: true\n  task_concurrency: invalid"} {
-		for _, component := range []string{"node", "cluster"} {
-			t.Run(component+"/"+data, func(t *testing.T) {
-				config := &v2alpha1.PrivateActionRunnerFeatureConfig{}
-				if component == "node" {
-					config.NodeAgent = &v2alpha1.PrivateActionRunnerNodeAgentConfig{Enabled: new(true), ConfigData: new(data)}
-				} else {
-					config.ClusterAgent = &v2alpha1.PrivateActionRunnerClusterAgentConfig{Enabled: new(true), ConfigData: new(data)}
-				}
-				f := buildPrivateActionRunnerFeature(nil)
-				dda := &v2alpha1.DatadogAgent{Spec: v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: config}}}
-				f.Configure(dda, &dda.Spec, nil)
-				require.Error(t, f.ManageDependencies(nil))
-			})
-		}
-	}
-}
-
-func TestPrivateActionRunnerSpecYAML(t *testing.T) {
-	var dda v2alpha1.DatadogAgent
-	require.NoError(t, yaml.Unmarshal([]byte(`spec:
-  features:
-    privateActionRunner:
-      enabled: true
-      configData: |
-        private_action_runner:
-          actions_allowlist:
-            - com.datadoghq.script.runPredefinedScript
-          enabled: false
-          task_concurrency: 3
-      clusterAgent:
-        enabled: false
-`), &dda))
-	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
-	req := f.Configure(&dda, &dda.Spec, nil)
-	require.True(t, req.Agent.IsEnabled())
-	require.False(t, req.ClusterAgent.IsEnabled())
-	config, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
+func TestPrivateActionRunnerTypedOverridesAndAdvancedConfiguration(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default"}}
+	require.NoError(t, yaml.UnmarshalStrict([]byte(`features:
+  privateActionRunner:
+    enabled: true
+    actionsAllowlist:
+      - com.datadoghq.script.runPredefinedScript
+override:
+  nodeAgent:
+    customConfigurations:
+      datadog.yaml:
+        enabled: true
+        actionsAllowlist:
+          - com.datadoghq.http.request
+        configData: |
+          private_action_runner:
+            task_concurrency: 3
+  clusterAgent:
+    customConfigurations:
+      datadog-cluster.yaml:
+        enabled: true
+        actionsAllowlist: []
+        configData: |
+          private_action_runner:
+            task_concurrency: 5
+            identity_secret_name: custom-identity
+`), &dda.Spec))
+	// A [] override must survive the DDA-to-DDAI serialization and deepcopy.
+	data, err := json.Marshal(dda)
 	require.NoError(t, err)
-	assert.True(t, config.Enabled)
-	assert.Equal(t, []string{"com.datadoghq.script.runPredefinedScript"}, config.ActionsAllowlist)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	require.NoError(t, f.ManageNodeAgent(managers))
-	assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName], &corev1.EnvVar{Name: DDPARTaskConcurrency, Value: "3"})
-
-	dda.Spec.Features.PrivateActionRunner.Enabled = new(false)
-	f.Configure(&dda, &dda.Spec, nil)
-	assert.False(t, f.nodeEnabled)
-	assert.False(t, f.splitEnabled)
-	assert.Nil(t, f.clusterConfig)
-}
-
-func TestPrivateActionRunnerConfigOverridesYAML(t *testing.T) {
-	var dda v2alpha1.DatadogAgent
-	require.NoError(t, yaml.UnmarshalStrict([]byte(`spec:
-  features:
-    privateActionRunner:
-      enabled: true
-      configData: |
-        private_action_runner:
-          actions_allowlist:
-            - com.datadoghq.script.runPredefinedScript
-          task_concurrency: 3
-          advanced_option: preserved
-      nodeAgent:
-        configData: |
-          private_action_runner:
-            actions_allowlist:
-              - com.datadoghq.script.testConnection
-      clusterAgent:
-        configData: |
-          private_action_runner:
-            actions_allowlist: []
-`), &dda))
-	shared := *dda.Spec.Features.PrivateActionRunner.ConfigData
+	require.NoError(t, json.Unmarshal(data, dda))
+	before := dda.DeepCopy()
 	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
-	f.Configure(&dda, &dda.Spec, nil)
+	req := f.Configure(dda, &dda.Spec, nil)
 	require.NoError(t, f.configErr)
+	assert.True(t, req.Agent.IsEnabled())
+	assert.True(t, req.ClusterAgent.IsEnabled())
+	assert.Equal(t, []string{}, f.clusterConfig.ActionsAllowlist)
+	assert.EqualValues(t, 5, *f.clusterConfig.TaskConcurrency)
+	assert.Equal(t, "custom-identity", f.clusterConfig.IdentitySecretName)
+	assert.Equal(t, before.Spec, dda.Spec)
 	node, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"com.datadoghq.script.testConnection"}, node.ActionsAllowlist)
-	assert.Equal(t, []string{}, f.clusterConfig.ActionsAllowlist)
-	assert.Nil(t, node.TaskConcurrency, "component config replaces the entire shared configuration")
-	assert.Nil(t, f.clusterConfig.TaskConcurrency)
-	assert.NotContains(t, f.nodeConfigData, "advanced_option")
-	assert.NotContains(t, f.clusterConfigData, "advanced_option")
-	assert.Equal(t, shared, *dda.Spec.Features.PrivateActionRunner.ConfigData)
-
-	// Removing overrides restores the common allowlist and unknown Agent options.
-	dda.Spec.Features.PrivateActionRunner.NodeAgent = nil
-	dda.Spec.Features.PrivateActionRunner.ClusterAgent = nil
-	f.Configure(&dda, &dda.Spec, nil)
-	require.NoError(t, f.configErr)
-	for _, data := range []string{f.nodeConfigData, f.clusterConfigData} {
-		config, err := parsePrivateActionRunnerConfig(data)
-		require.NoError(t, err)
-		assert.True(t, config.Enabled)
-		assert.Equal(t, []string{"com.datadoghq.script.runPredefinedScript"}, config.ActionsAllowlist)
-		require.NotNil(t, config.TaskConcurrency)
-		assert.EqualValues(t, 3, *config.TaskConcurrency)
-		assert.Contains(t, data, "advanced_option: preserved")
-	}
+	assert.Equal(t, []string{"com.datadoghq.http.request"}, node.ActionsAllowlist)
+	assert.NotContains(t, f.nodeConfigData, "task_concurrency")
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{
+		{Name: string(apicommon.CoreAgentContainerName), Command: []string{"agent", "run"}},
+		{Name: string(apicommon.PrivateActionRunnerContainerName)},
+	}}})
+	require.NoError(t, f.ManageNodeAgent(managers))
+	assert.Contains(t, managers.PodTemplateSpec().Spec.Containers[0].Args, "-E="+PrivateActionRunnerConfigPath)
+	assert.Contains(t, managers.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName], &corev1.VolumeMount{
+		Name: "datadog-" + privateActionRunnerVolumeNameSuffix, MountPath: PrivateActionRunnerConfigPath, SubPath: privateActionRunnerFileName, ReadOnly: true,
+	})
 }

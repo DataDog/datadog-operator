@@ -2962,43 +2962,16 @@
               "additionalProperties": false,
               "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
               "properties": {
-                "clusterAgent": {
-                  "additionalProperties": false,
-                  "description": "ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.",
-                  "properties": {
-                    "configData": {
-                      "description": "ConfigData replaces the entire shared YAML configuration for the Cluster Agent.",
-                      "type": "string"
-                    },
-                    "enabled": {
-                      "description": "Enabled overrides the shared enabled setting for the Cluster Agent.",
-                      "type": "boolean"
-                    }
+                "actionsAllowlist": {
+                  "description": "ActionsAllowlist contains additional action patterns allowed on both agents.\nComponent customConfigurations.actionsAllowlist replaces this list when set.\nAn explicit empty list clears the additional action patterns; built-in actions\nremain controlled by private_action_runner.default_actions_enabled.",
+                  "items": {
+                    "type": "string"
                   },
-                  "type": "object"
-                },
-                "configData": {
-                  "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled.\nConfigure allowed action patterns with private_action_runner.actions_allowlist.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
-                  "type": "string"
+                  "type": "array"
                 },
                 "enabled": {
-                  "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent.\nComponent-specific enabled settings take precedence.\nDefault: false",
+                  "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,\nwith self-enrollment by default. Component customConfigurations.enabled\noverrides this setting. Advanced options use private_action_runner in configData.\nDefault: false",
                   "type": "boolean"
-                },
-                "nodeAgent": {
-                  "additionalProperties": false,
-                  "description": "NodeAgent overrides the shared Private Action Runner settings for the Node Agent.",
-                  "properties": {
-                    "configData": {
-                      "description": "ConfigData replaces the entire shared YAML configuration for the Node Agent.",
-                      "type": "string"
-                    },
-                    "enabled": {
-                      "description": "Enabled overrides the shared enabled setting for the Node Agent.",
-                      "type": "boolean"
-                    }
-                  },
-                  "type": "object"
                 }
               },
               "type": "object"
@@ -6348,15 +6321,22 @@
               "customConfigurations": {
                 "additionalProperties": {
                   "additionalProperties": false,
-                  "description": "CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,\nsystem-probe.yaml, security-agent.yaml or datadog-cluster.yaml.\nThe configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.\nNote: `ConfigData` and `ConfigMap` cannot be set together.",
+                  "description": "AgentCustomConfig provides a component configuration file and typed Private Action Runner overrides.\nTyped PAR settings apply only to the Node Agent datadog.yaml and Cluster Agent datadog-cluster.yaml files.\nThe configuration file content uses ConfigData or ConfigMap, following CustomConfig semantics.",
                   "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist overrides features.privateActionRunner.actionsAllowlist for this component.\nOnly used for override.nodeAgent.customConfigurations[\"datadog.yaml\"] and\noverride.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"].\nTakes precedence over private_action_runner.actions_allowlist in ConfigData or ConfigMap.\nAn explicit empty list clears the inherited additional action patterns.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "configData": {
-                      "description": "ConfigData corresponds to the configuration file content.",
+                      "description": "ConfigData corresponds to the configuration file content, including advanced private_action_runner settings.",
                       "type": "string"
                     },
                     "configMap": {
                       "additionalProperties": false,
-                      "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                      "description": "ConfigMap references an existing ConfigMap with the configuration file content.\nConfigMap takes precedence when both ConfigMap and ConfigData are set.",
                       "properties": {
                         "items": {
                           "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
@@ -6401,6 +6381,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled overrides features.privateActionRunner.enabled for this component.\nOnly used for override.nodeAgent.customConfigurations[\"datadog.yaml\"] and\noverride.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"].\nTakes precedence over private_action_runner.enabled in ConfigData or ConfigMap.",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
@@ -12224,43 +12208,16 @@
                   "additionalProperties": false,
                   "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
                   "properties": {
-                    "clusterAgent": {
-                      "additionalProperties": false,
-                      "description": "ClusterAgent overrides the shared Private Action Runner settings for the Cluster Agent.",
-                      "properties": {
-                        "configData": {
-                          "description": "ConfigData replaces the entire shared YAML configuration for the Cluster Agent.",
-                          "type": "string"
-                        },
-                        "enabled": {
-                          "description": "Enabled overrides the shared enabled setting for the Cluster Agent.",
-                          "type": "boolean"
-                        }
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist contains additional action patterns allowed on both agents.\nComponent customConfigurations.actionsAllowlist replaces this list when set.\nAn explicit empty list clears the additional action patterns; built-in actions\nremain controlled by private_action_runner.default_actions_enabled.",
+                      "items": {
+                        "type": "string"
                       },
-                      "type": "object"
-                    },
-                    "configData": {
-                      "description": "ConfigData contains YAML configuration, including the private_action_runner key,\nshared by both agents. The enabled field is controlled by Enabled.\nConfigure allowed action patterns with private_action_runner.actions_allowlist.\nDefault: \"private_action_runner:\\n  enabled: true\\n\"",
-                      "type": "string"
+                      "type": "array"
                     },
                     "enabled": {
-                      "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent.\nComponent-specific enabled settings take precedence.\nDefault: false",
+                      "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,\nwith self-enrollment by default. Component customConfigurations.enabled\noverrides this setting. Advanced options use private_action_runner in configData.\nDefault: false",
                       "type": "boolean"
-                    },
-                    "nodeAgent": {
-                      "additionalProperties": false,
-                      "description": "NodeAgent overrides the shared Private Action Runner settings for the Node Agent.",
-                      "properties": {
-                        "configData": {
-                          "description": "ConfigData replaces the entire shared YAML configuration for the Node Agent.",
-                          "type": "string"
-                        },
-                        "enabled": {
-                          "description": "Enabled overrides the shared enabled setting for the Node Agent.",
-                          "type": "boolean"
-                        }
-                      },
-                      "type": "object"
                     }
                   },
                   "type": "object"

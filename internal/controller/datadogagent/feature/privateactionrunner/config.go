@@ -6,13 +6,17 @@
 package privateactionrunner
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -45,48 +49,114 @@ const (
 type componentConfig struct {
 	enabled    bool
 	configData string
+	settings   *PrivateActionRunnerConfig
 }
 
-// resolveConfiguration selects either the spec or legacy annotations, then applies
-// component overrides without mutating the shared configuration.
-func resolveConfiguration(dda metav1.Object, spec *v2alpha1.PrivateActionRunnerFeatureConfig) (node, cluster componentConfig) {
-	node.configData = defaultConfigData
-	cluster.configData = defaultConfigData
-	if spec == nil {
-		node.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation)
-		cluster.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation)
-		if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
-			node.configData = data
-		}
-		if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
-			cluster.configData = data
-		}
-		return
+// legacyConfiguration preserves annotation behavior when the feature block is absent.
+func legacyConfiguration(dda metav1.Object) (node, cluster componentConfig) {
+	node = componentConfig{enabled: featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation), configData: defaultConfigData}
+	cluster = componentConfig{enabled: featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation), configData: defaultConfigData}
+	if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
+		node.configData = data
 	}
-
-	node.enabled = apiutils.BoolValue(spec.Enabled)
-	cluster.enabled = node.enabled
-	if spec.ConfigData != nil {
-		node.configData = *spec.ConfigData
-		cluster.configData = *spec.ConfigData
-	}
-	if override := spec.NodeAgent; override != nil {
-		if override.Enabled != nil {
-			node.enabled = *override.Enabled
-		}
-		if override.ConfigData != nil {
-			node.configData = *override.ConfigData
-		}
-	}
-	if override := spec.ClusterAgent; override != nil {
-		if override.Enabled != nil {
-			cluster.enabled = *override.Enabled
-		}
-		if override.ConfigData != nil {
-			cluster.configData = *override.ConfigData
-		}
+	if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
+		cluster.configData = data
 	}
 	return
+}
+
+// configurationFromOverride resolves typed settings over the component's raw YAML.
+// The extra PAR file supplies defaults and typed overrides; advanced settings stay
+// in the main configuration file. The effective settings determine identity RBAC.
+func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, fileName v2alpha1.AgentConfigFileName, spec *v2alpha1.PrivateActionRunnerFeatureConfig, reader client.Reader) (result componentConfig, err error) {
+	custom := v2alpha1.AgentCustomConfig{}
+	if override != nil {
+		custom = override.CustomConfigurations[fileName]
+	}
+	result.enabled = apiutils.BoolValue(spec.Enabled)
+	if custom.Enabled != nil {
+		result.enabled = *custom.Enabled
+	}
+	if !result.enabled {
+		return result, nil
+	}
+	defaults := map[string]any{"enabled": true, "self_enroll": true, "identity_secret_name": defaultIdentitySecretName}
+	effective := map[string]any{"enabled": true, "self_enroll": true, "identity_secret_name": defaultIdentitySecretName}
+	data, err := customConfigurationData(owner, custom, fileName, reader)
+	if err != nil {
+		return result, err
+	}
+	var root map[string]any
+	if err = yaml.Unmarshal([]byte(data), &root); err != nil {
+		return result, fmt.Errorf("invalid %s configuration: %w", fileName, err)
+	}
+	if raw := root[privateActionRunnerConfigKey]; raw != nil {
+		settings, ok := raw.(map[string]any)
+		if !ok {
+			return result, fmt.Errorf("%s in %s must be a YAML mapping", privateActionRunnerConfigKey, fileName)
+		}
+		for key, value := range settings {
+			effective[key] = value
+			if key != privateActionRunnerEnabledKey {
+				delete(defaults, key)
+			}
+		}
+	}
+	// Activation and the typed allowlist are authoritative over raw YAML.
+	effective[privateActionRunnerEnabledKey] = true
+	allowlist := spec.ActionsAllowlist
+	if custom.ActionsAllowlist != nil {
+		allowlist = custom.ActionsAllowlist
+	}
+	if allowlist != nil {
+		actions := append([]string{}, (*allowlist)...)
+		effective["actions_allowlist"] = actions
+		defaults["actions_allowlist"] = actions
+	}
+	effectiveYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: effective})
+	if err != nil {
+		return result, err
+	}
+	result.settings, err = parsePrivateActionRunnerConfig(string(effectiveYAML))
+	if err != nil {
+		return result, err
+	}
+	defaultsYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: defaults})
+	result.configData = string(defaultsYAML)
+	return result, err
+}
+
+func customConfigurationData(owner metav1.Object, custom v2alpha1.AgentCustomConfig, fileName v2alpha1.AgentConfigFileName, reader client.Reader) (string, error) {
+	if custom.ConfigMap == nil {
+		if custom.ConfigData != nil {
+			return *custom.ConfigData, nil
+		}
+		return "", nil
+	}
+	if reader == nil {
+		return "", fmt.Errorf("a Kubernetes reader is required for custom configuration ConfigMap %s", custom.ConfigMap.Name)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var cm corev1.ConfigMap
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: owner.GetNamespace(), Name: custom.ConfigMap.Name}, &cm); err != nil {
+		return "", fmt.Errorf("read custom configuration ConfigMap %s: %w", custom.ConfigMap.Name, err)
+	}
+	key := string(fileName)
+	if len(custom.ConfigMap.Items) > 0 {
+		key = ""
+		for _, item := range custom.ConfigMap.Items {
+			if item.Path == string(fileName) {
+				key = item.Key
+				break
+			}
+		}
+	}
+	data, found := cm.Data[key]
+	if !found || key == "" {
+		return "", fmt.Errorf("custom configuration ConfigMap %s does not provide %s", cm.Name, fileName)
+	}
+	return data, nil
 }
 
 // PrivateActionRunnerConfig represents the parsed configuration from YAML for Private Action Runner
@@ -167,51 +237,20 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 	return config.PrivateActionRunner, nil
 }
 
-// enabledConfigData validates spec configuration and enables its PAR section,
-// creating the section when absent.
-func enabledConfigData(configData string) (string, error) {
-	config, err := parsePrivateActionRunnerConfig(configData)
-	if err != nil {
-		return "", err
-	}
-	if config.Enabled {
-		return configData, nil
-	}
-	return setEnabledValueInConfigData(configData, true, true)
-}
-
 // overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
 // matches the desired value without adding a missing private_action_runner section.
 func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
-	return setEnabledValueInConfigData(configData, enabled, false)
-}
-
-func setEnabledValueInConfigData(configData string, enabled, createMissingSection bool) (string, error) {
 	var data map[string]any
 	if err := yaml.Unmarshal([]byte(configData), &data); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
-
-	parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any)
-	if !ok && createMissingSection {
-		if data[privateActionRunnerConfigKey] != nil {
-			return "", fmt.Errorf("%s must be a YAML mapping", privateActionRunnerConfigKey)
-		}
-		if data == nil {
-			data = make(map[string]any)
-		}
-		parConfig = make(map[string]any)
-		data[privateActionRunnerConfigKey] = parConfig
-	}
-	if parConfig != nil {
+	if parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any); ok {
 		parConfig[privateActionRunnerEnabledKey] = enabled
 	}
-
 	updatedYAML, err := yaml.Marshal(data)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated config data: %w", err)
 	}
-
 	return string(updatedYAML), nil
 }
 
