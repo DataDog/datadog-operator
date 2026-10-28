@@ -476,6 +476,8 @@ trigger_autopilot_nightly:
       artifacts: false
   inherit:
     variables:
+      # The nightly rule needs this default variable before the child is created.
+      - NIGHTLY_BUILD_CONDUCTOR_NAME
       - BUILD_DOCKER_REGISTRY
       - E2E_DOCKER_REGISTRY
       - PROJECTNAME
