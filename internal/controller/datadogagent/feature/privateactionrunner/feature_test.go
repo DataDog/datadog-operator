@@ -867,10 +867,21 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			expectedRBACSecretName:    defaultIdentitySecretName,
 		},
 		{
-			name:                      "kubernetes actions preserves its existing identity secret",
+			name:                      "kubernetes actions uses the Agent identity secret default",
 			kubernetesActions:         true,
-			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: datadog-private-action-runner-identity\n",
-			expectedRBACSecretName:    "datadog-private-action-runner-identity",
+			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n",
+			expectedRBACSecretName:    "private-action-runner-identity",
+		},
+		{
+			name:              "kubernetes actions respects an explicit legacy identity secret",
+			kubernetesActions: true,
+			configData: `private_action_runner:
+  enabled: true
+  identity_secret_name: datadog-private-action-runner-identity`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_secret_name: datadog-private-action-runner-identity`,
+			expectedRBACSecretName: "datadog-private-action-runner-identity",
 		},
 		{
 			name: "file storage with omitted self-enroll",
