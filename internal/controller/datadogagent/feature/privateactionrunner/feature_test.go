@@ -807,6 +807,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 		configData                string
 		expectedClusterConfigData string
 		expectedRBACSecretName    string
+		k8sRemediation            bool
 	}{
 		{
 			name: "self-enroll with identity secret",
@@ -865,6 +866,37 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			expectedRBACSecretName:    defaultIdentitySecretName,
 		},
 		{
+			name: "file storage with omitted self-enroll",
+			configData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: false`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: false`,
+		},
+		{
+			name:           "file storage with explicit self-enroll preserves remediation RBAC",
+			k8sRemediation: true,
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_use_k8s_secret: false`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_use_k8s_secret: false`,
+		},
+		{
+			name: "explicit Kubernetes storage with omitted self-enroll",
+			configData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: true`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: true`,
+			expectedRBACSecretName: defaultIdentitySecretName,
+		},
+		{
 			name: "omitted self-enroll with custom identity secret",
 			configData: `private_action_runner:
   enabled: true
@@ -890,6 +922,9 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			}
 			if tt.configData != "" {
 				dda.Annotations["cluster-agent.datadoghq.com/private-action-runner-configdata"] = tt.configData
+			}
+			if tt.k8sRemediation {
+				dda.Annotations["cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"] = "true"
 			}
 			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
 
@@ -920,6 +955,13 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 
 			role, roleFound := resourceManagers.Store().Get(kubernetes.RolesKind, "default", "test-dda-private-action-runner")
 			binding, bindingFound := resourceManagers.Store().Get(kubernetes.RoleBindingKind, "default", "test-dda-private-action-runner")
+			clusterRole, clusterRoleFound := resourceManagers.Store().Get(kubernetes.ClusterRolesKind, "", "test-dda-private-action-runner")
+			_, clusterBindingFound := resourceManagers.Store().Get(kubernetes.ClusterRoleBindingKind, "", "test-dda-private-action-runner")
+			require.Equal(t, tt.k8sRemediation, clusterRoleFound, "remediation ClusterRole")
+			require.Equal(t, tt.k8sRemediation, clusterBindingFound, "remediation ClusterRoleBinding")
+			if tt.k8sRemediation {
+				assert.Equal(t, getK8sRemediationPolicyRules(), clusterRole.(*rbacv1.ClusterRole).Rules)
+			}
 			wantRBAC := tt.expectedRBACSecretName != ""
 			require.Equal(t, wantRBAC, roleFound, "enrollment Role")
 			require.Equal(t, wantRBAC, bindingFound, "enrollment RoleBinding")
