@@ -22,6 +22,20 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
+const (
+	quickwitCloudPremConfigKey                   = "cloudprem"
+	quickwitCacheCapacityConfigKey               = "capacity"
+	quickwitFastFieldCacheConfigKey              = "fast_field_cache"
+	quickwitFastFieldCacheCapacityConfigKey      = "fast_field_cache_capacity"
+	quickwitPartialRequestCacheConfigKey         = "partial_request_cache"
+	quickwitPartialRequestCacheCapacityConfigKey = "partial_request_cache_capacity"
+	quickwitSplitFooterCacheConfigKey            = "split_footer_cache"
+	quickwitSplitFooterCacheCapacityConfigKey    = "split_footer_cache_capacity"
+	quickwitCreateLogsIndexConfigKey             = "create_dd_logs_index"
+	quickwitCreateDatadogIndexConfigKey          = "create_datadog_index"
+	quickwitUseReadOnlyMetastoreConfigKey        = "use_metastore_read_replica"
+)
+
 func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.ConfigMap, error) {
 	indexerMemoryLimit := cluster.Spec.Components.Indexer.Resources.Limits[corev1.ResourceMemory]
 	searcherMemoryLimit := cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
@@ -47,14 +61,14 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 	}
 	searcher := config[quickwitSearcherServiceName].(map[string]any)
 	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125))
-	if !overrideSets(override, []string{quickwitSearcherServiceName, "fast_field_cache_capacity"}) {
-		searcher["fast_field_cache"] = map[string]any{"capacity": searcherMemoryBytes * 13 / 32}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitFastFieldCacheCapacityConfigKey}) {
+		searcher[quickwitFastFieldCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes * 13 / 32}
 	}
-	if !overrideSets(override, []string{quickwitSearcherServiceName, "partial_request_cache_capacity"}) {
-		searcher["partial_request_cache"] = map[string]any{"capacity": searcherMemoryBytes / 64}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitPartialRequestCacheCapacityConfigKey}) {
+		searcher[quickwitPartialRequestCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes / 64}
 	}
-	if !overrideSets(override, []string{quickwitSearcherServiceName, "split_footer_cache_capacity"}) {
-		searcher["split_footer_cache"] = map[string]any{"capacity": searcherMemoryBytes / 32}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitSplitFooterCacheCapacityConfigKey}) {
+		searcher[quickwitSplitFooterCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes / 32}
 	}
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
@@ -64,9 +78,9 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 		signal = *cluster.Spec.Signal
 	}
 	// Set both keys explicitly: CloudPrem treats a missing create_dd_logs_index as true.
-	cloudprem := config["cloudprem"].(map[string]any)
-	if !overrideSets(override, []string{"cloudprem", "create_datadog_index"}) {
-		cloudprem["create_dd_logs_index"] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	cloudprem := config[quickwitCloudPremConfigKey].(map[string]any)
+	if !overrideSets(override, []string{quickwitCloudPremConfigKey, quickwitCreateDatadogIndexConfigKey}) {
+		cloudprem[quickwitCreateLogsIndexConfigKey] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
 	}
 	cloudprem["create_dd_traces_index"] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalTraces
 	storage := cluster.Spec.Components.Indexer.Storage

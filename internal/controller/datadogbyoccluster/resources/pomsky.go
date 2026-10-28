@@ -129,8 +129,6 @@ const (
 	telemetryTracesSamplerRatio = "0.2"
 )
 
-const quickwitUseReadOnlyMetastoreConfigKey = "use_metastore_read_replica"
-
 // defaultNodeConfig returns the node configuration defaults that do not depend on the cluster spec.
 func defaultNodeConfig() map[string]any {
 	return map[string]any{
@@ -141,7 +139,7 @@ func defaultNodeConfig() map[string]any {
 		"data_dir":              defaultDataPath,
 		"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
 		"health":                map[string]any{"listen_port": healthPort},
-		"cloudprem": map[string]any{
+		quickwitCloudPremConfigKey: map[string]any{
 			"mtls_header":              "X-Amzn-Mtls-Clientcert",
 			"create_dd_metrics_index":  false,
 			"create_dd_sketches_index": false,
