@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -151,8 +151,8 @@ func TestIsReconcileError(t *testing.T) {
 }
 
 // testNode returns a node with the taints that the node lifecycle controller adds when it is not Ready.
-func testNode(name string, ready corev1.ConditionStatus) *corev1.Node {
-	node := &corev1.Node{
+func testNode(name string, ready corev1.ConditionStatus) corev1.Node {
+	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Status: corev1.NodeStatus{Conditions: []corev1.NodeCondition{{
 			Type:   corev1.NodeReady,
@@ -174,8 +174,8 @@ func testNode(name string, ready corev1.ConditionStatus) *corev1.Node {
 
 // testAgentDaemonSet returns an Agent DaemonSet that tolerates every taint, like production Agents,
 // with a status that matches its spec.
-func testAgentDaemonSet(name, ddaName, generation string) *appsv1.DaemonSet {
-	return &appsv1.DaemonSet{
+func testAgentDaemonSet(name, ddaName, generation string) appsv1.DaemonSet {
+	return appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Generation:  2,
@@ -188,7 +188,6 @@ func testAgentDaemonSet(name, ddaName, generation string) *appsv1.DaemonSet {
 			},
 		},
 		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": name}},
 			Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
 				Tolerations: []corev1.Toleration{{Operator: corev1.TolerationOpExists}},
 			}},
@@ -198,17 +197,18 @@ func testAgentDaemonSet(name, ddaName, generation string) *appsv1.DaemonSet {
 }
 
 // testAgentPod returns a pod of the DaemonSet. The revision hash is "hash-<generation>".
-func testAgentPod(name string, ds *appsv1.DaemonSet, generation, nodeName string, age time.Duration) *corev1.Pod {
+func testAgentPod(name string, ds *appsv1.DaemonSet, generation, nodeName string, age time.Duration) corev1.Pod {
 	isController := true
-	return &corev1.Pod{
+	return corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              name,
 			Namespace:         ds.Namespace,
 			CreationTimestamp: metav1.NewTime(time.Now().Add(-age)),
 			Labels: map[string]string{
-				"app":                                 ds.Spec.Selector.MatchLabels["app"],
-				podTemplateGenerationLabel:            generation,
-				appsv1.DefaultDaemonSetUniqueLabelKey: "hash-" + generation,
+				apicommon.AgentDeploymentNameLabelKey:      ds.Labels[apicommon.AgentDeploymentNameLabelKey],
+				apicommon.AgentDeploymentComponentLabelKey: ds.Labels[apicommon.AgentDeploymentComponentLabelKey],
+				podTemplateGenerationLabel:                 generation,
+				appsv1.DefaultDaemonSetUniqueLabelKey:      "hash-" + generation,
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion: "apps/v1",
@@ -223,7 +223,7 @@ func testAgentPod(name string, ds *appsv1.DaemonSet, generation, nodeName string
 	}
 }
 
-func deleting(pod *corev1.Pod, phase corev1.PodPhase) *corev1.Pod {
+func deleting(pod corev1.Pod, phase corev1.PodPhase) corev1.Pod {
 	now := metav1.Now()
 	pod.DeletionTimestamp = &now
 	pod.Finalizers = []string{"test"}
@@ -251,186 +251,118 @@ func testOptions(t *testing.T, objects ...client.Object) *Options {
 		agentCompletionPct: 0.95,
 		agentCompletionMin: 0,
 		skipNotReadyNodes:  true,
-		maxNodeLookups:     300,
 		maxSkippedPct:      10,
 	}
 }
 
-// revertedOldest returns a pod on generation 3 with the revision hash of generation 5.
-func revertedOldest(name string, ds *appsv1.DaemonSet, nodeName string) *corev1.Pod {
-	pod := testAgentPod(name, ds, "3", nodeName, 2*time.Hour)
-	pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
-	return pod
-}
-
-func getOutdatedNotReadyNodes(t *testing.T, o *Options, minSkipped, maxSkipped int) []string {
-	t.Helper()
-	daemonSets, err := o.listAgentDaemonSets(context.Background())
-	require.NoError(t, err)
-	skipped, err := o.getOutdatedNotReadyNodes(context.Background(), daemonSets, minSkipped, maxSkipped)
-	require.NoError(t, err)
-	return skipped
-}
-
-func TestGetOutdatedNotReadyNodes(t *testing.T) {
+func TestComputeNotReadyNodeDiscount(t *testing.T) {
 	defaultDS := testAgentDaemonSet("agent-agent", "agent", "5")
 	profileDS := testAgentDaemonSet("profile-agent", "agent", "3")
 	// Without the not-ready and unreachable NoSchedule tolerations, the status leaves not-Ready nodes out.
 	strictDS := testAgentDaemonSet("strict-agent", "agent", "5")
 	strictDS.Spec.Template.Spec.Tolerations = nil
-	otherDDADS := testAgentDaemonSet("other-agent", "other", "5")
-	otherComponentDS := testAgentDaemonSet("agent-cluster-checks", "agent", "5")
-	otherComponentDS.Labels[apicommon.AgentDeploymentComponentLabelKey] = "cluster-checks-runner"
+	// No pod on generation 5 yet, so the current revision hash is unknown.
+	newDS := testAgentDaemonSet("new-agent", "agent", "5")
 	// The current template no longer targets "node-unlabeled", e.g. a profile label was added to it.
 	selectorDS := testAgentDaemonSet("selector-agent", "agent", "2")
 	selectorDS.Spec.Template.Spec.NodeSelector = map[string]string{"pool": "agents"}
 	labeledNode := testNode("node-labeled", corev1.ConditionUnknown)
 	labeledNode.Labels = map[string]string{"pool": "agents"}
 
-	objects := []client.Object{
+	// Generation changed, but the revision hash is the current one (template revert).
+	revertedPod := testAgentPod("reverted", &defaultDS, "3", "node-reverted", time.Hour)
+	revertedPod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
+
+	nodes := []corev1.Node{
 		labeledNode,
 		testNode("node-ready", corev1.ConditionTrue),
 		testNode("node-not-ready", corev1.ConditionFalse),
 		testNode("node-unknown", corev1.ConditionUnknown),
-		&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-no-condition"}},
-		testNode("node-two-outdated", corev1.ConditionUnknown),
-		testNode("node-oldest-reverted-a", corev1.ConditionUnknown),
-		testNode("node-oldest-reverted-z", corev1.ConditionUnknown),
+		{ObjectMeta: metav1.ObjectMeta{Name: "node-no-condition"}},
+		testNode("node-two-pods", corev1.ConditionUnknown),
+		testNode("node-reverted", corev1.ConditionUnknown),
 		testNode("node-terminal", corev1.ConditionUnknown),
 		testNode("node-unlabeled", corev1.ConditionUnknown),
-		defaultDS, profileDS, strictDS, otherDDADS, otherComponentDS, selectorDS,
+	}
+	pods := []corev1.Pod{
 		// Pods on the current generation, so that the current revision hashes are known.
-		testAgentPod("updated-ready", defaultDS, "5", "node-ready", time.Minute),
-		testAgentPod("profile-updated-ready", profileDS, "3", "node-ready", time.Minute),
-		testAgentPod("strict-updated-ready", strictDS, "5", "node-ready", time.Minute),
-		testAgentPod("other-dda-updated-ready", otherDDADS, "5", "node-ready", time.Minute),
-		testAgentPod("other-component-updated-ready", otherComponentDS, "5", "node-ready", time.Minute),
-		testAgentPod("selector-updated-ready", selectorDS, "2", "node-ready", time.Minute),
+		testAgentPod("updated-ready", &defaultDS, "5", "node-ready", time.Minute),
+		testAgentPod("profile-updated-ready", &profileDS, "3", "node-ready", time.Minute),
+		testAgentPod("strict-updated-ready", &strictDS, "5", "node-ready", time.Minute),
+		testAgentPod("selector-updated-ready", &selectorDS, "2", "node-ready", time.Minute),
 
 		// Skipped.
-		testAgentPod("outdated-not-ready", defaultDS, "4", "node-not-ready", time.Hour),
-		deleting(testAgentPod("outdated-stuck-terminating", defaultDS, "4", "node-unknown", time.Hour), corev1.PodRunning),
-		testAgentPod("outdated-no-condition", defaultDS, "4", "node-no-condition", time.Hour),
-		testAgentPod("outdated-a", defaultDS, "3", "node-two-outdated", 2*time.Hour),
-		testAgentPod("outdated-b", defaultDS, "4", "node-two-outdated", time.Hour),
-		testAgentPod("profile-outdated-unknown", profileDS, "2", "node-unknown", time.Hour),
-		testAgentPod("selector-outdated-labeled", selectorDS, "1", "node-labeled", time.Hour),
+		testAgentPod("outdated-not-ready", &defaultDS, "4", "node-not-ready", time.Hour),
+		deleting(testAgentPod("outdated-stuck-terminating", &defaultDS, "4", "node-unknown", time.Hour), corev1.PodRunning),
+		testAgentPod("outdated-no-condition", &defaultDS, "4", "node-no-condition", time.Hour),
+		testAgentPod("profile-outdated-unknown", &profileDS, "2", "node-unknown", time.Hour),
+		testAgentPod("selector-outdated-labeled", &selectorDS, "1", "node-labeled", time.Hour),
 
 		// Not skipped.
-		testAgentPod("outdated-ready", defaultDS, "4", "node-ready", time.Hour),
-		// The oldest pod has the current revision hash (template revert). The younger out-of-date
-		// pod is listed first on one node and last on the other, so that only picking the oldest
-		// pod passes.
-		revertedOldest("b-oldest-reverted", defaultDS, "node-oldest-reverted-a"),
-		testAgentPod("a-younger-outdated", defaultDS, "4", "node-oldest-reverted-a", time.Hour),
-		revertedOldest("b-oldest-reverted-z", defaultDS, "node-oldest-reverted-z"),
-		testAgentPod("z-younger-outdated", defaultDS, "4", "node-oldest-reverted-z", time.Hour),
-		deleting(testAgentPod("outdated-terminal-deleted", defaultDS, "4", "node-terminal", time.Hour), corev1.PodFailed),
-		testAgentPod("outdated-deleted-node", defaultDS, "4", "node-deleted", time.Hour),
-		testAgentPod("strict-outdated-unknown", strictDS, "4", "node-unknown", time.Hour),
-		testAgentPod("other-dda-outdated-unknown", otherDDADS, "4", "node-unknown", time.Hour),
-		testAgentPod("other-component-outdated-unknown", otherComponentDS, "4", "node-unknown", time.Hour),
-		testAgentPod("selector-outdated-unlabeled", selectorDS, "1", "node-unlabeled", time.Hour),
+		testAgentPod("outdated-ready", &defaultDS, "4", "node-ready", time.Hour),
+		testAgentPod("outdated-two-pods", &defaultDS, "4", "node-two-pods", time.Hour),
+		testAgentPod("updated-two-pods", &defaultDS, "5", "node-two-pods", time.Minute),
+		revertedPod,
+		deleting(testAgentPod("outdated-terminal-deleted", &defaultDS, "4", "node-terminal", time.Hour), corev1.PodFailed),
+		testAgentPod("outdated-deleted-node", &defaultDS, "4", "node-deleted", time.Hour),
+		testAgentPod("strict-outdated-unknown", &strictDS, "4", "node-unknown", time.Hour),
+		testAgentPod("new-outdated-unknown", &newDS, "4", "node-unknown", time.Hour),
+		testAgentPod("selector-outdated-unlabeled", &selectorDS, "1", "node-unlabeled", time.Hour),
 	}
+	daemonSets := []appsv1.DaemonSet{defaultDS, profileDS, strictDS, newDS, selectorDS}
 
-	o := testOptions(t, objects...)
-
-	skipped := getOutdatedNotReadyNodes(t, o, 1, 100)
-	assert.ElementsMatch(t, []string{
+	skipped, err := computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"agent-agent/node-no-condition",
 		"agent-agent/node-not-ready",
 		"agent-agent/node-unknown",
-		"agent-agent/node-no-condition",
-		"agent-agent/node-two-outdated",
 		"profile-agent/node-unknown",
 		"selector-agent/node-labeled",
 	}, skipped)
 
-	skipped = getOutdatedNotReadyNodes(t, o, 1, 5)
-	assert.Empty(t, skipped, "above maxSkipped, no node is skipped")
-}
-
-func TestGetOutdatedNotReadyNodesUnknownRevisionHash(t *testing.T) {
-	ds := testAgentDaemonSet("agent-agent", "agent", "5")
-	// No pod on generation 5 yet, so the current revision hash is unknown. After a template revert,
-	// "hash-5" may be the current hash and the DaemonSet status may count this pod as updated.
-	revertedPod := testAgentPod("reverted", ds, "4", "node-revert", time.Hour)
-	revertedPod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
-
-	o := testOptions(t,
-		ds,
-		testNode("node-revert", corev1.ConditionUnknown),
-		testNode("node-unknown", corev1.ConditionUnknown),
-		revertedPod,
-		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
-	)
-
-	assert.Empty(t, getOutdatedNotReadyNodes(t, o, 1, 100))
-}
-
-func TestGetOutdatedNotReadyNodesSharedSelector(t *testing.T) {
-	// With update-metadata disabled, the Agent DaemonSets share a selector. The only pod on
-	// generation 5 belongs to the other DaemonSet, so the current hash of "agent-agent" is unknown.
-	ds := testAgentDaemonSet("agent-agent", "agent", "5")
-	otherDS := testAgentDaemonSet("profile-agent", "agent", "5")
-	otherDS.Spec.Selector = ds.Spec.Selector
-
-	o := testOptions(t,
-		ds, otherDS,
-		testNode("node-ready", corev1.ConditionTrue),
-		testNode("node-unknown", corev1.ConditionUnknown),
-		testAgentPod("other-updated", otherDS, "5", "node-ready", time.Minute),
-		testAgentPod("outdated-unknown", ds, "4", "node-unknown", time.Hour),
-	)
-
-	assert.Empty(t, getOutdatedNotReadyNodes(t, o, 1, 100))
+	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 6, 100)
+	require.ErrorIs(t, err, errNoDiscount, "below minSkipped")
+	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 4)
+	require.ErrorIs(t, err, errNoDiscount, "above maxSkipped")
 }
 
 // deadNodes returns an Agent DaemonSet on 40 nodes, 37 of them up to date, with one up-to-date pod,
 // and 3 not-Ready nodes with an out-of-date pod.
-func deadNodes(dsStatus ...func(*appsv1.DaemonSetStatus)) []client.Object {
+func deadNodes(dsStatus func(*appsv1.DaemonSetStatus)) []client.Object {
 	ds := testAgentDaemonSet("agent-agent", "agent", "5")
 	ds.Status.CurrentNumberScheduled, ds.Status.UpdatedNumberScheduled = 40, 37
-	for _, f := range dsStatus {
-		if f != nil {
-			f(&ds.Status)
-		}
+	if dsStatus != nil {
+		dsStatus(&ds.Status)
 	}
-	objects := []client.Object{ds, testAgentPod("updated", ds, "5", "node-ready", time.Minute)}
+	readyNode, updatedPod := testNode("node-ready", corev1.ConditionTrue), testAgentPod("updated", &ds, "5", "node-ready", time.Minute)
+	objects := []client.Object{&ds, &readyNode, &updatedPod}
 	for _, name := range []string{"dead-1", "dead-2", "dead-3"} {
-		objects = append(objects, testNode(name, corev1.ConditionUnknown), testAgentPod(name, ds, "4", name, time.Hour))
+		node, pod := testNode(name, corev1.ConditionUnknown), testAgentPod(name, &ds, "4", name, time.Hour)
+		objects = append(objects, &node, &pod)
 	}
 	return objects
 }
 
-func TestGetOutdatedNotReadyNodesLimits(t *testing.T) {
-	o := testOptions(t, deadNodes()...)
-	skipped := getOutdatedNotReadyNodes(t, o, 1, 100)
-	assert.Len(t, skipped, 3)
+func TestGetNotReadyNodeDiscount(t *testing.T) {
+	// The DaemonSets of another DatadogAgent and of another component are not counted: their status
+	// would stop the discount.
+	otherDDADS := testAgentDaemonSet("other-agent", "other", "5")
+	otherComponentDS := testAgentDaemonSet("agent-cluster-checks", "agent", "5")
+	otherComponentDS.Labels[apicommon.AgentDeploymentComponentLabelKey] = "cluster-checks-runner"
+	otherDDADS.Status.ObservedGeneration, otherComponentDS.Status.ObservedGeneration = 1, 1
 
-	skipped = getOutdatedNotReadyNodes(t, o, 4, 100)
-	assert.Empty(t, skipped, "below minSkipped, no node is skipped")
-
-	o.maxNodeLookups = 2
-	skipped = getOutdatedNotReadyNodes(t, o, 1, 100)
-	assert.Empty(t, skipped, "above maxNodeLookups, no node is skipped")
+	o := testOptions(t, append(deadNodes(nil), &otherDDADS, &otherComponentDS)...)
+	current, upToDate, skipped, err := o.getNotReadyNodeDiscount(context.Background(), &v2alpha1.DaemonSetStatus{Current: 40, UpToDate: 37})
+	require.NoError(t, err)
+	assert.Equal(t, 40, current)
+	assert.Equal(t, 37, upToDate)
+	assert.Equal(t, []string{"agent-agent/dead-1", "agent-agent/dead-2", "agent-agent/dead-3"}, skipped)
 }
 
-func TestIsAgentDoneSkippingNotReadyNodesAPIError(t *testing.T) {
-	o := testOptions(t, deadNodes()...)
-	o.Client = interceptor.NewClient(o.Client.(client.WithWatch), interceptor.Funcs{
-		Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-			return errors.NewForbidden(schema.GroupResource{Resource: "nodes"}, key.Name, nil)
-		},
-	})
-
-	// 37/40 passes if the 3 dead nodes are skipped, but the node lookups fail: plain threshold.
-	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 40, UpToDate: 37}))
-	assert.Contains(t, o.Out.(*bytes.Buffer).String(), "unable to count not-Ready nodes, not skipping any")
-}
-
-func TestIsAgentDoneSkippingNotReadyNodesPrecheck(t *testing.T) {
+func TestIsAgentDoneSkippingNotReadyNodesNoAPICall(t *testing.T) {
 	var lists int
-	o := testOptions(t)
+	o := testOptions(t, deadNodes(nil)...)
 	o.Client = interceptor.NewClient(o.Client.(client.WithWatch), interceptor.Funcs{
 		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
 			lists++
@@ -438,19 +370,26 @@ func TestIsAgentDoneSkippingNotReadyNodesPrecheck(t *testing.T) {
 		},
 	})
 
-	// Even with 10% of the nodes skipped, 50/90 is below the threshold: no API call.
-	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 100, UpToDate: 50}))
+	// Even with 10% of the nodes skipped, 20/36 is below the threshold.
+	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 40, UpToDate: 20}))
 	assert.Equal(t, 0, lists)
+	assert.Contains(t, o.Out.(*bytes.Buffer).String(), "[Agent] not skipping not-Ready nodes: 20/40 nodes up to date")
+}
 
-	// 92/100 needs 4 nodes skipped, above a 3% cap: no API call.
-	o.maxSkippedPct = 3
-	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 100, UpToDate: 92}))
-	assert.Equal(t, 0, lists)
+func TestIsAgentDoneSkippingNotReadyNodesAPIError(t *testing.T) {
+	o := testOptions(t, deadNodes(nil)...)
+	o.Client = interceptor.NewClient(o.Client.(client.WithWatch), interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if _, ok := list.(*corev1.NodeList); ok {
+				return apierrors.NewForbidden(schema.GroupResource{Resource: "nodes"}, "", nil)
+			}
+			return c.List(ctx, list, opts...)
+		},
+	})
 
-	// Within the 10% cap, the check lists the DaemonSets.
-	o.maxSkippedPct = 10
-	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 100, UpToDate: 92}))
-	assert.Positive(t, lists)
+	// 37/40 passes if the 3 dead nodes are skipped, but the node List fails: plain threshold.
+	assert.False(t, o.isAgentDoneSkippingNotReadyNodes(context.Background(), &v2alpha1.DaemonSetStatus{Current: 40, UpToDate: 37}))
+	assert.Contains(t, o.Out.(*bytes.Buffer).String(), "unable to count not-Ready nodes, not skipping any")
 }
 
 func TestRunSkipsNotReadyNodes(t *testing.T) {
@@ -475,7 +414,7 @@ func TestRunSkipsNotReadyNodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := testOptions(t, append(deadNodes(tt.dsStatus), dda, testNode("node-ready", corev1.ConditionTrue))...)
+			o := testOptions(t, append(deadNodes(tt.dsStatus), dda)...)
 			o.skipNotReadyNodes = tt.skip
 			o.checkPeriod = 10 * time.Millisecond
 			o.checkTimeout = 100 * time.Millisecond
@@ -494,22 +433,12 @@ func TestNewOptionsSkipSettings(t *testing.T) {
 	tests := []struct {
 		env            map[string]string
 		wantSkip       bool
-		wantLookups    int
 		wantMaxSkipPct float64
 	}{
-		{env: map[string]string{}, wantSkip: false, wantLookups: 300, wantMaxSkipPct: 10},
-		{
-			env:      map[string]string{"AGENT_SKIP_NOT_READY_NODES": "true", "AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS": "500", "AGENT_SKIP_NOT_READY_MAX_PCT": "15"},
-			wantSkip: true, wantLookups: 500, wantMaxSkipPct: 15,
-		},
-		{
-			env:      map[string]string{"AGENT_SKIP_NOT_READY_NODES": "yes", "AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS": "0", "AGENT_SKIP_NOT_READY_MAX_PCT": "101"},
-			wantSkip: false, wantLookups: 300, wantMaxSkipPct: 10,
-		},
-		{
-			env:      map[string]string{"AGENT_SKIP_NOT_READY_MAX_NODE_LOOKUPS": "-1", "AGENT_SKIP_NOT_READY_MAX_PCT": "-1"},
-			wantSkip: false, wantLookups: 300, wantMaxSkipPct: 10,
-		},
+		{env: map[string]string{}, wantSkip: false, wantMaxSkipPct: 10},
+		{env: map[string]string{"AGENT_SKIP_NOT_READY_NODES": "true", "AGENT_SKIP_NOT_READY_MAX_PCT": "15"}, wantSkip: true, wantMaxSkipPct: 15},
+		{env: map[string]string{"AGENT_SKIP_NOT_READY_NODES": "yes", "AGENT_SKIP_NOT_READY_MAX_PCT": "101"}, wantSkip: false, wantMaxSkipPct: 10},
+		{env: map[string]string{"AGENT_SKIP_NOT_READY_MAX_PCT": "-1"}, wantSkip: false, wantMaxSkipPct: 10},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprint(tt.env), func(t *testing.T) {
@@ -518,7 +447,6 @@ func TestNewOptionsSkipSettings(t *testing.T) {
 			}
 			o := NewOptions(genericclioptions.IOStreams{})
 			assert.Equal(t, tt.wantSkip, o.skipNotReadyNodes)
-			assert.Equal(t, tt.wantLookups, o.maxNodeLookups)
 			assert.InDelta(t, tt.wantMaxSkipPct, o.maxSkippedPct, 1e-9)
 		})
 	}
