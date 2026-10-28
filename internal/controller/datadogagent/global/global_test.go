@@ -69,6 +69,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		wantVolumeMounts               []*corev1.VolumeMount
 		wantVolumes                    []*corev1.Volume
 		wantCoreAgentEnvVars           []*corev1.EnvVar
+		wantSystemProbeEnvVars         []*corev1.EnvVar
 		wantEnvVars                    []*corev1.EnvVar
 		want                           func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedCoreAgentEnvVars, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedCoreAgentVolumeMounts, expectedVolumeMounts []*corev1.VolumeMount)
 		wantDependency                 func(t testing.TB, resourcesManager feature.ResourceManagers)
@@ -146,6 +147,12 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				return dda
 			}(),
 			wantCoreAgentEnvVars: nil,
+			wantSystemProbeEnvVars: []*corev1.EnvVar{
+				{
+					Name:  DDSystemProbeCoreAgentIPCEnabled,
+					Value: "false",
+				},
+			},
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name: constants.DDAPIKey,
@@ -206,6 +213,12 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				return dda
 			}(),
 			wantCoreAgentEnvVars: nil,
+			wantSystemProbeEnvVars: []*corev1.EnvVar{
+				{
+					Name:  DDSystemProbeCoreAgentIPCEnabled,
+					Value: "false",
+				},
+			},
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name: constants.DDAPIKey,
@@ -1087,6 +1100,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda.GetObjectMeta(), &tt.dda.Spec, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
+			systemProbeEnvVars := podTemplateManager.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+			assert.ElementsMatch(t, systemProbeEnvVars, tt.wantSystemProbeEnvVars, "system-probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, tt.wantSystemProbeEnvVars))
 			// Assert dependencies if and only if a dependency is expected
 			if tt.wantDependency != nil {
 				tt.wantDependency(t, resourcesManager)

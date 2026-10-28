@@ -37,4 +37,5 @@ const (
 	DDVSockAddr                            = "DD_VSOCK_ADDR"
 	DDProviderKind                         = "DD_PROVIDER_KIND"
 	DDRemoteAgentRegistryEnabled           = "DD_REMOTE_AGENT_REGISTRY_ENABLED"
+	DDSystemProbeCoreAgentIPCEnabled       = "DD_SYSTEM_PROBE_CONFIG_CORE_AGENT_IPC_ENABLED"
 )

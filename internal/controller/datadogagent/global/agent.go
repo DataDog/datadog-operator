@@ -45,6 +45,14 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			})
 		}
 
+		// The system-probe running inside the micro VM cannot reach the core agent, so it must
+		// not try to: it uses local or no-op implementations of the components that would
+		// otherwise stream from the core agent (tagger, workloadmeta, hostname, config).
+		manager.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+			Name:  DDSystemProbeCoreAgentIPCEnabled,
+			Value: "false",
+		})
+
 		authVol := common.GetVolumeForAuth(true)
 		manager.Volume().AddVolume(&authVol)
 	}
