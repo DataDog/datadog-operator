@@ -53,6 +53,7 @@ type DatadogBYOCClusterSpec struct {
 	Provider *DatadogBYOCClusterProviderSpec `json:"provider,omitempty"`
 
 	// Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipelines.
+	// Pipelines use their own identity setting.
 	// When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.
 	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
@@ -320,7 +321,25 @@ type DatadogBYOCClusterPipelineSpec struct {
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 
+	// Identity configures an existing ServiceAccount used by the worker.
+	// When ServiceAccountName is omitted, the worker controller creates and owns a ServiceAccount named after the worker.
+	// +optional
+	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
+
+	// Datadog overrides the cluster connection settings for this pipeline.
+	// +optional
+	Datadog *DatadogBYOCClusterPipelineDatadogSpec `json:"datadog,omitempty"`
+
 	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
+}
+
+// DatadogBYOCClusterPipelineDatadogSpec defines the per-pipeline overrides of the Datadog connection.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterPipelineDatadogSpec struct {
+	// APIKeySecretRef references the Kubernetes Secret containing the Datadog API key used by this pipeline.
+	// When omitted, the cluster API key Secret is used.
+	// +optional
+	APIKeySecretRef *corev1.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
 }
 
 // DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.
@@ -406,6 +425,21 @@ type DatadogBYOCClusterComponentSpec struct {
 	// +listMapKey=topologyKey
 	// +listMapKey=whenUnsatisfiable
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+
+	// PodSecurityContext is the security context of the component Pods.
+	// When set, it replaces the Operator default entirely.
+	// The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the
+	// Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data
+	// directory.
+	// +optional
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// SecurityContext is the security context of the component container.
+	// When set, it replaces the Operator default entirely.
+	// The default runs the container as the non-root user of the component image. BYOC components run as user 1005
+	// with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
 	// PodDisruptionBudget configures the component Pod disruption budget.
 	// When omitted, the global setting or Operator default is used.

@@ -42,6 +42,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides":                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterImageOverrides(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterMetastoreComponentSpec":                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreComponentSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineComponentSpec":                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineComponentSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineDatadogSpec":                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineDatadogSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineSpec":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineStatus":                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPodDisruptionBudgetSpec(ref),
@@ -873,6 +874,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorC
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -936,7 +949,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorC
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -1141,6 +1154,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentS
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -1198,7 +1223,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentS
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -1933,6 +1958,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -1996,7 +2033,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatabaseSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatabaseSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2201,6 +2238,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -2306,7 +2355,28 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineDatadogSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogBYOCClusterPipelineDatadogSpec defines the per-pipeline overrides of the Datadog connection.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiKeySecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIKeySecretRef references the Kubernetes Secret containing the Datadog API key used by this pipeline. When omitted, the cluster API key Secret is used.",
+							Ref:         ref("k8s.io/api/core/v1.SecretKeySelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.SecretKeySelector"},
 	}
 }
 
@@ -2323,6 +2393,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"identity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Identity configures an existing ServiceAccount used by the worker. When ServiceAccountName is omitted, the worker controller creates and owns a ServiceAccount named after the worker.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec"),
+						},
+					},
+					"datadog": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Datadog overrides the cluster connection settings for this pipeline.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineDatadogSpec"),
 						},
 					},
 					"replicas": {
@@ -2519,6 +2601,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -2625,7 +2719,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2781,7 +2875,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 					},
 					"identity": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipelines. When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.",
+							Description: "Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipelines. Pipelines use their own identity setting. When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec"),
 						},
 					},
@@ -3013,6 +3107,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -3089,7 +3195,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -5532,6 +5638,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 							},
 						},
 					},
+					"podSecurityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSecurityContext is the security context of the component Pods. When set, it replaces the Operator default entirely. The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data directory.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -5661,7 +5779,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

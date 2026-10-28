@@ -50,6 +50,10 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 	resolvedImage := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec(workerImage)
 
 	site := ptr.Deref(cluster.Spec.Datadog.Site, "datadoghq.com")
+	apiKeySecretRef := cluster.Spec.Datadog.APIKeySecretRef
+	if pipeline.Datadog != nil && pipeline.Datadog.APIKeySecretRef != nil {
+		apiKeySecretRef = pipeline.Datadog.APIKeySecretRef
+	}
 	return &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workerName,
@@ -59,9 +63,10 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 			DatadogBYOCClusterPipelineComponentSpec: *component.DeepCopy(),
 			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 				Site:            new(site),
-				APIKeySecretRef: cluster.Spec.Datadog.APIKeySecretRef.DeepCopy(),
+				APIKeySecretRef: apiKeySecretRef.DeepCopy(),
 			},
-			Image: &resolvedImage,
+			Image:    &resolvedImage,
+			Identity: pipeline.Identity.DeepCopy(),
 		},
 	}, nil
 }

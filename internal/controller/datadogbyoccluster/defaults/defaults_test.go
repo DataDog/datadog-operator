@@ -19,87 +19,87 @@ import (
 )
 
 func TestApply(t *testing.T) {
-	cluster := testCluster()
-	original := cluster.DeepCopy()
-	want := &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-		Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
-			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas: ptr.To[int32](2),
-				Resources: &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("4Gi"),
-					},
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("2"),
-						corev1.ResourceMemory: resource.MustParse("4Gi"),
-					},
-				},
-			},
-		},
-		ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
-			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas: ptr.To[int32](2),
-				Resources: &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("4Gi"),
-					},
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("2"),
-						corev1.ResourceMemory: resource.MustParse("4Gi"),
+	tests := []struct {
+		name    string
+		cluster *datadoghqv1alpha1.DatadogBYOCCluster
+		want    *datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec
+	}{
+		{
+			name: "defaults",
+			cluster: &datadoghqv1alpha1.DatadogBYOCCluster{
+				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
+						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
+						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					},
 				},
 			},
-		},
-		Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas: ptr.To[int32](2),
-				Resources: &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
-					},
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("4"),
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
-					},
-				},
-				TerminationGracePeriodSeconds: ptr.To[int64](300),
-			},
-			Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
-				VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-					Spec: corev1.PersistentVolumeClaimSpec{
-						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						Resources: corev1.VolumeResourceRequirements{
-							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+			want: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+				Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("4Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("2"),
+								corev1.ResourceMemory: resource.MustParse("4Gi"),
+							},
 						},
 					},
 				},
-			},
-			PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
-		},
-		Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas: ptr.To[int32](2),
-				Resources: &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
-					},
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("4"),
-						corev1.ResourceMemory: resource.MustParse("16Gi"),
+				ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("4Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("2"),
+								corev1.ResourceMemory: resource.MustParse("4Gi"),
+							},
+						},
 					},
 				},
-			},
-			Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-			PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
-		},
-		Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
-			Name: "logs",
-			DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
-				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-						Replicas:                      ptr.To[int32](2),
-						Resources:                     pipelineResources(),
-						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("4"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
+						TerminationGracePeriodSeconds: ptr.To[int64](300),
 					},
 					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 						VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
@@ -111,51 +111,280 @@ func TestApply(t *testing.T) {
 							},
 						},
 					},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
-			},
-		}},
-		ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-			Replicas: ptr.To[int32](1),
-			Resources: &corev1.ResourceRequirements{
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
+				Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("4"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
+					},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
+				Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
+					Name: "logs",
+					DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+						DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+							DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+								Replicas: ptr.To[int32](2),
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("2"),
+										corev1.ResourceMemory: resource.MustParse("4Gi"),
+									},
+								},
+								TerminationGracePeriodSeconds: ptr.To[int64](70),
+							},
+							Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+								VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+									Spec: corev1.PersistentVolumeClaimSpec{
+										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+										Resources: corev1.VolumeResourceRequirements{
+											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+										},
+									},
+								},
+							},
+						},
+					},
+				}},
+				ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+					Replicas: ptr.To[int32](1),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("2"),
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+					},
+				},
+				Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas:                      ptr.To[int32](1),
+						TerminationGracePeriodSeconds: ptr.To[int64](60),
+					},
+				},
+				Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+					Replicas: ptr.To[int32](1),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("2"),
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+					},
 				},
 			},
 		},
-		Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
-			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				Replicas:                      ptr.To[int32](1),
-				TerminationGracePeriodSeconds: ptr.To[int64](60),
-			},
-		},
-		Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-			Replicas: ptr.To[int32](1),
-			Resources: &corev1.ResourceRequirements{
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
+		{
+			name: "preserves security contexts and omitted optional components",
+			cluster: &datadoghqv1alpha1.DatadogBYOCCluster{
+				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:   &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Searcher:  &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
+						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							PodSecurityContext: &corev1.PodSecurityContext{
+								SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+							},
+							SecurityContext: &corev1.SecurityContext{AllowPrivilegeEscalation: ptr.To(false)},
+						},
+						Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							PodSecurityContext: &corev1.PodSecurityContext{},
+							SecurityContext:    &corev1.SecurityContext{},
+						},
+					},
 				},
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
+			},
+			want: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+				Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("4Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("2"),
+								corev1.ResourceMemory: resource.MustParse("4Gi"),
+							},
+						},
+					},
+				},
+				Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("4"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
+						TerminationGracePeriodSeconds: ptr.To[int64](300),
+					},
+					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+						VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+								Resources: corev1.VolumeResourceRequirements{
+									Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+								},
+							},
+						},
+					},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
+				},
+				Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsNonRoot:           ptr.To(true),
+							RunAsUser:              ptr.To[int64](1005),
+							ReadOnlyRootFilesystem: ptr.To(true),
+						},
+						Replicas: ptr.To[int32](2),
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("4"),
+								corev1.ResourceMemory: resource.MustParse("16Gi"),
+							},
+						},
+					},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
+				},
+				Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
+					Name: "logs",
+					DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+						DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+							DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+								Replicas: ptr.To[int32](2),
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("2"),
+										corev1.ResourceMemory: resource.MustParse("4Gi"),
+									},
+								},
+								TerminationGracePeriodSeconds: ptr.To[int64](70),
+							},
+							Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+								VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+									Spec: corev1.PersistentVolumeClaimSpec{
+										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+										Resources: corev1.VolumeResourceRequirements{
+											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+										},
+									},
+								},
+							},
+						},
+					},
+				}},
+				ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{
+						SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+					},
+					SecurityContext: &corev1.SecurityContext{AllowPrivilegeEscalation: ptr.To(false)},
+					Replicas:        ptr.To[int32](1),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("2"),
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+					},
+				},
+				Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{},
+					SecurityContext:    &corev1.SecurityContext{},
+					Replicas:           ptr.To[int32](1),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("2"),
+							corev1.ResourceMemory: resource.MustParse("4Gi"),
+						},
+					},
 				},
 			},
 		},
 	}
-
-	got := Apply(cluster)
-
-	if diff := cmp.Diff(want, got.Spec.Components); diff != "" {
-		t.Errorf("Apply() components mismatch (-want +got):\n%s", diff)
-	}
-	if diff := cmp.Diff(original, cluster); diff != "" {
-		t.Errorf("Apply() modified its input (-want +got):\n%s", diff)
-	}
-	if diff := cmp.Diff(got, Apply(got)); diff != "" {
-		t.Errorf("Apply() is not idempotent (-want +got):\n%s", diff)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := tt.cluster.DeepCopy()
+			got := Apply(tt.cluster)
+			if diff := cmp.Diff(tt.want, got.Spec.Components); diff != "" {
+				t.Errorf("Apply() components mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(original, tt.cluster); diff != "" {
+				t.Errorf("Apply() modified its input (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(got, Apply(got)); diff != "" {
+				t.Errorf("Apply() is not idempotent (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -217,34 +446,6 @@ func TestApplyPipelineDefaults(t *testing.T) {
 }
 
 func TestApplyIndexerDefaults(t *testing.T) {
-	defaultComponent := datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-		Replicas:                      ptr.To[int32](2),
-		Resources:                     statefulResources(),
-		TerminationGracePeriodSeconds: ptr.To[int64](300),
-	}
-	defaultStorage := &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
-		VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources: corev1.VolumeResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
-				},
-			},
-		},
-	}
-	customStorage := &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
-		VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-			Metadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
-				Annotations: map[string]string{"example.com/storage": "custom"},
-			},
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-				Resources: corev1.VolumeResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("500Gi")},
-				},
-			},
-		},
-	}
 	tests := []struct {
 		name    string
 		indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
@@ -254,9 +455,36 @@ func TestApplyIndexerDefaults(t *testing.T) {
 			name:    "defaults",
 			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: defaultComponent,
-				Storage:                         defaultStorage,
-				PodManagementPolicy:             ptr.To(appsv1.ParallelPodManagement),
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+					Replicas: ptr.To[int32](2),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+					},
+					TerminationGracePeriodSeconds: ptr.To[int64](300),
+				},
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+							},
+						},
+					},
+				},
+				PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 			},
 		},
 		{
@@ -267,16 +495,46 @@ func TestApplyIndexerDefaults(t *testing.T) {
 					Resources:                     &corev1.ResourceRequirements{},
 					TerminationGracePeriodSeconds: ptr.To[int64](600),
 				},
-				Storage:             customStorage.DeepCopy(),
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						Metadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+							Annotations: map[string]string{"example.com/storage": "custom"},
+						},
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("500Gi")},
+							},
+						},
+					},
+				},
 				PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 			},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
 					Replicas:                      ptr.To[int32](4),
 					Resources:                     &corev1.ResourceRequirements{},
 					TerminationGracePeriodSeconds: ptr.To[int64](600),
 				},
-				Storage:             customStorage.DeepCopy(),
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						Metadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+							Annotations: map[string]string{"example.com/storage": "custom"},
+						},
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("500Gi")},
+							},
+						},
+					},
+				},
 				PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 			},
 		},
@@ -286,9 +544,27 @@ func TestApplyIndexerDefaults(t *testing.T) {
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 			},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: defaultComponent,
-				Storage:                         &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-				PodManagementPolicy:             ptr.To(appsv1.ParallelPodManagement),
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+					Replicas: ptr.To[int32](2),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+					},
+					TerminationGracePeriodSeconds: ptr.To[int64](300),
+				},
+				Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+				PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 			},
 		},
 	}
@@ -304,10 +580,6 @@ func TestApplyIndexerDefaults(t *testing.T) {
 }
 
 func TestApplySearcherDefaults(t *testing.T) {
-	defaultComponent := datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-		Replicas:  ptr.To[int32](2),
-		Resources: statefulResources(),
-	}
 	tests := []struct {
 		name     string
 		searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
@@ -317,7 +589,24 @@ func TestApplySearcherDefaults(t *testing.T) {
 			name:     "defaults",
 			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: defaultComponent,
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+					Replicas: ptr.To[int32](2),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+					},
+				},
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -332,7 +621,24 @@ func TestApplySearcherDefaults(t *testing.T) {
 				},
 			},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: defaultComponent,
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+					Replicas: ptr.To[int32](2),
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+					},
+				},
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
 				},
@@ -414,6 +720,12 @@ func TestApplyCompactorDefaults(t *testing.T) {
 			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
 				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
 					Replicas:                      ptr.To[int32](1),
 					TerminationGracePeriodSeconds: ptr.To[int64](60),
 				},
@@ -429,6 +741,12 @@ func TestApplyCompactorDefaults(t *testing.T) {
 			},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
 				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
 					Replicas:                      ptr.To[int32](3),
 					TerminationGracePeriodSeconds: ptr.To[int64](120),
 				},
@@ -441,6 +759,12 @@ func TestApplyCompactorDefaults(t *testing.T) {
 			},
 			want: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
 				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodSecurityContext: &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
 					Replicas:                      ptr.To[int32](1),
 					TerminationGracePeriodSeconds: ptr.To[int64](60),
 				},
@@ -671,22 +995,5 @@ func TestApplyAutoscalingDefaults(t *testing.T) {
 				t.Errorf("applyAutoscalingDefaults() mismatch (-want +got):\n%s", diff)
 			}
 		})
-	}
-}
-
-func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
-	return &datadoghqv1alpha1.DatadogBYOCCluster{
-		Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-			Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-				Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-				ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-				Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-				Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-				Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
-				ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-				Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
-				Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-			},
-		},
 	}
 }

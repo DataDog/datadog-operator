@@ -1784,6 +1784,85 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -1904,6 +1983,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:
@@ -4358,6 +4509,85 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -4478,6 +4708,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:
@@ -7282,6 +7584,85 @@ spec:
                             - OrderedReady
                             - Parallel
                           type: string
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -7402,6 +7783,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:
@@ -9979,6 +10432,85 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -10099,6 +10631,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:
@@ -12571,6 +13175,85 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -12691,6 +13374,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:
@@ -14529,6 +15284,22 @@ spec:
                                 format: int32
                                 type: integer
                             type: object
+                          datadog:
+                            properties:
+                              apiKeySecretRef:
+                                properties:
+                                  key:
+                                    type: string
+                                  name:
+                                    default: ""
+                                    type: string
+                                  optional:
+                                    type: boolean
+                                required:
+                                  - key
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
                           env:
                             items:
                               properties:
@@ -14641,6 +15412,12 @@ spec:
                               type: object
                             type: array
                             x-kubernetes-list-type: atomic
+                          identity:
+                            properties:
+                              serviceAccountName:
+                                minLength: 1
+                                type: string
+                            type: object
                           initContainers:
                             items:
                               properties:
@@ -15506,6 +16283,85 @@ spec:
                               - OrderedReady
                               - Parallel
                             type: string
+                          podSecurityContext:
+                            properties:
+                              appArmorProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                  - type
+                                type: object
+                              fsGroup:
+                                format: int64
+                                type: integer
+                              fsGroupChangePolicy:
+                                type: string
+                              runAsGroup:
+                                format: int64
+                                type: integer
+                              runAsNonRoot:
+                                type: boolean
+                              runAsUser:
+                                format: int64
+                                type: integer
+                              seLinuxChangePolicy:
+                                type: string
+                              seLinuxOptions:
+                                properties:
+                                  level:
+                                    type: string
+                                  role:
+                                    type: string
+                                  type:
+                                    type: string
+                                  user:
+                                    type: string
+                                type: object
+                              seccompProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                  - type
+                                type: object
+                              supplementalGroups:
+                                items:
+                                  format: int64
+                                  type: integer
+                                type: array
+                                x-kubernetes-list-type: atomic
+                              supplementalGroupsPolicy:
+                                type: string
+                              sysctls:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                    - name
+                                    - value
+                                  type: object
+                                type: array
+                                x-kubernetes-list-type: atomic
+                              windowsOptions:
+                                properties:
+                                  gmsaCredentialSpec:
+                                    type: string
+                                  gmsaCredentialSpecName:
+                                    type: string
+                                  hostProcess:
+                                    type: boolean
+                                  runAsUserName:
+                                    type: string
+                                type: object
+                            type: object
                           ports:
                             items:
                               properties:
@@ -15655,6 +16511,78 @@ spec:
                                     - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
+                                type: object
+                            type: object
+                          securityContext:
+                            properties:
+                              allowPrivilegeEscalation:
+                                type: boolean
+                              appArmorProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                  - type
+                                type: object
+                              capabilities:
+                                properties:
+                                  add:
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                  drop:
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                type: object
+                              privileged:
+                                type: boolean
+                              procMount:
+                                type: string
+                              readOnlyRootFilesystem:
+                                type: boolean
+                              runAsGroup:
+                                format: int64
+                                type: integer
+                              runAsNonRoot:
+                                type: boolean
+                              runAsUser:
+                                format: int64
+                                type: integer
+                              seLinuxOptions:
+                                properties:
+                                  level:
+                                    type: string
+                                  role:
+                                    type: string
+                                  type:
+                                    type: string
+                                  user:
+                                    type: string
+                                type: object
+                              seccompProfile:
+                                properties:
+                                  localhostProfile:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                  - type
+                                type: object
+                              windowsOptions:
+                                properties:
+                                  gmsaCredentialSpec:
+                                    type: string
+                                  gmsaCredentialSpecName:
+                                    type: string
+                                  hostProcess:
+                                    type: boolean
+                                  runAsUserName:
+                                    type: string
                                 type: object
                             type: object
                           startupProbe:
@@ -18259,6 +19187,85 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -18379,6 +19386,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:
@@ -21185,6 +22264,85 @@ spec:
                             - OrderedReady
                             - Parallel
                           type: string
+                        podSecurityContext:
+                          properties:
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            fsGroup:
+                              format: int64
+                              type: integer
+                            fsGroupChangePolicy:
+                              type: string
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxChangePolicy:
+                              type: string
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            supplementalGroups:
+                              items:
+                                format: int64
+                                type: integer
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            supplementalGroupsPolicy:
+                              type: string
+                            sysctls:
+                              items:
+                                properties:
+                                  name:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                  - name
+                                  - value
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
+                              type: object
+                          type: object
                         readinessProbe:
                           properties:
                             exec:
@@ -21305,6 +22463,78 @@ spec:
                                   - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        securityContext:
+                          properties:
+                            allowPrivilegeEscalation:
+                              type: boolean
+                            appArmorProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            capabilities:
+                              properties:
+                                add:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                drop:
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
+                            privileged:
+                              type: boolean
+                            procMount:
+                              type: string
+                            readOnlyRootFilesystem:
+                              type: boolean
+                            runAsGroup:
+                              format: int64
+                              type: integer
+                            runAsNonRoot:
+                              type: boolean
+                            runAsUser:
+                              format: int64
+                              type: integer
+                            seLinuxOptions:
+                              properties:
+                                level:
+                                  type: string
+                                role:
+                                  type: string
+                                type:
+                                  type: string
+                                user:
+                                  type: string
+                              type: object
+                            seccompProfile:
+                              properties:
+                                localhostProfile:
+                                  type: string
+                                type:
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            windowsOptions:
+                              properties:
+                                gmsaCredentialSpec:
+                                  type: string
+                                gmsaCredentialSpecName:
+                                  type: string
+                                hostProcess:
+                                  type: boolean
+                                runAsUserName:
+                                  type: string
                               type: object
                           type: object
                         startupProbe:

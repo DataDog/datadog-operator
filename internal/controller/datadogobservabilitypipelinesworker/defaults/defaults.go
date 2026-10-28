@@ -28,6 +28,9 @@ const (
 	// Resources
 	defaultCPURequest    = "2"
 	defaultMemoryRequest = "4Gi"
+
+	// Security context
+	workerUserID int64 = 1000
 )
 
 // Apply returns a deep copy of the worker with reconciliation-time defaults applied.
@@ -51,6 +54,16 @@ func Apply(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) *datad
 	}
 	if component.PodManagementPolicy == nil {
 		component.PodManagementPolicy = new(appsv1.ParallelPodManagement)
+	}
+	if component.PodSecurityContext == nil {
+		component.PodSecurityContext = &corev1.PodSecurityContext{FSGroup: new(workerUserID)}
+	}
+	if component.SecurityContext == nil {
+		component.SecurityContext = &corev1.SecurityContext{
+			RunAsNonRoot: new(true),
+			RunAsUser:    new(workerUserID),
+			RunAsGroup:   new(workerUserID),
+		}
 	}
 	applyAutoscalingDefaults(component.Autoscaling)
 

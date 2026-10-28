@@ -96,6 +96,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		nodeConfigOverrides *runtime.RawExtension
 		global              datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec
 		pipeline            *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
+		identity            *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		pipelineDatadog     *datadoghqv1alpha1.DatadogBYOCClusterPipelineDatadogSpec
 		image               byocimage.ResolvedImage
 		want                *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 		wantErr             string
@@ -141,6 +143,33 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:    defaultImage,
 			want:     wantDefaultWorker(),
+		},
+		{
+			name:     "pipeline identity",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			identity: &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("opw-logs")},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Identity = &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("opw-logs")}
+				return want
+			}(),
+		},
+		{
+			name:     "pipeline API key Secret",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			pipelineDatadog: &datadoghqv1alpha1.DatadogBYOCClusterPipelineDatadogSpec{
+				APIKeySecretRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "pipeline-secret"},
+					Key:                  "api-key",
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Datadog.APIKeySecretRef.Name = "pipeline-secret"
+				return want
+			}(),
 		},
 		{
 			name:                "REST TLS uses HTTPS",
@@ -388,10 +417,15 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 					NodeConfigOverrides: tt.nodeConfigOverrides,
 					Global:              tt.global,
 					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-						Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *tt.pipeline}},
+						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:   &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Searcher:  &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
+							Name:                                    "logs",
+							Identity:                                tt.identity,
+							Datadog:                                 tt.pipelineDatadog,
+							DatadogBYOCClusterPipelineComponentSpec: *tt.pipeline,
+						}},
 						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					},
