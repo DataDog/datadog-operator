@@ -776,6 +776,35 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent with Private Action Runner packet capture, create DaemonSet with capture socket",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAnnotations(map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":                "true",
+						"agent.datadoghq.com/private-action-runner-packet-capture-enabled": "true",
+					}).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.PrivateActionRunnerContainerName),
+					string(apicommon.SystemProbeContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+				verifyPacketCaptureSocket(t, c, resourcesNamespace, dsName)
+			},
+		},
+		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -2199,6 +2228,49 @@ func verifySystemdHostMounts(t *testing.T, c client.Client, resourcesNamespace, 
 		assert.True(t, found, "volume mount %s not found", want.name)
 		assert.Equal(t, "/host"+want.hostPath, mount.MountPath)
 		assert.Equal(t, want.readOnly, mount.ReadOnly)
+	}
+}
+
+func verifyPacketCaptureSocket(t *testing.T, c client.Client, resourcesNamespace, dsName string) {
+	ds := &appsv1.DaemonSet{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+	assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
+
+	found := false
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		if volume.Name == "sysprobe-capture-socket-dir" {
+			found = true
+			assert.NotNil(t, volume.EmptyDir, "capture socket volume should be an emptyDir")
+		}
+	}
+	assert.True(t, found, "capture socket volume not found")
+
+	socketEnv := corev1.EnvVar{Name: "DD_PACKET_CAPTURE_SOCKET", Value: "/var/run/sysprobe-capture/capture.sock"}
+	containers := getDsContainers(c, resourcesNamespace, dsName)
+	for name, wantReadOnly := range map[apicommon.AgentContainerName]bool{
+		apicommon.SystemProbeContainerName:         false,
+		apicommon.PrivateActionRunnerContainerName: true,
+	} {
+		container, ok := containers[name]
+		assert.True(t, ok, "%s container not found", name)
+
+		var captureMount *corev1.VolumeMount
+		for i := range container.VolumeMounts {
+			mount := container.VolumeMounts[i]
+			if mount.Name == "sysprobe-capture-socket-dir" {
+				captureMount = &mount
+			}
+			if name == apicommon.PrivateActionRunnerContainerName {
+				assert.NotEqual(t, common.SystemProbeSocketVolumeName, mount.Name, "the full system-probe socket must not be mounted in the runner")
+			}
+		}
+		assert.NotNil(t, captureMount, "capture socket mount not found in %s", name)
+		if captureMount != nil {
+			assert.Equal(t, "/var/run/sysprobe-capture", captureMount.MountPath)
+			assert.Equal(t, wantReadOnly, captureMount.ReadOnly)
+		}
+		assert.Contains(t, container.Env, socketEnv)
 	}
 }
 
