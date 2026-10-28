@@ -142,6 +142,8 @@ Kubernetes supports exposing Secrets as files inside a pod. Datadog provides a h
    helm [install|upgrade] dd-operator --set "secretBackend.command=/readsecret.sh" --set "secretBackend.arguments=/etc/secret-volume" ./chart/datadog-operator
    ```
 
+**Note**: `/readsecret.sh` reads the files with the embedded [secret-generic-connector][6] `k8s.file` backend. Secret handles must resolve inside the configured directory (for example, `ENC[../other/key]` is rejected), and each secret file is limited to 8 KiB.
+
 ### Deploying Agent components using the secret backend feature with the DatadogAgent 
 
 **Note**: Requires Datadog Operator v1.11+.
@@ -251,3 +253,4 @@ For versions prior to Operator 1.11, `spec.global.secretBackend` is unavailable.
 [3]: https://github.com/DataDog/datadog-operator/blob/2bbda7adace27de3d397b3d76d87fbd49fa304e3/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent
 [4]: https://kubernetes.io/docs/concepts/configuration/secret/
 [5]: https://docs.datadoghq.com/agent/configuration/secrets-management
+[6]: https://github.com/DataDog/datadog-agent/tree/main/cmd/secret-generic-connector
