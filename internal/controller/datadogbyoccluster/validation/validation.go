@@ -53,6 +53,9 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 		errs = append(errs, validatePomskyStatefulComponent(components.Searcher, componentPath.Child("searcher"))...)
 		for i := range components.Pipelines {
 			errs = append(errs, ValidateStatefulComponent(&components.Pipelines[i].DatadogBYOCClusterStatefulComponentSpec, componentPath.Child("pipelines").Index(i))...)
+			if components.Pipelines[i].PipelineID == nil {
+				errs = append(errs, field.Required(componentPath.Child("pipelines").Index(i).Child("pipelineID"), "pipelineID must be specified"))
+			}
 		}
 		if components.Metastore != nil {
 			errs = append(errs, validatePomskyComponent(&components.Metastore.DatadogBYOCClusterComponentSpec, componentPath.Child("metastore"))...)

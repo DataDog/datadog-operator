@@ -6,6 +6,7 @@
 package validation
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -255,8 +256,90 @@ func TestValidateWorkerSpec(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// These cases cover other rules; TestValidateWorkerSpec_Pipeline covers the pipeline source.
+			tt.spec.PipelineID = ptr.To("pipeline-id")
 			var got []string
 			for _, err := range ValidateWorkerSpec(&tt.spec) {
+				got = append(got, err.Field+": "+err.Detail)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("validation errors (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestValidateWorkerSpec_Pipeline(t *testing.T) {
+	tests := []struct {
+		name           string
+		pipelineID     *string
+		pipelineConfig *string
+		want           string
+	}{
+		{name: "pipelineID", pipelineID: ptr.To("pipeline-id")},
+		{name: "pipelineConfig", pipelineConfig: ptr.To("sources: {}\n")},
+		{name: "both", pipelineID: ptr.To("pipeline-id"), pipelineConfig: ptr.To("sources: {}\n")},
+		{name: "leading document marker", pipelineConfig: ptr.To("---\nsources: {}\n")},
+		{name: "neither", want: "spec.pipelineID: Required value: pipelineID or pipelineConfig must be specified"},
+		{name: "empty", pipelineConfig: ptr.To(""), want: "spec.pipelineConfig: Invalid value: null: must be a non-empty YAML mapping"},
+		{name: "scalar", pipelineConfig: ptr.To("sources"), want: "spec.pipelineConfig: Invalid value: null: must be a YAML mapping: "},
+		{name: "list", pipelineConfig: ptr.To("- sources\n"), want: "spec.pipelineConfig: Invalid value: null: must be a YAML mapping: "},
+		{name: "multiple documents", pipelineConfig: ptr.To("sources: {}\n---\nsinks: {}\n"), want: "spec.pipelineConfig: Invalid value: null: must contain a single YAML document"},
+		{name: "multiple documents with CR line breaks", pipelineConfig: ptr.To("sources: {}\r---\rsinks: {}"), want: "spec.pipelineConfig: Invalid value: null: must contain a single YAML document"},
+		{name: "trailing document end marker", pipelineConfig: ptr.To("sources: {}\n...\n")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{Repository: ptr.To("registry.example.com/worker"), Tag: ptr.To("v1")},
+			}
+			spec.PipelineID = tt.pipelineID
+			spec.PipelineConfig = tt.pipelineConfig
+			err := ValidateWorkerSpec(&spec).ToAggregate()
+			switch {
+			case tt.want == "" && err != nil:
+				t.Errorf("ValidateWorkerSpec() unexpected error: %v", err)
+			case tt.want != "" && (err == nil || !strings.HasPrefix(err.Error(), tt.want)):
+				t.Errorf("ValidateWorkerSpec() error = %v, want prefix %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateWorkerSpec_PipelineReservedNames(t *testing.T) {
+	tests := []struct {
+		name      string
+		local     bool
+		volume    string
+		mountPath string
+		want      []string
+	}{
+		{name: "local pipeline volume", local: true, volume: "pipeline-config", want: []string{"spec.volumes[0].name: is reserved for a built-in volume"}},
+		{name: "local mount at the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker/pipeline/", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount under the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker/pipeline/extra", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount over the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount at the root", local: true, mountPath: "/", want: []string{"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount"}},
+		{name: "local mount beside the pipeline directory", local: true, mountPath: "/etc/observability-pipelines-worker/bootstrap.yaml"},
+		{name: "local mount with a shared prefix", local: true, mountPath: "/etc/observability-pipelines-worker/pipelines"},
+		{name: "Remote Config keeps the names", volume: "pipeline-config", mountPath: "/etc/observability-pipelines-worker"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{Repository: ptr.To("registry.example.com/worker"), Tag: ptr.To("v1")},
+			}
+			spec.PipelineID = ptr.To("pipeline-id")
+			if tt.local {
+				spec.PipelineConfig = ptr.To("sources: {}")
+			}
+			if tt.volume != "" {
+				spec.Volumes = []corev1.Volume{{Name: tt.volume}}
+			}
+			if tt.mountPath != "" {
+				spec.VolumeMounts = []corev1.VolumeMount{{Name: "extra", MountPath: tt.mountPath}}
+			}
+			var got []string
+			for _, err := range ValidateWorkerSpec(&spec) {
 				got = append(got, err.Field+": "+err.Detail)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {

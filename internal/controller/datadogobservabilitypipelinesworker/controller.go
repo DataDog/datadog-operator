@@ -68,7 +68,7 @@ type reconcileFailure struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",resources=serviceaccounts;services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps;serviceaccounts;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
@@ -165,6 +165,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// changes, so their watches stay unfiltered. HPA and PDB status is not read, so only changes to their spec, labels, or
 		// annotations requeue.
 		For(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).

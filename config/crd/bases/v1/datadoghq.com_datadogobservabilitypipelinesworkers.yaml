@@ -1740,6 +1740,8 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                pipelineConfig:
+                  type: string
                 pipelineID:
                   minLength: 1
                   type: string
@@ -2915,7 +2917,6 @@ spec:
               required:
                 - datadog
                 - image
-                - pipelineID
                 - ports
               type: object
             status:
