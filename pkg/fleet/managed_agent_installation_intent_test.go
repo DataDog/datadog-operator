@@ -139,7 +139,7 @@ func TestDecodeManagedAgentInstallationIntent(t *testing.T) {
 	require.NotNil(t, decoded.Spec)
 	require.NotNil(t, decoded.Spec.Global)
 	assert.Equal(t, "test-cluster", *decoded.Spec.Global.ClusterName)
-	assert.Equal(t, "datadoghq.com", *decoded.Spec.Global.Site)
+	assert.Equal(t, "site.example", *decoded.Spec.Global.Site)
 	assert.Equal(t, map[string]string{corev1.LabelOSStable: string(corev1.Linux)}, decoded.Spec.Override[v2alpha1.NodeAgentComponentName].NodeSelector)
 	assert.Len(t, digest, 64)
 
@@ -221,9 +221,34 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 			wantError: "cluster name is invalid",
 		},
 		{
-			name:      "unsupported site",
-			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"example.com"`, 1)),
-			wantError: "site \"example.com\" is unsupported",
+			name:      "empty site",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":""`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site URL",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"https://site.example"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with port",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"site.example:443"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with path",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"site.example/path"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with whitespace",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":" site.example"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with oversized label",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"`+strings.Repeat("a", 64)+`.example"`, 1)),
+			wantError: "bootstrap site label exceeds 63 characters",
 		},
 		{
 			name:      "unsupported desired state",
@@ -1753,7 +1778,7 @@ func testManagedAgentInstallationIntent(t *testing.T, operationID string, desire
 		DesiredState:   desiredState,
 		Bootstrap: managedAgentInstallationBootstrap{
 			ClusterName: "test-cluster",
-			Site:        "datadoghq.com",
+			Site:        "site.example",
 		},
 	}
 	if len(acknowledgedOperationID) > 0 {

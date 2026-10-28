@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -42,6 +43,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kueue"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/logcollection"
@@ -62,6 +64,8 @@ import (
 const (
 	defaultRequeuePeriod    = 15 * time.Second
 	defaultErrRequeuePeriod = 5 * time.Second
+
+	ddaiOperationName = "datadogagentinternal.reconcile"
 )
 
 // ReconcilerOptions provides options read from command line
@@ -119,9 +123,9 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
-func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
-	var resp reconcile.Result
-	var err error
+func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (resp reconcile.Result, err error) {
+	span, ctx := trace.StartReconcileSpan(ctx, "DatadogAgentInternal", ddaiOperationName, ddai)
+	defer trace.FinishSpan(span, &err)
 
 	resp, err = r.internalReconcile(ctx, ddai)
 

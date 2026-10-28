@@ -105,6 +105,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
+// Kueue
+// +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=clusterqueues;localqueues;resourceflavors;workloads,verbs=get;list;watch
+
 // Configure Datadog Intrumentation
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
@@ -271,6 +274,19 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.Da
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
+		// Keep controller metadata and one flat DDA identity, without the default
+		// constructor's additional nested copy.
+		WithLogConstructor(func(req *reconcile.Request) logr.Logger {
+			logger := mgr.GetLogger().WithName("controllers").WithName("DatadogAgent").WithValues(
+				"controller", "datadogagent",
+				"controllerGroup", v2alpha1.GroupVersion.Group,
+				"controllerKind", "DatadogAgent",
+			)
+			if req != nil {
+				logger = logger.WithValues("namespace", req.Namespace, "name", req.Name)
+			}
+			return logger
+		}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}).
@@ -344,7 +360,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 
 	r.Options.APIReader = mgr.GetAPIReader()
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 	if err != nil {
 		return err
 	}

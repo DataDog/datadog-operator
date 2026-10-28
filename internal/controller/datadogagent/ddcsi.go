@@ -9,8 +9,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -57,7 +58,8 @@ const (
 // type-specific factory functions, and type-specific equality checks. Extending it for a single
 // custom resource would require changes across multiple packages (pkg/kubernetes, pkg/equality,
 // store). Direct management is simpler and follows the same pattern used for DatadogAgentInternal.
-func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
+func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
+	logger := ctrl.LoggerFrom(ctx)
 	csiEnabled := instance.Spec.Global != nil &&
 		instance.Spec.Global.CSI != nil &&
 		apiutils.BoolValue(instance.Spec.Global.CSI.Enabled)
@@ -68,7 +70,7 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 	// `||` short-circuits: if csiEnabled is false (which requires Global/CSI to be safely-nil-
 	// guarded), we never dereference `.AutoManage`
 	if !csiEnabled || !ptr.Deref(instance.Spec.Global.CSI.AutoManage, true) {
-		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
+		return r.cleanupDatadogCSIDriver(ctx, instance)
 	}
 
 	// csi.enabled=true is the long-standing signal that the Agent should use a CSI driver. The
@@ -79,7 +81,7 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 		return nil
 	}
 
-	return r.createOrUpdateDatadogCSIDriver(ctx, logger, instance)
+	return r.createOrUpdateDatadogCSIDriver(ctx, instance)
 }
 
 // externalCSIDriverExists returns true if a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver
@@ -106,8 +108,8 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		if annotations == nil {
 			annotations = map[string]string{}
 		}
-		// Stamp the provider annotation so the CSI controller can skip registry
-		// authentication env vars that are not covered by the WorkloadAllowlist.
+		// Stamp the provider annotation so the CSI controller forces the GCR image
+		// required by the WorkloadAllowlist.
 		annotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
 	}
 
@@ -138,12 +140,19 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		ddcsi.Spec.Registry = &registry
 	}
 
+	if registryAllowList := registryAllowListFromDDA(instance); len(registryAllowList) > 0 {
+		ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+			RegistryAllowList: slices.Clone(registryAllowList),
+		}
+	}
+
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
 		if csiConfig.APM != nil && len(csiConfig.APM.PullSecrets) > 0 {
-			ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
-				PullSecrets: append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...),
+			if ddcsi.Spec.APM == nil {
+				ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{}
 			}
+			ddcsi.Spec.APM.PullSecrets = append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...)
 		}
 
 		// Tag, pull policy and pull secrets for the driver container.
@@ -193,6 +202,15 @@ func apmSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 	return instance.Spec.Features.APM.UnixDomainSocketConfig.Path
 }
 
+// registryAllowListFromDDA returns the admission controller registry allow list configured on
+// the DDA, or nil if unset.
+func registryAllowListFromDDA(instance *v2alpha1.DatadogAgent) []string {
+	if instance.Spec.Features == nil || instance.Spec.Features.AdmissionController == nil {
+		return nil
+	}
+	return instance.Spec.Features.AdmissionController.RegistryAllowList
+}
+
 // dsdSocketPathFromDDA returns the DogStatsD UDS path configured on the DDA, or nil if unset.
 func dsdSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 	if instance.Spec.Features == nil || instance.Spec.Features.Dogstatsd == nil ||
@@ -205,7 +223,8 @@ func dsdSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 // createOrUpdateDatadogCSIDriver ensures a DatadogCSIDriver resource exists with the desired spec.
 // Like DatadogAgentInternal, this treats the DatadogCSIDriver as a desired-state object: if someone
 // modifies it, the operator will reconcile it back to the desired state on the next loop.
-func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
+func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
+	logger := ctrl.LoggerFrom(ctx)
 	desired, err := r.buildDesiredDatadogCSIDriver(instance)
 	if err != nil {
 		return err
@@ -228,13 +247,13 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 		if externalExists {
 			// Debug level: fires every reconcile while the external install remains — steady-state
 			// info, not an actionable event.
-			logger.V(1).Info("External CSIDriver detected, not creating DatadogCSIDriver", "name", datadogCSIDriverObjectName)
+			logger.V(1).Info("External CSIDriver detected, not creating DatadogCSIDriver", "object.kind", "CSIDriver", "object.name", datadogCSIDriverObjectName)
 			return nil
 		}
 
 		experimental.CreateDatadogCSIAllowlistSynchronizer(instance)
 
-		logger.Info("Creating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
+		logger.Info("Creating DatadogCSIDriver", "object.kind", "DatadogCSIDriver", "object.name", desired.Name, "object.namespace", desired.Namespace)
 		if err := r.client.Create(ctx, desired); err != nil {
 			return fmt.Errorf("failed to create DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
 		}
@@ -245,7 +264,7 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 	// this DDA (no controller reference), don't touch it. Mirrors the cleanup guard below; avoids
 	// clobbering a standalone DatadogCSIDriver a user maintains with the same name as their DDA.
 	if !metav1.IsControlledBy(existing, instance) {
-		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping update", "name", existing.Name, "namespace", existing.Namespace)
+		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping update", "object.kind", "DatadogCSIDriver", "object.name", existing.Name, "object.namespace", existing.Namespace)
 		return nil
 	}
 
@@ -267,7 +286,7 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 		existing.Labels = desired.Labels
 		existing.Annotations = desired.Annotations
 
-		logger.Info("Updating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
+		logger.Info("Updating DatadogCSIDriver", "object.kind", "DatadogCSIDriver", "object.name", desired.Name, "object.namespace", desired.Namespace)
 		if err := r.client.Patch(ctx, existing, client.MergeFrom(patchBase)); err != nil {
 			return fmt.Errorf("failed to patch DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
 		}
@@ -277,7 +296,8 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 }
 
 // cleanupDatadogCSIDriver deletes the DDA-owned DatadogCSIDriver if it exists.
-func (r *Reconciler) cleanupDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
+func (r *Reconciler) cleanupDatadogCSIDriver(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
+	logger := ctrl.LoggerFrom(ctx)
 	// If the CRD is not installed, there is nothing to clean up.
 	if !r.platformInfo.IsResourceSupported(datadogCSIDriverKind) {
 		return nil
@@ -297,11 +317,11 @@ func (r *Reconciler) cleanupDatadogCSIDriver(ctx context.Context, logger logr.Lo
 
 	// Only delete if this DDA owns it (via controller reference).
 	if !metav1.IsControlledBy(existing, instance) {
-		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping cleanup", "name", ddcsiName)
+		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping cleanup", "object.kind", "DatadogCSIDriver", "object.name", ddcsiName)
 		return nil
 	}
 
-	logger.Info("Deleting DatadogCSIDriver", "name", ddcsiName, "namespace", ddcsiNamespace)
+	logger.Info("Deleting DatadogCSIDriver", "object.kind", "DatadogCSIDriver", "object.name", ddcsiName, "object.namespace", ddcsiNamespace)
 	if err := r.client.Delete(ctx, existing); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete DatadogCSIDriver %s/%s: %w", ddcsiNamespace, ddcsiName, err)
 	}

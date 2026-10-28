@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -153,8 +154,7 @@ func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 				break
 			}
 			logger.Error(err, "Failed to reconcile managed Agent installation intent", "resourceVersion", snapshot.resourceVersion)
-			var stateErr *stateDoesntMatchError
-			if errors.As(err, &stateErr) {
+			if _, ok := errors.AsType[*stateDoesntMatchError](err); ok {
 				break
 			}
 			timer := time.NewTimer(managedAgentInstallationRetryInterval)
@@ -433,8 +433,13 @@ func validateManagedAgentInstallationBootstrap(bootstrap managedAgentInstallatio
 	if strings.TrimSpace(bootstrap.ClusterName) != bootstrap.ClusterName || bootstrap.ClusterName == "" || len(bootstrap.ClusterName) > 100 {
 		return fmt.Errorf("managed Agent installation bootstrap cluster name is invalid")
 	}
-	if _, ok := allowedManagedAgentInstallationSites[bootstrap.Site]; !ok {
-		return fmt.Errorf("managed Agent installation bootstrap site %q is unsupported", bootstrap.Site)
+	if validationErrors := utilvalidation.IsDNS1123Subdomain(bootstrap.Site); len(validationErrors) != 0 {
+		return fmt.Errorf("managed Agent installation bootstrap site is invalid: %s", strings.Join(validationErrors, "; "))
+	}
+	for label := range strings.SplitSeq(bootstrap.Site, ".") {
+		if len(label) > utilvalidation.DNS1123LabelMaxLength {
+			return fmt.Errorf("managed Agent installation bootstrap site label exceeds %d characters", utilvalidation.DNS1123LabelMaxLength)
+		}
 	}
 	return nil
 }

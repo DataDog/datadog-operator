@@ -9,15 +9,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+)
+
+const (
+	quickwitCloudPremConfigKey                   = "cloudprem"
+	quickwitCacheCapacityConfigKey               = "capacity"
+	quickwitFastFieldCacheConfigKey              = "fast_field_cache"
+	quickwitFastFieldCacheCapacityConfigKey      = "fast_field_cache_capacity"
+	quickwitPartialRequestCacheConfigKey         = "partial_request_cache"
+	quickwitPartialRequestCacheCapacityConfigKey = "partial_request_cache_capacity"
+	quickwitSplitFooterCacheConfigKey            = "split_footer_cache"
+	quickwitSplitFooterCacheCapacityConfigKey    = "split_footer_cache_capacity"
+	quickwitCreateLogsIndexConfigKey             = "create_dd_logs_index"
+	quickwitCreateDatadogIndexConfigKey          = "create_datadog_index"
+	quickwitUseReadOnlyMetastoreConfigKey        = "use_metastore_read_replica"
 )
 
 func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.ConfigMap, error) {
@@ -27,6 +43,16 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 	searcherMemoryBytes := searcherMemoryLimit.Value()
 	maxQueueDiskUsage := indexerMemoryBytes * 3 / 5
 
+	var override map[string]any
+	if cluster.Spec.NodeConfigOverrides != nil && len(cluster.Spec.NodeConfigOverrides.Raw) != 0 {
+		if err := yaml.Unmarshal(cluster.Spec.NodeConfigOverrides.Raw, &override, func(d *json.Decoder) *json.Decoder {
+			d.UseNumber()
+			return d
+		}); err != nil {
+			return nil, fmt.Errorf("decode spec.nodeConfigOverrides: %w", err)
+		}
+	}
+
 	config := defaultNodeConfig()
 	config["ingest_api"] = map[string]any{
 		// ByteSize accepts integer byte counts, so no unit conversion is needed.
@@ -34,27 +60,36 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 		"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
 	}
 	searcher := config[quickwitSearcherServiceName].(map[string]any)
-	searcher["fast_field_cache_capacity"] = searcherMemoryBytes * 13 / 32
 	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125))
-	searcher["partial_request_cache_capacity"] = searcherMemoryBytes / 64
-	searcher["split_footer_cache_capacity"] = searcherMemoryBytes / 32
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitFastFieldCacheCapacityConfigKey}) {
+		searcher[quickwitFastFieldCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes * 13 / 32}
+	}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitPartialRequestCacheCapacityConfigKey}) {
+		searcher[quickwitPartialRequestCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes / 64}
+	}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitSplitFooterCacheCapacityConfigKey}) {
+		searcher[quickwitSplitFooterCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes / 32}
+	}
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
+	signal := datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	if cluster.Spec.Signal != nil {
+		signal = *cluster.Spec.Signal
+	}
+	// Set both keys explicitly: CloudPrem treats a missing create_dd_logs_index as true.
+	cloudprem := config[quickwitCloudPremConfigKey].(map[string]any)
+	if !overrideSets(override, []string{quickwitCloudPremConfigKey, quickwitCreateDatadogIndexConfigKey}) {
+		cloudprem[quickwitCreateLogsIndexConfigKey] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	}
+	cloudprem["create_dd_traces_index"] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalTraces
 	storage := cluster.Spec.Components.Indexer.Storage
 	if storage != nil && storage.VolumeClaimTemplate != nil {
 		indexer := config[quickwitIndexerServiceName].(map[string]any)
 		capacity := storage.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
 		indexer["split_store_max_num_bytes"] = calculateSplitStoreMaxNumBytes(capacity, maxQueueDiskUsage)
 	}
-	if cluster.Spec.NodeConfigOverrides != nil && len(cluster.Spec.NodeConfigOverrides.Raw) != 0 {
-		var override map[string]any
-		if err := yaml.Unmarshal(cluster.Spec.NodeConfigOverrides.Raw, &override, func(d *json.Decoder) *json.Decoder {
-			d.UseNumber()
-			return d
-		}); err != nil {
-			return nil, fmt.Errorf("decode spec.nodeConfigOverrides: %w", err)
-		}
+	if override != nil {
 		if err := mergo.Merge(&config, override, mergo.WithOverride); err != nil {
 			return nil, fmt.Errorf("merge spec.nodeConfigOverrides: %w", err)
 		}
@@ -73,6 +108,16 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 		},
 		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(nodeConfig), "\n")},
 	}, nil
+}
+
+// overrideSets reports whether the override sets any of paths. The operator does not set a key that
+// the override sets under a serde alias (quickwit-config/src/node_config/mod.rs), because Pomsky
+// rejects a key set twice. Merging the override replaces a key it sets under the same name.
+func overrideSets(override map[string]any, paths ...[]string) bool {
+	return slices.ContainsFunc(paths, func(path []string) bool {
+		_, found, _ := unstructured.NestedFieldNoCopy(override, path...)
+		return found
+	})
 }
 
 func calculateSplitStoreMaxNumBytes(capacity resource.Quantity, maxQueueDiskUsage int64) int64 {

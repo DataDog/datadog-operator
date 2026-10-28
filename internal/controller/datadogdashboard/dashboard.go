@@ -113,13 +113,11 @@ func translateClientError(err error, httpResp *http.Response, msg string) error 
 		msg = "an error occurred"
 	}
 
-	var apiErr datadogapi.GenericOpenAPIError
-	var errURL *url.Error
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[datadogapi.GenericOpenAPIError](err); ok {
 		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
 	}
 
-	if errors.As(err, &errURL) {
+	if errURL, ok := errors.AsType[*url.Error](err); ok {
 		return ctrutils.NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
 	}
 

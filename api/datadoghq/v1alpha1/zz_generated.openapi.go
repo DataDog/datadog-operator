@@ -28,6 +28,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCCluster":                                             schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCCluster(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAWSSpec":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterAWSSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec":                              schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterAutoscalingSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterCompactorComponentSpec":                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorComponentSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentSpec":                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentsSpec":                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentsSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatabaseSpec":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterDatabaseSpec(ref),
@@ -671,6 +672,274 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterAutoscalin
 	}
 }
 
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorComponentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogBYOCClusterCompactorComponentSpec defines settings for the Compactor workload.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Env contains additional environment variables for the component container.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"envFrom": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "EnvFrom contains additional environment sources for the component container.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvFromSource"),
+									},
+								},
+							},
+						},
+					},
+					"volumes": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Volumes contains additional volumes attached to the component Pods.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Volume"),
+									},
+								},
+							},
+						},
+					},
+					"volumeMounts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "VolumeMounts contains additional volume mounts for the component container.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources defines CPU and memory requirements for the component.",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Annotations are applied to the component resource.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels are applied to the component resource.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"nodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeSelector selects nodes on which the component Pods may run.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"tolerations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Tolerations are applied to the component Pods.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
+									},
+								},
+							},
+						},
+					},
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Affinity is applied to the component Pods.",
+							Ref:         ref("k8s.io/api/core/v1.Affinity"),
+						},
+					},
+					"topologySpreadConstraints": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"topologyKey",
+									"whenUnsatisfiable",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "TopologySpreadConstraints are applied to the component Pods.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.TopologySpreadConstraint"),
+									},
+								},
+							},
+						},
+					},
+					"podDisruptionBudget": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec"),
+						},
+					},
+					"initContainers": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "InitContainers are added to the component Pods.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Container"),
+									},
+								},
+							},
+						},
+					},
+					"terminationGracePeriodSeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"autoscaling": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Autoscaling configures horizontal autoscaling for the component.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
 func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -907,11 +1176,29 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentS
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -977,7 +1264,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponents
 					"compactor": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Compactor configures the Compactor workload.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterCompactorComponentSpec"),
 						},
 					},
 					"janitor": {
@@ -990,7 +1277,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponents
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterMetastoreComponentSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterCompactorComponentSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterMetastoreComponentSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec"},
 	}
 }
 
@@ -1681,6 +1968,24 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"database": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Database configures the PostgreSQL database used by the Metastore.",
@@ -1691,7 +1996,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatabaseSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatabaseSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -1931,6 +2236,24 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"autoscaling": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Autoscaling configures horizontal autoscaling for the component.",
@@ -1941,6 +2264,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {
@@ -1976,7 +2306,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2224,6 +2554,24 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"autoscaling": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Autoscaling configures horizontal autoscaling for the component.",
@@ -2234,6 +2582,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {
@@ -2270,7 +2625,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2393,6 +2748,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 				Description: "DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"signal": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Signal is the telemetry signal stored by the cluster. The default node configuration creates only the index for this signal.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"release": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Release identifies the BYOC release artifact. When both images are fully specified, the release artifact is not fetched, even if Release is set.",
@@ -2686,6 +3048,24 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"autoscaling": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Autoscaling configures horizontal autoscaling for the component.",
@@ -2698,11 +3078,18 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
 						},
 					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -3001,13 +3388,33 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(re
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. When empty, the CSI driver falls back to csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored for APM authentication in that fallback path. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.",
+							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. When empty, the CSI driver falls back to csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored for APM authentication in that fallback path. Restart the CSI DaemonSet after rotating these Secrets.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
 										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
+									},
+								},
+							},
+						},
+					},
+					"registryAllowList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "RegistryAllowList restricts which registries can be used for DatadogLibrary volumes. An empty list allows all registries. When managed by a DatadogAgent, it is set from spec.features.admissionController.registryAllowList. (Requires Datadog CSI Driver 1.3.0+)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -5160,6 +5567,24 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 							Format:      "int64",
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartupProbe replaces the startup probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LivenessProbe replaces the liveness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReadinessProbe replaces the readiness probe of the component container.",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"autoscaling": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Autoscaling configures horizontal autoscaling for the component.",
@@ -5170,6 +5595,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 						SchemaProps: spec.SchemaProps{
 							Description: "Storage configures the data volume for the component. When omitted, the component default is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec"),
+						},
+					},
+					"podManagementPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales, or all at once. Rolling updates replace one Pod at a time with either policy. A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"pipelineID": {
@@ -5229,7 +5661,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

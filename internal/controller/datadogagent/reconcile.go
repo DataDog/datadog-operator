@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -30,14 +30,14 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
-	reqLogger.Info("Reconciling DatadogAgent")
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
 
 	// 1. Validate the resource.
@@ -46,7 +46,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 2. Handle finalizer logic.
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -60,7 +60,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstance(ctx, reqLogger, instanceCopy, rawSpec)
+	return r.reconcileInstance(ctx, instanceCopy, rawSpec)
 }
 
 // Force GCR registry if not set to avoid defaulting to Datadog registry
@@ -83,10 +83,11 @@ func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
-func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstance(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
-		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
+		f, err := newFieldManager(ctx, r.client, r.scheme, getDDAIGVK())
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -114,19 +115,19 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// ordinary ServiceAccount permits. Resolve (and always verify) the ServiceAccount
 	// before generating the DDAI, so the pod spec and the RBAC binding both pick the
 	// value up through constants.GetAgentServiceAccount.
-	r.reconcileOpenShiftSCC(ctx, logger, instance, provider, newDDAStatus, now)
+	r.reconcileOpenShiftSCC(ctx, instance, provider, newDDAStatus, now)
 
 	if r.options.CreateControllerRevisions {
 		revList, err := r.listRevisions(ctx, instance)
 		if err != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, err, now)
 		}
 
 		// Barrier: publish a durable, freshness-checkable status.currentRevision
 		// pointer before Fleet or experiment handling can consume it.
 		revName, annotationsHash, err := r.publishCurrentRevisionBarrier(ctx, instance, rawSpec, revList)
 		if err != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, err, now)
 		}
 		applyCurrentRevisionPointer(newDDAStatus, revName, instance.Generation, annotationsHash)
 		applyCurrentRevisionPointer(ddaStatusCopy, revName, instance.Generation, annotationsHash)
@@ -138,7 +139,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		specUpdated, experimentErr := r.manageExperiment(ctx, rawInstance, newDDAStatus, now)
 		instance.ResourceVersion = rawInstance.ResourceVersion
 		if experimentErr != nil {
-			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, experimentErr, now)
+			return r.updateStatusIfNeeded(ctx, instance, newDDAStatus, result, experimentErr, now)
 		}
 		syncExperimentConfigStrandedCondition(newDDAStatus, now)
 		if specUpdated {
@@ -147,17 +148,17 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 			// from it below would apply stale config. Publish the terminal
 			// experiment status now and let the Update's watch event trigger a
 			// fresh reconcile against the restored spec.
-			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, nil, now)
+			return r.updateStatusIfNeeded(ctx, instance, newDDAStatus, result, nil, now)
 		}
 		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
-			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newDDAStatus, result, err, now)
 		}
 	}
 
 	// Generate default DDAI object from DDA
 	ddai, err := r.generateDDAIFromDDA(instance, provider)
 	if err != nil {
-		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+		return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, err, now)
 	}
 	ddais = append(ddais, ddai)
 
@@ -177,49 +178,54 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		defaultDDAI := ddai.DeepCopy()
 		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 		if e != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
 		ddais = profileDDAIs
 	}
 
 	// Manage dependencies after DDAIs are computed to include profile changes
-	err = r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus, ddais)
+	err = r.manageDDADependenciesWithDDAI(ctx, instance, newDDAStatus, ddais)
 	if err != nil {
-		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+		return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, err, now)
 	}
 
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
-		if e := r.createOrUpdateDDAI(ddai); e != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+		if e := r.createOrUpdateDDAI(ctx, ddai); e != nil {
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// Add DDAI status to DDA status
-		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta, now); e != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+		if e := r.addDDAIStatusToDDAStatus(ctx, newDDAStatus, ddai.ObjectMeta, now); e != nil {
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// Add DDA remote config status to DDAI status
 		if res, e := r.addRemoteConfigStatusToDDAIStatus(ctx, newDDAStatus, ddai.ObjectMeta); utils.ShouldReturn(res, e) {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 		}
 	}
 
 	// Clean up unused DDAI objects
 	if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
-		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+		return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 	}
 
 	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
 	result.RequeueAfter = defaultRequeuePeriod
-	return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, err, now)
+	return r.updateStatusIfNeeded(ctx, instance, newDDAStatus, result, err, now)
 }
 
-func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+	span, ctx := trace.StartSpan(ctx)
+	var updateErr error
+	defer trace.FinishSpan(span, &updateErr)
+
+	logger := ctrl.LoggerFrom(ctx)
 	if currentError == nil {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
@@ -228,17 +234,18 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 
 	setDeprecatedConfigStatus(agentdeployment, newStatus, now)
 
-	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
+	r.setMetricsForwarderStatus(ctx, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
-		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+		if err := r.client.Status().Update(ctx, updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil
 			}
 			logger.Error(err, "unable to update DatadogAgent status")
+			updateErr = err
 			return reconcile.Result{}, err
 		}
 		// Status write committed. Emit one Kubernetes event per detected
@@ -251,7 +258,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
-func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+func (r *Reconciler) setMetricsForwarderStatus(ctx context.Context, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
 			condition.UpdateDatadogAgentStatusConditions(
@@ -264,7 +271,7 @@ func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployme
 				true,
 			)
 		} else {
-			logger.V(1).Info("metrics conditions status could not be set")
+			ctrl.LoggerFrom(ctx).V(1).Info("metrics conditions status could not be set")
 		}
 	}
 }
@@ -352,12 +359,12 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 // rejected.
 func (r *Reconciler) reconcileOpenShiftSCC(
 	ctx context.Context,
-	logger logr.Logger,
 	instance *datadoghqv2alpha1.DatadogAgent,
 	provider string,
 	status *datadoghqv2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 ) {
+	logger := ctrl.LoggerFrom(ctx)
 	if !kubernetes.IsOpenShiftProvider(provider) || r.options.SCCAuthorizer == nil {
 		return
 	}

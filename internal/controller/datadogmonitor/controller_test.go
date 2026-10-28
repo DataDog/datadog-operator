@@ -1691,3 +1691,60 @@ func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
 
 	assert.Equal(t, 0, dm.Status.ID, "status.ID should be cleared after update returns 404 so next reconcile recreates")
 }
+
+// Model a reconcile reading an old cache entry before another status write is
+// visible. The fake API server enforces resource versions, so the stale write
+// conflicts and the retry reads the newer status.
+func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		originalID     int
+		latestID       int
+		preserveLatest bool
+	}{
+		{name: "failed stale create preserves newly stored ID", originalID: 0, latestID: 12345, preserveLatest: true},
+		{name: "intentional reset of observed ID is allowed", originalID: 12345, latestID: 12345},
+		{name: "stale reset preserves replacement ID", originalID: 12345, latestID: 67890, preserveLatest: true},
+		{name: "ID-less error status can still be updated", originalID: 0, latestID: 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build()
+			instance := &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{Name: "stale-status", Namespace: "default"},
+			}
+			assert.NoError(t, c.Create(ctx, instance))
+			instance.Status.ID = tt.originalID
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			stale := instance.DeepCopy()
+
+			instance.Status.ID = tt.latestID
+			instance.Status.CurrentHash = "latest-successful-hash"
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			latestStatus := instance.Status.DeepCopy()
+			latestVersion := instance.ResourceVersion
+
+			desired := stale.Status.DeepCopy()
+			desired.ID = 0
+			desired.CurrentHash = "stale-attempt-hash"
+			r := &Reconciler{client: c, requeuePeriod: defaultRequeuePeriod}
+			scheduled := ctrl.Result{RequeueAfter: time.Minute}
+			result, err := r.updateStatusIfNeeded(logf.Log, stale, metav1.Now(), desired, fmt.Errorf("Duplicate of an existing monitor_id"), scheduled)
+			assert.NoError(t, err)
+			assert.Equal(t, scheduled, result)
+			assert.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(instance), instance))
+			if tt.preserveLatest {
+				assert.Equal(t, tt.latestID, instance.Status.ID)
+				assert.True(t, assert.ObjectsAreEqual(*latestStatus, instance.Status), "preserve the entire newer status, including conditions and hash")
+				assert.Equal(t, latestVersion, instance.ResourceVersion, "skipping must not perform a status write")
+			} else {
+				assert.Equal(t, 0, instance.Status.ID)
+				assert.Equal(t, desired.CurrentHash, instance.Status.CurrentHash)
+			}
+			assert.True(t, assert.ObjectsAreEqual(instance.Status, stale.Status), "refresh the caller's status too")
+			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
+		})
+	}
+}

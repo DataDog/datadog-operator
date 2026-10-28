@@ -1,9 +1,12 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.26.7
+include:
+  - local: .gitlab/ci/e2e-common.yml
+
+image: registry.ddbuild.io/images/mirror/library/golang:1.26.10
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  IMAGE_VERSION: "tmpl-v4"
+  IMAGE_VERSION: "tmpl-v5"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -36,8 +39,8 @@ variables:
   GOMAXPROCS: 4
 
 stages:
-  - build
-  - test
+  - build_and_test
+  - ci_selftest
   - image
   - deps_fetch
   - e2e
@@ -49,7 +52,7 @@ stages:
 .on_build_images:
   - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
     when: never
-  - when: always
+  - when: on_success
 
 # Release-bundle PRs are opened by the operator-release bot on `operator-release/*`
 # branches and only ever contain the regenerated bundle manifests plus
@@ -64,93 +67,55 @@ stages:
   if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^\[datadog-operator\] Release v/)'
   when: never
 
-build:
-  stage: build
+# Reuse the existing daily Conductor build for Autopilot release QA. Keep this
+# ahead of change-based and DDR exclusions.
+.on_run_autopilot_nightly: &on_run_autopilot_nightly
+  if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == $NIGHTLY_BUILD_CONDUCTOR_NAME'
+  when: on_success
+  allow_failure: true
+
+# Keep the core checks in one pod so each step reuses modules, tools, and
+# compilation from the previous steps. Check generated diffs immediately so
+# later steps cannot hide changes; GitLab stops on the first failed command.
+build_and_test:
+  stage: build_and_test
+  retry: 2
   tags: ["arch:amd64"]
   variables:
     <<: *resource_variables
-  before_script:
-    - make install-tools
   script:
-    - make build
-
-unit_tests:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    <<: *resource_variables
-  before_script:
-    - make install-tools
-  script:
-    - make ci-test
-
-verify_licenses:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make verify-licenses
-
-check-golang-version:
-  stage: build
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
+    # DDR historically runs build/generation/lint, without the other checks.
+    - if [ "$DDR" = "true" ]; then make build; exit $?; fi
+    - make ci-build
     - make update-golang
     - git diff --exit-code
-
-generate_code:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make generate manifests
+    - make verify-licenses
+    - make generate
     - git diff --exit-code
-
-check_formatting:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    <<: *resource_variables
-  before_script:
-    - make install-tools
-  script:
     - make fmt
     - git diff --exit-code
+    - make lint
+    - make ci-test
 
 lint_e2e:
-  stage: test
+  # Download modules in this pod; without a shared cache there is no deps gate.
+  # Keeping this in the e2e stage also lets image builds proceed during lint.
+  stage: e2e
+  retry: 2
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   tags: ["arch:amd64"]
+  needs: []
   rules:
+    - *skip_e2e_on_release_bundle_branch
     - if: '$DDR == "true"'
       when: never
     - if: $CI_COMMIT_BRANCH
       changes:
         paths:
           - "test/e2e/**/*"
+          - ".gitlab-ci.yml"
+          - ".gitlab/ci/**/*"
+          - "Makefile"
         compare_to: "refs/heads/main"
       when: on_success
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -158,13 +123,13 @@ lint_e2e:
     - when: never
   variables:
     <<: *resource_variables
-  before_script:
-    - make install-tools
   script:
     - make lint-e2e
 
 build_operator_image_amd64:
   stage: image
+  retry: 2
+  timeout: 20m
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -191,6 +156,8 @@ build_operator_image_fips_amd64:
 
 build_operator_image_arm64:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
@@ -217,6 +184,8 @@ build_operator_image_fips_arm64:
 
 build_operator_check_image_amd64:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
@@ -235,6 +204,8 @@ build_operator_check_image_amd64:
 
 build_operator_check_image_arm64:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
@@ -252,6 +223,8 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
@@ -263,65 +236,14 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
-go_e2e_deps:
-  stage: deps_fetch
-  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
-  tags: ["arch:amd64"]
-  variables:
-    KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_CPU_LIMIT: 16
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-    GOMEMLIMIT: 15GiB
-    GOMAXPROCS: 4
+prepare_e2e_plugins:
+  extends: .prepare_e2e_plugins_base
   rules:
+    # Nightly QA prepares its own dependencies in the detached child pipeline.
+    - <<: *on_run_autopilot_nightly
+      when: never
     - *skip_e2e_on_release_bundle_branch
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      variables:
-        POLICY: pull-push
-    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
-      variables:
-        POLICY: pull
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
-  needs: []
-  before_script:
-    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
-  script:
-    - |
-      # Pre-warm Go module and build caches before the e2e matrix starts.
-      pushd test/e2e
-      GOWORK=off go mod download
-      GOWORK=off go test -p 4 ./... -count=1 --tags=e2e -run '^$'
-      popd
-    - |
-      if [ ! -f pulumi_plugins.tar.xz ]; then
-        # Pre-download Pulumi plugins used by e2e scenarios and components
-        pushd test/e2e
-        GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
-        popd
-        tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
-      fi
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
-  cache:
-    - key: e2e-go-${CI_COMMIT_REF_SLUG}
-      fallback_keys:
-        - e2e-go-${CI_DEFAULT_BRANCH}
-      paths:
-        - .go/pkg/mod
-        - .cache/go-build
-      policy: pull-push
-    - key:
-        files:
-          - ./test/e2e/go.mod
-          - .gitlab-ci.yml
-        prefix: "pulumi_plugins"
-      paths:
-        - pulumi_plugins.tar.xz
+    - when: on_success
 
 .on_run_e2e_base:
   - *skip_e2e_on_release_bundle_branch
@@ -381,16 +303,10 @@ go_e2e_deps:
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
-  cache:
-    - key: e2e-go-${CI_COMMIT_REF_SLUG}
-      fallback_keys:
-        - e2e-go-${CI_DEFAULT_BRANCH}
-      paths:
-        - .go/pkg/mod
-        - .cache/go-build
-      policy: pull
   before_script:
-    # Extract cached Pulumi plugins
+    # Restore the Go caches and plugins prepared once for this pipeline.
+    - tar xJf e2e_go_cache.tar.xz -C "$CI_PROJECT_DIR"
+    - rm -f e2e_go_cache.tar.xz
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
     - rm -f pulumi_plugins.tar.xz
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
@@ -410,71 +326,10 @@ go_e2e_deps:
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
 
-# Base configuration for E2E jobs provisioning GCP infrastructure.
-.e2e_gcp_base:
-  tags:
-    - "arch:amd64"
-  variables:
-    <<: *resource_variables
-    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
-    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
-    E2E_KEY_PAIR_NAME: ci.datadog-operator
-  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
-  cache:
-    - key: e2e-go-${CI_COMMIT_REF_SLUG}
-      fallback_keys:
-        - e2e-go-${CI_DEFAULT_BRANCH}
-      paths:
-        - .go/pkg/mod
-        - .cache/go-build
-      policy: pull
-  before_script:
-    # Extract cached Pulumi plugins
-    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
-    - rm -f pulumi_plugins.tar.xz
-    # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
-    - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
-    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.e2e)
-    # Configure and use the agent-qa AWS profile for SSM secrets, ECR, and the Pulumi S3 backend.
-    - echo "Starting setup for GCP E2E testing..."
-    - mkdir -p ~/.aws
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
-    - export AWS_PROFILE=agent-qa-ci
-    # Use S3 backend to store stack status
-    - echo "Logging in to Pulumi with S3 backend..."
-    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
-    # SSH key retrieval for GCP fakeintake/VM resources
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH
-    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH
-    # Setup GCP credentials. The service account should match the agent-e2e-tests account used by the shared e2e framework.
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text > ~/gcp-credentials.json
-    - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
-
-.docker_publish_job_definition:
-  image: registry.ddbuild.io/agent-delivery/dd-pkg@sha256:316a4ad7eba06e7db4c2ddc490d7ee61bd10a95c6c89bbf97c41ceec4b003701
-  tags: ["arch:arm64"]
-  variables:
-    IMG_SIGNING: "false"
-    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
-  script:
-    - |
-      set -euo pipefail
-      dd-pkg version
-      args=(publish-image --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" --poll-interval 30 --signing="${IMG_SIGNING}")
-      if [[ -n "${IMG_REGISTRIES:-}" ]]; then args+=(--registries "${IMG_REGISTRIES}"); fi
-      if [[ -n "${IMG_SOURCES:-}" ]]; then args+=(--sources "${IMG_SOURCES}"); fi
-      if [[ -n "${IMG_DESTINATIONS:-}" ]]; then args+=(--destinations "${IMG_DESTINATIONS}"); fi
-      if [[ -n "${IMG_DESTINATIONS_REGEX:-}" ]]; then args+=(--regex-expression "${IMG_DESTINATIONS_REGEX}"); fi
-      if [[ -n "${IMG_DESTINATIONS_REGEX_REPL:-}" ]]; then args+=(--regex-replacement "${IMG_DESTINATIONS_REGEX_REPL}"); fi
-      if [[ -n "${IMG_TAG_REFERENCE:-}" ]]; then args+=(--tag-reference "${IMG_TAG_REFERENCE}"); fi
-      if [[ -n "${IMG_NEW_TAGS:-}" ]]; then args+=(--new-tags "${IMG_NEW_TAGS}"); fi
-      if [[ -n "${IMG_MERGE_STRATEGY:-}" ]]; then args+=(--merge-strategy "${IMG_MERGE_STRATEGY}"); fi
-      dd-pkg "${args[@]}"
-
 # Exercise the shared argument builder without contacting a registry.
 test_publish_image_merge_strategy:
-  stage: test
+  stage: ci_selftest
+  retry: 2
   extends: .docker_publish_job_definition
   needs: []
   rules:
@@ -483,6 +338,7 @@ test_publish_image_merge_strategy:
     - changes:
         paths:
           - .gitlab-ci.yml
+          - .gitlab/ci/e2e-common.yml
         compare_to: refs/heads/main
     - when: never
   variables:
@@ -509,6 +365,7 @@ test_publish_image_merge_strategy:
 
 trigger_e2e_operator_image:
   stage: e2e
+  retry: 2
   rules: !reference [.on_run_e2e_base]
   needs:
     - build_operator_image_amd64
@@ -523,7 +380,7 @@ e2e:
   stage: e2e
   needs:
     - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
   rules: !reference [.on_run_e2e]
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -550,7 +407,6 @@ e2e:
 e2e_mq:
   extends: e2e
   timeout: 60m
-  retry: 0
   rules:
     - *skip_e2e_on_release_bundle_branch
     # Skip if only .md files are changed
@@ -570,7 +426,10 @@ e2e_autoscaling:
   extends: .e2e_aws_base
   stage: e2e
   needs:
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
+    # Reuse the successful core checks instead of running lint/vet again in E2E.
+    - job: "build_and_test"
+      artifacts: false
   timeout: 150m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -582,6 +441,11 @@ e2e_autoscaling:
       when: never
     # Disable on manual pipelines to test staging images
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Skip on mergequeue branches: the suite takes ~2h (EKS cluster setup and
+    # repeated install/uninstall cycles), which exceeds the mergequeue 2h timeout
+    # and cancels the whole queue pipeline. It still runs on the PR pipeline.
+    - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
       when: never
     # Run automatically on changes to autoscaling code
     - if: $CI_COMMIT_BRANCH
@@ -600,12 +464,38 @@ e2e_autoscaling:
     - make e2e-autoscaling-tests
   retry: 2
 
+# Do not mirror or depend on the child status: slow or failing QA must not hold
+# up the nightly image publication, deployment, or the parent Conductor step.
+trigger_autopilot_nightly:
+  stage: e2e
+  rules:
+    - *on_run_autopilot_nightly
+    - when: never
+  needs:
+    - job: build_operator_image_amd64
+      artifacts: false
+  inherit:
+    variables:
+      - BUILD_DOCKER_REGISTRY
+      - E2E_DOCKER_REGISTRY
+      - PROJECTNAME
+      - CI_IMAGE_LINUX
+      - CI_IMAGE_LINUX_SUFFIX
+      - FF_TIMESTAMPS
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
+    DDR: $DDR
+  trigger:
+    include:
+      - local: .gitlab/ci/autopilot-nightly.yml
+
 e2e_gke_autopilot:
   extends: .e2e_gcp_base
   stage: e2e
   needs:
     - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
   timeout: 120m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -620,10 +510,10 @@ e2e_gke_autopilot:
           - "*.md"
         compare_to: "refs/heads/main"
       when: never
-    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
+    # Nightly QA runs in a detached child pipeline instead.
     - if: '$DDR == "true"'
       when: never
-    # Run manually for now. Release branch/tag automation can be added once the job is stable.
+    # Keep optional manual runs available on other pipelines.
     - when: manual
       allow_failure: true
   variables:
@@ -639,7 +529,7 @@ e2e_untaint:
   needs:
     # Needs the operator image (unlike autoscaling, which exercises the CLI).
     - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
   timeout: 100m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -692,8 +582,70 @@ e2e_untaint:
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-untaint-tests
   retry: 2
 
+e2e_componenthealth:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    # Needs the operator image (the suite deploys the operator and asserts its metrics).
+    - "trigger_e2e_operator_image"
+    - "prepare_e2e_plugins"
+  timeout: 70m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    # ComponentHealth is a recent feature; pin a single recent Kubernetes version
+    # rather than running the full e2e matrix.
+    K8S_VERSION: "1.30"
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  rules:
+    - *skip_e2e_on_release_bundle_branch
+    # Skip when a root *.md file changed (docs-only or docs mixed with code); the
+    # hard `needs` above itself skips on root markdown changes, so letting this
+    # job run would leave it depending on an absent need (mirrors e2e_untaint).
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
+    # Disable on Conductor-triggered jobs (ex: nightly)
+    - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Run automatically on changes to component-health controller / suite code.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "internal/controller/componenthealth_controller.go"
+          - "internal/controller/componenthealth_snapshot_emitter.go"
+          - "pkg/componenthealth/**/*"
+          # Component-health wiring whose regression breaks this exact E2E flow:
+          # cmd/main.go (flags/env + enabling pod-status caching), setup.go
+          # (controller + emitter wiring), and pkg/config/config.go (the cache
+          # transform that retains Pod.Status for detection).
+          - "cmd/main.go"
+          - "internal/controller/setup.go"
+          - "pkg/config/config.go"
+          - "test/e2e/tests/componenthealth_suite/**/*"
+          - "test/e2e/provisioners/kind.go"
+        compare_to: "refs/heads/main"
+      when: on_success
+    # On pipelines that don't touch component-health code, expose it as an optional
+    # manual button (allow_failure scopes to this fallback rule only).
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running component-health controller e2e tests with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-componenthealth-tests
+  retry: 2
+
 publish_public_main:
   stage: release
+  # Images are read from the registry; do not download E2E preparation artifacts.
+  dependencies: []
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
@@ -714,6 +666,8 @@ publish_public_main_fips:
 
 publish_public_tag:
   stage: release
+  # Images are read from the registry; do not download E2E preparation artifacts.
+  dependencies: []
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -736,6 +690,8 @@ publish_public_tag_fips:
 
 publish_redhat_public_tag:
   stage: release
+  # Images are read from the registry; do not download E2E preparation artifacts.
+  dependencies: []
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -1062,10 +1018,11 @@ publish_community_operators:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  # Allow the job to be run manually even if submit_preflight_redhat_image fails, so that
-  # preflight submission can be retried locally followed by this manual job trigger in the pipeline
-  # needs:
-  #   - "submit_preflight_redhat_image"
+  # Only needs the Red Hat image to be published (bundle-redhat resolves it via skopeo). Intentionally
+  # does not depend on the preflight jobs (which can be flaky) or on unrelated earlier-stage jobs, so
+  # it can be run manually even if those fail (e.g. preflight submission retried locally).
+  needs:
+    - "publish_redhat_public_tag"
   tags:
     - "docker-in-docker:amd64"
   image: $OCTO_JOB_DOCKER_IMAGE

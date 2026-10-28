@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,9 +14,26 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// DatadogBYOCClusterSignal is the telemetry signal stored by a BYOC cluster.
+type DatadogBYOCClusterSignal string
+
+const (
+	// DatadogBYOCClusterSignalLogs stores logs.
+	DatadogBYOCClusterSignalLogs DatadogBYOCClusterSignal = "logs"
+	// DatadogBYOCClusterSignalTraces stores traces.
+	DatadogBYOCClusterSignalTraces DatadogBYOCClusterSignal = "traces"
+)
+
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterSpec struct {
+	// Signal is the telemetry signal stored by the cluster.
+	// The default node configuration creates only the index for this signal.
+	// +optional
+	// +kubebuilder:default=logs
+	// +kubebuilder:validation:Enum=logs;traces
+	Signal *DatadogBYOCClusterSignal `json:"signal,omitempty"`
+
 	// Release identifies the BYOC release artifact.
 	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
 	// +optional
@@ -285,7 +303,7 @@ type DatadogBYOCClusterComponentsSpec struct {
 
 	// Compactor configures the Compactor workload.
 	// +optional
-	Compactor *DatadogBYOCClusterComponentSpec `json:"compactor,omitempty"`
+	Compactor *DatadogBYOCClusterCompactorComponentSpec `json:"compactor,omitempty"`
 
 	// Janitor configures the Janitor workload.
 	// +kubebuilder:validation:Required
@@ -331,6 +349,7 @@ type DatadogBYOCClusterComponentSpec struct {
 	// Replicas is the desired replica count.
 	// Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Env contains additional environment variables for the component container.
@@ -403,6 +422,18 @@ type DatadogBYOCClusterComponentSpec struct {
 	// TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+
+	// StartupProbe replaces the startup probe of the component container.
+	// +optional
+	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
+
+	// LivenessProbe replaces the liveness probe of the component container.
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// ReadinessProbe replaces the readiness probe of the component container.
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // DatadogBYOCClusterPodDisruptionBudgetSpec defines the availability constraint for voluntary Pod disruptions.
@@ -430,6 +461,23 @@ type DatadogBYOCClusterStatefulComponentSpec struct {
 	// When omitted, the component default is used.
 	// +optional
 	Storage *DatadogBYOCClusterStorageSpec `json:"storage,omitempty"`
+
+	// PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales,
+	// or all at once. Rolling updates replace one Pod at a time with either policy.
+	// A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+}
+
+// DatadogBYOCClusterCompactorComponentSpec defines settings for the Compactor workload.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterCompactorComponentSpec struct {
+	DatadogBYOCClusterComponentSpec `json:",inline"`
+
+	// Autoscaling configures horizontal autoscaling for the component.
+	// +optional
+	Autoscaling *DatadogBYOCClusterAutoscalingSpec `json:"autoscaling,omitempty"`
 }
 
 // DatadogBYOCClusterMetastoreComponentSpec defines settings for a Metastore workload.

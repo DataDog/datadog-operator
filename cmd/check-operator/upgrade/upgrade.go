@@ -19,6 +19,8 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
@@ -143,11 +145,27 @@ func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	return common.NewV2StatusWrapper(datadogAgent), nil
 }
 
+func (o *Options) getDDAIs(ctx context.Context) ([]v1alpha1.DatadogAgentInternal, error) {
+	ddais := &v1alpha1.DatadogAgentInternalList{}
+	if err := o.Client.List(
+		ctx,
+		ddais,
+		client.InNamespace(o.UserNamespace),
+		client.MatchingLabels{apicommon.DatadogAgentNameLabelKey: o.datadogAgentName},
+	); err != nil {
+		return nil, fmt.Errorf("unable to list DatadogAgentInternals: %w", err)
+	}
+
+	return ddais.Items, nil
+}
+
 func isReconcileError(conditions []metav1.Condition) error {
 	for _, condition := range conditions {
 		switch {
 		case condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue:
 			return fmt.Errorf("datadogAgent reconciliation error message: %s", condition.Message)
+		case condition.Type == "DatadogAgentInternalReconcileError" && condition.Status == metav1.ConditionTrue:
+			return fmt.Errorf("datadogAgentInternal reconciliation error message: %s", condition.Message)
 		case condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionFalse:
 			return fmt.Errorf("agent reconciliation error message: %s", condition.Message)
 		case condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse:
@@ -178,6 +196,17 @@ func (o *Options) Run() error {
 		if err = isReconcileError(status.GetStatusCondition()); err != nil {
 			o.printOutf("received a reconcile error: %v", err)
 			reconcileError = true
+		}
+
+		ddais, err := o.getDDAIs(ctx)
+		if err != nil {
+			return false, err
+		}
+		for i := range ddais {
+			if err = isReconcileError(ddais[i].Status.Conditions); err != nil {
+				o.printOutf("received a reconcile error for DatadogAgentInternal %s/%s: %v", ddais[i].Namespace, ddais[i].Name, err)
+				reconcileError = true
+			}
 		}
 
 		if !agentDone {

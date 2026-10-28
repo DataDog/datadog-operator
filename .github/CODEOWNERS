@@ -41,6 +41,7 @@ README.md                                       @DataDog/container-platform
 /internal/controller/datadogagent/feature/helmcheck                 @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/hostprofiler              @DataDog/profiling-full-host    @DataDog/container-platform
 /internal/controller/datadogagent/feature/kubernetesstatecore       @DataDog/container-integrations @DataDog/container-platform
+/internal/controller/datadogagent/feature/kueue                     @DataDog/accelerator-telemetry  @DataDog/container-platform
 /internal/controller/datadogagent/feature/livecontainer             @DataDog/container-experiences  @DataDog/container-platform
 /internal/controller/datadogagent/feature/liveprocess               @DataDog/container-experiences  @DataDog/container-platform
 /internal/controller/datadogagent/feature/logcollection             @DataDog/agent-log-pipelines    @DataDog/container-platform
@@ -64,6 +65,14 @@ README.md                                       @DataDog/container-platform
 /internal/controller/datadogagent/component_otelagentgateway.go     @DataDog/opentelemetry-agent  @DataDog/container-platform
 
 /api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling  @DataDog/container-platform
+
+# BYOC
+/api/**/datadogbyoccluster*.go                                @DataDog/logs-cloudprem  @DataDog/container-platform
+/config/**/*datadogbyocclusters*                              @DataDog/logs-cloudprem  @DataDog/container-platform
+/internal/controller/datadogbyoccluster/                      @DataDog/logs-cloudprem  @DataDog/container-platform
+/api/**/datadogobservabilitypipelinesworker*.go               @DataDog/logs-cloudprem  @DataDog/container-platform
+/config/**/*datadogobservabilitypipelinesworkers*             @DataDog/logs-cloudprem  @DataDog/container-platform
+/internal/controller/datadogobservabilitypipelinesworker/     @DataDog/logs-cloudprem  @DataDog/container-platform
 
 # kubectl plugin
 /cmd/kubectl-datadog/autoscaling/             @DataDog/container-autoscaling  @DataDog/container-platform
