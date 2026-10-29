@@ -79,6 +79,11 @@ func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) s
 	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
 }
 
+// kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
+// because Kubernetes Actions communicates through it. Leave the identity secret name to the
+// Agent so switching between Kubernetes Actions and annotation-based config reuses the identity.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n"
+
 // Configure configures the feature from the spec, falling back to legacy annotations and Kubernetes Actions.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	*f = privateActionRunnerFeature{owner: dda, logger: f.logger, reader: f.reader}
@@ -98,9 +103,14 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if spec == nil && featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
 		_, configured := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation)
 		if !cluster.enabled && !configured {
-			var err error
-			cluster, err = configurationFromOverride(dda, ddaSpec.Override[v2alpha1.ClusterAgentComponentName], v2alpha1.ClusterAgentConfigFile, &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, f.reader)
-			f.configErr = errors.Join(f.configErr, err)
+			cluster = componentConfig{enabled: true, configData: kubernetesActionsDefaultConfigData}
+			if override := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; override != nil {
+				if _, custom := override.CustomConfigurations[v2alpha1.ClusterAgentConfigFile]; custom {
+					var err error
+					cluster, err = configurationFromOverride(dda, override, v2alpha1.ClusterAgentConfigFile, &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, f.reader)
+					f.configErr = errors.Join(f.configErr, err)
+				}
+			}
 		} else {
 			cluster.enabled = true
 		}
@@ -226,7 +236,10 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		if f.clusterConfig.SelfEnroll {
+		// Provision secret permissions only for Kubernetes-backed self-enrollment.
+		selfEnroll := f.clusterConfig.SelfEnroll == nil || *f.clusterConfig.SelfEnroll
+		useK8sSecret := f.clusterConfig.IdentityUseK8sSecret == nil || *f.clusterConfig.IdentityUseK8sSecret
+		if selfEnroll && useK8sSecret {
 			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),

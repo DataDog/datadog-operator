@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -102,9 +103,66 @@ override:
 			assert.Equal(t, tt.wantSplit, f.splitEnabled)
 			assert.Equal(t, before.Spec, dda.Spec)
 			if tt.wantCluster {
-				assert.True(t, f.clusterConfig.SelfEnroll)
-				assert.Equal(t, "datadog-private-action-runner-identity", f.clusterConfig.IdentitySecretName)
+				assert.Nil(t, f.clusterConfig.SelfEnroll)
+				assert.Empty(t, f.clusterConfig.IdentitySecretName)
+				assert.NotContains(t, f.clusterConfigData, "self_enroll")
+				assert.NotContains(t, f.clusterConfigData, "identity_secret_name")
 			}
+		})
+	}
+}
+
+func TestPrivateActionRunnerSpecEnrollmentRBAC(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		configData string
+		selfEnroll *bool
+		secretName string
+	}{
+		{name: "omitted settings", secretName: "private-action-runner-identity"},
+		{name: "null self enrollment", configData: "private_action_runner:\n  self_enroll: null\n", secretName: "private-action-runner-identity"},
+		{name: "explicit self enrollment", configData: "private_action_runner:\n  self_enroll: true\n", selfEnroll: new(true), secretName: "private-action-runner-identity"},
+		{name: "manual enrollment", configData: "private_action_runner:\n  self_enroll: false\n", selfEnroll: new(false)},
+		{name: "custom identity", configData: "private_action_runner:\n  identity_secret_name: custom-identity\n", secretName: "custom-identity"},
+		{name: "explicit legacy identity", configData: "private_action_runner:\n  identity_secret_name: datadog-private-action-runner-identity\n", secretName: "datadog-private-action-runner-identity"},
+		{name: "file identity with omitted enrollment", configData: "private_action_runner:\n  identity_use_k8s_secret: false\n"},
+		{name: "file identity with explicit enrollment", configData: "private_action_runner:\n  identity_use_k8s_secret: false\n  self_enroll: true\n", selfEnroll: new(true)},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			require.NoError(t, corev1.AddToScheme(scheme))
+			require.NoError(t, v2alpha1.AddToScheme(scheme))
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default", Annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "true",
+			}}, Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+						v2alpha1.ClusterAgentConfigFile: {ConfigData: new(tt.configData)},
+					}},
+				},
+			}}
+			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+			req := f.Configure(dda, &dda.Spec, nil)
+			require.True(t, req.ClusterAgent.IsEnabled())
+			require.NoError(t, f.configErr)
+			assert.Equal(t, tt.selfEnroll, f.clusterConfig.SelfEnroll)
+			// The extra files must not override the Agent's defaults or the user's main config.
+			assert.YAMLEq(t, defaultConfigData, f.nodeConfigData)
+			assert.YAMLEq(t, defaultConfigData, f.clusterConfigData)
+			resources := feature.NewResourceManagers(store.NewStore(dda, &store.StoreOptions{Scheme: scheme}))
+			require.NoError(t, f.ManageDependencies(resources))
+			role, roleFound := resources.Store().Get(kubernetes.RolesKind, dda.Namespace, f.getRbacResourcesName())
+			_, bindingFound := resources.Store().Get(kubernetes.RoleBindingKind, dda.Namespace, f.getRbacResourcesName())
+			wantRBAC := tt.secretName != ""
+			require.Equal(t, wantRBAC, roleFound)
+			assert.Equal(t, wantRBAC, bindingFound)
+			if wantRBAC {
+				assert.Equal(t, getClusterAgentRBACPolicyRules(tt.secretName), role.(*rbacv1.Role).Rules)
+			}
+			remediation, found := resources.Store().Get(kubernetes.ClusterRolesKind, "", f.getRbacResourcesName())
+			require.True(t, found)
+			assert.Equal(t, getK8sRemediationPolicyRules(), remediation.(*rbacv1.ClusterRole).Rules)
 		})
 	}
 }
@@ -135,14 +193,12 @@ override:
 	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
 	f.Configure(dda, &dda.Spec, nil)
 	require.NoError(t, f.configErr)
-	// User data stays in the main custom configuration file; the extra file supplies defaults only.
+	// User data stays in the main custom configuration file; the extra file supplies activation only.
 	assert.YAMLEq(t, `private_action_runner:
   enabled: true
-  self_enroll: true
-  identity_secret_name: datadog-private-action-runner-identity
 `, f.nodeConfigData)
 	assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", f.clusterConfigData)
-	assert.False(t, f.clusterConfig.SelfEnroll)
+	assert.Equal(t, new(false), f.clusterConfig.SelfEnroll)
 	assert.Equal(t, "custom-identity", f.clusterConfig.IdentitySecretName)
 	assert.Empty(t, f.clusterConfig.ActionsAllowlist)
 	assert.NotContains(t, f.nodeConfigData, "actions_allowlist")
@@ -249,7 +305,7 @@ func TestPrivateActionRunnerConfigMapConfiguration(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.True(t, config.enabled)
-			assert.False(t, config.settings.SelfEnroll)
+			assert.Equal(t, new(false), config.settings.SelfEnroll)
 			assert.Equal(t, "custom-identity", config.settings.IdentitySecretName)
 			assert.YAMLEq(t, "private_action_runner:\n  enabled: true\n", config.configData)
 		})
@@ -278,7 +334,7 @@ override:
 	assert.True(t, req.ClusterAgent.IsEnabled())
 	assert.Equal(t, "custom-identity", f.clusterConfig.IdentitySecretName)
 	assert.Equal(t, []string{"com.datadoghq.http.request"}, f.clusterConfig.ActionsAllowlist)
-	assert.True(t, f.clusterConfig.SelfEnroll)
+	assert.Nil(t, f.clusterConfig.SelfEnroll)
 	dda.Spec.Override[v2alpha1.ClusterAgentComponentName].CustomConfigurations[v2alpha1.ClusterAgentConfigFile] = v2alpha1.AgentCustomConfig{ConfigData: new("private_action_runner: [")}
 	req = f.Configure(dda, &dda.Spec, nil)
 	assert.True(t, req.ClusterAgent.IsEnabled())

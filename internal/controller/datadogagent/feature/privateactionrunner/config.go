@@ -8,6 +8,7 @@ package privateactionrunner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ func legacyConfiguration(dda metav1.Object) (node, cluster componentConfig) {
 }
 
 // configurationFromOverride resolves typed settings over the component's raw YAML.
-// The extra PAR file supplies defaults and typed overrides; advanced settings stay
+// The extra PAR file supplies typed overrides; advanced settings stay
 // in the main configuration file. The effective settings determine identity RBAC.
 func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, fileName v2alpha1.AgentConfigFileName, spec *v2alpha1.PrivateActionRunnerFeatureConfig, reader client.Reader) (result componentConfig, err error) {
 	custom := v2alpha1.AgentCustomConfig{}
@@ -80,8 +81,9 @@ func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAg
 	if !result.enabled {
 		return result, nil
 	}
-	defaults := map[string]any{"enabled": true, "self_enroll": true, "identity_secret_name": defaultIdentitySecretName}
-	effective := map[string]any{"enabled": true, "self_enroll": true, "identity_secret_name": defaultIdentitySecretName}
+	// Leave omitted enrollment settings to the Agent, including its identity secret name.
+	extra := map[string]any{"enabled": true}
+	effective := map[string]any{"enabled": true}
 	data, err := customConfigurationData(owner, custom, fileName, reader)
 	if err != nil {
 		return result, err
@@ -95,12 +97,7 @@ func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAg
 		if !ok {
 			return result, fmt.Errorf("%s in %s must be a YAML mapping", privateActionRunnerConfigKey, fileName)
 		}
-		for key, value := range settings {
-			effective[key] = value
-			if key != privateActionRunnerEnabledKey {
-				delete(defaults, key)
-			}
-		}
+		maps.Copy(effective, settings)
 	}
 	// Activation and the typed allowlist are authoritative over raw YAML.
 	effective[privateActionRunnerEnabledKey] = true
@@ -111,7 +108,7 @@ func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAg
 	if allowlist != nil {
 		actions := append([]string{}, (*allowlist)...)
 		effective["actions_allowlist"] = actions
-		defaults["actions_allowlist"] = actions
+		extra["actions_allowlist"] = actions
 	}
 	effectiveYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: effective})
 	if err != nil {
@@ -121,8 +118,8 @@ func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAg
 	if err != nil {
 		return result, err
 	}
-	defaultsYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: defaults})
-	result.configData = string(defaultsYAML)
+	extraYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: extra})
+	result.configData = string(extraYAML)
 	return result, err
 }
 
@@ -164,10 +161,11 @@ type PrivateActionRunnerConfig struct {
 	// Enabled controls whether the Private Action Runner is enabled
 	Enabled bool `yaml:"enabled"`
 
-	// SelfEnroll controls whether the runner should automatically enroll with Datadog
+	// SelfEnroll controls whether the runner should automatically enroll with Datadog.
+	// When unset, the Agent determines the default.
 	// When true, the runner will automatically register and obtain credentials
 	// When false, urn and private_key must be provided
-	SelfEnroll bool `yaml:"self_enroll"`
+	SelfEnroll *bool `yaml:"self_enroll,omitempty"`
 
 	// IdentityUseK8sSecret controls whether to use a Kubernetes secret for identity storage
 	// Defaults to true. When enabled, identity is stored in a K8s secret for persistence.
@@ -269,10 +267,12 @@ func (c *PrivateActionRunnerConfig) ToEnvVars() []*corev1.EnvVar {
 		})
 	}
 
-	envVars = append(envVars, &corev1.EnvVar{
-		Name:  DDPARSelfEnroll,
-		Value: strconv.FormatBool(c.SelfEnroll),
-	})
+	if c.SelfEnroll != nil {
+		envVars = append(envVars, &corev1.EnvVar{
+			Name:  DDPARSelfEnroll,
+			Value: strconv.FormatBool(*c.SelfEnroll),
+		})
+	}
 
 	identityUseK8sSecret := c.IdentityUseK8sSecret == nil || *c.IdentityUseK8sSecret
 	envVars = append(envVars, &corev1.EnvVar{
