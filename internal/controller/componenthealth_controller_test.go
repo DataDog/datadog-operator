@@ -65,10 +65,13 @@ func newTestReconciler(e componentHealthEmitter) *ComponentHealthReconciler {
 		restartThreshold: defaultRestartThreshold,
 		emitter:          e,
 		snapshotInterval: defaultSnapshotInterval,
-		clock:            time.Now,
-		reported:         map[componentIssueKey]*componentIssueState{},
-		resolved:         map[componentIssueKey]resolvedIssue{},
-		seeded:           make(chan struct{}),
+		// Debounce disabled by default so resolves emit on the next snapshot; the
+		// hysteresis is exercised explicitly in its own tests.
+		resolveGracePeriod: 0,
+		clock:              time.Now,
+		reported:           map[componentIssueKey]*componentIssueState{},
+		resolved:           map[componentIssueKey]resolvedIssue{},
+		seeded:             make(chan struct{}),
 	}
 }
 
@@ -329,6 +332,72 @@ func TestComponentHealth_ReactivationCancelsResolve(t *testing.T) {
 	snap := e.lastSnapshot()
 	assert.Len(t, snap.active, 1, "issue is active again")
 	assert.Empty(t, snap.resolved, "no stale resolve for a re-activated issue")
+}
+
+// TestComponentHealth_ResolveHysteresisSuppressesFlapping verifies that a
+// component stuck in an OOM/crash-loop cycle — which detects, briefly clears, and
+// re-detects faster than the resolve grace period — never emits a false RESOLVED:
+// each snapshot during the flap holds the pending resolve, and a re-activation
+// cancels it, so the backend is not told a still-broken component recovered. Once
+// the clear outlasts the grace window, the RESOLVED is finally emitted.
+func TestComponentHealth_ResolveHysteresisSuppressesFlapping(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+	r.resolveGracePeriod = 5 * time.Minute
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	// Six flap cycles: broken, a brief healthy blip, a snapshot landing in the blip,
+	// then broken again — each clear far shorter than the grace window.
+	for i := 0; i < 6; i++ {
+		r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+		now = now.Add(30 * time.Second)
+		r.reconcilePod(podKey("pod-a"), testComponent, nil) // brief recovery blip
+		now = now.Add(5 * time.Second)
+		r.emitSnapshot(context.Background())
+		assert.Empty(t, e.lastSnapshot().resolved, "a clear within the grace window must not emit RESOLVED")
+		now = now.Add(25 * time.Second)
+	}
+
+	// Genuine recovery: the clear now outlasts the grace window.
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	now = now.Add(30 * time.Second)
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	now = now.Add(6 * time.Minute)
+	r.emitSnapshot(context.Background())
+	if assert.Len(t, e.lastSnapshot().resolved, 1, "a clear sustained past the grace window emits RESOLVED") {
+		assert.Equal(t, componenthealth.IssueOOMKilled, e.lastSnapshot().resolved[0].IssueType)
+	}
+}
+
+// TestComponentHealth_ReactivationPreservesFirstSeen verifies that when an issue
+// clears and recurs while its resolve is still pending (within the grace window),
+// the re-activated issue keeps its original first_seen rather than resetting the
+// onset time on every flap.
+func TestComponentHealth_ReactivationPreservesFirstSeen(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+	r.resolveGracePeriod = 5 * time.Minute
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	require.Equal(t, t0, activeIssue(r, componenthealth.IssueOOMKilled).FirstSeen)
+
+	// Clear, then recur within the grace window.
+	now = t0.Add(1 * time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	now = t0.Add(2 * time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+
+	issue := activeIssue(r, componenthealth.IssueOOMKilled)
+	require.NotNil(t, issue)
+	assert.Equal(t, t0, issue.FirstSeen, "re-activation within the grace window preserves the original first_seen")
+	assert.Equal(t, t0.Add(2*time.Minute), issue.LastSeen, "last_seen still advances")
 }
 
 // TestComponentHealth_InFlightResolveRetained verifies that if an issue reappears

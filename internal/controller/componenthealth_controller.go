@@ -39,6 +39,12 @@ const (
 	// defaultSnapshotInterval is the cadence at which the current active-issue
 	// set is handed to the emitter.
 	defaultSnapshotInterval = 60 * time.Second
+
+	// defaultResolveGracePeriod is how long a component-level issue must stay clear
+	// before its RESOLVED signal is emitted. It debounces a component that flaps
+	// between detected and clear (e.g. an OOM/crash-loop cycle) so a brief recovery
+	// window does not emit a false resolve. The backend TTL remains the backstop.
+	defaultResolveGracePeriod = 5 * time.Minute
 )
 
 var _ manager.LeaderElectionRunnable = &ComponentHealthReconciler{}
@@ -93,6 +99,11 @@ type resolvedIssue struct {
 	firstSeen  time.Time
 	lastSeen   time.Time
 	resolvedAt time.Time
+	// clearedAt is when the issue last went clear. Its RESOLVED signal is withheld
+	// until it has stayed clear for resolveGracePeriod past this time (see
+	// collectSnapshot); a re-activation drops the tombstone (see addPod). A zero
+	// clearedAt bypasses the grace period (startup sweep resolves).
+	clearedAt time.Time
 }
 
 // componentScope identifies a managed component within a namespace. It is the
@@ -120,7 +131,10 @@ type ComponentHealthReconciler struct {
 	restartThreshold int32
 	emitter          componentHealthEmitter
 	snapshotInterval time.Duration
-	clock            func() time.Time // overridable for tests; defaults to time.Now
+	// resolveGracePeriod is how long an issue must stay clear before its RESOLVED
+	// signal is emitted. Overridable for tests; 0 disables the debounce.
+	resolveGracePeriod time.Duration
+	clock              func() time.Time // overridable for tests; defaults to time.Now
 
 	// mu guards reported and resolved. reported holds every currently-active
 	// component-level issue and the set of pods exhibiting it. resolved holds the
@@ -142,15 +156,16 @@ type ComponentHealthReconciler struct {
 // default logging/metric emitter.
 func NewComponentHealthReconciler(c client.Client, log logr.Logger) *ComponentHealthReconciler {
 	return &ComponentHealthReconciler{
-		client:           c,
-		log:              log,
-		restartThreshold: defaultRestartThreshold,
-		emitter:          &logEmitter{log: log},
-		snapshotInterval: defaultSnapshotInterval,
-		clock:            time.Now,
-		reported:         map[componentIssueKey]*componentIssueState{},
-		resolved:         map[componentIssueKey]resolvedIssue{},
-		seeded:           make(chan struct{}),
+		client:             c,
+		log:                log,
+		restartThreshold:   defaultRestartThreshold,
+		emitter:            &logEmitter{log: log},
+		snapshotInterval:   defaultSnapshotInterval,
+		resolveGracePeriod: defaultResolveGracePeriod,
+		clock:              time.Now,
+		reported:           map[componentIssueKey]*componentIssueState{},
+		resolved:           map[componentIssueKey]resolvedIssue{},
+		seeded:             make(chan struct{}),
 	}
 }
 
@@ -240,7 +255,12 @@ func (r *ComponentHealthReconciler) addPod(key componentIssueKey, pod string) {
 	if firstPod {
 		state.firstSeen = now
 		// The issue is active again: drop any pending resolve so we don't send a
-		// stale RESOLVED signal for something that is currently broken.
+		// stale RESOLVED signal for something that is currently broken. If a resolve
+		// was still pending, carry its original first_seen forward instead of
+		// resetting the onset time.
+		if ri, pending := r.resolved[key]; pending && !ri.firstSeen.IsZero() {
+			state.firstSeen = ri.firstSeen
+		}
 		delete(r.resolved, key)
 		metrics.ComponentHealthIssuesDetected.WithLabelValues(key.component, key.issueType).Inc()
 		issue := r.issueFor(key, state)
@@ -269,13 +289,16 @@ func (r *ComponentHealthReconciler) dropPod(key componentIssueKey, state *compon
 			"namespace", key.namespace,
 		)
 		delete(r.reported, key)
-		// Remember the clear so the next snapshot carries an explicit RESOLVED
-		// signal for it, carrying the lifecycle timestamps; it is dropped once that
-		// snapshot is acknowledged.
+		// Remember the clear so a later snapshot carries an explicit RESOLVED signal
+		// for it, carrying the lifecycle timestamps. The signal is withheld until the
+		// issue has stayed clear for resolveGracePeriod (see collectSnapshot), and the
+		// tombstone is dropped once the snapshot carrying it is acknowledged.
+		now := r.clock()
 		r.resolved[key] = resolvedIssue{
 			firstSeen:  state.firstSeen,
 			lastSeen:   state.lastSeen,
-			resolvedAt: r.clock(),
+			resolvedAt: now,
+			clearedAt:  now,
 		}
 		r.setActiveGauge(key)
 		return
@@ -302,6 +325,7 @@ func (r *ComponentHealthReconciler) forgetPod(pod types.NamespacedName) {
 // r.mu to copy the state and returns before any emission happens, so the emitter
 // is never called while the lock is held.
 func (r *ComponentHealthReconciler) collectSnapshot() (active, resolved []componenthealth.ComponentIssue) {
+	now := r.clock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -313,6 +337,13 @@ func (r *ComponentHealthReconciler) collectSnapshot() (active, resolved []compon
 
 	resolved = make([]componenthealth.ComponentIssue, 0, len(r.resolved))
 	for key, ri := range r.resolved {
+		// Withhold the RESOLVED signal until the issue has stayed clear for the grace
+		// period, so a flapping component does not emit a false resolve. A zero
+		// clearedAt (startup sweep) is emitted immediately; otherwise the tombstone
+		// stays pending until it ages past the window or a re-activation drops it.
+		if !ri.clearedAt.IsZero() && now.Sub(ri.clearedAt) < r.resolveGracePeriod {
+			continue
+		}
 		resolved = append(resolved, componenthealth.ComponentIssue{
 			Component:  key.component,
 			IssueType:  key.issueType,
