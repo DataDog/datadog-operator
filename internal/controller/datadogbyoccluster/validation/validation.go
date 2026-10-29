@@ -61,7 +61,11 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 			errs = append(errs, validatePomskyComponent(&components.ReadOnlyMetastore.DatadogBYOCClusterComponentSpec, componentPath.Child("readOnlyMetastore"))...)
 		}
 		errs = append(errs, validatePomskyComponent(components.ControlPlane, componentPath.Child("controlPlane"))...)
-		errs = append(errs, validatePomskyComponent(components.Compactor, componentPath.Child("compactor"))...)
+		if components.Compactor != nil {
+			compactorPath := componentPath.Child("compactor")
+			errs = append(errs, validatePomskyComponent(&components.Compactor.DatadogBYOCClusterComponentSpec, compactorPath)...)
+			errs = append(errs, validateAutoscaling(components.Compactor.Autoscaling, compactorPath.Child("autoscaling"))...)
+		}
 		errs = append(errs, validatePomskyComponent(components.Janitor, componentPath.Child("janitor"))...)
 	}
 	return errs

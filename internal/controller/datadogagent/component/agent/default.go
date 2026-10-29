@@ -288,16 +288,22 @@ func DefaultSyscallsForSystemProbe() []string {
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
+	hostBenchmarks := ddaSpec.Features.CSPM != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+		ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+		ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)
 	if (ddaSpec.Features.CWS != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
 		ddaSpec.Features.CWS.Enforcement != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
-		(ddaSpec.Features.CSPM != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
-			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
-			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
+		hostBenchmarks {
 		syscalls = append(syscalls, "kill")
+	}
+	if hostBenchmarks {
+		// OpenSCAP enters the host root with chroot and fchdir, and
+		// libgcrypt locks its secure memory with mlock in FIPS mode.
+		syscalls = append(syscalls, "chroot", "fchdir", "mlock", "munlock")
 	}
 	return syscalls
 }
@@ -389,7 +395,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	agentSingleContainer := corev1.Container{
 		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
-		Env:            envVarsForCoreAgent(dda),
+		Env:            envVarsForNodeAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
@@ -443,13 +449,28 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
-		Env:            envVarsForCoreAgent(dda),
+		Env:            envVarsForNodeAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
+func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
+	return append(envVarsForCoreAgent(dda), podNameEnvVar())
+}
+
+func podNameEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: DDPodName,
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: common.FieldPathMetaName,
+			},
 		},
 	}
 }
