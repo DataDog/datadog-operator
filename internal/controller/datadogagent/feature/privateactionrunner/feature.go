@@ -200,7 +200,10 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		if f.clusterConfig.SelfEnroll {
+		// Provision secret permissions only for Kubernetes-backed self-enrollment.
+		selfEnroll := f.clusterConfig.SelfEnroll == nil || *f.clusterConfig.SelfEnroll
+		useK8sSecret := f.clusterConfig.IdentityUseK8sSecret == nil || *f.clusterConfig.IdentityUseK8sSecret
+		if selfEnroll && useK8sSecret {
 			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),
