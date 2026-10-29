@@ -62,10 +62,11 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 		},
 	})
 
-	// Set converter features (exclude infra attribute, prometheus and DD flare)
+	// Set converter features: exclude infraattributes (already applied by the DaemonSet), prometheus and ddflare
+	// (no core Agent in the gateway pod); keep cumulativetodelta: the DaemonSet forwards cumulative metrics unconverted.
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_OTELCOLLECTOR_CONVERTER_FEATURES",
-		Value: "health_check,zpages,pprof,datadog",
+		Value: "health_check,zpages,pprof,datadog,cumulativetodelta",
 	})
 
 	// Disable features that are not needed / won't work in standalone ddot-collector
