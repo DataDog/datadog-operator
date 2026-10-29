@@ -9,4 +9,5 @@ const (
 	DDClusterChecksEnabled = "DD_CLUSTER_CHECKS_ENABLED"
 	DDExtraConfigProviders = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners       = "DD_EXTRA_LISTENERS"
+	DDCLCRunnerGroup       = "DD_CLC_RUNNER_GROUP"
 )
