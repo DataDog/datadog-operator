@@ -19,8 +19,6 @@ spec:
         tag: rc
         pullPolicy: Always
   features:
-    dataPlane:
-      enabled: true
     kubeStateMetricsCore:
       enabled: true
     orchestratorExplorer:
