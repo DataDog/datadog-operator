@@ -63,7 +63,8 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 	})
 
 	// Set converter features: exclude infraattributes (already applied by the DaemonSet), prometheus and ddflare
-	// (no core Agent in the gateway pod); keep cumulativetodelta: the DaemonSet forwards cumulative metrics unconverted.
+	// (no core Agent in the gateway pod); keep cumulativetodelta for cumulative metrics sent to the gateway directly
+	// or by DaemonSets on Agent images without DD_OTELCOLLECTOR_GATEWAY_DAEMONSET (newer DaemonSets convert before forwarding).
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_OTELCOLLECTOR_CONVERTER_FEATURES",
 		Value: "health_check,zpages,pprof,datadog,cumulativetodelta",
