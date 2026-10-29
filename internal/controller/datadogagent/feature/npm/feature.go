@@ -36,9 +36,10 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 }
 
 type npmFeature struct {
-	collectDNSStats bool
-	enableConntrack bool
-	directSend      bool
+	collectDNSStats               bool
+	enableConntrack               bool
+	directSend                    bool
+	disableProtocolClassification bool
 }
 
 // ID returns the ID of the Feature
@@ -52,22 +53,25 @@ func (f *npmFeature) ID() feature.IDType {
 // so it must be mounted explicitly. Autopilot temporarily disables protocol
 // classification to avoid a socket-filter allocation failure.
 func (f *npmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
-	return providercaps.ProviderCapabilityMap{
-		kubernetes.GKEAutopilotProvider: {
-			// TODO: Remove when https://github.com/DataDog/datadog-agent/issues/59189 is fixed.
-			EnvVars: []providercaps.EnvVarSet{
-				{
-					EnvVar:     corev1.EnvVar{Name: "DD_ENABLE_PROTOCOL_CLASSIFICATION", Value: "false"},
-					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-				},
-			},
-		},
+	caps := providercaps.ProviderCapabilityMap{
 		kubernetes.TalosProvider: {
 			Volumes: []providercaps.VolumeAndMount{
 				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
 			},
 		},
 	}
+	if f.disableProtocolClassification {
+		// TODO: Remove when https://github.com/DataDog/datadog-agent/issues/59189 is fixed.
+		caps[kubernetes.GKEAutopilotProvider] = providercaps.ProviderCapabilities{
+			EnvVars: []providercaps.EnvVarSet{
+				{
+					EnvVar:     corev1.EnvVar{Name: "DD_ENABLE_PROTOCOL_CLASSIFICATION", Value: "false"},
+					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+				},
+			},
+		}
+	}
+	return caps
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -95,6 +99,15 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			containers = append(containers, apicommon.ProcessAgentContainerName)
 		}
 		f.directSend = directSendEnabled
+
+		// Only the verified affected RC and the rolling RC tag used by e2e need
+		// this workaround. Do not change classification for stable or unknown images.
+		switch common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName) {
+		case "7.85.0-rc.11", "7-rc":
+			f.disableProtocolClassification = true
+		default:
+			f.disableProtocolClassification = false
+		}
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{

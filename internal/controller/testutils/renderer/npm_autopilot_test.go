@@ -39,6 +39,9 @@ func TestRender_AutopilotNPMProtocolClassification(t *testing.T) {
 			if tt.annotationKey != "" {
 				dda.Annotations = map[string]string{tt.annotationKey: tt.annotationValue}
 			}
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7-rc"}},
+			}
 			dda.Spec.Features = &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(tt.npmEnabled)},
 			}
