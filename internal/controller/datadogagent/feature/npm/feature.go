@@ -100,14 +100,10 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		f.directSend = directSendEnabled
 
-		// Only the verified affected RC and the rolling RC tag used by e2e need
-		// this workaround. Do not change classification for stable or unknown images.
-		switch common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName) {
-		case "7.85.0-rc.11", "7-rc":
-			f.disableProtocolClassification = true
-		default:
-			f.disableProtocolClassification = false
-		}
+		// Protocol classification works through 7.84.6; newer versions need the
+		// workaround on Autopilot. Treat the rolling RC tag as affected too.
+		agentVersion := common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
+		f.disableProtocolClassification = agentVersion == "7-rc" || utils.IsAboveMinVersion(agentVersion, "7.84.7-0", new(false))
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
