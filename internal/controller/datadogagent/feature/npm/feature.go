@@ -49,9 +49,19 @@ func (f *npmFeature) ID() feature.IDType {
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. Talos exposes tracefs as a standalone mount
 // rather than nesting it under the debugfs mount this feature already adds,
-// so it must be mounted explicitly.
+// so it must be mounted explicitly. Autopilot temporarily disables protocol
+// classification to avoid a socket-filter allocation failure.
 func (f *npmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKEAutopilotProvider: {
+			// TODO: Remove when https://github.com/DataDog/datadog-agent/issues/59189 is fixed.
+			EnvVars: []providercaps.EnvVarSet{
+				{
+					EnvVar:     corev1.EnvVar{Name: "DD_ENABLE_PROTOCOL_CLASSIFICATION", Value: "false"},
+					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+				},
+			},
+		},
 		kubernetes.TalosProvider: {
 			Volumes: []providercaps.VolumeAndMount{
 				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),

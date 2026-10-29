@@ -10,12 +10,6 @@ metadata:
 spec:
   override:
     nodeAgent:
-      containers:
-        system-probe:
-          env:
-            # Work around https://github.com/DataDog/datadog-agent/issues/59189.
-            - name: DD_ENABLE_PROTOCOL_CLASSIFICATION
-              value: "false"
       image:
         # Exercise the next Agent release rather than the Operator's stable default.
         tag: 7-rc
