@@ -254,23 +254,33 @@ func (r *ComponentHealthReconciler) addPod(key componentIssueKey, pod string) {
 
 	if firstPod {
 		state.firstSeen = now
-		// The issue is active again: drop any pending resolve so we don't send a
-		// stale RESOLVED signal for something that is currently broken. If a resolve
-		// was still pending, carry its original first_seen forward instead of
-		// resetting the onset time.
-		if ri, pending := r.resolved[key]; pending && !ri.firstSeen.IsZero() {
+		// A flap (re-activating while its resolve is still pending within the grace
+		// window) is not a new occurrence: keep the original first_seen and skip the
+		// detected log/counter. Otherwise drop the pending resolve and count it.
+		ri, pending := r.resolved[key]
+		flap := pending && !ri.clearedAt.IsZero() && now.Sub(ri.clearedAt) < r.resolveGracePeriod
+		if flap && !ri.firstSeen.IsZero() {
 			state.firstSeen = ri.firstSeen
 		}
 		delete(r.resolved, key)
-		metrics.ComponentHealthIssuesDetected.WithLabelValues(key.component, key.issueType).Inc()
+
 		issue := r.issueFor(key, state)
-		r.log.Info("component health issue detected",
-			"component", issue.Component,
-			"issue_type", issue.IssueType,
-			"severity", issue.Severity,
-			"namespace", issue.Namespace,
-			"affected_pods", issue.AffectedPods,
-		)
+		if flap {
+			r.log.V(1).Info("component health issue re-detected within resolve window",
+				"component", issue.Component,
+				"issue_type", issue.IssueType,
+				"namespace", issue.Namespace,
+			)
+		} else {
+			metrics.ComponentHealthIssuesDetected.WithLabelValues(key.component, key.issueType).Inc()
+			r.log.Info("component health issue detected",
+				"component", issue.Component,
+				"issue_type", issue.IssueType,
+				"severity", issue.Severity,
+				"namespace", issue.Namespace,
+				"affected_pods", issue.AffectedPods,
+			)
+		}
 	}
 	r.setActiveGauge(key)
 }
@@ -283,7 +293,9 @@ func (r *ComponentHealthReconciler) dropPod(key componentIssueKey, state *compon
 	}
 	delete(state.pods, pod)
 	if len(state.pods) == 0 {
-		r.log.Info("component health issue resolved",
+		// Debug only: the raw clear flaps for a crash-looping component. The
+		// default-level resolve is logged once, debounced, in emitSnapshot.
+		r.log.V(1).Info("component health issue clear observed",
 			"component", key.component,
 			"issue_type", key.issueType,
 			"namespace", key.namespace,
@@ -391,6 +403,18 @@ func (r *ComponentHealthReconciler) emitSnapshot(ctx context.Context) {
 	if err := r.emitter.Snapshot(ctx, active, resolved); err != nil {
 		r.log.V(1).Info("component health snapshot not delivered, will retry resolved issues", "error", err)
 		return
+	}
+	// Debounced resolve log: fires once per delivered, grace-promoted resolve, so it
+	// does not flap. Startup-sweep catalog clears (no first_seen) stay at debug.
+	for _, issue := range resolved {
+		if issue.FirstSeen.IsZero() {
+			continue
+		}
+		r.log.Info("component health issue resolved",
+			"component", issue.Component,
+			"issue_type", issue.IssueType,
+			"namespace", issue.Namespace,
+		)
 	}
 	r.ackResolved(resolved)
 }

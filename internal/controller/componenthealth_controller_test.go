@@ -372,6 +372,32 @@ func TestComponentHealth_ResolveHysteresisSuppressesFlapping(t *testing.T) {
 	}
 }
 
+// TestComponentHealth_FlapDoesNotRecount verifies that an issue re-activating
+// within the grace window (a flap) is not counted as a new detection, so a
+// crash-looping component does not inflate the detected counter (and, at the same
+// edge, does not re-emit the default-level "detected" log).
+func TestComponentHealth_FlapDoesNotRecount(t *testing.T) {
+	metrics.ComponentHealthIssuesDetected.Reset()
+	r := newTestReconciler(&recordingEmitter{})
+	r.resolveGracePeriod = 5 * time.Minute
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	require.Equal(t, float64(1), detectedCount(t, componenthealth.IssueOOMKilled), "first appearance counts once")
+
+	// Flap: clear and re-detect within the grace window several times.
+	for i := 0; i < 3; i++ {
+		now = now.Add(20 * time.Second)
+		r.reconcilePod(podKey("pod-a"), testComponent, nil)
+		now = now.Add(5 * time.Second)
+		r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	}
+	assert.Equal(t, float64(1), detectedCount(t, componenthealth.IssueOOMKilled), "flap re-detections within the grace window must not re-count")
+}
+
 // TestComponentHealth_ReactivationPreservesFirstSeen verifies that when an issue
 // clears and recurs while its resolve is still pending (within the grace window),
 // the re-activated issue keeps its original first_seen rather than resetting the
