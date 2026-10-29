@@ -453,6 +453,64 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 	}
 }
 
+func TestBuildObservabilityPipelinesWorkerName(t *testing.T) {
+	tests := []struct {
+		name         string
+		pipelineName string
+		wantName     string
+		wantErr      string
+	}{
+		{
+			name:         "52-character worker name",
+			pipelineName: strings.Repeat("a", 38),
+			wantName:     "byoc-pipeline-" + strings.Repeat("a", 38),
+		},
+		{
+			name:         "53-character worker name",
+			pipelineName: strings.Repeat("a", 39),
+			wantErr:      "must be no more than 52 characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := byocdefaults.Apply(&datadoghqv1alpha1.DatadogBYOCCluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: "testing"},
+				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+						APIKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "api-key",
+						},
+					},
+					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+						Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: tt.pipelineName}},
+						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					},
+				},
+			})
+
+			got, err := BuildObservabilityPipelinesWorker(cluster, &cluster.Spec.Components.Pipelines[0], byocimage.ResolvedImage{Repository: "registry.example.com/observability-pipelines-worker", Tag: "2.10.0"})
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("BuildObservabilityPipelinesWorker() error = %v, want error containing %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("BuildObservabilityPipelinesWorker() unexpected error: %v", err)
+			}
+			if got.Name != tt.wantName {
+				t.Errorf("BuildObservabilityPipelinesWorker() name = %q, want %q", got.Name, tt.wantName)
+			}
+		})
+	}
+}
+
 func testPipelinePorts() []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort {
 	return []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
 		{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
