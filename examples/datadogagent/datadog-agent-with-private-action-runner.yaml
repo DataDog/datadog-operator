@@ -31,6 +31,15 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog-par-custom
+  # Optional host integrations are configured with annotations:
+  # annotations:
+  #   # Grant PAR access to host systemd and select persistent, volatile, or both journal stores.
+  #   agent.datadoghq.com/private-action-runner-systemd-enabled: "true"
+  #   agent.datadoghq.com/private-action-runner-systemd-journal-storage: "persistent"
+  #   # Allow journal vacuum actions to delete archived journals in the selected directories.
+  #   agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled: "true"
+  #   # Expose system-probe's capture-only socket to PAR (requires Agent >= 7.86.0).
+  #   agent.datadoghq.com/private-action-runner-packet-capture-enabled: "true"
 spec:
   global:
     clusterName: my-cluster

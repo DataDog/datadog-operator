@@ -66,7 +66,7 @@ func TestClientsSendOperatorUserAgent(t *testing.T) {
 					client.GetConfig().Servers = datadogapi.ServerConfigurations{{URL: server.URL}}
 					_, _, err := datadogV1.NewAuthenticationApi(client).Validate(context.Background())
 					require.NoError(t, err)
-					require.Equal(t, "datadog-operator/"+tt.version, <-userAgents)
+					require.Equal(t, "Datadog Operator/"+tt.version, <-userAgents)
 				})
 			}
 		})

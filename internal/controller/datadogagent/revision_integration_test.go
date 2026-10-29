@@ -90,7 +90,6 @@ func newRevisionIntegrationReconciler(t *testing.T) (*Reconciler, client.Client)
 			APIReader:                 c,
 		},
 	}
-	r.initializeComponentRegistry()
 	return r, c
 }
 

@@ -53,6 +53,8 @@ type privateActionRunnerFeature struct {
 	splitEnabled              bool
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
+	packetCaptureConfig       packetCaptureConfig
+	packetCaptureConfigErr    error
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
@@ -66,6 +68,16 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 }
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
+
+// runnerAgentVersion returns the Agent version the node runner container runs.
+func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	image := images.GetLatestAgentImage()
+	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+		image = images.OverrideAgentImage(image, override.Image)
+	}
+	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
+	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
+}
 
 // Configure configures the feature from the spec, falling back to legacy annotations and Kubernetes Actions.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
@@ -98,23 +110,29 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.nodeEnabled = true
 		f.nodeConfigData = node.configData
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
+		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
+		version := runnerAgentVersion(dda, ddaSpec)
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
 		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
-			image := images.GetLatestAgentImage()
-			if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
-				image = images.OverrideAgentImage(image, override.Image)
-			}
-			image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
-			version := common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
 			f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
 		}
+		// An older Agent does not serve the capture socket, so the runner would
+		// dial a socket that never exists.
+		if f.packetCaptureConfig.enabled && !pkgutils.IsAboveMinVersion(version, packetCaptureMinVersion, new(true)) {
+			f.logger.Info("Agent is too old for Private Action Runner packet capture, not enabling it", "agentVersion", version, "minVersion", packetCaptureMinVersion)
+			f.packetCaptureConfig.enabled = false
+		}
 
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.PrivateActionRunnerContainerName,
+		}
+		if f.packetCaptureConfig.enabled {
+			containers = append(containers, apicommon.SystemProbeContainerName)
+		}
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.CoreAgentContainerName,
-				apicommon.PrivateActionRunnerContainerName,
-			},
+			Containers: containers,
 		}
 	}
 
@@ -306,6 +324,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	if f.systemdConfigErr != nil {
 		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
 	}
+	if f.packetCaptureConfigErr != nil {
+		return fmt.Errorf("invalid Private Action Runner packet capture configuration: %w", f.packetCaptureConfigErr)
+	}
 
 	configMapName := f.getConfigMapName()
 
@@ -402,6 +423,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	f.systemdConfig.addVolumeMounts(managers)
+	f.packetCaptureConfig.addSocket(managers)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(

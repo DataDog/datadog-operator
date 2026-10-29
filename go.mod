@@ -40,7 +40,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.83.2
 	github.com/DataDog/datadog-agent/pkg/proto v0.83.2
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.83.2
-	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
+	github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9
 	github.com/DataDog/dd-trace-go/contrib/k8s.io/client-go/v2 v2.10.1
 	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.10.1
 	github.com/DataDog/dd-trace-go/v2 v2.10.1

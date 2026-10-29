@@ -312,7 +312,7 @@ func durationEnv(dst *time.Duration, envVar string) envOption {
 	return envOptionFor(dst, envVar, time.ParseDuration)
 }
 
-// ddServiceName returns the service name reported to Datadog APM.
+// ddServiceName returns the service name reported to Datadog APM and profiling.
 func ddServiceName() string {
 	if svc := os.Getenv("DD_SERVICE"); svc != "" {
 		return svc
@@ -356,6 +356,7 @@ func run(opts *options) error {
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
+			profiler.WithService(ddServiceName()),
 			profiler.WithVersion(version.Version),
 			profiler.WithProfileTypes(
 				profiler.CPUProfile,
