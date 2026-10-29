@@ -42,10 +42,11 @@ type PrivateActionRunnerConfig struct {
 	// Enabled controls whether the Private Action Runner is enabled
 	Enabled bool `yaml:"enabled"`
 
-	// SelfEnroll controls whether the runner should automatically enroll with Datadog
+	// SelfEnroll controls whether the runner should automatically enroll with Datadog.
+	// When unset, the Agent determines the default.
 	// When true, the runner will automatically register and obtain credentials
 	// When false, urn and private_key must be provided
-	SelfEnroll bool `yaml:"self_enroll"`
+	SelfEnroll *bool `yaml:"self_enroll,omitempty"`
 
 	// IdentityUseK8sSecret controls whether to use a Kubernetes secret for identity storage
 	// Defaults to true. When enabled, identity is stored in a K8s secret for persistence.
@@ -150,10 +151,12 @@ func (c *PrivateActionRunnerConfig) ToEnvVars() []*corev1.EnvVar {
 		})
 	}
 
-	envVars = append(envVars, &corev1.EnvVar{
-		Name:  DDPARSelfEnroll,
-		Value: strconv.FormatBool(c.SelfEnroll),
-	})
+	if c.SelfEnroll != nil {
+		envVars = append(envVars, &corev1.EnvVar{
+			Name:  DDPARSelfEnroll,
+			Value: strconv.FormatBool(*c.SelfEnroll),
+		})
+	}
 
 	identityUseK8sSecret := c.IdentityUseK8sSecret == nil || *c.IdentityUseK8sSecret
 	envVars = append(envVars, &corev1.EnvVar{
