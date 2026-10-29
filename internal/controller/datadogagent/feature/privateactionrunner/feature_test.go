@@ -807,6 +807,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 		configData                string
 		expectedClusterConfigData string
 		expectedRBACSecretName    string
+		kubernetesActions         bool
 		k8sRemediation            bool
 	}{
 		{
@@ -864,6 +865,23 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			name:                      "no configdata annotation",
 			expectedClusterConfigData: defaultConfigData,
 			expectedRBACSecretName:    defaultIdentitySecretName,
+		},
+		{
+			name:                      "kubernetes actions uses the Agent identity secret default",
+			kubernetesActions:         true,
+			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n",
+			expectedRBACSecretName:    "private-action-runner-identity",
+		},
+		{
+			name:              "kubernetes actions respects an explicit legacy identity secret",
+			kubernetesActions: true,
+			configData: `private_action_runner:
+  enabled: true
+  identity_secret_name: datadog-private-action-runner-identity`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_secret_name: datadog-private-action-runner-identity`,
+			expectedRBACSecretName: "datadog-private-action-runner-identity",
 		},
 		{
 			name: "file storage with omitted self-enroll",
@@ -926,7 +944,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			if tt.k8sRemediation {
 				dda.Annotations["cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"] = "true"
 			}
-			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+			ddaSpec := &v2alpha1.DatadogAgentSpec{}
+			if tt.kubernetesActions {
+				delete(dda.Annotations, "cluster-agent.datadoghq.com/private-action-runner-enabled")
+				ddaSpec.Features = &v2alpha1.DatadogFeatures{
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: new(true)},
+				}
+			}
+			f.Configure(dda, ddaSpec, nil)
 
 			// Create store and resource managers for ConfigMap creation
 			storeOptions := &store.StoreOptions{
