@@ -10,5 +10,6 @@ const (
 	DDComplianceConfigCheckInterval    = "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"
 	DDComplianceConfigEnabled          = "DD_COMPLIANCE_CONFIG_ENABLED"
 	DDComplianceHostBenchmarksEnabled  = "DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED"
+	DDComplianceDBBenchmarksEnabled    = "DD_COMPLIANCE_CONFIG_DATABASE_BENCHMARKS_ENABLED"
 	DDComplianceConfigRunInSystemProbe = "DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE"
 )
