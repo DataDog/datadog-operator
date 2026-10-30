@@ -16,6 +16,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
@@ -2990,5 +2991,21 @@ func TestKubernetesActionsDefaults(t *testing.T) {
 			DefaultDatadogAgentSpec(spec)
 			assert.Equal(t, tc.want, *spec.Features.KubernetesActions.Enabled)
 		})
+	}
+}
+
+func TestKubernetesActionsAutopilotDefaults(t *testing.T) {
+	for _, enabled := range []*bool{nil, ptr.To(false), ptr.To(true)} {
+		spec := &v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{
+			KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{
+					PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: enabled},
+				},
+			},
+		}}
+		DefaultDatadogAgentSpec(spec)
+		DefaultProviderSpecificConfig(spec, kubernetes.GKEAutopilotProvider)
+		assert.True(t, *spec.Features.KubernetesActions.Enabled)
+		assert.Equal(t, enabled != nil && *enabled, *spec.Features.KubernetesActions.Communication.PrivateActionRunner.Enabled)
 	}
 }

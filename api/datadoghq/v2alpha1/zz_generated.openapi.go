@@ -1977,7 +1977,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsPrivateActi
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true",
+							Description: "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true, except on GKE Autopilot where Private Action Runner is unsupported.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

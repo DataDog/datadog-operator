@@ -157,6 +157,18 @@ func DefaultDatadogAgentSpec(ddaSpec *v2alpha1.DatadogAgentSpec) {
 // DefaultDatadogAgentSpec, which guarantees the Global sub-structs are non-nil. Like
 // the rest of this package it only fills unset values.
 func DefaultProviderSpecificConfig(ddaSpec *v2alpha1.DatadogAgentSpec, provider string) {
+	// PAR is rejected by the Autopilot provider policy. Default Kubernetes Actions
+	// to RC-only delivery there, without overriding an explicit channel choice.
+	if provider == kubernetes.GKEAutopilotProvider && ddaSpec.Features != nil && ddaSpec.Features.KubernetesActions != nil {
+		ka := ddaSpec.Features.KubernetesActions
+		if ka.Communication == nil {
+			ka.Communication = &v2alpha1.KubernetesActionsCommunicationConfig{}
+		}
+		if ka.Communication.PrivateActionRunner == nil {
+			ka.Communication.PrivateActionRunner = &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ka.Communication.PrivateActionRunner.Enabled, false)
+	}
 	if kubernetes.IsOpenShiftProvider(provider) {
 		defaultOpenShiftConfig(ddaSpec)
 	}
