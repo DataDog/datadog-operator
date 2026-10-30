@@ -24,6 +24,10 @@ import (
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 )
 
+// maxWorkerNameLength keeps the worker StatefulSet name short enough for the StatefulSet controller to set the
+// controller-revision-hash label, whose value is <statefulset>-<hash>, within the 63-character label value limit.
+const maxWorkerNameLength = 52
+
 // BuildObservabilityPipelinesWorker builds a named child worker from a defaulted pipeline and shared BYOC settings.
 // The cluster and pipeline are not modified, and the returned worker does not share mutable settings with them.
 func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCCluster, pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec, image byocimage.ResolvedImage) (*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, error) {
@@ -31,6 +35,9 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 	// The worker name is also used for its Service.
 	if problems := validation.IsDNS1035Label(workerName); len(problems) > 0 {
 		return nil, fmt.Errorf("invalid worker resource name %q: %s", workerName, strings.Join(problems, ", "))
+	}
+	if len(workerName) > maxWorkerNameLength {
+		return nil, fmt.Errorf("invalid worker resource name %q: must be no more than %d characters", workerName, maxWorkerNameLength)
 	}
 	component := pipeline.DatadogBYOCClusterPipelineComponentSpec.DeepCopy()
 	if err := applyGlobalPipelineSettings(cluster, component); err != nil {
@@ -50,6 +57,10 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 	resolvedImage := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec(workerImage)
 
 	site := ptr.Deref(cluster.Spec.Datadog.Site, "datadoghq.com")
+	apiKeySecretRef := cluster.Spec.Datadog.APIKeySecretRef
+	if pipeline.Datadog != nil && pipeline.Datadog.APIKeySecretRef != nil {
+		apiKeySecretRef = pipeline.Datadog.APIKeySecretRef
+	}
 	return &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workerName,
@@ -59,9 +70,10 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 			DatadogBYOCClusterPipelineComponentSpec: *component.DeepCopy(),
 			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 				Site:            new(site),
-				APIKeySecretRef: cluster.Spec.Datadog.APIKeySecretRef.DeepCopy(),
+				APIKeySecretRef: apiKeySecretRef.DeepCopy(),
 			},
-			Image: &resolvedImage,
+			Image:    &resolvedImage,
+			Identity: pipeline.Identity.DeepCopy(),
 		},
 	}, nil
 }
