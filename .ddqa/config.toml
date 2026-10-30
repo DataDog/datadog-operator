@@ -180,10 +180,7 @@ jira_issue_type = "Task"
 jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "container-platform"
 github_labels = ["team/container-platform"]
-exclude_members = [
-  "davidor",
-  "zhuminyi",
-]
+exclude_members = ["davidor"]
 
 [teams."Agent Onboarding"]
 jira_project = "AGENTONB"
