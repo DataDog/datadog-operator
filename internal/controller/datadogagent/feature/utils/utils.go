@@ -28,7 +28,7 @@ const (
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
 	// DefaultDataPlaneMinAgentVersion is the minimum Agent version that receives the Operator-level Data Plane default.
 	// Explicit Data Plane configuration remains available for older versions.
-	DefaultDataPlaneMinAgentVersion   = "7.84.0-0"
+	DefaultDataPlaneMinAgentVersion   = "7.84.6-0"
 	EnableADPAnnotation               = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz     = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
