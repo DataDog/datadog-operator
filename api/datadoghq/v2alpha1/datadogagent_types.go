@@ -446,9 +446,9 @@ type SingleStepInstrumentation struct {
 	// +optional
 	Targets []SSITarget `json:"targets,omitempty"`
 
-	// APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods
+	// APMBasic configures APM Basic, which injects the APM injector and the C tracer (dd-trace-c) into pods
 	// labeled `admission.datadoghq.com/apm-basic.enabled: "true"` to report RED metrics without sending traces.
-	// It does not require Enabled to be true.
+	// It works independently of features.apm.instrumentation.enabled, which can be false.
 	// +optional
 	APMBasic *APMBasicConfig `json:"apmBasic,omitempty"`
 }

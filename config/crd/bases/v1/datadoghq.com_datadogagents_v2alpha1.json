@@ -741,7 +741,7 @@
                   "properties": {
                     "apmBasic": {
                       "additionalProperties": false,
-                      "description": "APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods\nlabeled `admission.datadoghq.com/apm-basic.enabled: \"true\"` to report RED metrics without sending traces.\nIt does not require Enabled to be true.",
+                      "description": "APMBasic configures APM Basic, which injects the APM injector and the C tracer (dd-trace-c) into pods\nlabeled `admission.datadoghq.com/apm-basic.enabled: \"true\"` to report RED metrics without sending traces.\nIt works independently of features.apm.instrumentation.enabled, which can be false.",
                       "properties": {
                         "enabled": {
                           "description": "Enabled enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: \"true\"`.\nDefault: false",
@@ -9969,7 +9969,7 @@
                       "properties": {
                         "apmBasic": {
                           "additionalProperties": false,
-                          "description": "APMBasic configures APM Basic, which injects the APM Injector and the C tracer (dd-trace-c) into pods\nlabeled `admission.datadoghq.com/apm-basic.enabled: \"true\"` to report RED metrics without sending traces.\nIt does not require Enabled to be true.",
+                          "description": "APMBasic configures APM Basic, which injects the APM injector and the C tracer (dd-trace-c) into pods\nlabeled `admission.datadoghq.com/apm-basic.enabled: \"true\"` to report RED metrics without sending traces.\nIt works independently of features.apm.instrumentation.enabled, which can be false.",
                           "properties": {
                             "enabled": {
                               "description": "Enabled enables APM Basic injection into pods labeled `admission.datadoghq.com/apm-basic.enabled: \"true\"`.\nDefault: false",
