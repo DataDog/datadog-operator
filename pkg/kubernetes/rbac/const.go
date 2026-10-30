@@ -49,6 +49,7 @@ const (
 	DynamoAPIGroup                = "nvidia.com"
 	KServeAPIGroup                = "serving.kserve.io"
 	KueueAPIGroup                 = "kueue.x-k8s.io"
+	KAIAPIGroup                   = "scheduling.run.ai"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -162,6 +163,7 @@ const (
 	KueueLocalQueuesResource                          = "localqueues"
 	KueueResourceFlavorsResource                      = "resourceflavors"
 	KueueWorkloadsResource                            = "workloads"
+	KAIPodGroupsResource                              = "podgroups"
 
 	// GKE resources
 	GCPTrafficExtensionsResource = "gcptrafficextensions"

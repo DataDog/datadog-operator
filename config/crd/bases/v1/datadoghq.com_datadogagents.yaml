@@ -2030,6 +2030,17 @@ spec:
                               type: boolean
                           type: object
                       type: object
+                    kaiScheduler:
+                      description: KAIScheduler configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables KAI Scheduler PodGroup collection in the Cluster Agent, to tag pods with their KAI workload and queue.
+                            With `features.gpu.enabled`, it also maps KAI fractional GPUs to the containers using them.
+                            (Requires Agent and Cluster Agent 7.86.0+.)
+                            Default: false
+                          type: boolean
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
@@ -11666,6 +11677,17 @@ spec:
                                     Default: false
                                   type: boolean
                               type: object
+                          type: object
+                        kaiScheduler:
+                          description: KAIScheduler configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables KAI Scheduler PodGroup collection in the Cluster Agent, to tag pods with their KAI workload and queue.
+                                With `features.gpu.enabled`, it also maps KAI fractional GPUs to the containers using them.
+                                (Requires Agent and Cluster Agent 7.86.0+.)
+                                Default: false
+                              type: boolean
                           type: object
                         kubeStateMetricsCore:
                           description: KubeStateMetricsCore check configuration.

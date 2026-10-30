@@ -1048,6 +1048,13 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+// KAI Scheduler
+
+func (builder *DatadogAgentBuilder) WithKAISchedulerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.KAIScheduler = &v2alpha1.KAISchedulerFeatureConfig{Enabled: new(enabled)}
+	return builder
+}
+
 // Kueue
 
 func (builder *DatadogAgentBuilder) initKueue() {

@@ -199,6 +199,7 @@ spec:
 | features.hostProfiler.seLinuxType | SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t |
 | features.hostProfiler.seccomp.enabled | Applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node. When disabled, the Host Profiler container runs with an Unconfined seccomp profile. Default: true |
 | features.hostProfiler.seccomp.loggingEnabled | LoggingEnabled uses the logging seccomp profile instead of the default one. Has no effect when the seccomp profile is disabled. Default: false |
+| features.kaiScheduler.enabled | Enables KAI Scheduler PodGroup collection in the Cluster Agent, to tag pods with their KAI workload and queue. With `features.gpu.enabled`, it also maps KAI fractional GPUs to the containers using them. (Requires Agent and Cluster Agent 7.86.0+.) Default: false |
 | features.kubeStateMetricsCore.collectCrMetrics | `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |

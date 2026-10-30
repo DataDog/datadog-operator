@@ -613,6 +613,13 @@ rules:
   - update
   - watch
 - apiGroups:
+  - scheduling.run.ai
+  resources:
+  - podgroups
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - security.openshift.io
   resourceNames:
   - restricted
