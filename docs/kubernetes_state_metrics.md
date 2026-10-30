@@ -157,10 +157,10 @@ spec:
       enabled: true
       conf:
         configData: |-
-          cluster_check: true
+          cluster_check: false
           init_config:
           instances:
-            - skip_leader_election: true
+            - skip_leader_election: false
               collectors:
               - pods
               - replicationcontrollers
@@ -194,9 +194,9 @@ spec:
               - devicetaintrules
 ```
 
-This example runs the check on Cluster Checks Runners; set `cluster_check` and `skip_leader_election` to `false` when it runs on the Cluster Agent.
+This example runs the check on the Cluster Agent. To run it on Cluster Checks Runners instead, set `features.clusterChecks.enabled: true` and `features.clusterChecks.useClusterChecksRunners: true`, then use `cluster_check: true` and `skip_leader_election: true`; the Cluster Checks Runner image must be 7.85.0 or later.
 
-The DRA collectors require Cluster Agent 7.85.0 or later (or Cluster Checks Runner 7.85.0 or later when the check runs on Cluster Checks Runners). Older versions fail the whole `kubernetes_state_core` check when these collectors are listed on a cluster that serves the DRA API. When the component running the check is 7.85.0 or later, the operator automatically grants `list` and `watch` on `resourceclaims`, `resourceslices`, and `devicetaintrules` in the `resource.k8s.io` API group. Resource claims and resource slices require Kubernetes 1.34 or later, and device taint rules require Kubernetes 1.37 or later; the Agent skips collectors whose API the cluster does not serve.
+The DRA collectors require Cluster Agent 7.85.0 or later (or Cluster Checks Runner 7.85.0 or later when the check runs on Cluster Checks Runners). Older versions fail the whole `kubernetes_state_core` check when these collectors are listed on a cluster that serves the DRA API. When the component running the check is 7.85.0 or later, the operator automatically grants `list` and `watch` on `resourceclaims`, `resourceslices`, and `devicetaintrules` in the `resource.k8s.io` API group. Resource claims and resource slices require Kubernetes 1.34 or later, and device taint rules need the DeviceTaintRule API (stable in Kubernetes 1.37, earlier behind a feature gate); the Agent skips collectors whose API the cluster does not serve.
 
 For a complete setup that also enables GPU monitoring and pins the Agent and Cluster Agent to 7.85.0, see [datadog-agent-with-dra.yaml][dra-example].
 
