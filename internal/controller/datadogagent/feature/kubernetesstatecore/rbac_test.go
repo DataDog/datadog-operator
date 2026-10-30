@@ -64,6 +64,19 @@ func TestGetRBACPolicyRules(t *testing.T) {
 			},
 		},
 		{
+			name: "with DRA enabled",
+			collectorOpts: collectorOptions{
+				enableDRARBAC: true,
+			},
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{rbac.ResourceAPIGroup},
+					Resources: []string{rbac.ResourceClaimsResource, rbac.ResourceSlicesResource, rbac.DeviceTaintRulesResource},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
+			},
+		},
+		{
 			name: "with CRD enabled",
 			collectorOpts: collectorOptions{
 				enableCRD: true,
@@ -295,5 +308,11 @@ func TestGetRBACPolicyRules(t *testing.T) {
 				assert.True(t, found, "Expected extra rule not found: %+v", expectedRule)
 			}
 		})
+	}
+}
+
+func TestGetRBACPolicyRules_NoDRAByDefault(t *testing.T) {
+	for _, rule := range getRBACPolicyRules(collectorOptions{}) {
+		assert.NotContains(t, rule.APIGroups, rbac.ResourceAPIGroup)
 	}
 }
