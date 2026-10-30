@@ -34,6 +34,16 @@ change or be removed; prefer the stable equivalent where one exists (for GKE
 Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
 They are documented with the features they control.
 
+### Process passwd mounts
+
+For eligible containers using a stable Agent version 7.86.0 or later, live-process and process-discovery mount host passwd read-only at `/host/etc/passwd`, preserving image-local accounts in `/etc/passwd`. Selection follows the effective image, including component and experimental per-container overrides. Standard image variants use their base version; `7` and `latest` use the Operator's default Agent version. Older versions, prereleases, unknown tags, and digest-pinned images retain `/etc/passwd`. Existing Talos exclusions and security mounts are unchanged.
+
+On GKE Autopilot, the new destination requires a published WorkloadAllowlist version `v1.0.8` or newer. The Operator defaults to `v1.0.8`; pinning an older version with `experimental.agent.datadoghq.com/autopilot-allowlist-version` retains `/etc/passwd`. Missing or malformed allowlist pins use the Operator's default.
+
+The Operator does not override `HOST_ETC` or `ignore_host_etc`. If you customize these settings, ensure `HOST_ETC=/host/etc` to resolve users through the new mount.
+
+**Known limitation:** the [process resolver change](https://github.com/DataDog/datadog-agent/pull/55789) does not cover Gohai. Moving the core Agent mount can cause Gohai process metadata to report numeric UIDs or image-local usernames instead of host usernames.
+
 ## Manifest Templates
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]

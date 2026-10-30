@@ -18,8 +18,9 @@ import (
 )
 
 // DefaultWorkloadAllowlistVersion is the default version of the Datadog
-// daemonset WorkloadAllowlist.
-const DefaultWorkloadAllowlistVersion = "v1.0.7"
+// daemonset WorkloadAllowlist. v1.0.8 permits read-only /host/etc/passwd mounts
+// for process collection.
+const DefaultWorkloadAllowlistVersion = "v1.0.8"
 
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
 // driver daemonset WorkloadAllowlist. v1.1.2 allows the APM registry auth and
