@@ -90,6 +90,9 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// PrivateActionRunner configuration for the Node Agent and Cluster Agent.
+	// +optional
+	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
@@ -131,6 +134,28 @@ type DatadogFeatures struct {
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
 	KubernetesActions *KubernetesActionsFeatureConfig `json:"kubernetesActions,omitempty"`
+}
+
+// PrivateActionRunnerFeatureConfig contains Private Action Runner configuration.
+// When present, this block replaces the legacy enable and configdata annotations.
+// Advanced settings use override.nodeAgent.customConfigurations["datadog.yaml"] and
+// override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
+// Split mode and host systemd access remain configured through annotations.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerFeatureConfig struct {
+	// Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,
+	// with self-enrollment by default. Component customConfigurations.enabled
+	// overrides this setting. Advanced options use private_action_runner in configData.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ActionsAllowlist contains additional action patterns allowed on both agents.
+	// Component customConfigurations.actionsAllowlist replaces this list when set.
+	// An explicit empty list clears the additional action patterns; built-in actions
+	// remain controlled by private_action_runner.default_actions_enabled.
+	// +optional
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
 }
 
 // KubernetesActionsFeatureConfig allows configuration of the Kubernetes Actions feature.
@@ -178,7 +203,7 @@ type KubernetesActionsRemoteConfigurationConfig struct {
 type KubernetesActionsPrivateActionRunnerConfig struct {
 	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
 	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
-	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.
 	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
 	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
 	// Default: true
@@ -2004,6 +2029,36 @@ type ConfigMapConfig struct {
 	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
+// AgentCustomConfig provides a component configuration file and typed Private Action Runner overrides.
+// Typed PAR settings apply only to the Node Agent datadog.yaml and Cluster Agent datadog-cluster.yaml files.
+// The configuration file content uses ConfigData or ConfigMap, following CustomConfig semantics.
+// +k8s:openapi-gen=true
+type AgentCustomConfig struct {
+	// Enabled overrides features.privateActionRunner.enabled for this component.
+	// Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and
+	// override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
+	// Takes precedence over private_action_runner.enabled in ConfigData or ConfigMap.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ActionsAllowlist overrides features.privateActionRunner.actionsAllowlist for this component.
+	// Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and
+	// override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
+	// Takes precedence over private_action_runner.actions_allowlist in ConfigData or ConfigMap.
+	// An explicit empty list clears the inherited additional action patterns.
+	// +optional
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
+
+	// ConfigData corresponds to the configuration file content, including advanced private_action_runner settings.
+	// +optional
+	ConfigData *string `json:"configData,omitempty"`
+
+	// ConfigMap references an existing ConfigMap with the configuration file content.
+	// ConfigMap takes precedence when both ConfigMap and ConfigData are set.
+	// +optional
+	ConfigMap *ConfigMapConfig `json:"configMap,omitempty"`
+}
+
 // CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
 // system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
 // The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
@@ -2641,7 +2696,7 @@ type DatadogAgentComponentOverride struct {
 	// Agent settings provided through environment variables take precedence over these files.
 	// +doc-gen:truncate
 	// +optional
-	CustomConfigurations map[AgentConfigFileName]CustomConfig `json:"customConfigurations,omitempty"`
+	CustomConfigurations map[AgentConfigFileName]AgentCustomConfig `json:"customConfigurations,omitempty"`
 
 	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.

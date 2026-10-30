@@ -127,6 +127,47 @@ func TestPacketCaptureRequiresSupportingAgent(t *testing.T) {
 	}
 }
 
+func TestPacketCaptureWithTypedPrivateActionRunner(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		t.Run(map[bool]string{true: "node enabled", false: "node disabled"}[enabled], func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerPacketCaptureAnnotation: "true",
+				featureutils.PrivateActionRunnerConfigDataAnnotation:          "invalid: [",
+			}}}
+			spec := specWithAgentTag("7.86.0")
+			spec.Features = &v2alpha1.DatadogFeatures{PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
+				Enabled:          new(true),
+				ActionsAllowlist: new([]string{"com.datadoghq.script.runPredefinedScript"}),
+			}}
+			spec.Override[v2alpha1.NodeAgentComponentName].CustomConfigurations = map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+				v2alpha1.AgentGeneralConfigFile: {Enabled: new(enabled)},
+			}
+			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+			reqComp := f.Configure(dda, spec, nil)
+
+			require.NoError(t, f.configErr)
+			assert.Equal(t, enabled, reqComp.Agent.IsEnabled())
+			assert.Equal(t, enabled, f.packetCaptureConfig.enabled)
+			if !enabled {
+				assert.NotContains(t, reqComp.Agent.Containers, apicommon.SystemProbeContainerName)
+				return
+			}
+			assert.Contains(t, reqComp.Agent.Containers, apicommon.SystemProbeContainerName)
+			config, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
+			require.NoError(t, err)
+			assert.Equal(t, *spec.Features.PrivateActionRunner.ActionsAllowlist, config.ActionsAllowlist)
+			managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Args: []string{"agent", "run"}},
+			}}})
+			require.NoError(t, f.ManageNodeAgent(managers))
+			assert.Contains(t, managers.PodTemplateSpec().Spec.Containers[0].Args, "-E="+PrivateActionRunnerConfigPath)
+			assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName], &corev1.EnvVar{
+				Name: "DD_PACKET_CAPTURE_SOCKET", Value: packetCaptureSocketPath,
+			})
+		})
+	}
+}
+
 func specWithAgentTag(tag string) *v2alpha1.DatadogAgentSpec {
 	return &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tag}},

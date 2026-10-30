@@ -95,7 +95,7 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	return errors.NewAggregate(errs)
 }
 
-func overrideCustomConfigs(manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName, namespace string) (errs []error) {
+func overrideCustomConfigs(manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig, componentName v2alpha1.ComponentName, ddaName, namespace string) (errs []error) {
 	for fileName, customConfig := range customConfigMap {
 		// Favor ConfigMap setting; if it is specified, then move on
 		if customConfig.ConfigMap != nil {
