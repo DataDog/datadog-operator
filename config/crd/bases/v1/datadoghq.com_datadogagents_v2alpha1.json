@@ -2016,6 +2016,17 @@
               },
               "type": "object"
             },
+            "kaiScheduler": {
+              "additionalProperties": false,
+              "description": "KAIScheduler configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables KAI Scheduler PodGroup collection in the Cluster Agent, to tag pods with their KAI workload and queue.\nWith `features.gpu.enabled`, it also maps KAI fractional GPUs to the containers using them.\n(Requires Agent and Cluster Agent 7.86.0+.)\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "kubeStateMetricsCore": {
               "additionalProperties": false,
               "description": "KubeStateMetricsCore check configuration.",
@@ -11240,6 +11251,17 @@
                         }
                       },
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "kaiScheduler": {
+                  "additionalProperties": false,
+                  "description": "KAIScheduler configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables KAI Scheduler PodGroup collection in the Cluster Agent, to tag pods with their KAI workload and queue.\nWith `features.gpu.enabled`, it also maps KAI fractional GPUs to the containers using them.\n(Requires Agent and Cluster Agent 7.86.0+.)\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

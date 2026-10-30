@@ -40,6 +40,7 @@ README.md                                       @DataDog/container-platform
 /internal/controller/datadogagent/feature/gpu                       @DataDog/ebpf-platform          @DataDog/container-platform
 /internal/controller/datadogagent/feature/helmcheck                 @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/hostprofiler              @DataDog/profiling-full-host    @DataDog/container-platform
+/internal/controller/datadogagent/feature/kaischeduler              @DataDog/accelerator-telemetry  @DataDog/container-platform
 /internal/controller/datadogagent/feature/kubernetesstatecore       @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/kueue                     @DataDog/accelerator-telemetry  @DataDog/container-platform
 /internal/controller/datadogagent/feature/livecontainer             @DataDog/container-experiences  @DataDog/container-platform

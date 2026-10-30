@@ -127,6 +127,8 @@ type DatadogFeatures struct {
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
 	// Kueue configuration.
 	Kueue *KueueFeatureConfig `json:"kueue,omitempty"`
+	// KAIScheduler configuration.
+	KAIScheduler *KAISchedulerFeatureConfig `json:"kaiScheduler,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
@@ -1976,6 +1978,17 @@ type KueueMetricsServiceConfig struct {
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Namespace *string `json:"namespace,omitempty"`
+}
+
+// KAISchedulerFeatureConfig allows configuration of the KAI Scheduler feature.
+// +k8s:openapi-gen=true
+type KAISchedulerFeatureConfig struct {
+	// Enabled enables KAI Scheduler PodGroup collection in the Cluster Agent, to tag pods with their KAI workload and queue.
+	// With `features.gpu.enabled`, it also maps KAI fractional GPUs to the containers using them.
+	// (Requires Agent and Cluster Agent 7.86.0+.)
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Generic support structs
