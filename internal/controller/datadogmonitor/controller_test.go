@@ -7,10 +7,12 @@ package datadogmonitor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,12 +22,14 @@ import (
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +41,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -1747,4 +1752,255 @@ func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
 			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
 		})
 	}
+}
+
+func TestReconcileDatadogMonitor_ForceSyncSkipsUpdateWhenRemoteMatches(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	// The remote monitor as Datadog reports it after applying forceSyncMonitor's
+	// spec: read-only fields and option defaults are added, the type and
+	// message are normalized and the tags are reordered.
+	const matchingRemote = `{"id":12345,"name":"test monitor","message":"something is wrong","query":"avg(last_10m):avg:system.cpu.user{*} > 1",` +
+		`"type":"query alert","priority":null,"restricted_roles":null,"tags":["team:a","generated:kubernetes"],"overall_state":"OK",` +
+		`"options":{"thresholds":{"critical":1},"renotify_interval":30,"notify_audit":false,"include_tags":true,"new_host_delay":300}}`
+	driftedRemote := strings.Replace(matchingRemote, `"renotify_interval":30`, `"renotify_interval":120`, 1)
+
+	tests := []struct {
+		name       string
+		remote     string
+		wantWrites int32
+	}{
+		{name: "remote matches the spec", remote: matchingRemote, wantWrites: 0},
+		{name: "remote drifted from the spec", remote: driftedRemote, wantWrites: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var validateCount, updateCount atomic.Int32
+			httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor/validate":
+					validateCount.Add(1)
+					fmt.Fprint(w, `{}`)
+				case r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor/12345":
+					fmt.Fprint(w, tt.remote)
+				case r.Method == http.MethodPut && r.URL.Path == "/api/v1/monitor/12345":
+					updateCount.Add(1)
+					fmt.Fprint(w, matchingRemote)
+				default:
+					http.Error(w, "unexpected request", http.StatusNotFound)
+				}
+			}))
+			defer httpServer.Close()
+
+			t.Setenv("DD_URL", httpServer.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+			testConfig := datadogapi.NewConfiguration()
+			testConfig.HTTPClient = httpServer.Client()
+			ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+
+			dm := forceSyncMonitor()
+			lastForceSync := metav1.NewTime(time.Now().Add(-2 * defaultForceSyncPeriod).Truncate(time.Second))
+			dm.Status.MonitorLastForceSyncTime = &lastForceSync
+
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+			r := &Reconciler{
+				client:        c,
+				datadogClient: ddClient,
+				credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+				scheme:        s,
+				recorder:      record.NewFakeRecorder(10),
+				log:           logf.Log.WithName(tt.name),
+				requeuePeriod: defaultRequeuePeriod,
+			}
+
+			_, err := r.Reconcile(context.Background(), dm)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantWrites, validateCount.Load(), "validate requests")
+			assert.Equal(t, tt.wantWrites, updateCount.Load(), "update requests")
+
+			assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(dm), dm))
+			assert.True(t, dm.Status.MonitorLastForceSyncTime.After(lastForceSync.Time), "a successful force sync must be recorded")
+			assert.Equal(t, datadoghqv1alpha1.MonitorStateSyncStatusOK, dm.Status.MonitorStateSyncStatus)
+		})
+	}
+}
+
+func Test_remoteMatchesSpec(t *testing.T) {
+	logger := logf.Log.WithName("remote-matches-spec")
+	remote := datadogV1.Monitor{}
+	assert.NoError(t, json.Unmarshal([]byte(`{"id":12345,"name":"test monitor","message":"something is wrong","query":"avg(last_10m):avg:system.cpu.user{*} > 1",`+
+		`"type":"query alert","tags":["team:a"],"options":{"thresholds":{"critical":1},"renotify_interval":30}}`), &remote))
+
+	dm := forceSyncMonitor()
+	dm.Spec.Tags = []string{"team:a"}
+	assert.False(t, remoteMatchesSpec(logger, dm, remote), "the update path must add the missing required tag")
+
+	dm.Spec.ControllerOptions.DisableRequiredTags = ptr.To(true)
+	assert.True(t, remoteMatchesSpec(logger, dm, remote))
+}
+
+func forceSyncMonitor() *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.cpu.user{*} > 1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong\n",
+			Tags:    []string{"generated:kubernetes", "team:a"},
+			Options: datadoghqv1alpha1.DatadogMonitorOptions{
+				Thresholds:       &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{Critical: ptr.To("1")},
+				RenotifyInterval: ptr.To(int64(30)),
+			},
+		},
+		Status: datadoghqv1alpha1.DatadogMonitorStatus{
+			ID:                         12345,
+			MonitorStateLastUpdateTime: ptr.To(metav1.Now()),
+		},
+	}
+	dm.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&dm.Spec)
+	return dm
+}
+
+func batchPolledMonitorJSON(id int, state string) string {
+	return fmt.Sprintf(`{"id":%d,"name":"test monitor","query":"avg(last_10m):avg:system.cpu.user{*} > 1","type":"query alert","overall_state":%q,`+
+		`"state":{"groups":{"host:a":{"name":"host:a","status":%q,"last_triggered_ts":1700000000}}}}`, id, state, state)
+}
+
+func batchPolledDatadogMonitor(name string, id int) *datadoghqv1alpha1.DatadogMonitor {
+	dm := forceSyncMonitor()
+	dm.Name = name
+	dm.Status.ID = id
+	dm.Status.MonitorLastForceSyncTime = ptr.To(metav1.Now())
+	dm.Status.MonitorStateLastUpdateTime = nil
+	return dm
+}
+
+func TestReconcileDatadogMonitor_BatchStatePolling(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	var listRequests, getRequests, createRequests atomic.Int32
+	var listedIDs atomic.Value
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor":
+			// Monitor 103 was deleted out of band; 104 replaces it.
+			listRequests.Add(1)
+			listedIDs.Store(r.URL.Query().Get("monitor_ids"))
+			states := map[string]string{"101": "Alert", "102": "OK", "104": "OK"}
+			var monitors []string
+			for _, id := range strings.Split(r.URL.Query().Get("monitor_ids"), ",") {
+				if state, ok := states[id]; ok {
+					monitorID, _ := strconv.Atoi(id)
+					monitors = append(monitors, batchPolledMonitorJSON(monitorID, state))
+				}
+			}
+			fmt.Fprint(w, "["+strings.Join(monitors, ",")+"]")
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor/103":
+			getRequests.Add(1)
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"errors":["Monitor not found"]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor/validate":
+			fmt.Fprint(w, `{}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor":
+			createRequests.Add(1)
+			fmt.Fprint(w, `{"id":104,"name":"test monitor","query":"q","type":"metric alert","created":"2026-07-21T08:00:00Z","creator":{"email":"test@example.com"}}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+		}
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	poller := monitorpoller.New(ddClient, logf.Log.WithName("monitor-state-poller"), monitorpoller.Options{Interval: time.Hour, NewMonitorDelay: time.Millisecond})
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
+	defer queue.ShutDown()
+
+	alerting := batchPolledDatadogMonitor("alerting", 101)
+	ok := batchPolledDatadogMonitor("ok", 102)
+	deleted := batchPolledDatadogMonitor("deleted", 103)
+	c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(alerting, ok, deleted).Build()
+	r := &Reconciler{
+		client:        c,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(10),
+		log:           logf.Log.WithName("batch-state-polling"),
+		requeuePeriod: defaultRequeuePeriod,
+		statePoller:   poller,
+	}
+	require.NoError(t, r.StateSource().Start(ctx, queue))
+
+	reconcileMonitor := func(dm *datadoghqv1alpha1.DatadogMonitor) reconcile.Result {
+		t.Helper()
+		require.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(dm), dm))
+		result, err := r.Reconcile(ctx, dm)
+		require.NoError(t, err)
+		require.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(dm), dm))
+		return result
+	}
+
+	// Reconciling registers the monitors with the poller. Their state is not
+	// fetched individually, and only the force sync needs scheduling.
+	for _, dm := range []*datadoghqv1alpha1.DatadogMonitor{alerting, ok, deleted} {
+		result := reconcileMonitor(dm)
+		assert.Greater(t, result.RequeueAfter, 59*time.Minute)
+		assert.Nil(t, dm.Status.MonitorStateLastUpdateTime)
+	}
+
+	go func() { _ = poller.Start(ctx) }()
+	require.Eventually(t, func() bool { return queue.Len() == 3 }, 5*time.Second, 10*time.Millisecond, "every DatadogMonitor is enqueued once its monitor is polled")
+	assert.Equal(t, int32(1), listRequests.Load(), "the monitors are listed with a single request")
+	assert.ElementsMatch(t, []string{"101", "102", "103"}, strings.Split(listedIDs.Load().(string), ","))
+	assert.Equal(t, int32(1), getRequests.Load(), "only the monitor missing from the list is fetched individually")
+
+	reconcileMonitor(alerting)
+	assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateAlert, alerting.Status.MonitorState)
+	assert.Equal(t, []string{"host:a"}, []string{alerting.Status.TriggeredState[0].MonitorGroup})
+	assert.NotNil(t, alerting.Status.MonitorStateLastUpdateTime)
+	reconcileMonitor(ok)
+	assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateOK, ok.Status.MonitorState)
+	assert.Empty(t, ok.Status.TriggeredState)
+
+	// Without a new poll, reconciling again leaves the status unchanged.
+	lastStateUpdate := *alerting.Status.MonitorStateLastUpdateTime
+	resourceVersion := alerting.ResourceVersion
+	reconcileMonitor(alerting)
+	assert.Equal(t, lastStateUpdate, *alerting.Status.MonitorStateLastUpdateTime)
+	assert.Equal(t, resourceVersion, alerting.ResourceVersion)
+
+	// A monitor confirmed missing is recreated, and the poller follows the new ID.
+	reconcileMonitor(deleted)
+	assert.Equal(t, int32(1), createRequests.Load())
+	assert.Equal(t, 104, deleted.Status.ID)
+	auth, err := r.credsManager.GetAuth()
+	require.NoError(t, err)
+	_, polled := poller.Result(auth, 103)
+	assert.False(t, polled, "the deleted monitor is no longer polled")
+	require.Eventually(t, func() bool { _, polled = poller.Result(auth, 104); return polled }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, int32(2), listRequests.Load(), "the new monitor is polled on its own, ahead of the next full poll")
 }

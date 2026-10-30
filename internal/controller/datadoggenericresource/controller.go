@@ -21,9 +21,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -50,10 +52,16 @@ type Reconciler struct {
 	scheme          *runtime.Scheme
 	log             logr.Logger
 	recorder        record.EventRecorder
+	statePoller     *monitorpoller.Poller
 }
 
 type ReconcilerOptions struct {
 	RequeuePeriod time.Duration
+	// StatePoller, when set, fetches the state of resources whose handler
+	// implements monitorStateHandler in batches shared with other custom
+	// resources, instead of each resource refreshing its own state every
+	// RequeuePeriod.
+	StatePoller *monitorpoller.Poller
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, opts ...ReconcilerOptions) *Reconciler {
@@ -71,7 +79,17 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		scheme:          scheme,
 		log:             log,
 		recorder:        recorder,
+		statePoller:     options.StatePoller,
 	}
+}
+
+// StateSource returns the source that triggers reconciles when the shared
+// state poller fetches new monitor state, or nil without a state poller.
+func (r *Reconciler) StateSource() source.Source {
+	if r.statePoller == nil {
+		return nil
+	}
+	return r.statePoller.Source(datadogGenericResourceKind)
 }
 
 func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
@@ -123,6 +141,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	var err error
 
 	handler := r.getHandler(instance.Spec.Type)
+	stateHandler := r.monitorStateHandler(handler)
 
 	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), r.requeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
@@ -142,6 +161,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	shouldCreate := false
 	shouldUpdate := false
 	shouldRefreshStatus := false
+	var polled *monitorpoller.Result
 
 	if instance.Status.Id == "" {
 		shouldCreate = true
@@ -152,7 +172,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = handler.getResource(auth, instance)
+			remoteMatchesSpec := false
+			if comparer, ok := handler.(forceSyncComparer); ok {
+				remoteMatchesSpec, err = comparer.remoteMatchesSpec(auth, instance)
+			} else {
+				err = handler.getResource(auth, instance)
+			}
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -162,9 +187,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
 				// create()/update() advance it themselves once the sync actually succeeds.
+			} else if remoteMatchesSpec {
+				// Nothing drifted, so reapplying the spec would be a no-op.
+				logger.V(1).Info("Remote resource already matches the spec; skipping force-sync update", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				recordForceSync(status, now)
 			} else {
 				shouldUpdate = true
 			}
+		} else if stateHandler != nil {
+			// The shared poller fetches the state and triggers a reconcile when
+			// it has; apply it if it is newer than the state in the status.
+			polled = r.polledState(auth, instance, stateHandler)
+			shouldRefreshStatus = polled != nil
 		} else if instance.Status.StateLastUpdateTime == nil || ((r.requeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
 			// Idle tick: refresh Datadog-side state for resource types that expose it.
 			// No-op for resource types without live state.
@@ -190,7 +224,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 	} else if shouldRefreshStatus {
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
-		state, refreshErr := handler.refreshState(auth, instance)
+		stateTime := now
+		var state *string
+		var refreshErr error
+		if polled != nil {
+			stateTime = metav1.NewTime(polled.PolledAt)
+			if refreshErr = polled.Err; refreshErr == nil {
+				state = new(stateHandler.stateFromMonitor(polled.Monitor))
+			}
+		} else {
+			state, refreshErr = handler.refreshState(auth, instance)
+		}
 		if refreshErr != nil {
 			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 			// Preserve last-known state and surface the failure via the StateSynced condition.
@@ -198,16 +242,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
 		} else if state != nil {
 			// Resource type exposes live state — merge it into status.
-			applyResourceState(*state, status, now)
+			applyResourceState(*state, status, stateTime)
 			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
 		}
 		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
+	r.trackState(auth, instance, status, stateHandler)
+
 	// If reconcile was successful and uneventful, requeue with the configured period.
 	// Requeue is needed here to distinguish an immediate requeue requested by the finalizer.
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = r.requeuePeriod
+		if stateHandler != nil {
+			// State refreshes are triggered by the shared poller.
+			result.RequeueAfter = r.untilForceSync(status, now)
+		}
 	}
 
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
@@ -237,13 +287,19 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericResource", "DatadogGenericResource Update")
-	// Clear error condition on successful update
-	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.LastForceSyncTime = &now
+	recordForceSync(status, now)
 
 	logger.Info("Updated DatadogGenericResource", "Generic Resource Id", instance.Status.Id)
 	return nil
+}
+
+// recordForceSync records that the remote resource matches the spec as of now,
+// whether or not an update was needed to get there.
+func recordForceSync(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) {
+	// Clear error condition on successful sync
+	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.LastForceSyncTime = &now
 }
 
 func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
@@ -277,6 +333,74 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	logger.Info("created a new DatadogGenericResource", "generic resource Id", status.Id)
 
 	return nil
+}
+
+// monitorStateHandler returns handler as a monitorStateHandler if its state is
+// fetched by the shared state poller, and nil otherwise.
+func (r *Reconciler) monitorStateHandler(handler ResourceHandler) monitorStateHandler {
+	if r.statePoller == nil {
+		return nil
+	}
+	stateHandler, _ := handler.(monitorStateHandler)
+	return stateHandler
+}
+
+// polledState returns the latest state that the shared poller fetched for the
+// resource, if it is newer than the state in the status.
+func (r *Reconciler) polledState(auth context.Context, instance *v1alpha1.DatadogGenericResource, stateHandler monitorStateHandler) *monitorpoller.Result {
+	monitorID, err := stateHandler.stateMonitorID(&instance.Status)
+	if err != nil {
+		return nil
+	}
+	polled, ok := r.statePoller.Result(auth, monitorID)
+	if !ok {
+		return nil
+	}
+	// Status times are stored with second precision.
+	lastUpdate := instance.Status.StateLastUpdateTime
+	if lastUpdate != nil && !polled.PolledAt.Truncate(time.Second).After(lastUpdate.Time) {
+		return nil
+	}
+	return &polled
+}
+
+// trackState keeps the shared poller fetching the state of the resource with
+// the given status, if its handler opted in to batch state polling.
+func (r *Reconciler) trackState(auth context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, stateHandler monitorStateHandler) {
+	if r.statePoller == nil {
+		return
+	}
+	if stateHandler == nil || status.Id == "" {
+		r.untrackState(instance)
+		return
+	}
+	monitorID, err := stateHandler.stateMonitorID(status)
+	if err != nil {
+		r.untrackState(instance)
+		return
+	}
+	r.statePoller.Register(auth, stateSubscriber(instance), monitorID)
+}
+
+func (r *Reconciler) untrackState(instance *v1alpha1.DatadogGenericResource) {
+	if r.statePoller != nil {
+		r.statePoller.Unregister(stateSubscriber(instance))
+	}
+}
+
+func stateSubscriber(instance *v1alpha1.DatadogGenericResource) monitorpoller.Subscriber {
+	return monitorpoller.Subscriber{Consumer: datadogGenericResourceKind, NamespacedName: client.ObjectKeyFromObject(instance)}
+}
+
+// untilForceSync returns how long until the next force sync is due, or the
+// requeue period if it is already due.
+func (r *Reconciler) untilForceSync(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) time.Duration {
+	if status.LastForceSyncTime != nil {
+		if untilForceSync := r.forceSyncPeriod - now.Sub(status.LastForceSyncTime.Time); untilForceSync > 0 {
+			return untilForceSync
+		}
+	}
+	return r.requeuePeriod
 }
 
 func updateErrStatus(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {

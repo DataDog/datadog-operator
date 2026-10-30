@@ -29,10 +29,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
+	"github.com/DataDog/datadog-operator/internal/controller/monitorpoller"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -78,10 +81,15 @@ type Reconciler struct {
 	operatorMetricsEnabled bool
 	forwarders             pkgutils.MetricsForwardersManager
 	requeuePeriod          time.Duration
+	statePoller            *monitorpoller.Poller
 }
 
 type ReconcilerOptions struct {
 	RequeuePeriod time.Duration
+	// StatePoller, when set, fetches the state of monitors in batches shared
+	// with other custom resources, instead of each DatadogMonitor fetching
+	// its own monitor every RequeuePeriod.
+	StatePoller *monitorpoller.Poller
 }
 
 // NewReconciler returns a new Reconciler object
@@ -101,7 +109,17 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
 		requeuePeriod:          requeuePeriod(log, options.RequeuePeriod),
+		statePoller:            options.StatePoller,
 	}
+}
+
+// StateSource returns the source that triggers reconciles when the shared
+// state poller fetches new monitor state, or nil without a state poller.
+func (r *Reconciler) StateSource() source.Source {
+	if r.statePoller == nil {
+		return nil
+	}
+	return r.statePoller.Source(datadogMonitorKind)
 }
 
 func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
@@ -159,6 +177,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	// Validate the DatadogMonitor spec
 	if err = datadoghqv1alpha1.IsValidDatadogMonitor(&instance.Spec); err != nil {
 		logger.Error(err, "invalid DatadogMonitor spec")
+		// Nothing is reconciled until the spec changes, which also reconciles.
+		r.untrackState(instance)
 
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 	}
@@ -176,6 +196,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	shouldUpdate := false
 	shouldRefreshState := false
 	var m datadogV1.Monitor
+	var polled *monitorpoller.Result
 
 	// Decide which remote work is due. Lifecycle and specification work takes
 	// precedence over the eventual-consistency state poll.
@@ -203,7 +224,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			// A force sync periodically reapplies the desired monitor definition
 			// to correct out-of-band changes. Check that the remote monitor still
 			// exists first so an out-of-band deletion takes the create path.
-			_, err = r.get(auth, instance, newStatus)
+			m, err = r.get(auth, instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -211,9 +232,19 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				} else {
 					result.RequeueAfter = defaultErrRequeuePeriod
 				}
+			} else if remoteMatchesSpec(logger, instance, m) {
+				// Nothing drifted, so validating and reapplying the definition
+				// would be no-ops.
+				logger.V(1).Info("Monitor already matches the desired definition; skipping force-sync update", "Monitor ID", instance.Status.ID)
+				recordForceSync(newStatus, now)
 			} else {
 				shouldUpdate = true
 			}
+		} else if r.statePoller != nil {
+			// The shared poller fetches the state and triggers a reconcile when
+			// it has; apply it if it is newer than the state in the status.
+			polled = r.polledState(auth, instance)
+			shouldRefreshState = polled != nil
 		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.requeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
 			// Refresh state only when no lifecycle or specification operation is
 			// due and the configured polling period has elapsed.
@@ -225,7 +256,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		// State polling is eventual-consistency work, so its scheduled follow-up
 		// stays behind lifecycle and specification changes in the work queue.
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
-		m, err = r.get(auth, instance, newStatus)
+		stateTime := now
+		if polled != nil {
+			m, err = polled.Monitor, polled.Err
+			stateTime = metav1.NewTime(polled.PolledAt)
+		} else {
+			m, err = r.get(auth, instance, newStatus)
+		}
 		if err != nil {
 			logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -235,7 +272,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				result.Priority = nil
 			}
 		}
-		updateMonitorState(m, now, newStatus)
+		updateMonitorState(m, stateTime, newStatus)
 	}
 
 	// Create and update actions
@@ -299,6 +336,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
+	r.trackState(auth, instance, newStatus.ID)
+
 	// Delayed polling and force-sync requeues are controller-scheduled maintenance,
 	// not new informer events. Successful work is assigned low priority here;
 	// state polling is assigned low priority before its API call above. Informer
@@ -306,7 +345,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	// default priority and can overtake this background work. Preserve a delay
 	// already set by an error path so lifecycle failures keep their short retry.
 	if result.RequeueAfter == 0 {
-		result.RequeueAfter = nextRequeueAfter(newStatus, now, r.requeuePeriod, forceSyncPeriod)
+		statePollingPeriod := r.requeuePeriod
+		if r.statePoller != nil && forceSyncPeriod > statePollingPeriod {
+			// State refreshes are triggered by the shared poller, so only the
+			// force sync needs scheduling.
+			statePollingPeriod = forceSyncPeriod
+		}
+		result.RequeueAfter = nextRequeueAfter(newStatus, now, statePollingPeriod, forceSyncPeriod)
 		if err == nil {
 			result.Priority = ptr.To(ctrlhandler.LowPriority)
 		}
@@ -392,8 +437,7 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 
 	// Set Updated Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeUpdated, corev1.ConditionTrue, "DatadogMonitor Updated")
-	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
-	status.MonitorLastForceSyncTime = &now
+	recordForceSync(status, now)
 	status.CurrentHash = instanceSpecHash
 	logger.V(1).Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
@@ -408,6 +452,51 @@ func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1
 		return m, err
 	}
 	return m, nil
+}
+
+// recordForceSync records that the remote monitor matches the desired
+// definition as of now, whether or not an update was needed to get there.
+func recordForceSync(status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
+	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+	status.MonitorLastForceSyncTime = &now
+}
+
+// polledState returns the latest state that the shared poller fetched for the
+// monitor, if it is newer than the state in the status.
+func (r *Reconciler) polledState(auth context.Context, instance *datadoghqv1alpha1.DatadogMonitor) *monitorpoller.Result {
+	polled, ok := r.statePoller.Result(auth, int64(instance.Status.ID))
+	if !ok {
+		return nil
+	}
+	// Status times are stored with second precision.
+	lastUpdate := instance.Status.MonitorStateLastUpdateTime
+	if lastUpdate != nil && !polled.PolledAt.Truncate(time.Second).After(lastUpdate.Time) {
+		return nil
+	}
+	return &polled
+}
+
+// trackState keeps the shared poller fetching the state of monitorID on
+// behalf of the DatadogMonitor.
+func (r *Reconciler) trackState(auth context.Context, instance *datadoghqv1alpha1.DatadogMonitor, monitorID int) {
+	if r.statePoller == nil {
+		return
+	}
+	if monitorID == 0 {
+		r.untrackState(instance)
+		return
+	}
+	r.statePoller.Register(auth, r.stateSubscriber(instance), int64(monitorID))
+}
+
+func (r *Reconciler) untrackState(instance *datadoghqv1alpha1.DatadogMonitor) {
+	if r.statePoller != nil {
+		r.statePoller.Unregister(r.stateSubscriber(instance))
+	}
+}
+
+func (r *Reconciler) stateSubscriber(instance *datadoghqv1alpha1.DatadogMonitor) monitorpoller.Subscriber {
+	return monitorpoller.Subscriber{Consumer: datadogMonitorKind, NamespacedName: client.ObjectKeyFromObject(instance)}
 }
 
 func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
@@ -511,6 +600,27 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 
 func getRequiredTags() []string {
 	return []string{requiredTag}
+}
+
+// remoteMatchesSpec reports whether the remote monitor already has the
+// definition that updating it from the spec would send.
+func remoteMatchesSpec(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, remote datadogV1.Monitor) bool {
+	// An update also adds missing required tags to the spec, so it cannot be skipped.
+	if !apiutils.BoolValue(datadogMonitor.Spec.ControllerOptions.DisableRequiredTags) {
+		for _, rT := range getRequiredTags() {
+			if !slices.Contains(datadogMonitor.Spec.Tags, rT) {
+				return false
+			}
+		}
+	}
+
+	_, desired := buildMonitor(logger, datadogMonitor)
+	matches, err := controllerutils.MonitorMatchesUpdateRequest(*desired, remote)
+	if err != nil {
+		logger.Error(err, "unable to compare the remote monitor with the desired definition")
+		return false
+	}
+	return matches
 }
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor

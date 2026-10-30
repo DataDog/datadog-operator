@@ -31,6 +31,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context) fi
 		if r.forwarders != nil {
 			r.forwarders.Unregister(dm)
 		}
+		r.untrackState(dm)
 
 		if dm.Status.Primary {
 			err := deleteMonitor(auth, r.datadogClient, dm.Status.ID)

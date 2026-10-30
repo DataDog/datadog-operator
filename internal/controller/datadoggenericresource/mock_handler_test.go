@@ -24,6 +24,8 @@ var (
 	mockRefreshStateCalls  int
 	mockRefreshStateErr    error
 	mockRefreshStateResult *string
+	mockRemoteMatchesSpec  bool
+	mockCompareCalls       int
 )
 
 // MockHandler is a test double for ResourceHandler.
@@ -65,6 +67,19 @@ func (h *MockHandler) refreshState(context.Context, *v1alpha1.DatadogGenericReso
 	return mockRefreshStateResult, nil
 }
 
+// MockComparingHandler is a MockHandler that opts in to force-sync comparison.
+type MockComparingHandler struct {
+	MockHandler
+}
+
+func (h *MockComparingHandler) remoteMatchesSpec(context.Context, *v1alpha1.DatadogGenericResource) (bool, error) {
+	mockCompareCalls++
+	if mockGetErr != nil {
+		return false, mockGetErr
+	}
+	return mockRemoteMatchesSpec, nil
+}
+
 func resetMockHandlerState() {
 	mockResourceID = "mock-id"
 	mockResourceCreator = "mock-creator"
@@ -79,4 +94,6 @@ func resetMockHandlerState() {
 	mockRefreshStateCalls = 0
 	mockRefreshStateErr = nil
 	mockRefreshStateResult = nil
+	mockRemoteMatchesSpec = false
+	mockCompareCalls = 0
 }
