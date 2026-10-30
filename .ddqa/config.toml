@@ -181,7 +181,6 @@ jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "container-platform"
 github_labels = ["team/container-platform"]
 exclude_members = [
-  "clamoriniere",
   "davidor",
   "zhuminyi",
 ]
