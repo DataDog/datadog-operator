@@ -1,0 +1,24 @@
+# Opt-in Operator deployment with the DatadogBYOCCluster controller enabled: all CRDs (including the BYOC and
+# ObservabilityPipelinesWorker CRDs), the shared manager RBAC plus the BYOC RBAC (rbac/byoc), and the manager with
+# DD_BYOC_CLUSTER_CONTROLLER_ENABLED=true. Deploy with: make deploy KUSTOMIZE_CONFIG=config/byoc
+#
+# Keep namespace, namePrefix and the shared resource paths (../crd, ../rbac, ../manager) in sync with config/default.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: system
+namePrefix: datadog-operator-
+resources:
+- ../crd
+- ../rbac
+- ../rbac/byoc
+- ../manager
+patches:
+- target:
+    kind: Deployment
+    name: manager
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: DD_BYOC_CLUSTER_CONTROLLER_ENABLED
+        value: "true"

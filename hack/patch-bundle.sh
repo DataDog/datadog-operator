@@ -56,3 +56,14 @@ $YQ -i "del(.spec.\"replaces\")" "$COMM_OPS_PATH/manifests/datadog-operator.clus
 
 # set `DD_TOOL_VERSION` to `operatorhub`
 $YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"operatorhub\"" $COMM_OPS_PATH/manifests/datadog-operator.clusterserviceversion.yaml
+
+# Guardrail: BYOC and Observability Pipelines Worker are opt-in and must never reach the OLM bundle. OLM merges every
+# ClusterRole bound to the operator into the CSV, so a stray BYOC CRD, role or sample would ship to all OpenShift users.
+# config/default excludes the BYOC CRDs and config/byoc keeps the BYOC RBAC out of the bundle input; fail the build if a
+# kubebuilder scaffold or kustomize change reintroduced BYOC content here.
+if leaked=$(grep -ril -e byoc -e observabilitypipelines "bundle/" "$COMM_OPS_PATH" 2>/dev/null); then
+    echo "ERROR: BYOC/ObservabilityPipelinesWorker content leaked into the OLM bundle:" >&2
+    echo "$leaked" >&2
+    echo "BYOC is opt-in and must stay out of the bundle. Check config/manifests and the config/default delete patches." >&2
+    exit 1
+fi
