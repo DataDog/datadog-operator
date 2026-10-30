@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha2"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
@@ -39,11 +40,15 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 
 	// Register DatadogAgent scheme
 	if err = v1alpha1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, fmt.Errorf("unable register DatadogAgent apis: %w", err)
+		return nil, fmt.Errorf("unable to register DatadogAgent apis: %w", err)
 	}
 
 	if err = v2alpha1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, fmt.Errorf("unable register DatadogAgent apis: %w", err)
+		return nil, fmt.Errorf("unable to register DatadogAgent apis: %w", err)
+	}
+
+	if err = v1alpha2.AddToScheme(scheme.Scheme); err != nil {
+		return nil, fmt.Errorf("unable to register DatadogPodAutoscaler apis: %w", err)
 	}
 
 	// Create the Client for Read/Write operations.
