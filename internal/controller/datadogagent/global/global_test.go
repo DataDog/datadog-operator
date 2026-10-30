@@ -1485,6 +1485,20 @@ func Test_ValidateFIPSVersions(t *testing.T) {
 			wantErrors: 1,
 		},
 		{
+			name: "error: ddot-ebpf with fips",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-ebpf:7.84.0-fips"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "no error: ddot-ebpf without fips",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-ebpf:7.84.0"},
+			},
+			wantErrors: 0,
+		},
+		{
 			name: "two errors: ddot-collector and agent-full both below 7.78",
 			containers: []corev1.Container{
 				{Image: "gcr.io/datadoghq/agent:7.77.0-fips-full"},

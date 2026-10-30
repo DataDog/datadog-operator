@@ -377,6 +377,10 @@ func ddotCollectorImage() string {
 	return images.GetLatestDdotCollectorImage()
 }
 
+func hostProfilerImage() string {
+	return images.GetLatestHostProfilerImage()
+}
+
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
@@ -551,9 +555,8 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 
 func hostProfilerContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name: string(apicommon.HostProfiler),
-		// Note: Need to override image via annotation
-		Image: agentImage(),
+		Name:  string(apicommon.HostProfiler),
+		Image: hostProfilerImage(),
 		Command: []string{
 			"host-profiler",
 			"--core-config=" + agentCustomConfigVolumePath,

@@ -55,6 +55,24 @@ func TestGetLatestWindowsAgentImage(t *testing.T) {
 	}
 }
 
+func TestGetLatestHostProfilerImage(t *testing.T) {
+	want := fmt.Sprintf("%s/ddot-ebpf:%s", DatadogContainerRegistry, HostProfilerLatestVersion)
+	if got := GetLatestHostProfilerImage(); got != want {
+		t.Errorf("GetLatestHostProfilerImage() = %v, want %v", got, want)
+	}
+}
+
+func TestHostProfilerImageFIPSVersionError(t *testing.T) {
+	// Mirrors the global useFIPSAgent rewrite applied to every container image.
+	fipsImage := FromString(GetLatestHostProfilerImage()).WithFIPS(true)
+	if err := fipsImage.FIPSVersionError(); err == nil {
+		t.Errorf("FIPSVersionError() = nil for %s, want an error", fipsImage.ToString())
+	}
+	if err := FromString(GetLatestHostProfilerImage()).FIPSVersionError(); err != nil {
+		t.Errorf("FIPSVersionError() = %v for non-FIPS host profiler image, want nil", err)
+	}
+}
+
 func TestGetLatestClusterAgentImage(t *testing.T) {
 	tests := []struct {
 		name string
