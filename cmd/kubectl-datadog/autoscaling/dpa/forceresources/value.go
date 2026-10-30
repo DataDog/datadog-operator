@@ -15,6 +15,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/dpa/common"
@@ -51,6 +52,11 @@ func (f forcedResources) validate() error {
 	for _, c := range f {
 		if c.Name == "" {
 			return errors.New("empty container name")
+		}
+		// A name that no container can have would never match: the agent
+		// would ignore the override.
+		if errs := validation.IsDNS1123Label(c.Name); len(errs) > 0 {
+			return fmt.Errorf("invalid container name %q: %s", c.Name, strings.Join(errs, "; "))
 		}
 		if seen[c.Name] {
 			return fmt.Errorf("container %q is set more than once", c.Name)

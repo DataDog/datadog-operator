@@ -154,6 +154,7 @@ func TestSetValidatesFlags(t *testing.T) {
 	}{
 		{name: "no container", args: []string{"set", "--requests", "cpu=2", "checkout-dpa"}, wantErr: "--container is required"},
 		{name: "empty container", args: []string{"set", "-c", "", "--requests", "cpu=2", "checkout-dpa"}, wantErr: "--container is required"},
+		{name: "invalid container name", args: []string{"set", "-c", "bad name", "--requests", "cpu=2", "checkout-dpa"}, wantErr: `invalid container name "bad name"`},
 		{name: "zero quantity", args: []string{"set", "-c", "app", "--requests", "cpu=0", "checkout-dpa"}, wantErr: "cpu quantities must be positive"},
 		{name: "no requests nor limits", args: []string{"set", "-c", "app", "checkout-dpa"}, wantErr: "at least one of --requests or --limits"},
 		{name: "unsupported resource", args: []string{"set", "-c", "app", "--requests", "nvidia.com/gpu=1", "checkout-dpa"}, wantErr: `unsupported resource "nvidia.com/gpu"`},
