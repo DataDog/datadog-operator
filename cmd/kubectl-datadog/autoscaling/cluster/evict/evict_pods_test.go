@@ -259,9 +259,21 @@ func TestListPodsOnNode(t *testing.T) {
 	assert.Equal(t, "spec.nodeName=ip-7", gotFieldSelector)
 }
 
-// occupyingPod and dsPod are the two fixtures the drain/wait tests reuse: a
-// plain pod that keeps the node busy, and a DaemonSet pod that never does.
+// controllerOwnerRefs returns the owner references of a pod managed by a
+// controller (a ReplicaSet here). It is what distinguishes a normally drainable
+// workload pod from a "bare" pod that drainNode refuses without --force.
+func controllerOwnerRefs() []metav1.OwnerReference {
+	return []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: "ReplicaSet", Name: "rs", Controller: ptr.To(true)}}
+}
+
+// occupyingPod, barePod and dsPod are the fixtures the drain/wait tests reuse: a
+// controller-managed pod that keeps the node busy, a pod with no controller
+// owner, and a DaemonSet pod that never occupies the node.
 func occupyingPod(name string) corev1.Pod {
+	return corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default", OwnerReferences: controllerOwnerRefs()}}
+}
+
+func barePod(name string) corev1.Pod {
 	return corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"}}
 }
 
@@ -411,5 +423,46 @@ func TestDrainNode(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Zero(t, evictions)
+	})
+
+	t.Run("refuses a bare pod without --force", func(t *testing.T) {
+		bare := barePod("orphan")
+		client := fake.NewClientset(&bare)
+		var evictions int
+		countingEvictionReactor(client, &evictions)
+		client.PrependReactor("list", "pods", func(_ clienttesting.Action) (bool, runtime.Object, error) {
+			return true, &corev1.PodList{Items: []corev1.Pod{bare}}, nil
+		})
+		err := drainNode(t.Context(), client, "ip-1", nodeDrainOptions{
+			EvictionTimeout: time.Second,
+			NodeTimeout:     time.Second,
+			PollInterval:    10 * time.Millisecond,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not managed by a controller")
+		assert.Contains(t, err.Error(), "default/orphan")
+		assert.Zero(t, evictions, "a bare pod must not be evicted without --force")
+	})
+
+	t.Run("evicts a bare pod with --force", func(t *testing.T) {
+		bare := barePod("orphan")
+		client := fake.NewClientset(&bare)
+		var evictions, lists int
+		countingEvictionReactor(client, &evictions)
+		client.PrependReactor("list", "pods", func(_ clienttesting.Action) (bool, runtime.Object, error) {
+			lists++
+			if lists == 1 {
+				return true, &corev1.PodList{Items: []corev1.Pod{bare}}, nil
+			}
+			return true, &corev1.PodList{}, nil
+		})
+		err := drainNode(t.Context(), client, "ip-1", nodeDrainOptions{
+			Force:           true,
+			EvictionTimeout: time.Second,
+			NodeTimeout:     time.Second,
+			PollInterval:    10 * time.Millisecond,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, evictions)
 	})
 }
