@@ -198,7 +198,10 @@ This example runs the check on Cluster Checks Runners; set `cluster_check` and `
 
 The DRA collectors require Cluster Agent 7.85.0 or later (or Cluster Checks Runner 7.85.0 or later when the check runs on Cluster Checks Runners). Older versions fail the whole `kubernetes_state_core` check when these collectors are listed on a cluster that serves the DRA API. When the component running the check is 7.85.0 or later, the operator automatically grants `list` and `watch` on `resourceclaims`, `resourceslices`, and `devicetaintrules` in the `resource.k8s.io` API group. Resource claims and resource slices require Kubernetes 1.34 or later, and device taint rules require Kubernetes 1.37 or later; the Agent skips collectors whose API the cluster does not serve.
 
+For a complete setup that also enables GPU monitoring and pins the Agent and Cluster Agent to 7.85.0, see [datadog-agent-with-dra.yaml][dra-example].
+
 [dra]: https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/
+[dra-example]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-dra.yaml
 
 ## Further Reading
 
