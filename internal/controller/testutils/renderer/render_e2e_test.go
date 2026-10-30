@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -126,6 +127,56 @@ func TestRender_WithDAP(t *testing.T) {
 		"DaemonSet", "DaemonSet", "DaemonSet",
 		"Deployment",
 	}, kindSequence(string(out)))
+}
+
+// TestRender_DAPKeepsExplicitlyDisabledAPMHostPort checks that a profile APM
+// host port does not enable host ports on default nodes when the DDA disables
+// them explicitly. A conflicting profile port must be rejected.
+func TestRender_DAPKeepsExplicitlyDisabledAPMHostPort(t *testing.T) {
+	dda, err := LoadDDA("testdata/apm-hostport-disabled-dda.yaml")
+	require.NoError(t, err)
+
+	daps, err := LoadDAPs([]string{"testdata/apm-hostport-profile.yaml"})
+	require.NoError(t, err)
+
+	baseline, _, err := Render(Options{DDA: dda.DeepCopy(), ProfileEnabled: true})
+	require.NoError(t, err)
+	var baselineTemplate *corev1.PodTemplateSpec
+	for _, obj := range baseline {
+		if ds, ok := obj.(*appsv1.DaemonSet); ok && ds.Name == "datadog-agent-agent" {
+			baselineTemplate = ds.Spec.Template.DeepCopy()
+		}
+	}
+	require.NotNil(t, baselineTemplate)
+
+	objects, _, err := Render(Options{
+		DDA:            dda,
+		DAPs:           daps,
+		ProfileEnabled: true,
+	})
+	require.NoError(t, err)
+
+	traceHostPorts := map[string]int32{}
+	for _, obj := range objects {
+		ds, ok := obj.(*appsv1.DaemonSet)
+		if !ok {
+			continue
+		}
+		if ds.Name == "datadog-agent-agent" {
+			assert.Equal(t, baselineTemplate, &ds.Spec.Template, "rejected profile must not change the default Agent pod template")
+		}
+		for _, c := range ds.Spec.Template.Spec.Containers {
+			for _, p := range c.Ports {
+				if c.Name == "trace-agent" && p.Name == "traceport" {
+					traceHostPorts[ds.Name] = p.HostPort
+				}
+			}
+		}
+	}
+
+	require.Contains(t, traceHostPorts, "datadog-agent-agent", "default DaemonSet has no trace-agent traceport")
+	assert.Zero(t, traceHostPorts["datadog-agent-agent"], "default DaemonSet must keep the DDA's disabled APM host port")
+	assert.NotContains(t, traceHostPorts, "apm-hostport-profile-agent", "conflicting profile should not produce a DaemonSet")
 }
 
 func TestRender_AppArmorProfileVersionGate(t *testing.T) {

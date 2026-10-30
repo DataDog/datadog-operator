@@ -218,7 +218,7 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func applyOTelCollectorDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+func applyOTelCollectorDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports := otelCollectorLocalAgentServicePorts(ddaiSpec)
 	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil

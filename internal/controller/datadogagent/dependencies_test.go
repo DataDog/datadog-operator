@@ -6,6 +6,7 @@
 package datadogagent
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func TestAddDDASharedDependenciesIncludesProfileAPMPort(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{baseDDAI, profileDDAI}, managers)
+	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{baseDDAI, profileDDAI}, nil, managers)
 	require.NoError(t, err)
 
 	obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
@@ -67,12 +68,57 @@ func TestAddDDASharedDependenciesRejectsConflictingProfilePorts(t *testing.T) {
 	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{
 		testDDAIWithSpec("datadog-profile-a", dda.Namespace, profileSpecA),
 		testDDAIWithSpec("datadog-profile-b", dda.Namespace, profileSpecB),
-	}, managers)
+	}, nil, managers)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "default/datadog-profile-b DDA shared dependencies failed")
 	assert.Contains(t, err.Error(), "port \"traceport\" conflicts")
 	assert.Contains(t, err.Error(), "service port conflict")
+}
+
+// Use the chosen Service port while keeping each DDAI's node ports unchanged.
+func TestAddDDASharedDependenciesUsesResolvedProfilePort(t *testing.T) {
+	for _, baseAPMEnabled := range []bool{false, true} {
+		for _, hostNetwork := range []bool{false, true} {
+			t.Run(fmt.Sprintf("base APM enabled=%t/host network=%t", baseAPMEnabled, hostNetwork), func(t *testing.T) {
+				dda := testutils.NewInitializedDatadogAgentBuilder("default", "datadog").WithAPMEnabled(baseAPMEnabled).BuildWithDefaults()
+				sharedSpec := dda.Spec.DeepCopy()
+				sharedSpec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)}
+				baseDDAI := testDDAIWithSpec("datadog", dda.Namespace, sharedSpec)
+
+				explicitProfile := dda.Spec.DeepCopy()
+				enableAPMForDependencyTest(explicitProfile, ptr.To[int32](9126))
+				defaultedProfile := dda.Spec.DeepCopy()
+				enableAPMForDependencyTest(defaultedProfile, nil)
+				defaultedProfile.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {HostNetwork: ptr.To(hostNetwork)},
+				}
+				before := defaultedProfile.DeepCopy()
+				depsStore := newDependencyTestStore(dda)
+				// The explicit default spec must work regardless of list order.
+				ddais := []*v1alpha1.DatadogAgentInternal{
+					testDDAIWithSpec("datadog-defaulted", dda.Namespace, defaultedProfile),
+					testDDAIWithSpec("datadog-explicit", dda.Namespace, explicitProfile),
+					baseDDAI,
+				}
+				err := (&Reconciler{}).addDDASharedDependencies(dda, ddais, &baseDDAI.Spec, feature.NewResourceManagers(depsStore))
+				assert.Equal(t, before, &ddais[0].Spec)
+				if hostNetwork {
+					// Numeric targets differ between host-networked and normal Pods.
+					require.ErrorContains(t, err, "service port conflict")
+					return
+				}
+				require.NoError(t, err)
+				obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+				require.True(t, found)
+				service := obj.(*corev1.Service)
+				port := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				require.NotNil(t, port)
+				assert.Equal(t, int32(9126), port.Port)
+				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), port.TargetPort)
+			})
+		}
+	}
 }
 
 func TestAddDDASharedDependenciesDoesNotMutateDDAISpec(t *testing.T) {
@@ -85,7 +131,7 @@ func TestAddDDASharedDependenciesDoesNotMutateDDAISpec(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{ddai}, managers)
+	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{ddai}, nil, managers)
 	require.NoError(t, err)
 
 	assert.Nil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)

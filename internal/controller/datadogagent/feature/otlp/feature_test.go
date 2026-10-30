@@ -404,7 +404,7 @@ func TestApplyOTLPDDASharedDependencies(t *testing.T) {
 	})
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := applyOTLPDDASharedDependencies(dda, &dda.Spec, dda, &dda.Spec, managers)
+	err := applyOTLPDDASharedDependencies(dda, &dda.Spec, dda, &dda.Spec, nil, managers)
 	assert.NoError(t, err)
 
 	serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
