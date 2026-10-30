@@ -75,9 +75,9 @@ func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) s
 }
 
 // kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
-// because Kubernetes Actions communicates through it: the runner self-enrolls and stores its
-// identity in the secret covered by the Cluster Agent RBAC.
-const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n    identity_secret_name: " + defaultIdentitySecretName + "\n"
+// because Kubernetes Actions communicates through it. Leave the identity secret name to the
+// Agent so switching between Kubernetes Actions and annotation-based config reuses the identity.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n"
 
 // Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
@@ -200,7 +200,10 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		if f.clusterConfig.SelfEnroll {
+		// Provision secret permissions only for Kubernetes-backed self-enrollment.
+		selfEnroll := f.clusterConfig.SelfEnroll == nil || *f.clusterConfig.SelfEnroll
+		useK8sSecret := f.clusterConfig.IdentityUseK8sSecret == nil || *f.clusterConfig.IdentityUseK8sSecret
+		if selfEnroll && useK8sSecret {
 			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),

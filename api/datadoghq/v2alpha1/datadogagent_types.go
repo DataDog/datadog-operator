@@ -773,6 +773,10 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
+	// DatabaseBenchmarks contains configuration for database benchmarks.
+	// +optional
+	DatabaseBenchmarks *CSPMDatabaseBenchmarksConfig `json:"databaseBenchmarks,omitempty"`
+
 	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
 	// payloads directly, without using the security-agent.
 	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
@@ -786,6 +790,15 @@ type CSPMFeatureConfig struct {
 type CSPMHostBenchmarksConfig struct {
 	// Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
 	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.
+// +k8s:openapi-gen=true
+type CSPMDatabaseBenchmarksConfig struct {
+	// Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
