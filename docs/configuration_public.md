@@ -356,7 +356,7 @@ spec:
 : Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true
 
 `features.kubernetesActions.enabled`
-: Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false
+: Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: true, unless Remote Configuration is explicitly disabled. Set to false to opt out, including on existing installations.
 
 `features.kueue.collectWorkloadEvents`
 : CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true

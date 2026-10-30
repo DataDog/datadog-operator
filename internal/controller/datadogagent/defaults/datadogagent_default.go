@@ -239,6 +239,13 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
+	// Kubernetes Actions requires Remote Configuration. Preserve an explicit RC opt-out.
+	if ddaSpec.Features.KubernetesActions == nil {
+		ddaSpec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
+	}
+	rc := ddaSpec.Features.RemoteConfiguration
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.KubernetesActions.Enabled, rc == nil || rc.Enabled == nil || *rc.Enabled)
+
 	// LogsCollection Feature
 	if ddaSpec.Features.LogCollection == nil {
 		ddaSpec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}

@@ -140,7 +140,8 @@ type DatadogFeatures struct {
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
 	// Requires Cluster Agent 7.84.0 or greater.
-	// Default: false
+	// Default: true, unless Remote Configuration is explicitly disabled.
+	// Set to false to opt out, including on existing installations.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 

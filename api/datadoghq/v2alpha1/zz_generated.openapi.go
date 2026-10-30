@@ -1949,7 +1949,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsFeatureConf
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false",
+							Description: "Enabled enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: true, unless Remote Configuration is explicitly disabled. Set to false to opt out, including on existing installations.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

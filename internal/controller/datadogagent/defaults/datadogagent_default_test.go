@@ -258,6 +258,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -522,6 +523,7 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
 						Enabled: ptr.To(valueFalse),
 					},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(false)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(valueFalse),
 					},
@@ -642,6 +644,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -804,6 +807,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -961,6 +965,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -1120,6 +1125,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -1277,6 +1283,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -1441,6 +1448,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -1598,6 +1606,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -1758,6 +1767,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -1928,6 +1938,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -2087,6 +2098,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -2245,6 +2257,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -2426,6 +2439,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -2601,6 +2615,7 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					},
 					},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -2760,6 +2775,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: ptr.To(true)},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
@@ -2950,6 +2966,29 @@ func Test_DefaultProviderSpecificConfig_KubeletTLSVerify(t *testing.T) {
 			}
 			assert.NotNil(t, got)
 			assert.Equal(t, *tt.want, *got)
+		})
+	}
+}
+
+func TestKubernetesActionsDefaults(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		enabled   *bool
+		rcEnabled *bool
+		want      bool
+	}{
+		{name: "omitted", want: true},
+		{name: "explicit opt out", enabled: ptr.To(false)},
+		{name: "remote configuration opt out", rcEnabled: ptr.To(false)},
+		{name: "explicit opt in preserved", enabled: ptr.To(true), rcEnabled: ptr.To(false), want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := &v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{
+				KubernetesActions:   &v2alpha1.KubernetesActionsFeatureConfig{Enabled: tc.enabled},
+				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{Enabled: tc.rcEnabled},
+			}}
+			DefaultDatadogAgentSpec(spec)
+			assert.Equal(t, tc.want, *spec.Features.KubernetesActions.Enabled)
 		})
 	}
 }

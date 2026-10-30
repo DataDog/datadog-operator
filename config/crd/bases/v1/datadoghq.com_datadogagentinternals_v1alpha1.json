@@ -2350,7 +2350,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
+                  "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: true, unless Remote Configuration is explicitly disabled.\nSet to false to opt out, including on existing installations.",
                   "type": "boolean"
                 }
               },
@@ -11431,7 +11431,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: true, unless Remote Configuration is explicitly disabled.\nSet to false to opt out, including on existing installations.",
                       "type": "boolean"
                     }
                   },
