@@ -144,7 +144,7 @@ NB: You can't use `configData` and `configMap` simultaneously.
 
 ### Dynamic Resource Allocation (DRA) metrics
 
-To collect metrics about Kubernetes [Dynamic Resource Allocation][dra] objects, add the `resourceclaims`, `resourceslices`, and `devicetaintrules` collectors to a custom check configuration (`conf.configData` or `conf.configMap`). A custom `collectors` list replaces the default one, so include the default collectors you want to keep:
+To collect metrics about Kubernetes [Dynamic Resource Allocation][dra] objects, add the `resourceclaims`, `resourceslices`, and `devicetaintrules` collectors to a custom check configuration (`conf.configData` or `conf.configMap`). A custom `collectors` list replaces the default one, so also list the default collectors you want to keep (see the default list above):
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -162,33 +162,7 @@ spec:
           instances:
             - skip_leader_election: false
               collectors:
-              - pods
-              - replicationcontrollers
-              - statefulsets
-              - nodes
-              - cronjobs
-              - jobs
-              - replicasets
-              - deployments
-              - configmaps
-              - services
-              - endpoints
-              - endpointslices
-              - daemonsets
-              - horizontalpodautoscalers
-              - poddisruptionbudgets
-              - limitranges
-              - resourcequotas
-              - secrets
-              - namespaces
-              - persistentvolumeclaims
-              - persistentvolumes
-              - ingresses
-              - storageclasses
-              - volumeattachments
-              - apiservices
-              - controllerrevisions
-              - customresourcedefinitions
+              # ... default collectors you want to keep ...
               - resourceclaims
               - resourceslices
               - devicetaintrules
