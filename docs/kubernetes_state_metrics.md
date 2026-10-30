@@ -142,6 +142,41 @@ The above will have the operator create and maintain a ConfigMap for you with th
 
 NB: You can't use `configData` and `configMap` simultaneously.
 
+### Dynamic Resource Allocation (DRA) metrics
+
+To collect metrics about Kubernetes [Dynamic Resource Allocation][dra] objects, add the `resourceclaims`, `resourceslices`, and `devicetaintrules` collectors to a custom check configuration (`conf.configData` or `conf.configMap`). A custom `collectors` list replaces the default one, so also list the default collectors you want to keep (see the default list above):
+
+```yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    kubeStateMetricsCore:
+      enabled: true
+      conf:
+        configData: |-
+          cluster_check: false
+          init_config:
+          instances:
+            - skip_leader_election: false
+              collectors:
+              # ... default collectors you want to keep ...
+              - resourceclaims
+              - resourceslices
+              - devicetaintrules
+```
+
+This example runs the check on the Cluster Agent. To run it on Cluster Checks Runners instead, set `features.clusterChecks.enabled: true` and `features.clusterChecks.useClusterChecksRunners: true`, then use `cluster_check: true` and `skip_leader_election: true`; the Cluster Checks Runner image must be 7.85.0 or later.
+
+The DRA collectors require Cluster Agent 7.85.0 or later (or Cluster Checks Runner 7.85.0 or later when the check runs on Cluster Checks Runners). Older versions fail the whole `kubernetes_state_core` check when these collectors are listed on a cluster that serves the DRA API. When the component running the check is 7.85.0 or later, the operator automatically grants `list` and `watch` on `resourceclaims`, `resourceslices`, and `devicetaintrules` in the `resource.k8s.io` API group. Resource claims and resource slices require Kubernetes 1.34 or later, and device taint rules need the DeviceTaintRule API (stable in Kubernetes 1.37, earlier behind a feature gate); the Agent skips collectors whose API the cluster does not serve.
+
+For a complete setup that also enables GPU monitoring and pins the Agent and Cluster Agent to 7.85.0, see [datadog-agent-with-dra.yaml][dra-example].
+
+[dra]: https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/
+[dra-example]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-dra.yaml
+
 ## Further Reading
 
 The v2 of the Kubernetes State Metrics check is embedded as a "core check" in the Datadog Agent.

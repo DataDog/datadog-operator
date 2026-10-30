@@ -1294,7 +1294,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7c3ba75ac8a4f52e97174e16d83693ba
+    agent.datadoghq.com/agentspechash: e098287997f61afdd2ef67c203d8d8fd
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1509,6 +1509,9 @@ spec:
           name: kubelet-pod-resources
         - mountPath: /var/run/nvidia-container-devices/all
           name: nvidia-devices
+          readOnly: true
+        - mountPath: /host/var/run/cdi
+          name: cdi
           readOnly: true
         - mountPath: /etc/passwd
           name: passwd
@@ -1924,6 +1927,10 @@ spec:
       - hostPath:
           path: /dev/null
         name: nvidia-devices
+      - hostPath:
+          path: /var/run/cdi
+          type: DirectoryOrCreate
+        name: cdi
       - hostPath:
           path: /etc/passwd
         name: passwd

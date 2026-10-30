@@ -49,6 +49,7 @@ func (f *gpuFeature) ID() feature.IDType {
 // by the nvidia-container-runtime; mount them from the host location.
 // On Talos, tracefs is a standalone mount rather than nested under the debugfs
 // mount privileged mode adds, so system-probe needs it explicitly.
+// On GKE Autopilot, the CDI hostPath is not in the WorkloadAllowlist, so it is removed.
 func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {
@@ -67,6 +68,9 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 					Containers: containers,
 				},
 			},
+		},
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{cdiVolumeName},
 		},
 	}
 
@@ -315,6 +319,13 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
 	managers.Volume().AddVolume(&devicesVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.CoreAgentContainerName)
+
+	// Mount the host CDI spec directory so the agent can attribute GPUs allocated
+	// through DRA resource claims. DirectoryOrCreate so a missing dir never blocks pod start.
+	cdiVol, cdiMount := volume.GetVolumes(cdiVolumeName, cdiHostPath, cdiMountPath, true)
+	cdiVol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+	managers.Volume().AddVolume(&cdiVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&cdiMount, apicommon.CoreAgentContainerName)
 
 	// Configure the runtime class for the pod
 	if f.podRuntimeClassName != "" {
