@@ -71,7 +71,7 @@ func TestGetClusterAgentRBACPolicyRules(t *testing.T) {
 		{
 			name:               "default identity secret name when empty string provided",
 			identitySecretName: "",
-			expectedSecretName: "datadog-private-action-runner-identity",
+			expectedSecretName: "private-action-runner-identity",
 		},
 		{
 			name:               "custom identity secret name",
@@ -89,13 +89,19 @@ func TestGetClusterAgentRBACPolicyRules(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := getClusterAgentRBACPolicyRules(tt.identitySecretName)
 
-			assert.Len(t, rules, 1, "Should have exactly one policy rule")
-
-			rule := rules[0]
-			assert.Equal(t, []string{rbac.CoreAPIGroup}, rule.APIGroups)
-			assert.Equal(t, []string{rbac.SecretsResource}, rule.Resources)
-			assert.Equal(t, []string{tt.expectedSecretName}, rule.ResourceNames)
-			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb}, rule.Verbs)
+			assert.Equal(t, []rbacv1.PolicyRule{
+				{
+					APIGroups:     []string{rbac.CoreAPIGroup},
+					Resources:     []string{rbac.SecretsResource},
+					ResourceNames: []string{tt.expectedSecretName},
+					Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+				},
+				{
+					APIGroups: []string{rbac.CoreAPIGroup},
+					Resources: []string{rbac.SecretsResource},
+					Verbs:     []string{rbac.CreateVerb},
+				},
+			}, rules)
 		})
 	}
 }

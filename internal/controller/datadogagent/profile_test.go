@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -277,16 +276,14 @@ func Test_computeProfileMerge(t *testing.T) {
 		assert.NoError(t, err)
 
 		fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&tt.ddai, crd).Build()
-		logger := logf.Log.WithName("Test_computeProfileMerge")
 		eventBroadcaster := record.NewBroadcaster()
 		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_computeProfileMerge"})
-		fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+		fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
 		assert.NoError(t, err)
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
 				client:       fakeClient,
-				log:          logger,
 				scheme:       sch,
 				recorder:     recorder,
 				fieldManager: fieldManager,
@@ -300,7 +297,7 @@ func Test_computeProfileMerge(t *testing.T) {
 				crd)
 			assert.NoError(t, err)
 
-			ddai, err := r.computeProfileMerge(&tt.ddai, &tt.profile)
+			ddai, err := r.computeProfileMerge(context.Background(), &tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.Name, ddai.Name)
 			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
@@ -364,7 +361,7 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 			crd, err := getDDAICRDFromConfig(sch)
 			require.NoError(t, err)
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(ddai, crd).Build()
-			fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+			fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
 			require.NoError(t, err)
 			r := &Reconciler{
 				client:       fakeClient,
@@ -372,12 +369,109 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 				fieldManager: fieldManager,
 			}
 
-			mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+			mergedDDAI, err := r.computeProfileMerge(context.Background(), ddai, profile)
 			require.NoError(t, err)
 			require.NotNil(t, mergedDDAI.Spec.Global)
 			require.NotNil(t, mergedDDAI.Spec.Global.Registry)
 			assert.Equal(t, images.GCRContainerRegistry, *mergedDDAI.Spec.Global.Registry)
 			assert.NotEmpty(t, mergedDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
+		})
+	}
+}
+
+func Test_computeProfileMergeHostProfiler(t *testing.T) {
+	sch := k8sruntime.NewScheme()
+	require.NoError(t, scheme.AddToScheme(sch))
+	require.NoError(t, v1alpha1.AddToScheme(sch))
+	require.NoError(t, v2alpha1.AddToScheme(sch))
+	require.NoError(t, corev1.AddToScheme(sch))
+	require.NoError(t, apiextensionsv1.AddToScheme(sch))
+
+	tests := []struct {
+		name        string
+		ddaFeatures *v2alpha1.DatadogFeatures
+		profileHP   *v2alpha1.HostProfilerFeatureConfig
+		want        *v2alpha1.HostProfilerFeatureConfig
+	}{
+		{
+			name: "profile enables host profiler",
+			profileHP: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:     ptr.To(true),
+				RunAsRoot:   ptr.To(false),
+				SELinuxType: ptr.To("custom_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(false),
+					LoggingEnabled: ptr.To(true),
+				},
+			},
+			want: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:     ptr.To(true),
+				RunAsRoot:   ptr.To(false),
+				SELinuxType: ptr.To("custom_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(false),
+					LoggingEnabled: ptr.To(true),
+				},
+			},
+		},
+		{
+			name: "profile disables host profiler enabled in DDA, other DDA settings are kept",
+			ddaFeatures: &v2alpha1.DatadogFeatures{
+				HostProfiler: &v2alpha1.HostProfilerFeatureConfig{
+					Enabled:     ptr.To(true),
+					SELinuxType: ptr.To("custom_t"),
+				},
+			},
+			profileHP: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled: ptr.To(false),
+			},
+			want: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:     ptr.To(false),
+				SELinuxType: ptr.To("custom_t"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddai := &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: tt.ddaFeatures,
+				},
+			}
+			profile := &v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-profile",
+					Namespace: "bar",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Features: &v2alpha1.DatadogFeatures{
+							HostProfiler: tt.profileHP,
+						},
+					},
+				},
+			}
+
+			crd, err := getDDAICRDFromConfig(sch)
+			require.NoError(t, err)
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(ddai, crd).Build()
+			fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+			require.NoError(t, err)
+			r := &Reconciler{
+				client:       fakeClient,
+				scheme:       sch,
+				fieldManager: fieldManager,
+			}
+
+			mergedDDAI, err := r.computeProfileMerge(context.Background(), ddai, profile)
+			require.NoError(t, err)
+			require.NotNil(t, mergedDDAI.Spec.Features)
+			assert.Equal(t, tt.want, mergedDDAI.Spec.Features.HostProfiler)
 		})
 	}
 }
@@ -1151,13 +1245,11 @@ func Test_reconcileProfiles(t *testing.T) {
 				WithRuntimeObjects(objects...).
 				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).
 				Build()
-			logger := logf.Log.WithName("Test_reconcileProfiles")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfiles"})
 
 			r := &Reconciler{
 				client:   fakeClient,
-				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
 				options:  ReconcilerOptions{},
@@ -1719,13 +1811,11 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				WithRuntimeObjects(objects...).
 				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).
 				Build()
-			logger := logf.Log.WithName("Test_reconcileProfiles_APMSharedOverlayMatrix")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfiles_APMSharedOverlayMatrix"})
 
 			r := &Reconciler{
 				client:   fakeClient,
-				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
 				options:  ReconcilerOptions{},
@@ -2002,7 +2092,6 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).Build()
 			r := &Reconciler{
 				client: fakeClient,
-				log:    logf.Log.WithName(tt.name),
 			}
 
 			r.addDDAIStatusToProfileStatus(ctx, tt.profile, "test-profile", "default", now)

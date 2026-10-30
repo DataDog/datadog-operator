@@ -86,7 +86,7 @@ Available Commands:
 
 > **Note:** The `autoscaling` commands are part of the Datadog Cluster Autoscaling feature, which is in **technical preview**. APIs and behaviors may change in future releases.
 
-These commands install and configure [Karpenter](https://karpenter.sh/) on an EKS cluster so that Datadog can manage cluster autoscaling.
+The `autoscaling cluster` commands install and configure [Karpenter](https://karpenter.sh/) on an EKS cluster so that Datadog can manage cluster autoscaling. The `autoscaling dpa` commands operate `DatadogPodAutoscaler` objects during an incident; see [`autoscaling dpa`](#autoscaling-dpa).
 
 ```console
 $ kubectl datadog autoscaling cluster --help
@@ -111,6 +111,8 @@ Installs Karpenter on an EKS cluster and configures it for use with Datadog Clus
 3. Optionally creates `EC2NodeClass` and `NodePool` Karpenter resources, inferred from existing cluster nodes or EKS node groups.
 
 If something goes wrong, those CloudFormation stacks and that Helm release are the two places to look. The command installs nothing and exits with an explanatory message when EKS auto-mode is active, or when the cluster already runs a Karpenter installation `kubectl-datadog` does not manage in the requested namespace. Re-running it over its own installation is not a no-op: with the default `--create-karpenter-resources=all` it re-creates the `EC2NodeClass` and `NodePool`, discarding manual edits — use `update` for that.
+
+The cluster name must not be longer than 46 characters: the `autoscaling cluster` commands refuse a longer name up front, before creating or changing anything.
 
 ```console
 $ kubectl datadog autoscaling cluster install --help
@@ -138,7 +140,6 @@ Flags:
 #### `autoscaling cluster update`
 
 Refreshes an autoscaling installation previously created by `kubectl datadog`: it updates the CloudFormation stacks and upgrades the Karpenter Helm release in place. The command refuses to touch a Karpenter installation it did not create.
-
 The parameters that cannot change after the initial install — Karpenter namespace, install mode, and Fargate subnets — are read back from the CloudFormation stack `install` created, and are therefore not exposed as flags.
 
 Unlike `install`, `--create-karpenter-resources` defaults to `none`, so that manual edits to the `EC2NodeClass` and `NodePool` resources survive an update. Pass `ec2nodeclass` to regenerate the `EC2NodeClass` alone, or `all` to regenerate both.
@@ -227,5 +228,61 @@ Flags:
       --karpenter-namespace string   Name of the Kubernetes namespace where Karpenter is deployed (default "dd-karpenter")
       --yes                          Skip confirmation prompt
 ```
+
+#### `autoscaling dpa`
+
+Break-glass overrides for `DatadogPodAutoscaler` (DPA) objects. They set operational annotations rather than editing the object `spec`, so they do not fight GitOps or autoscaling profiles. They require Cluster Agent 7.85.0 or later; an older one ignores them.
+
+```console
+$ kubectl datadog autoscaling dpa --help
+Break-glass overrides for DatadogPodAutoscaler objects, through operational
+annotations. The object spec is never modified.
+
+Requires Cluster Agent 7.85.0 or later; an older one ignores the annotations.
+
+Usage:
+  datadog autoscaling dpa [command]
+
+Available Commands:
+  force-fallback  Force or stop forcing the local fallback of DatadogPodAutoscalers
+  force-replicas  Force or stop forcing the replica count of DatadogPodAutoscalers
+  force-resources Force or stop forcing container resources of DatadogPodAutoscalers
+  pause           Pause or resume DatadogPodAutoscalers
+```
+
+| Command | Annotation | Effect |
+|---|---|---|
+| `pause enable` / `disable` | `autoscaling.datadoghq.com/pause` | Recommendations are still computed, but nothing is applied: no horizontal scaling, no vertical rollout or in-place resize, no POD patching by the admission controller. Takes precedence over every force-* override. |
+| `force-fallback enable` / `disable` | `autoscaling.datadoghq.com/force-fallback` | Use the in-cluster local recommender as if recommendations from Datadog were stale, even when they are fresh. Has no effect when `spec.fallback.horizontal.enabled` is `false`. `disable` only stops *forcing* it; it does **not** disable the local fallback, which remains `spec.fallback.horizontal.enabled`. |
+| `force-replicas set --replicas N` / `unset` | `autoscaling.datadoghq.com/force-replicas` | Force the replica count to `N` (at least 1), ignoring recommendations, even without any. Not clamped by `spec.constraints`, reached in one step without the scaling rules and stabilization windows. |
+| `force-resources set -c <container> --requests … --limits …` / `unset [-c <container>]` | `autoscaling.datadoghq.com/force-resources` | Force cpu/memory requests and limits of the listed containers, overlaid on the vertical recommendation; everything else keeps following it. Without a vertical recommendation, nothing is forced. Bounded by `spec.constraints`. Pods may be evicted or rolled out unless in-place resize is enabled. |
+
+Turning an override on writes its value (`"true"`, the replica count, or the resources as a JSON list of container resources in the DPA format, for example `[{"name":"app","limits":{"cpu":"4"},"requests":{"cpu":"2"}}]`); turning it off removes the annotation. `pause` and `applyPolicy.mode: Preview` take precedence over every force-* override.
+
+`force-resources set` merges into the current annotation, so several containers can be forced one after the other: containers and fields not passed are kept. `unset -c <container>` removes only that container; `unset` without `-c` removes the whole annotation. Positional arguments are always DatadogPodAutoscaler names, containers are only named with `-c`:
+
+```console
+$ kubectl datadog autoscaling dpa force-resources set -c app --requests cpu=2 --limits cpu=4 checkout-dpa
+$ kubectl datadog autoscaling dpa force-resources set -c sidecar --requests memory=512Mi checkout-dpa
+$ kubectl datadog autoscaling dpa force-resources unset -c sidecar checkout-dpa
+$ kubectl datadog autoscaling dpa force-resources unset checkout-dpa
+```
+
+Only `metadata.annotations` is patched; the `spec` is never touched. Objects already in the requested state are left untouched.
+
+Each override is a `<feature> <action>` command: `enable|disable` for `pause` and `force-fallback`, `set|unset` for the overrides that carry a value (`force-replicas`, `force-resources`).
+
+Objects are selected by name, with `-l/--label-selector`, or with `--all` (the whole namespace). `-A/--all-namespaces` only widens a selection: combined with names, it finds them in every namespace; combined with `-l` or `--all`, it widens them to the cluster (`--all -A` selects every DatadogPodAutoscaler in the cluster). There is no default selection, and `-A` alone is rejected. When more than one object is selected, the command lists the ones that will change and asks for confirmation unless `--yes` is passed, even when the others are already in the requested state. `--dry-run` prints the objects that would change, one per line, as `namespace/name: current → new`.
+
+`pause`, `force-fallback enable`, `force-replicas` and `force-resources` wait (`--timeout`, default 30s) for the Cluster Agent to report, or stop reporting, the override in the status, and fail if it does not (`force-fallback enable` only warns): either the Cluster Agent is older than 7.85.0, or it has not reconciled the objects yet. The Cluster Agent reports:
+
+- `pause` with the `Active` condition set to `False`, reason `LocallyPaused`;
+- `force-fallback` with no condition: `enable` waits for `status.horizontal.target.source` to be `Local`, which needs fresh values from the local recommender, so an unconfirmed `enable` is reported as a warning and does not fail the command. `disable` does not wait: the source stays `Local` while recommendations from Datadog are stale;
+- `force-replicas` with the `HorizontalScalingLimited` condition, message `replica count pinned to N by the … annotation`, only while the count is applied: not while paused, in `Preview` mode, or with both scaling directions disabled;
+- `force-resources` with the `VerticalScalingLimited` condition, reason `ForcedByAnnotation`, listing the forced containers, only while the DatadogPodAutoscaler has a vertical recommendation.
+
+The Cluster Agent ignores invalid values silently, so the command validates them before patching. When the status already reported the override before the change (for example, changing the forced resources of the same containers), it cannot confirm the new value and the command says so instead of waiting. Pass `--wait=false` to skip the wait, for example when changing many DatadogPodAutoscalers at once.
+
+`pause disable` resumes every selected object, including those that were paused on purpose before an incident. Use `--dry-run` to check the selection first.
 
 [1]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog

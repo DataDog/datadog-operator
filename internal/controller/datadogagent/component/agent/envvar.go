@@ -7,4 +7,5 @@ package agent
 
 const (
 	DDContainerImageEnabled = "DD_CONTAINER_IMAGE_ENABLED"
+	DDPodName               = "DD_POD_NAME"
 )

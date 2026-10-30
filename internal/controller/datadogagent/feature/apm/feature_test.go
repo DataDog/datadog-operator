@@ -561,6 +561,22 @@ func TestAPMFeature(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithInjectionMode("init_container"),
 		},
+		{
+			Name: "single step instrumentation on-demand disabled",
+			DDA: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithAPMEnabled(true).
+					WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
+					WithAPMUDSEnabled(true, apmSocketHostPath).
+					WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "").
+					WithAdmissionControllerEnabled(true).
+					Build()
+				dda.Spec.Features.APM.SingleStepInstrumentation.OnDemand = ptr.To(false)
+				return dda
+			}(),
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationOnDemand(false),
+		},
 	}
 
 	tests.Run(t, buildAPMFeature)
@@ -825,6 +841,10 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 					Value: "true",
 				},
 				{
+					Name:  DDAPMInstrumentationOnDemand,
+					Value: "true",
+				},
+				{
 					Name:  DDAPMInstrumentationDisabledNamespaces,
 					Value: "[\"foo\",\"bar\"]",
 				},
@@ -892,6 +912,10 @@ func testAPMInstrumentationNamespaces() *test.ComponentTest {
 					Value: "false",
 				},
 				{
+					Name:  DDAPMInstrumentationOnDemand,
+					Value: "true",
+				},
+				{
 					Name:  DDAPMInstrumentationEnabledNamespaces,
 					Value: "[\"foo\",\"bar\"]",
 				},
@@ -928,6 +952,43 @@ func testAPMInstrumentation() *test.ComponentTest {
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
+				{
+					Name:  DDAPMInstrumentationOnDemand,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationOnDemand(onDemand bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
+					Name:  DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMInstrumentationOnDemand,
+					Value: apiutils.BoolToString(&onDemand),
+				},
 			}
 			assert.True(
 				t,
@@ -947,6 +1008,10 @@ func testAPMInstrumentationWithoutUDS() *test.ComponentTest {
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMInstrumentationOnDemand,
 					Value: "true",
 				},
 			}
@@ -977,6 +1042,10 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMInstrumentationOnDemand,
 					Value: "true",
 				},
 				{
@@ -1017,6 +1086,10 @@ func testAPMInstrumentationWithCustomInjectorImage() *test.ComponentTest {
 					Value: "true",
 				},
 				{
+					Name:  DDAPMInstrumentationOnDemand,
+					Value: "true",
+				},
+				{
 					Name:  DDAPMInstrumentationInjectorImageTag,
 					Value: "0.27.0",
 				},
@@ -1047,6 +1120,10 @@ func testAPMInstrumentationWithInjectionMode(injectionMode string) *test.Compone
 				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMInstrumentationOnDemand,
 					Value: "true",
 				},
 				{

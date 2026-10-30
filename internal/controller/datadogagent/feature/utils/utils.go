@@ -28,19 +28,10 @@ const (
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
 	// DefaultDataPlaneMinAgentVersion is the minimum Agent version that receives the Operator-level Data Plane default.
 	// Explicit Data Plane configuration remains available for older versions.
-	DefaultDataPlaneMinAgentVersion = "7.84.6-0"
-	EnableADPAnnotation             = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz   = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation    = "agent.datadoghq.com/host-profiler-enabled"
-	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
-	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
-	// set to "false" to disable both the seccomp profile and its setup init container.
-	EnableHostProfilerSeccompAnnotation        = "agent.datadoghq.com/host-profiler-seccomp-enabled"
-	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
-	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
-	HostProfilerSELinuxTypeAnnotation   = "agent.datadoghq.com/host-profiler-selinux-type"
-	EnableHostProfilerNonRootAnnotation = "agent.datadoghq.com/host-profiler-non-root-enabled"
-	EnableKSMApiServerCacheAnnotation   = "agent.datadoghq.com/ksm-use-apiserver-cache"
+	DefaultDataPlaneMinAgentVersion   = "7.84.6-0"
+	EnableADPAnnotation               = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz     = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
@@ -53,6 +44,7 @@ const (
 	EnablePrivateActionRunnerSystemdAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
 	PrivateActionRunnerSystemdJournalStorageAnnotation      = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"
 	EnablePrivateActionRunnerSystemdJournalVacuumAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
+	EnablePrivateActionRunnerPacketCaptureAnnotation        = "agent.datadoghq.com/private-action-runner-packet-capture-enabled"
 
 	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
 
@@ -66,6 +58,28 @@ const (
 	ClusterAgentPrivateActionRunnerK8sRemediationEnabled = "cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"
 
 	EnableCheckRunnerAnnotation = "agent.datadoghq.com/check-runner-enabled"
+)
+
+// Host Profiler annotations are deprecated in favor of spec.features.hostProfiler and will be removed
+// in a future release. Until then, spec.features.hostProfiler takes precedence and the annotations
+// are still read as a fallback for settings not defined in the spec.
+const (
+	// Deprecated: use spec.features.hostProfiler.enabled.
+	EnableHostProfilerAnnotation = "agent.datadoghq.com/host-profiler-enabled"
+	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
+	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
+	// set to "false" to disable both the seccomp profile and its setup init container.
+	//
+	// Deprecated: use spec.features.hostProfiler.seccomp.enabled.
+	EnableHostProfilerSeccompAnnotation = "agent.datadoghq.com/host-profiler-seccomp-enabled"
+	// Deprecated: use spec.features.hostProfiler.seccomp.loggingEnabled.
+	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
+	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
+	//
+	// Deprecated: use spec.features.hostProfiler.seLinuxType.
+	HostProfilerSELinuxTypeAnnotation = "agent.datadoghq.com/host-profiler-selinux-type"
+	// Deprecated: use spec.features.hostProfiler.runAsRoot (inverted: "true" here means runAsRoot: false).
+	EnableHostProfilerNonRootAnnotation = "agent.datadoghq.com/host-profiler-non-root-enabled"
 )
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
@@ -193,4 +207,61 @@ func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, contain
 			managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, envVar, keepCurrent)
 		}
 	}
+}
+
+// IsKubernetesActionsRCEnabled returns whether Kubernetes Actions should be delivered to the
+// Cluster Agent through Remote Configuration. Defaults to true when unset.
+func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec == nil || ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil {
+		return false
+	}
+	ka := ddaSpec.Features.KubernetesActions
+	if !apiutils.BoolValue(ka.Enabled) {
+		return false
+	}
+	if ka.Communication == nil || ka.Communication.RemoteConfiguration == nil || ka.Communication.RemoteConfiguration.Enabled == nil {
+		return true
+	}
+	return *ka.Communication.RemoteConfiguration.Enabled
+}
+
+// KubernetesActionsMinVersion is the minimum Cluster Agent version that supports the Kubernetes
+// Actions feature, through both Remote Configuration and the Private Action Runner.
+const KubernetesActionsMinVersion = "7.84.0-0"
+
+// ClusterAgentVersion returns the Cluster Agent version from the image override, or the
+// latest supported version when the image is not overridden.
+func ClusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if ddaSpec == nil {
+		return images.AgentLatestVersion
+	}
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
+		return common.GetAgentVersionFromImage(*clusterAgent.Image)
+	}
+	return images.AgentLatestVersion
+}
+
+// IsKubernetesActionsPARRequested returns whether the DatadogAgent asks for Kubernetes Actions to be
+// delivered through the Cluster Agent Private Action Runner, regardless of the Cluster Agent version.
+// Defaults to true when unset.
+func IsKubernetesActionsPARRequested(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec == nil || ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil {
+		return false
+	}
+	ka := ddaSpec.Features.KubernetesActions
+	if !apiutils.BoolValue(ka.Enabled) {
+		return false
+	}
+	if ka.Communication == nil || ka.Communication.PrivateActionRunner == nil || ka.Communication.PrivateActionRunner.Enabled == nil {
+		return true
+	}
+	return *ka.Communication.PrivateActionRunner.Enabled
+}
+
+// IsKubernetesActionsPAREnabled returns whether Kubernetes Actions should be delivered to the
+// Cluster Agent through the Cluster Agent Private Action Runner: it is requested and the Cluster
+// Agent supports Kubernetes Actions.
+func IsKubernetesActionsPAREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return IsKubernetesActionsPARRequested(ddaSpec) &&
+		utils.IsAboveMinVersion(ClusterAgentVersion(ddaSpec), KubernetesActionsMinVersion, nil)
 }

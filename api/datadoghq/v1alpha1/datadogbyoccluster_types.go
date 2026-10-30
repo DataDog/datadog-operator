@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,9 +14,26 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// DatadogBYOCClusterSignal is the telemetry signal stored by a BYOC cluster.
+type DatadogBYOCClusterSignal string
+
+const (
+	// DatadogBYOCClusterSignalLogs stores logs.
+	DatadogBYOCClusterSignalLogs DatadogBYOCClusterSignal = "logs"
+	// DatadogBYOCClusterSignalTraces stores traces.
+	DatadogBYOCClusterSignalTraces DatadogBYOCClusterSignal = "traces"
+)
+
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterSpec struct {
+	// Signal is the telemetry signal stored by the cluster.
+	// The default node configuration creates only the index for this signal.
+	// +optional
+	// +kubebuilder:default=logs
+	// +kubebuilder:validation:Enum=logs;traces
+	Signal *DatadogBYOCClusterSignal `json:"signal,omitempty"`
+
 	// Release identifies the BYOC release artifact.
 	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
 	// +optional
@@ -34,7 +52,9 @@ type DatadogBYOCClusterSpec struct {
 	// +kubebuilder:validation:Required
 	Provider *DatadogBYOCClusterProviderSpec `json:"provider,omitempty"`
 
-	// Identity configures the Kubernetes identity used by the BYOC workloads.
+	// Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipelines.
+	// When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.
+	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
 
 	// Global configures settings shared by all BYOC workloads.
@@ -174,6 +194,7 @@ type DatadogBYOCClusterAWSSpec struct {
 	Partition *string `json:"partition,omitempty"`
 
 	// IRSARoleARN is the ARN of the IAM role associated with the BYOC ServiceAccount through IRSA.
+	// Only applied to the ServiceAccount created by the controller. Existing ServiceAccounts are not modified.
 	// +optional
 	IRSARoleARN *string `json:"irsaRoleARN,omitempty"`
 }
@@ -182,6 +203,8 @@ type DatadogBYOCClusterAWSSpec struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterIdentitySpec struct {
 	// ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.
+	// The ServiceAccount must be in the same namespace as the workload and is not created or updated by the controller.
+	// When omitted, the controller creates and owns a dedicated ServiceAccount.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
@@ -256,16 +279,23 @@ type DatadogBYOCClusterComponentsSpec struct {
 	ReadOnlyMetastore *DatadogBYOCClusterMetastoreComponentSpec `json:"readOnlyMetastore,omitempty"`
 
 	// Indexer configures the Indexer workload.
+	// When Resources is specified, its memory limit is required for node configuration sizing.
 	// +kubebuilder:validation:Required
 	Indexer *DatadogBYOCClusterStatefulComponentSpec `json:"indexer,omitempty"`
 
 	// Searcher configures the Searcher workload.
+	// When Resources is specified, its memory limit is required for node configuration sizing.
 	// +kubebuilder:validation:Required
 	Searcher *DatadogBYOCClusterStatefulComponentSpec `json:"searcher,omitempty"`
 
-	// Pipeline configures the Observability Pipelines Worker workload.
+	// Pipelines configures the named Observability Pipelines Worker workloads.
+	// Each entry creates a DatadogObservabilityPipelinesWorker owned by this cluster; direct edits are reverted,
+	// and a same-name worker not owned by this cluster is reported as a conflict.
 	// +kubebuilder:validation:Required
-	Pipeline *DatadogBYOCClusterPipelineComponentSpec `json:"pipeline,omitempty"`
+	// +kubebuilder:validation:MinItems=1
+	// +listType=map
+	// +listMapKey=name
+	Pipelines []DatadogBYOCClusterPipelineSpec `json:"pipelines,omitempty"`
 
 	// ControlPlane configures the Control Plane workload.
 	// +kubebuilder:validation:Required
@@ -273,15 +303,27 @@ type DatadogBYOCClusterComponentsSpec struct {
 
 	// Compactor configures the Compactor workload.
 	// +optional
-	Compactor *DatadogBYOCClusterComponentSpec `json:"compactor,omitempty"`
+	Compactor *DatadogBYOCClusterCompactorComponentSpec `json:"compactor,omitempty"`
 
 	// Janitor configures the Janitor workload.
 	// +kubebuilder:validation:Required
 	Janitor *DatadogBYOCClusterComponentSpec `json:"janitor,omitempty"`
 }
 
+// DatadogBYOCClusterPipelineSpec defines a named Observability Pipelines Worker workload in a BYOC cluster.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterPipelineSpec struct {
+	// Name identifies the pipeline within the cluster and is used in the worker resource name.
+	// Changing Name creates a new worker and deletes the previous one.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=10
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Name string `json:"name"`
+
+	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
+}
+
 // DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.
-// When Resources is specified, its memory limit is required for worker buffer sizing.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterPipelineComponentSpec struct {
 	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`
@@ -301,31 +343,13 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 	Ports []DatadogObservabilityPipelinesWorkerPort `json:"ports,omitempty"`
 }
 
-// DatadogObservabilityPipelinesWorkerPort defines a network port exposed by the worker.
-// +k8s:openapi-gen=true
-type DatadogObservabilityPipelinesWorkerPort struct {
-	// Name identifies the port.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=15
-	Name string `json:"name"`
-
-	// Port is the port number exposed by the worker container and Service.
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=65535
-	Port int32 `json:"port"`
-
-	// Protocol is the network protocol for the port.
-	// +kubebuilder:default=TCP
-	// +kubebuilder:validation:Enum=TCP;UDP;SCTP
-	// +optional
-	Protocol corev1.Protocol `json:"protocol,omitempty"`
-}
-
 // DatadogBYOCClusterComponentSpec defines common workload settings.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterComponentSpec struct {
 	// Replicas is the desired replica count.
+	// Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Env contains additional environment variables for the component container.
@@ -398,6 +422,18 @@ type DatadogBYOCClusterComponentSpec struct {
 	// TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+
+	// StartupProbe replaces the startup probe of the component container.
+	// +optional
+	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
+
+	// LivenessProbe replaces the liveness probe of the component container.
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// ReadinessProbe replaces the readiness probe of the component container.
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // DatadogBYOCClusterPodDisruptionBudgetSpec defines the availability constraint for voluntary Pod disruptions.
@@ -413,7 +449,6 @@ type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 }
 
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.
-// When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterStatefulComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`
@@ -426,6 +461,23 @@ type DatadogBYOCClusterStatefulComponentSpec struct {
 	// When omitted, the component default is used.
 	// +optional
 	Storage *DatadogBYOCClusterStorageSpec `json:"storage,omitempty"`
+
+	// PodManagementPolicy controls whether the StatefulSet creates and deletes Pods one at a time when it scales,
+	// or all at once. Rolling updates replace one Pod at a time with either policy.
+	// A StatefulSet cannot change it, so set it before the component is created. Defaults to Parallel.
+	// +optional
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy *appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+}
+
+// DatadogBYOCClusterCompactorComponentSpec defines settings for the Compactor workload.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterCompactorComponentSpec struct {
+	DatadogBYOCClusterComponentSpec `json:",inline"`
+
+	// Autoscaling configures horizontal autoscaling for the component.
+	// +optional
+	Autoscaling *DatadogBYOCClusterAutoscalingSpec `json:"autoscaling,omitempty"`
 }
 
 // DatadogBYOCClusterMetastoreComponentSpec defines settings for a Metastore workload.
@@ -522,9 +574,11 @@ type DatadogBYOCClusterStatus struct {
 	// +optional
 	Searcher *DatadogBYOCClusterStatefulSetStatus `json:"searcher,omitempty"`
 
-	// Pipeline contains the observed state of the Observability Pipelines Worker StatefulSet.
+	// Pipelines identifies the worker resource for each named pipeline.
 	// +optional
-	Pipeline *DatadogBYOCClusterStatefulSetStatus `json:"pipeline,omitempty"`
+	// +listType=map
+	// +listMapKey=name
+	Pipelines []DatadogBYOCClusterPipelineStatus `json:"pipelines,omitempty"`
 
 	// Metastore contains the observed state of the primary Metastore Deployment.
 	// +optional
@@ -545,6 +599,16 @@ type DatadogBYOCClusterStatus struct {
 	// Janitor contains the observed state of the Janitor Deployment.
 	// +optional
 	Janitor *DatadogBYOCClusterDeploymentStatus `json:"janitor,omitempty"`
+}
+
+// DatadogBYOCClusterPipelineStatus identifies the worker resource for a named pipeline.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterPipelineStatus struct {
+	// Name identifies the pipeline in spec.components.pipelines.
+	Name string `json:"name"`
+
+	// WorkerName is the name of the managed DatadogObservabilityPipelinesWorker.
+	WorkerName string `json:"workerName"`
 }
 
 // DatadogBYOCClusterStatefulSetStatus defines the observed state of a StatefulSet component.

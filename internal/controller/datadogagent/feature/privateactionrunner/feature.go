@@ -47,9 +47,10 @@ type privateActionRunnerFeature struct {
 	nodeEnabled               bool
 	nodeConfigData            string
 	splitEnabled              bool
-	splitConfigErr            error
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
+	packetCaptureConfig       packetCaptureConfig
+	packetCaptureConfigErr    error
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
@@ -63,6 +64,21 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
+// runnerAgentVersion returns the Agent version the node runner container runs.
+func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	image := images.GetLatestAgentImage()
+	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+		image = images.OverrideAgentImage(image, override.Image)
+	}
+	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
+	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
+}
+
+// kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
+// because Kubernetes Actions communicates through it. Leave the identity secret name to the
+// Agent so switching between Kubernetes Actions and annotation-based config reuses the identity.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n"
+
 // Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -71,18 +87,17 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
-		if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
-			image := images.GetLatestAgentImage()
-			if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
-				image = images.OverrideAgentImage(image, override.Image)
-			}
-			image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
-			version := common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
-			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true)) {
-				f.splitEnabled = true
-			} else {
-				f.splitConfigErr = fmt.Errorf("private action runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)
-			}
+		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
+		version := runnerAgentVersion(dda, ddaSpec)
+		// Split mode is the default unless explicitly disabled or the image is known to be too old.
+		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
+			f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
+		}
+		// An older Agent does not serve the capture socket, so the runner would
+		// dial a socket that never exists.
+		if f.packetCaptureConfig.enabled && !pkgutils.IsAboveMinVersion(version, packetCaptureMinVersion, new(true)) {
+			f.logger.Info("Agent is too old for Private Action Runner packet capture, not enabling it", "agentVersion", version, "minVersion", packetCaptureMinVersion)
+			f.packetCaptureConfig.enabled = false
 		}
 
 		// Use config data from annotation directly, or fall back to default
@@ -92,22 +107,30 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			f.nodeConfigData = defaultConfigData
 		}
 
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.PrivateActionRunnerContainerName,
+		}
+		if f.packetCaptureConfig.enabled {
+			containers = append(containers, apicommon.SystemProbeContainerName)
+		}
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.CoreAgentContainerName,
-				apicommon.PrivateActionRunnerContainerName,
-			},
+			Containers: containers,
 		}
 	}
 
-	// Check for Cluster Agent configuration (annotation-based)
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
+	// Check for Cluster Agent configuration (annotation-based, or implied by Kubernetes Actions
+	// communicating through the Private Action Runner)
+	clusterAnnotationEnabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation)
+	if clusterAnnotationEnabled || featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
 			f.clusterConfigData = configData
-		} else {
+		} else if clusterAnnotationEnabled {
 			f.clusterConfigData = defaultConfigData
+		} else {
+			f.clusterConfigData = kubernetesActionsDefaultConfigData
 		}
 
 		clusterConfig, err := parsePrivateActionRunnerConfig(f.clusterConfigData)
@@ -177,7 +200,10 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		if f.clusterConfig.SelfEnroll {
+		// Provision secret permissions only for Kubernetes-backed self-enrollment.
+		selfEnroll := f.clusterConfig.SelfEnroll == nil || *f.clusterConfig.SelfEnroll
+		useK8sSecret := f.clusterConfig.IdentityUseK8sSecret == nil || *f.clusterConfig.IdentityUseK8sSecret
+		if selfEnroll && useK8sSecret {
 			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),
@@ -269,8 +295,8 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	if f.systemdConfigErr != nil {
 		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
 	}
-	if f.splitConfigErr != nil {
-		return f.splitConfigErr
+	if f.packetCaptureConfigErr != nil {
+		return fmt.Errorf("invalid Private Action Runner packet capture configuration: %w", f.packetCaptureConfigErr)
 	}
 
 	configMapName := f.getConfigMapName()
@@ -359,6 +385,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	f.systemdConfig.addVolumeMounts(managers)
+	f.packetCaptureConfig.addSocket(managers)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(

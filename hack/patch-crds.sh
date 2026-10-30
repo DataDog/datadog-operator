@@ -9,19 +9,28 @@ SCRIPTS_DIR="$(dirname "$0")"
 source "$SCRIPTS_DIR/os-env.sh"
 YQ="$ROOT/bin/$PLATFORM/yq"
 
+# Build once for all CRDs instead of linking a new go-run executable per file.
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf "$WORK_DIR"' EXIT
+PATCHER="$WORK_DIR/openapi2jsonschema"
+go build -o "$PATCHER" "$SCRIPTS_DIR/jsonschema/openapi2jsonschema.go"
+
 v1=config/crd/bases/v1
 
 # Remove defaultOverride section in DatadogAgent status due to the error: "datadoghq.com_datadogagents.yaml bigger than total allowed limit"
 $YQ -i 'del(.spec.versions[].schema.openAPIV3Schema.properties.status.properties.defaultOverride)' "$ROOT/$v1/datadoghq.com_datadogagents.yaml"
 
-# Remove OpenAPI schema descriptions from the BYOC CRD to keep its size under control.
-$YQ -i '(.spec.versions[].schema.openAPIV3Schema) |= del(.. | .description?)' "$ROOT/$v1/datadoghq.com_datadogbyocclusters.yaml"
+# Remove OpenAPI schema descriptions from the BYOC and Worker CRDs to keep their size under control.
+for crd in datadogbyocclusters datadogobservabilitypipelinesworkers
+do
+  $YQ -i '(.spec.versions[].schema.openAPIV3Schema) |= del(.. | .description?)' "$ROOT/$v1/datadoghq.com_$crd.yaml"
+done
 
 for crd in "$ROOT/$v1"/*.yaml
 do
   $YQ -i -P "$crd"
-  go run $SCRIPTS_DIR/jsonschema/openapi2jsonschema.go "$crd"
+  "$PATCHER" "$crd"
 done
 
 # Special run for the DatadogPodAutoscaler CRD
-OPT_PATCH_RESOURCE_LIST=true go run $SCRIPTS_DIR/jsonschema/openapi2jsonschema.go "$ROOT/$v1/datadoghq.com_datadogpodautoscalers.yaml"
+OPT_PATCH_RESOURCE_LIST=true "$PATCHER" "$ROOT/$v1/datadoghq.com_datadogpodautoscalers.yaml"

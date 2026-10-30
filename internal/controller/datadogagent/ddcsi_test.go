@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -32,7 +31,6 @@ func newTestReconcilerForDDCSI(scheme *runtime.Scheme, platformInfo kubernetes.P
 	return &Reconciler{
 		client:       fakeClient,
 		scheme:       scheme,
-		log:          logf.Log.WithName("test"),
 		recorder:     record.NewFakeRecorder(100),
 		platformInfo: platformInfo,
 		options:      ReconcilerOptions{DatadogCSIDriverEnabled: true},
@@ -92,7 +90,7 @@ func TestReconcileDatadogCSIDriver_Disabled(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", false)
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	assert.NoError(t, err)
 
 	// No DatadogCSIDriver should exist
@@ -105,7 +103,7 @@ func TestReconcileDatadogCSIDriver_EnabledAndCreated(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// DatadogCSIDriver should exist with correct owner reference
@@ -132,7 +130,7 @@ func TestReconcileDatadogCSIDriver_AutopilotAnnotationPropagated(t *testing.T) {
 		kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
 	}
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
@@ -149,7 +147,7 @@ func TestReconcileDatadogCSIDriver_APMPullSecretsPropagated(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
@@ -158,6 +156,29 @@ func TestReconcileDatadogCSIDriver_APMPullSecretsPropagated(t *testing.T) {
 		{Name: "apm-registry"},
 		{Name: "extra-registry"},
 	}, ddcsi.Spec.APM.PullSecrets)
+}
+
+func TestReconcileDatadogCSIDriver_RegistryAllowListPropagated(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{
+		AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
+			RegistryAllowList: []string{"public.ecr.aws/datadog", "gcr.io/datadoghq"},
+		},
+	}
+	dda.Spec.Global.CSI.APM = &v2alpha1.CSIAPMConfig{
+		PullSecrets: []corev1.LocalObjectReference{{Name: "apm-registry"}},
+	}
+
+	ddcsi, err := r.buildDesiredDatadogCSIDriver(dda)
+	require.NoError(t, err)
+
+	// Mutating the DDA afterwards must not reach the built object.
+	dda.Spec.Features.AdmissionController.RegistryAllowList[0] = "mutated"
+
+	require.NotNil(t, ddcsi.Spec.APM)
+	assert.Equal(t, []string{"public.ecr.aws/datadog", "gcr.io/datadoghq"}, ddcsi.Spec.APM.RegistryAllowList)
+	assert.Equal(t, []corev1.LocalObjectReference{{Name: "apm-registry"}}, ddcsi.Spec.APM.PullSecrets)
 }
 
 func TestReconcileDatadogCSIDriver_ImageConfigPropagated(t *testing.T) {
@@ -218,7 +239,7 @@ func TestReconcileDatadogCSIDriver_ImageConfigPropagated(t *testing.T) {
 			dda := newDDAForDDCSI("test-dda", "default", true)
 			tt.mutate(dda)
 
-			require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+			require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 			ddcsi := &v1alpha1.DatadogCSIDriver{}
 			require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
@@ -275,7 +296,7 @@ func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {
 	}
 	dda.Spec.Global.CSI.Tolerations = csiTolerations
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
@@ -296,7 +317,7 @@ func TestReconcileDatadogCSIDriver_NodeSelectorPropagated(t *testing.T) {
 	dda := newDDAForDDCSI("test-dda", "default", true)
 	dda.Spec.Global.CSI.NodeSelector = map[string]string{"kubernetes.io/os": "linux"}
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
@@ -320,7 +341,7 @@ func TestReconcileDatadogCSIDriver_NodeAffinityPropagated(t *testing.T) {
 	}
 	dda.Spec.Global.CSI.NodeAffinity = nodeAffinity
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
@@ -333,7 +354,7 @@ func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
@@ -350,20 +371,20 @@ func TestReconcileDatadogCSIDriver_AutoManageDisabledCleansUpAndDoesNotRecreate(
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// Initial reconcile: default management (field unset) creates the CR.
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
 
 	// User opts out of management.
 	dda.Spec.Global.CSI.AutoManage = ptr.To(false)
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	// DDA-owned CR is gone.
 	err := r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
 	assert.Error(t, err)
 
 	// Subsequent reconciles with autoManage=false must not recreate it.
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
 	assert.Error(t, err)
 }
@@ -382,7 +403,7 @@ func TestReconcileDatadogCSIDriver_AutoManageDisabledSkipsForeignCR(t *testing.T
 	dda := newDDAForDDCSI("test-dda", "default", true)
 	dda.Spec.Global.CSI.AutoManage = ptr.To(false)
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	// Foreign CR still exists.
 	existing := &v1alpha1.DatadogCSIDriver{}
@@ -397,7 +418,7 @@ func TestReconcileDatadogCSIDriver_ControllerDisabled(t *testing.T) {
 	r.options.DatadogCSIDriverEnabled = false
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// No DatadogCSIDriver CR created.
@@ -412,7 +433,7 @@ func TestReconcileDatadogCSIDriver_DefersToExternalCSIDriver(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI(), externalCSIDriver())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
@@ -426,14 +447,14 @@ func TestReconcileDatadogCSIDriver_ExternalAppearsAfterCRCreated(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
 
 	require.NoError(t, r.client.Create(context.Background(), externalCSIDriver()))
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	// Our CR must still be there.
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
@@ -444,11 +465,11 @@ func TestReconcileDatadogCSIDriver_Idempotent(t *testing.T) {
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// First call creates
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// Second call should not error
-	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err = r.reconcileDatadogCSIDriver(context.Background(), dda)
 	assert.NoError(t, err)
 }
 
@@ -458,12 +479,12 @@ func TestReconcileDatadogCSIDriver_CleanupOnDisable(t *testing.T) {
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// Create the DatadogCSIDriver first
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// Now disable
 	dda.Spec.Global.CSI.Enabled = ptr.To(false)
-	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err = r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// Should be deleted
@@ -488,7 +509,7 @@ func TestReconcileDatadogCSIDriver_CleanupSkipsNotOwned(t *testing.T) {
 
 	// Reconcile with CSI disabled, should NOT delete the unowned resource
 	dda := newDDAForDDCSI("test-dda", "default", false)
-	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err = r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// Should still exist
@@ -519,7 +540,7 @@ func TestReconcileDatadogCSIDriver_UpdateSkipsUnownedCR(t *testing.T) {
 			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To("/operator/apm.socket")},
 		},
 	}
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	after := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, after))
@@ -534,7 +555,7 @@ func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// Create the DatadogCSIDriver via reconcile
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// Simulate external modification: someone sets a custom APM socket path
@@ -547,7 +568,7 @@ func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reconcile again, should update back to the desired state (empty spec)
-	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err = r.reconcileDatadogCSIDriver(context.Background(), dda)
 	require.NoError(t, err)
 
 	// Verify the spec was reconciled back to desired state
@@ -564,7 +585,7 @@ func TestReconcileDatadogCSIDriver_UpdatePreservesFinalizers(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	existing := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, existing))
@@ -577,7 +598,7 @@ func TestReconcileDatadogCSIDriver_UpdatePreservesFinalizers(t *testing.T) {
 			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To("/custom/apm.socket")},
 		},
 	}
-	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), dda))
 
 	updated := &v1alpha1.DatadogCSIDriver{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, updated))
@@ -592,6 +613,6 @@ func TestReconcileDatadogCSIDriver_CleanupCRDNotAvailable(t *testing.T) {
 	dda := newDDAForDDCSI("test-dda", "default", false)
 
 	// Should not error when CRD is not available and cleanup is a no-op
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	err := r.reconcileDatadogCSIDriver(context.Background(), dda)
 	assert.NoError(t, err)
 }

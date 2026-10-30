@@ -1,5 +1,6 @@
 // Package autoscaling provides CLI commands for managing Kubernetes autoscaling features,
-// including Karpenter installation and configuration on EKS clusters.
+// including Karpenter installation and configuration on EKS clusters, and the
+// operation of DatadogPodAutoscaler objects.
 package autoscaling
 
 import (
@@ -7,6 +8,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/dpa"
 )
 
 // options provides information required by agent command
@@ -31,6 +33,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.AddCommand(cluster.New(streams))
+	cmd.AddCommand(dpa.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())

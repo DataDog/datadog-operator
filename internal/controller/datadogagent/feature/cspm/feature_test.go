@@ -18,9 +18,11 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -55,6 +57,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		}
 		ddaCSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
 		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)}
+		ddaCSPMEnabled.Spec.Features.CSPM.RunInSystemProbe = ptr.To(false)
 	}
 
 	ddaCSPMDirectSendEnabled := ddaCSPMDisabled.DeepCopy()
@@ -76,6 +79,16 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
 	}
 
+	ddaCSPMDBBenchmarksEnabled := ddaCSPMDisabled.DeepCopy()
+	{
+		ddaCSPMDBBenchmarksEnabled.Spec.Features.CSPM.Enabled = ptr.To(true)
+		ddaCSPMDBBenchmarksEnabled.Spec.Features.CSPM.DatabaseBenchmarks = &v2alpha1.CSPMDatabaseBenchmarksConfig{Enabled: ptr.To(true)}
+		ddaCSPMDBBenchmarksEnabled.Spec.Features.CSPM.RunInSystemProbe = ptr.To(false)
+	}
+
+	ddaCSPMDBBenchmarksInSystemProbe := ddaCSPMDBBenchmarksEnabled.DeepCopy()
+	ddaCSPMDBBenchmarksInSystemProbe.Spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
+
 	tests := test.FeatureTestSuite{
 
 		{
@@ -84,7 +97,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "CSPM enabled",
+			Name:          "CSPM enabled with runInSystemProbe disabled",
 			DDA:           ddaCSPMEnabled,
 			WantConfigure: true,
 			ClusterAgent:  cspmClusterAgentWantFunc(),
@@ -97,9 +110,123 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			ClusterAgent:  cspmClusterAgentWantFunc(),
 			Agent:         cspmAgentNodeWantFunc(true),
 		},
+		{
+			Name:          "CSPM enabled with database benchmarks",
+			DDA:           ddaCSPMDBBenchmarksEnabled,
+			WantConfigure: true,
+			Agent:         cspmDBBenchmarksAgentNodeWantFunc(false),
+		},
+		{
+			Name:          "CSPM enabled with database benchmarks and runInSystemProbe",
+			DDA:           ddaCSPMDBBenchmarksInSystemProbe,
+			WantConfigure: true,
+			Agent:         cspmDBBenchmarksAgentNodeWantFunc(true),
+		},
 	}
 
 	tests.Run(t, buildCSPMFeature)
+}
+
+func Test_cspmFeature_RequiredNodeContainers(t *testing.T) {
+	tests := []struct {
+		name               string
+		runInSystemProbe   bool
+		databaseBenchmarks bool
+		want               []apicommon.AgentContainerName
+	}{
+		{
+			name: "security agent",
+			want: []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName},
+		},
+		{
+			name:             "system probe",
+			runInSystemProbe: true,
+			want:             []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+		},
+		{
+			name:               "security agent with database benchmarks",
+			databaseBenchmarks: true,
+			want:               []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName, apicommon.SystemProbeContainerName},
+		},
+		{
+			name:               "system probe with database benchmarks",
+			runInSystemProbe:   true,
+			databaseBenchmarks: true,
+			want:               []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CSPM: &v2alpha1.CSPMFeatureConfig{
+							Enabled:            ptr.To(true),
+							RunInSystemProbe:   ptr.To(tt.runInSystemProbe),
+							DatabaseBenchmarks: &v2alpha1.CSPMDatabaseBenchmarksConfig{Enabled: ptr.To(tt.databaseBenchmarks)},
+						},
+					},
+				},
+			}
+
+			f := buildCSPMFeature(nil)
+			reqComp := f.Configure(dda, &dda.Spec, nil)
+			assert.Equal(t, tt.want, reqComp.Agent.Containers)
+		})
+	}
+}
+
+func cspmDBBenchmarksAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			dbBenchmarksEnvVar := &corev1.EnvVar{
+				Name:  DDComplianceDBBenchmarksEnabled,
+				Value: "true",
+			}
+			sysProbeSocketEnvVar := &corev1.EnvVar{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			}
+
+			// The System Probe always gets the setting, as it enables its compliance module,
+			// and the Core Agent gets it for config streaming.
+			for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName} {
+				assert.Contains(t, mgr.EnvVarMgr.EnvVarsByC[container], dbBenchmarksEnvVar, "container %s", container)
+			}
+
+			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SecurityAgentContainerName]
+			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SecurityAgentContainerName]
+			systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
+
+			readOnlySocketVolumeMount := &corev1.VolumeMount{
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			}
+			socketVolumeMount := &corev1.VolumeMount{
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
+			}
+
+			if runInSystemProbe {
+				// The checks run in the System Probe, no need to reach it through its socket.
+				assert.Empty(t, securityAgentEnvVars)
+				assert.NotContains(t, systemProbeVolumeMounts, socketVolumeMount)
+				assert.NotContains(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName], sysProbeSocketEnvVar)
+				return
+			}
+
+			// The Security Agent fetches the database configurations from the System Probe.
+			assert.Contains(t, securityAgentEnvVars, dbBenchmarksEnvVar)
+			assert.Contains(t, securityAgentEnvVars, sysProbeSocketEnvVar)
+			assert.Contains(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName], sysProbeSocketEnvVar)
+			assert.Contains(t, securityAgentVolumeMounts, readOnlySocketVolumeMount)
+			assert.Contains(t, systemProbeVolumeMounts, socketVolumeMount)
+		},
+	)
 }
 
 func cspmClusterAgentWantFunc() *test.ComponentTest {
@@ -187,6 +314,11 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 				},
 			}
 
+			if runInSystemProbe {
+				// config sync is served by the core agent, so it needs the same env vars
+				wantCoreAgent = append(wantCoreAgent, configSyncEnvVars()...)
+			}
+
 			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantCoreAgent), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantCoreAgent))
 
@@ -213,6 +345,10 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 					Name:  DDComplianceConfigRunInSystemProbe,
 					Value: apiutils.BoolToString(&runInSystemProbe),
 				},
+			}
+
+			if runInSystemProbe {
+				wantTargetContainer = append(wantTargetContainer, configSyncEnvVars()...)
 			}
 
 			targetContainerEnvVars := mgr.EnvVarMgr.EnvVarsByC[targetContainer]
@@ -369,4 +505,77 @@ func Test_cspmFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Contains(t, volumeNames(tmpl), common.PasswdVolumeName)
 		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
 	})
+}
+
+// configSyncEnvVars are the env vars the system-probe needs when it runs the compliance checks
+// and submits the payloads itself: it cannot resolve secret handles, so the resolved api_key has
+// to come from the core agent.
+func configSyncEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
+	}
+}
+
+// Remote Configuration can enable CSPM after the defaulting pass has run. RunInSystemProbe is
+// defaulted in Configure, after the merge, so a remotely enabled CSPM runs in the system-probe too.
+func Test_cspmFeature_ConfigureFromRemoteConfig(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Status: v2alpha1.DatadogAgentStatus{
+			RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
+	require.False(t, *dda.Spec.Features.CSPM.Enabled, "CSPM is off in the spec before the merge")
+
+	f := &cspmFeature{}
+	reqComp := f.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	assert.True(t, f.runInSystemProbe)
+	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+}
+
+func Test_cspmFeature_RunInSystemProbeDefault(t *testing.T) {
+	tests := []struct {
+		name             string
+		agentTag         string
+		runInSystemProbe *bool
+		want             bool
+	}{
+		{name: "unset, no Agent image override", want: true},
+		{name: "unset, Agent too old", agentTag: "7.76.0", want: false},
+		{name: "unset, Agent recent enough", agentTag: "7.77.0", want: true},
+		{name: "unset, unparsable Agent tag is assumed recent enough", agentTag: "latest", want: true},
+		{name: "explicit false wins", runInSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true wins on an older Agent", agentTag: "7.76.0", runInSystemProbe: ptr.To(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CSPM: &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true), RunInSystemProbe: tt.runInSystemProbe},
+					},
+				},
+			}
+			if tt.agentTag != "" {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
+				}
+			}
+
+			f := &cspmFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.want, f.runInSystemProbe)
+			// the system-probe seccomp profile reads the value from the spec
+			require.NotNil(t, dda.Spec.Features.CSPM.RunInSystemProbe)
+			assert.Equal(t, tt.want, *dda.Spec.Features.CSPM.RunInSystemProbe)
+		})
+	}
 }

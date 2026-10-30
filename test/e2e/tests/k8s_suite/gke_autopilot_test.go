@@ -13,13 +13,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/test/e2e-framework/common/config"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/apps/nginx"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
+	kubeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/kubernetes"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -70,6 +74,11 @@ serviceAccount:
 		provisioners.WithGKEOperatorOptions(operatorOptions...),
 		provisioners.WithGKEDDAOptions(ddaOptions...),
 		provisioners.WithGKEAutopilot(),
+		provisioners.WithGKEWorkloadApp(func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+			// The framework workload includes pod annotations for the nginx check
+			// and exposes /nginx_status for the autodiscovered check to scrape.
+			return nginx.K8sAppDefinition(e, kubeProvider, "workload-nginx", 80, "", false)
+		}),
 	}
 
 	e2eOpts := []e2e.SuiteOption{
@@ -91,6 +100,10 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 			}
 		}
 	})
+
+	// The operator framework configures the metrics, logs, and process endpoints,
+	// but Orchestrator Explorer needs its own endpoint override.
+	require.NoError(s.T(), s.setDDAField(gkeAutopilotDDAName, s.Env().FakeIntake.URL, "spec", "features", "orchestratorExplorer", "ddUrl"))
 
 	s.Run("Verify Operator", func() {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
@@ -145,7 +158,7 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 2*time.Minute, 10*time.Second, "GKE did not install the Agent WorkloadAllowlist")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
 	}
 	require.NotEmpty(s.T(), workloadAllowlistName)
@@ -162,7 +175,7 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 2*time.Minute, 10*time.Second, "GKE Autopilot rejected or did not create the Agent DaemonSet")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
 	}
 
@@ -177,10 +190,6 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 
 			for _, pod := range agentPods {
 				assertContainerPresent(c, pod, systemProbeContainerName)
-				assertContainerPresent(c, pod, adpContainerName)
-				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_DATA_PLANE_ENABLED", "true")
-				assertContainerHasEnvVar(c, pod, adpContainerName, "DD_DATA_PLANE_REMOTE_AGENT_ENABLED", "true")
-				assertContainerHasEnvVar(c, pod, adpContainerName, "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT", "true")
 			}
 
 			s.verifyAPIMetrics(c)
@@ -189,26 +198,45 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent in time")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
 	}
 
-	s.Run("Verify Autopilot Agent with ADP explicitly disabled", func() {
-		require.NoError(s.T(), s.setDDADataPlaneEnabled(gkeAutopilotDDAName, false))
-
+	s.Run("Verify Autopilot Orchestrator Explorer", func() {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), gkeAutopilotAgentSelector)
-
-			agentPods, err := s.runningAgentPods(gkeAutopilotAgentSelector)
-			assert.NoError(c, err)
-			assert.NotEmpty(c, agentPods)
-			for _, pod := range agentPods {
-				assertContainerAbsent(c, pod, adpContainerName)
+			resources, err := s.Env().FakeIntake.Client().GetOrchestratorResources(nil)
+			if !assert.NoError(c, err) {
+				return
 			}
-		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent with ADP disabled in time")
+			assert.NotEmpty(c, resources, "expected fake intake-ingested Kubernetes resources to not be empty")
+		}, 5*time.Minute, 30*time.Second, "could not validate GKE Autopilot Orchestrator Explorer in time")
+	})
+
+	s.Run("Verify Autopilot live containers", func() {
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			payloads, err := s.Env().FakeIntake.Client().GetContainers()
+			if !assert.NoError(c, err) {
+				return
+			}
+			totalContainers := 0
+			for _, payload := range payloads {
+				totalContainers += len(payload.Containers)
+			}
+			// The process check also collects containers and replaces the standalone
+			// container check when process collection or service discovery is enabled.
+			processPayloads, err := s.Env().FakeIntake.Client().GetProcesses()
+			if !assert.NoError(c, err) {
+				return
+			}
+			for _, payload := range processPayloads {
+				totalContainers += len(payload.Containers)
+			}
+			assert.Greater(c, totalContainers, 0, "expected fake intake-ingested live containers to not be empty (container payloads: %d, process payloads: %d)", len(payloads), len(processPayloads))
+		}, 5*time.Minute, 30*time.Second, "could not validate GKE Autopilot live containers in time")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		return
 	}
 }
 
@@ -279,7 +307,7 @@ func (s *gkeAutopilotSuite) runningAgentPods(selector string) ([]corev1.Pod, err
 	return agentPods.Items, nil
 }
 
-func (s *gkeAutopilotSuite) setDDADataPlaneEnabled(ddaName string, enabled bool) error {
+func (s *gkeAutopilotSuite) setDDAField(ddaName string, value interface{}, fields ...string) error {
 	client, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
 	if err != nil {
 		return err
@@ -290,7 +318,7 @@ func (s *gkeAutopilotSuite) setDDADataPlaneEnabled(ddaName string, enabled bool)
 	if err != nil {
 		return err
 	}
-	if err := unstructured.SetNestedField(dda.Object, enabled, "spec", "features", "dataPlane", "enabled"); err != nil {
+	if err := unstructured.SetNestedField(dda.Object, value, fields...); err != nil {
 		return err
 	}
 	_, err = resource.Update(context.TODO(), dda, metav1.UpdateOptions{})
@@ -323,7 +351,7 @@ func (s *gkeAutopilotSuite) setDDANodeAgentLabel(ddaName, key, value string) err
 	return err
 }
 
-func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector string) {
+func (s *gkeAutopilotSuite) logAutopilotWorkloadDiagnostics(ddaName, agentSelector string) {
 	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
 	if err != nil {
 		s.T().Logf("could not list Agent pods for %s: %v", ddaName, err)
@@ -374,11 +402,16 @@ func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector str
 func (s *gkeAutopilotSuite) verifyAPIMetrics(c *assert.CollectT) {
 	metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
 	assert.NoError(c, err)
-	assert.Contains(c, metricNames, "kubernetes.cpu.usage.total")
-
-	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total")
-	assert.NoError(c, err)
-	assert.NotEmptyf(c, metrics, "expected fake intake-ingested kubernetes metrics to not be empty")
+	for _, metricName := range []string{
+		"kubernetes.cpu.usage.total",
+		"nginx.net.request_per_s",            // Autodiscovery from the annotated Nginx workload.
+		"kubernetes_state.container.running", // KSM Core.
+	} {
+		assert.Contains(c, metricNames, metricName)
+		metrics, err := s.Env().FakeIntake.Client().FilterMetrics(metricName)
+		assert.NoError(c, err)
+		assert.NotEmptyf(c, metrics, "expected fake intake-ingested %s metrics to not be empty", metricName)
+	}
 }
 
 func (s *gkeAutopilotSuite) verifyAPILogs(t assert.TestingT) {

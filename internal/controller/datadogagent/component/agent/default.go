@@ -47,6 +47,13 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentSingleContainer(dda)
 	} else {
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
+		jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
+		for i := range agentContainers {
+			switch apicommon.AgentContainerName(agentContainers[i].Name) {
+			case apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName, apicommon.TraceAgentContainerName:
+				agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
+			}
+		}
 	}
 
 	return &corev1.PodTemplateSpec{
@@ -281,16 +288,22 @@ func DefaultSyscallsForSystemProbe() []string {
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
+	hostBenchmarks := ddaSpec.Features.CSPM != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+		ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+		ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)
 	if (ddaSpec.Features.CWS != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
 		ddaSpec.Features.CWS.Enforcement != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
-		(ddaSpec.Features.CSPM != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
-			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
-			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
+		hostBenchmarks {
 		syscalls = append(syscalls, "kill")
+	}
+	if hostBenchmarks {
+		// OpenSCAP enters the host root with chroot and fchdir, and
+		// libgcrypt locks its secure memory with mlock in FIPS mode.
+		syscalls = append(syscalls, "chroot", "fchdir", "mlock", "munlock")
 	}
 	return syscalls
 }
@@ -382,7 +395,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	agentSingleContainer := corev1.Container{
 		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
-		Env:            envVarsForCoreAgent(dda),
+		Env:            envVarsForNodeAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
@@ -436,13 +449,28 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
-		Env:            envVarsForCoreAgent(dda),
+		Env:            envVarsForNodeAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
+func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
+	return append(envVarsForCoreAgent(dda), podNameEnvVar())
+}
+
+func podNameEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: DDPodName,
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: common.FieldPathMetaName,
+			},
 		},
 	}
 }
@@ -864,6 +892,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -876,6 +905,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -887,6 +917,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -909,6 +940,7 @@ func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
 		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -932,6 +964,7 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 
 func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
@@ -953,6 +986,8 @@ func volumeMountsForAgentCheckRunner() []corev1.VolumeMount {
 		// Token and cert to authenticate to the Core Agent's IPC endpoint. The auth volume is a
 		// pod-scoped emptyDir, the only way to share them between containers.
 		common.GetVolumeMountForAuth(true),
+		// /opt/datadog-agent/run should always be writable
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForLogs(),
 		// Python checks allocate temporary files via tempfile and the root filesystem is
 		// read-only; without a writable /tmp the disk check fails with "No usable temporary
@@ -971,5 +1006,6 @@ func volumeMountsForFlightRecorder() []corev1.VolumeMount {
 			Name:      common.FlightRecorderDataVolumeName,
 			MountPath: common.FlightRecorderDataPath,
 		},
+		common.GetVolumeMountForRunPath(),
 	}
 }
