@@ -430,7 +430,7 @@ func Test_npmFeature_ProtocolClassificationWorkaround(t *testing.T) {
 		{"future stable", &v2alpha1.AgentImageConfig{Tag: "7.85.0"}, true},
 		{"future RC", &v2alpha1.AgentImageConfig{Tag: "7.85.0-rc.12"}, true},
 		{"unknown custom image", &v2alpha1.AgentImageConfig{Name: "example.com/agent:custom"}, false},
-		{"default image", nil, false},
+		{"default image", nil, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := &v2alpha1.DatadogAgent{
