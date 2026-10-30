@@ -16,8 +16,8 @@ var (
 	// cluster-checks-runner), labeled by component and issue type. It increments
 	// once per component-level issue instance (an issue type going from absent to
 	// present on a component) so it measures the rate at which new problems surface.
-	// A flap — the issue re-activating while its resolve is still within the grace
-	// window — is not re-counted, so a crash-looping component does not inflate it.
+	// A flap (the issue re-activating while its resolve is still within the grace
+	// window) is not re-counted, so a crash-looping component does not inflate it.
 	ComponentHealthIssuesDetected = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: componentHealthSubsystem,
