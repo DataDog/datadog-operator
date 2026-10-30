@@ -239,7 +239,7 @@ func TestReconcileV2AgentFeatureError(t *testing.T) {
 
 			status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
 			features := []feature.Feature{&dummyFeature{IDValue: "failing", ManageNodeAgentError: featErr}}
-			_, err := r.reconcileV2Agent(ctx, feature.RequiredComponents{}, features, ddai, managers, status, "")
+			_, err := r.reconcileV2Agent(ctx, feature.RequiredComponents{}, features, ddai, managers, status, "", make(map[string][]string))
 
 			require.ErrorContains(t, err, featErr.Error())
 			require.NotNil(t, status.Agent)

@@ -55,7 +55,8 @@ func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
 			reconcile := func() *appsv1.DaemonSet {
 				configured, enabled, required, _ := feature.BuildFeatures(ddai, &ddai.Spec, nil, &feature.Options{Logger: logr.Discard()})
 				_, managers := r.setupDependencies(ctx, ddai)
-				_, err := r.reconcileV2Agent(ctx, required, append(configured, enabled...), ddai, managers, &v1alpha1.DatadogAgentInternalStatus{}, "")
+				status := &v1alpha1.DatadogAgentInternalStatus{}
+				_, err := r.reconcileV2Agent(ctx, required, append(configured, enabled...), ddai, managers, status, "", make(map[string][]string))
 				require.NoError(t, err)
 				list := &appsv1.DaemonSetList{}
 				require.NoError(t, r.client.List(ctx, list, client.InNamespace(ddai.Namespace)))

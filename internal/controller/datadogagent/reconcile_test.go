@@ -3044,3 +3044,47 @@ func Test_AutopilotRegistryDefaulting(t *testing.T) {
 		})
 	}
 }
+
+func TestReconcileDatadogAgentV2_MultipleOverrideConflicts(t *testing.T) {
+	runTestCases(t, []testCase{{
+		name: "all disabled components are reported",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder("bar", "foo").
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}).
+				WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}).
+				Build()
+			assert.NoError(t, c.Create(context.Background(), dda))
+			return dda
+		},
+		want: reconcile.Result{RequeueAfter: 15 * time.Second},
+		wantFunc: func(t *testing.T, c client.Client) {
+			ddai := &v1alpha1.DatadogAgentInternal{}
+			assert.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "bar", Name: "foo"}, ddai))
+			conflict := condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+			assert.NotNil(t, conflict)
+			assert.Equal(t, "clusterAgent component is set to disabled; clusterChecksRunner component is set to disabled; Agent component is set to disabled", conflict.Message)
+
+			ri := datadogagentinternal.NewReconciler(ddaiReconcilerOptionsFromDDA(ReconcilerOptions{}), c, platformInfoForTest(testCase{}), c.Scheme(), record.NewFakeRecorder(100), dummyManager{})
+			// Reconcile again after resolving only the DCA and Node Agent conflicts.
+			delete(ddai.Spec.Override, v2alpha1.ClusterAgentComponentName)
+			delete(ddai.Spec.Override, v2alpha1.NodeAgentComponentName)
+			assert.NoError(t, c.Update(context.Background(), ddai))
+			_, err := ri.Reconcile(context.Background(), ddai)
+			assert.NoError(t, err)
+			assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(ddai), ddai))
+			conflict = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+			assert.NotNil(t, conflict)
+			assert.Equal(t, "clusterChecksRunner component is set to disabled", conflict.Message)
+
+			delete(ddai.Spec.Override, v2alpha1.ClusterChecksRunnerComponentName)
+			assert.NoError(t, c.Update(context.Background(), ddai))
+			_, err = ri.Reconcile(context.Background(), ddai)
+			assert.NoError(t, err)
+			assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(ddai), ddai))
+			assert.Nil(t, condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType))
+		},
+	}}, runFullReconcilerTest)
+}
