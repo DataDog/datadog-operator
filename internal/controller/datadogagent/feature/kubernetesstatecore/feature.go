@@ -67,6 +67,10 @@ type ksmFeature struct {
 
 	shardingEnabled bool
 
+	// draRBAC is true when the component running the check supports the DRA
+	// collectors, so users can list them in a custom KSM config.
+	draRBAC bool
+
 	rbacSuffix         string
 	serviceAccountName string
 
@@ -245,6 +249,17 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 		}
 
+		// Grant read access to the DRA API so users can add the resourceclaims,
+		// resourceslices and devicetaintrules collectors in a custom config.
+		// Fail closed: older or unparseable versions of the component running the check
+		// (Cluster Agent or Cluster Checks Runners) do not get the rule.
+		draComponent := v2alpha1.ClusterAgentComponentName
+		if f.runInClusterChecksRunner {
+			draComponent = v2alpha1.ClusterChecksRunnerComponentName
+		}
+		draFallback := false
+		f.draRBAC = utils.IsAboveMinVersion(common.GetComponentVersion(dda, draComponent), draCollectorsMinVersion, &draFallback)
+
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
 
@@ -257,6 +272,7 @@ type collectorOptions struct {
 	enableCRD                 bool
 	enableControllerRevisions bool
 	useAPIServerCache         bool
+	enableDRARBAC             bool
 	customResources           []v2alpha1.Resource
 }
 
@@ -272,6 +288,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
 		useAPIServerCache:         f.useAPIServerCache,
+		enableDRARBAC:             f.draRBAC,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)

@@ -6,6 +6,7 @@
 package kubernetesstatecore
 
 import (
+	"slices"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -16,7 +17,10 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -361,4 +365,68 @@ func findVolume(volumes []*corev1.Volume, name string) *corev1.Volume {
 		}
 	}
 	return nil
+}
+
+func Test_ksmFeature_DRARBAC(t *testing.T) {
+	tests := []struct {
+		name string
+		dda  *v2alpha1.DatadogAgent
+		want bool
+	}{
+		{
+			name: "cluster agent 7.85.0",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
+			want: true,
+		},
+		{
+			name: "cluster agent 7.85.0 release candidate",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0-rc.1").Build(),
+			want: true,
+		},
+		{
+			name: "cluster agent 7.84.3",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.84.3").Build(),
+			want: false,
+		},
+		{
+			name: "cluster agent unparseable tag fails closed",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:dev").Build(),
+			want: false,
+		},
+		{
+			name: "no image override uses bundled version",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+			want: utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+		{
+			name: "custom conf, cluster agent 7.85.0",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithKSMCustomConf(customData).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
+			want: true,
+		},
+		{
+			name: "cluster checks runner 7.85.0 with cluster agent 7.84.3",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.85.0").WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.84.3").Build(),
+			want: true,
+		},
+		{
+			name: "cluster checks runner 7.84.3 with cluster agent 7.85.0",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.84.3").WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildKSMFeature(nil).(*ksmFeature)
+			f.Configure(tt.dda, &tt.dda.Spec, nil)
+			assert.Equal(t, tt.want, f.draRBAC)
+
+			hasDRARule := false
+			for _, rule := range getRBACPolicyRules(collectorOptions{enableDRARBAC: f.draRBAC}) {
+				if slices.Contains(rule.APIGroups, rbac.ResourceAPIGroup) {
+					hasDRARule = true
+				}
+			}
+			assert.Equal(t, tt.want, hasDRARule)
+		})
+	}
 }

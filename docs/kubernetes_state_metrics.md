@@ -142,6 +142,64 @@ The above will have the operator create and maintain a ConfigMap for you with th
 
 NB: You can't use `configData` and `configMap` simultaneously.
 
+### Dynamic Resource Allocation (DRA) metrics
+
+To collect metrics about Kubernetes [Dynamic Resource Allocation][dra] objects, add the `resourceclaims`, `resourceslices`, and `devicetaintrules` collectors to a custom check configuration (`conf.configData` or `conf.configMap`). A custom `collectors` list replaces the default one, so include the default collectors you want to keep:
+
+```yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    kubeStateMetricsCore:
+      enabled: true
+      conf:
+        configData: |-
+          cluster_check: true
+          init_config:
+          instances:
+            - skip_leader_election: true
+              collectors:
+              - pods
+              - replicationcontrollers
+              - statefulsets
+              - nodes
+              - cronjobs
+              - jobs
+              - replicasets
+              - deployments
+              - configmaps
+              - services
+              - endpoints
+              - endpointslices
+              - daemonsets
+              - horizontalpodautoscalers
+              - poddisruptionbudgets
+              - limitranges
+              - resourcequotas
+              - secrets
+              - namespaces
+              - persistentvolumeclaims
+              - persistentvolumes
+              - ingresses
+              - storageclasses
+              - volumeattachments
+              - apiservices
+              - controllerrevisions
+              - customresourcedefinitions
+              - resourceclaims
+              - resourceslices
+              - devicetaintrules
+```
+
+This example runs the check on Cluster Checks Runners; set `cluster_check` and `skip_leader_election` to `false` when it runs on the Cluster Agent.
+
+The DRA collectors require Cluster Agent 7.85.0 or later (or Cluster Checks Runner 7.85.0 or later when the check runs on Cluster Checks Runners). Older versions fail the whole `kubernetes_state_core` check when these collectors are listed on a cluster that serves the DRA API. When the component running the check is 7.85.0 or later, the operator automatically grants `list` and `watch` on `resourceclaims`, `resourceslices`, and `devicetaintrules` in the `resource.k8s.io` API group. Resource claims and resource slices require Kubernetes 1.34 or later, and device taint rules require Kubernetes 1.37 or later; the Agent skips collectors whose API the cluster does not serve.
+
+[dra]: https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/
+
 ## Further Reading
 
 The v2 of the Kubernetes State Metrics check is embedded as a "core check" in the Datadog Agent.

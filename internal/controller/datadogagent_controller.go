@@ -262,6 +262,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceclaims;resourceslices;devicetaintrules,verbs=list;watch
 
 // Profiles
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
