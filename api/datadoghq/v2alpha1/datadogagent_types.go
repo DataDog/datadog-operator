@@ -389,7 +389,7 @@ const (
 	InjectionModeAuto InjectionModeType = "auto"
 	// InjectionModeInitContainer uses init containers for library injection.
 	InjectionModeInitContainer InjectionModeType = "init_container"
-	// InjectionModeCSI uses CSI driver for library injection (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
+	// InjectionModeCSI uses CSI driver for library injection (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
 	InjectionModeCSI InjectionModeType = "csi"
 	// InjectionModeImageVolume uses image volumes for library injection (experimental, requires Cluster Agent 7.77.0+).
 	InjectionModeImageVolume InjectionModeType = "image_volume"
@@ -435,7 +435,7 @@ type SingleStepInstrumentation struct {
 	Injector *InjectorConfig `json:"injector,omitempty"`
 
 	// InjectionMode is the injection mode to use for libraries injection.
-	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
 	// Empty by default so the Cluster Agent can apply its own defaults.
 	// +optional
 	InjectionMode InjectionModeType `json:"injectionMode,omitempty"`
