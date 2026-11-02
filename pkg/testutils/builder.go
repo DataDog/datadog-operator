@@ -1077,14 +1077,6 @@ func (builder *DatadogAgentBuilder) WithKueueEnabled(enabled bool) *DatadogAgent
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithKueueCollectWorkloadEvents(enabled bool) *DatadogAgentBuilder {
-	return builder.withKueueConfigField("collectWorkloadEvents", enabled)
-}
-
-func (builder *DatadogAgentBuilder) WithKueueMetricsService(name, namespace string) *DatadogAgentBuilder {
-	return builder.withKueueConfigField("metricsService", map[string]string{"name": name, "namespace": namespace})
-}
-
 func (builder *DatadogAgentBuilder) WithKueueCustomConf(conf *v2alpha1.CustomConfig) *DatadogAgentBuilder {
 	return builder.withKueueConfigField("conf", conf)
 }

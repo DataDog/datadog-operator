@@ -55,6 +55,19 @@ func Test_kueueFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "Kueue enabled with valid annotation configuration",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/kueue-enabled": "true",
+					"agent.datadoghq.com/kueue-config":  `{"collectWorkloadEvents":false,"metricsService":{"name":"my-kueue-metrics","namespace":"my-kueue"}}`,
+				}).
+				WithClusterChecksEnabled(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig("my-kueue-metrics", "my-kueue", false), false),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
+		},
+		{
 			Name: "Kueue enabled with Cluster Agent too old",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithKueueEnabled(true).
@@ -114,18 +127,6 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
-			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
-		},
-		{
-			Name: "Kueue enabled with metrics service override and workload events disabled",
-			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-				WithKueueEnabled(true).
-				WithKueueCollectWorkloadEvents(false).
-				WithKueueMetricsService("my-kueue-metrics", "my-kueue").
-				WithClusterChecksEnabled(true).
-				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig("my-kueue-metrics", "my-kueue", false), false),
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
