@@ -42,27 +42,135 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 		annotations  map[string]string
 		expectedPath string
 	}{
-		{name: "core", tag: "7.86.0", expectedPath: "/host/etc/passwd"},
-		{name: "prefixed version", tag: "v7.86.0", expectedPath: "/host/etc/passwd"},
-		{name: "minor alias", tag: "7.86", expectedPath: "/host/etc/passwd"},
-		{name: "prerelease full variant", tag: "7.87.0-rc.1-full", expectedPath: "/host/etc/passwd"},
-		{name: "old core", tag: "7.85.0", expectedPath: "/etc/passwd"},
-		{name: "unknown image", tag: "local-build", expectedPath: "/etc/passwd"},
-		{name: "supported separate process agent", tag: "7.59.0", expectedPath: "/etc/passwd"},
-		{name: "unprivileged single container", tag: "7.86.0", single: true, expectedPath: "/host/etc/passwd"},
-		{name: "security agent unchanged", tag: "7.86.0", security: true, expectedPath: "/host/etc/passwd"},
-		{name: "system probe unchanged", tag: "7.86.0", security: true, systemProbe: true, expectedPath: "/host/etc/passwd"},
-		{name: "old core with security agent", tag: "7.85.0", security: true, expectedPath: "/etc/passwd"},
-		{name: "old core with system probe", tag: "7.85.0", security: true, systemProbe: true, expectedPath: "/etc/passwd"},
-		{name: "Talos exclusion", tag: "7.86.0", talos: true},
-		{name: "Autopilot default allowlist", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/host/etc/passwd"},
-		{name: "Autopilot explicit new allowlist", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, allowlistAnnotation: "v1.0.8"}, expectedPath: "/host/etc/passwd"},
-		{name: "Autopilot pinned old allowlist", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, allowlistAnnotation: "v1.0.7"}, expectedPath: "/etc/passwd"},
-		{name: "Autopilot old Agent", tag: "7.85.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/etc/passwd"},
-		{name: "Autopilot prerelease Agent", tag: "7.87.0-rc.1", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/host/etc/passwd"},
-		{name: "Autopilot separate process agent", tag: "7.59.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}, expectedPath: "/etc/passwd"},
-		{name: "Autopilot experimental opt-in", tag: "7.86.0", annotations: map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"}, expectedPath: "/host/etc/passwd"},
-		{name: "Autopilot malformed pin uses default", tag: "7.86.0", annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider, allowlistAnnotation: "v1.0.7-rc.1"}, expectedPath: "/host/etc/passwd"},
+		{
+			name:         "core",
+			tag:          "7.86.0",
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "prefixed version",
+			tag:          "v7.86.0",
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "minor alias",
+			tag:          "7.86",
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "prerelease full variant",
+			tag:          "7.87.0-rc.1-full",
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "old core",
+			tag:          "7.85.0",
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "unknown image",
+			tag:          "local-build",
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "supported separate process agent",
+			tag:          "7.59.0",
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "unprivileged single container",
+			tag:          "7.86.0",
+			single:       true,
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "security agent unchanged",
+			tag:          "7.86.0",
+			security:     true,
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "system probe unchanged",
+			tag:          "7.86.0",
+			security:     true,
+			systemProbe:  true,
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "old core with security agent",
+			tag:          "7.85.0",
+			security:     true,
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "old core with system probe",
+			tag:          "7.85.0",
+			security:     true,
+			systemProbe:  true,
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:  "Talos exclusion",
+			tag:   "7.86.0",
+			talos: true,
+		},
+		{
+			name:         "Autopilot default allowlist",
+			tag:          "7.86.0",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name: "Autopilot explicit new allowlist",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "v1.0.8",
+			},
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name: "Autopilot pinned old allowlist",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "v1.0.7",
+			},
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "Autopilot old Agent",
+			tag:          "7.85.0",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "Autopilot prerelease Agent",
+			tag:          "7.87.0-rc.1",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "Autopilot separate process agent",
+			tag:          "7.59.0",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "Autopilot experimental opt-in",
+			tag:          "7.86.0",
+			annotations:  map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"},
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name: "Autopilot malformed pin uses default",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "v1.0.7-rc.1",
+			},
+			expectedPath: "/host/etc/passwd",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			nodeOverride := v2alpha1.DatadogAgentComponentOverride{
