@@ -69,6 +69,7 @@ type SetupOptions struct {
 	ComponentHealthIntakeEnabled      bool
 	ComponentHealthIntakeURL          string
 	ComponentHealthSnapshotInterval   time.Duration
+	ComponentHealthResolveGracePeriod time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
 
@@ -291,6 +292,12 @@ func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.
 	// keeps the built-in default.
 	if options.ComponentHealthSnapshotInterval > 0 {
 		reconciler.snapshotInterval = options.ComponentHealthSnapshotInterval
+	}
+
+	// Override the default resolve grace period when configured; a non-positive
+	// value keeps the built-in default.
+	if options.ComponentHealthResolveGracePeriod > 0 {
+		reconciler.resolveGracePeriod = options.ComponentHealthResolveGracePeriod
 	}
 
 	// When the intake is enabled, swap the default logging emitter for the
