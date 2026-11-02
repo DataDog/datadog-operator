@@ -26,7 +26,8 @@ import (
 // Keep version selection aligned with Helm's process-passwd-mount-path helper.
 // This covers Process Check/Discovery only; Gohai still uses local user lookup.
 var (
-	processHostPasswdMinVersion          = semver.MustParse("7.86.0")
+	// -0 includes 7.86.0+ prereleases (RC/devel), matching other Agent feature minimum versions.
+	processHostPasswdMinVersion          = semver.MustParse("7.86.0-0")
 	processHostPasswdMinAllowlistVersion = semver.MustParse("1.0.8")
 	processAllowlistVersionRegexp        = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 )
@@ -48,7 +49,7 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	if !ok {
 		return common.PasswdMountPath
 	}
-	// Strip build variants, not prereleases such as -devel or -rc.1.
+	// Strip build variants; prereleases such as -devel or -rc.1 compare against the -0 minimum.
 	tag := pkgutils.GetTagFromImageName(image)
 	for _, suffix := range []string{images.WindowsServerCoreTagSuffix, images.FullTagSuffix, images.JMXTagSuffix, images.FIPSTagSuffix} {
 		tag = strings.TrimSuffix(tag, suffix)
@@ -57,9 +58,9 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 		tag = images.AgentLatestVersion
 	}
 	// Parse the whole tag: an embedded version in a custom tag is not evidence
-	// of compatibility. Exclude prereleases even above the minimum version.
+	// of compatibility.
 	version, err := semver.NewVersion(tag)
-	if err == nil && version.Prerelease() == "" && !version.LessThan(processHostPasswdMinVersion) {
+	if err == nil && !version.LessThan(processHostPasswdMinVersion) {
 		return "/host/etc/passwd"
 	}
 	return common.PasswdMountPath
