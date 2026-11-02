@@ -1412,10 +1412,12 @@ func Test_otelImageTags(t *testing.T) {
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantFunc: func(t *testing.T, c client.Client) {
+				// The name's latest tag takes precedence, so service discovery defaults to enabled.
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
+					string(apicommon.SystemProbeContainerName),
 				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
@@ -1423,6 +1425,7 @@ func Test_otelImageTags(t *testing.T) {
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.SystemProbeContainerName].Image)
 
 			},
 		},
