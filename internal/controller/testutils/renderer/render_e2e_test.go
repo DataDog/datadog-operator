@@ -15,8 +15,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -177,6 +179,134 @@ func TestRender_DAPKeepsExplicitlyDisabledAPMHostPort(t *testing.T) {
 	require.Contains(t, traceHostPorts, "datadog-agent-agent", "default DaemonSet has no trace-agent traceport")
 	assert.Zero(t, traceHostPorts["datadog-agent-agent"], "default DaemonSet must keep the DDA's disabled APM host port")
 	assert.NotContains(t, traceHostPorts, "apm-hostport-profile-agent", "conflicting profile should not produce a DaemonSet")
+}
+
+// TestRender_DAPAPMHostPortDoesNotReachDefaultNodes checks that a profile APM
+// host port leaves the default Agent pod template unchanged when the DDA does
+// not explicitly disable host ports.
+func TestRender_DAPAPMHostPortDoesNotReachDefaultNodes(t *testing.T) {
+	tests := []struct {
+		name string
+		apm  *v2alpha1.APMFeatureConfig
+		dap  string
+		// wantProfileDS is the profile DaemonSet that must be rendered, if any.
+		wantProfileDS string
+	}{
+		{
+			// Control: an override-only profile never touches default nodes.
+			name:          "override-only profile",
+			apm:           &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)},
+			dap:           "testdata/linux-profile.yaml",
+			wantProfileDS: "linux-profile-agent",
+		},
+		{
+			// Default nodes run no trace-agent, so the profile can own the Service port.
+			name:          "DDA APM disabled",
+			apm:           &v2alpha1.APMFeatureConfig{Enabled: ptr.To(false)},
+			dap:           "testdata/apm-hostport-profile.yaml",
+			wantProfileDS: "apm-hostport-profile-agent",
+		},
+		{
+			name: "DDA APM omitted",
+			dap:  "testdata/apm-hostport-profile.yaml",
+		},
+		{
+			name: "DDA host port config omitted",
+			apm:  &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)},
+			dap:  "testdata/apm-hostport-profile.yaml",
+		},
+		{
+			name: "DDA host port enabled, port omitted",
+			apm: &v2alpha1.APMFeatureConfig{
+				Enabled:        ptr.To(true),
+				HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true)},
+			},
+			dap: "testdata/apm-hostport-profile.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda, err := LoadDDA("testdata/minimal-dda.yaml")
+			require.NoError(t, err)
+			if tt.apm != nil {
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{APM: tt.apm}
+			}
+			daps, err := LoadDAPs([]string{tt.dap})
+			require.NoError(t, err)
+
+			baseline := renderDaemonSets(t, Options{DDA: dda.DeepCopy(), ProfileEnabled: true})
+			got := renderDaemonSets(t, Options{DDA: dda, DAPs: daps, ProfileEnabled: true})
+			require.Contains(t, baseline, "datadog-agent-agent")
+			require.Contains(t, got, "datadog-agent-agent")
+			assert.Equal(t, baseline["datadog-agent-agent"].Spec.Template, got["datadog-agent-agent"].Spec.Template, "profile must not change the default Agent pod template")
+			if tt.wantProfileDS != "" {
+				assert.Contains(t, got, tt.wantProfileDS, "profile should be applied")
+			}
+		})
+	}
+}
+
+// TestRender_DAPAPMHostPortServiceTargetsEveryAgent checks that, with host
+// networking, the local Service traceport targets the port every rendered
+// trace-agent listens on.
+func TestRender_DAPAPMHostPortServiceTargetsEveryAgent(t *testing.T) {
+	dda, err := LoadDDA("testdata/minimal-dda.yaml")
+	require.NoError(t, err)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{APM: &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)}}
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {HostNetwork: ptr.To(true)},
+	}
+	// One profile sets a host port; the other only overrides resources.
+	daps, err := LoadDAPs([]string{"testdata/apm-hostport-profile.yaml", "testdata/gpu-profile.yaml"})
+	require.NoError(t, err)
+
+	objects, _, err := Render(Options{DDA: dda, DAPs: daps, ProfileEnabled: true})
+	require.NoError(t, err)
+
+	var targetPort *int
+	listenPorts := map[string]int32{}
+	for _, obj := range objects {
+		switch o := obj.(type) {
+		case *corev1.Service:
+			if o.Name != "datadog-agent-agent" {
+				continue
+			}
+			for _, p := range o.Spec.Ports {
+				if p.Name == "traceport" {
+					targetPort = ptr.To(p.TargetPort.IntValue())
+				}
+			}
+		case *appsv1.DaemonSet:
+			for _, c := range o.Spec.Template.Spec.Containers {
+				for _, p := range c.Ports {
+					if c.Name == "trace-agent" && p.Name == "traceport" {
+						listenPorts[o.Name] = p.ContainerPort
+					}
+				}
+			}
+		}
+	}
+
+	require.NotNil(t, targetPort, "local Service has no traceport")
+	require.Contains(t, listenPorts, "gpu-profile-agent", "override-only profile DaemonSet was not rendered")
+	for name, port := range listenPorts {
+		assert.Equal(t, *targetPort, int(port), "Service targetPort must match the trace-agent port on %s", name)
+	}
+}
+
+// renderDaemonSets returns the rendered DaemonSets by name.
+func renderDaemonSets(t *testing.T, opts Options) map[string]*appsv1.DaemonSet {
+	t.Helper()
+	objects, _, err := Render(opts)
+	require.NoError(t, err)
+	daemonSets := map[string]*appsv1.DaemonSet{}
+	for _, obj := range objects {
+		if ds, ok := obj.(*appsv1.DaemonSet); ok {
+			daemonSets[ds.Name] = ds
+		}
+	}
+	return daemonSets
 }
 
 func TestRender_AppArmorProfileVersionGate(t *testing.T) {
