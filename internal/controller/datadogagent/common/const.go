@@ -118,6 +118,10 @@ const (
 	PasswdHostPath   = "/etc/passwd"
 	PasswdMountPath  = "/etc/passwd"
 
+	// GKE Warden matches volumeMounts by name, so the relocated process passwd mount uses its own volume.
+	HostPasswdVolumeName = "host-passwd"
+	HostPasswdMountPath  = "/host/etc/passwd"
+
 	ProcdirVolumeName = "procdir"
 	ProcdirHostPath   = "/proc"
 	ProcdirMountPath  = "/host/proc"

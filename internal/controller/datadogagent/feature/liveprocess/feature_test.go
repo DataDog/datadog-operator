@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -119,7 +120,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      common.PasswdVolumeName,
+					Name:      featutils.ProcessPasswdVolumeName(expectedPath),
 					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
@@ -141,7 +142,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volumes
 			wantVolumes := []corev1.Volume{
 				{
-					Name: common.PasswdVolumeName,
+					Name: featutils.ProcessPasswdVolumeName(expectedPath),
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.PasswdHostPath,

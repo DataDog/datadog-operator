@@ -150,3 +150,8 @@ func TestProcessPasswdMountPathAutopilotAllowlist(t *testing.T) {
 		}
 	}
 }
+
+func TestProcessPasswdVolumeName(t *testing.T) {
+	assert.Equal(t, common.PasswdVolumeName, ProcessPasswdVolumeName(common.PasswdMountPath))
+	assert.Equal(t, common.HostPasswdVolumeName, ProcessPasswdVolumeName(common.HostPasswdMountPath))
+}

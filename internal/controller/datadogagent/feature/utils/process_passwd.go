@@ -61,9 +61,18 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	// of compatibility.
 	version, err := semver.NewVersion(tag)
 	if err == nil && !version.LessThan(processHostPasswdMinVersion) {
-		return "/host/etc/passwd"
+		return common.HostPasswdMountPath
 	}
 	return common.PasswdMountPath
+}
+
+// ProcessPasswdVolumeName returns the volume backing a process passwd mount path.
+// GKE Warden matches volumeMounts by name, so the relocated path needs its own volume.
+func ProcessPasswdVolumeName(mountPath string) string {
+	if mountPath == common.HostPasswdMountPath {
+		return common.HostPasswdVolumeName
+	}
+	return common.PasswdVolumeName
 }
 
 // autopilotSupportsProcessHostPasswd follows CreateAllowlistSynchronizer's

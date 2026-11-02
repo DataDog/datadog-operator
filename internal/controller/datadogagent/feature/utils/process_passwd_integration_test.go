@@ -22,6 +22,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
+	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -120,15 +121,18 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		count := 0
 		for _, mount := range container.VolumeMounts {
 			switch mount.Name {
-			case common.PasswdVolumeName:
+			case common.PasswdVolumeName, common.HostPasswdVolumeName:
 				count++
 				assert.True(t, mount.ReadOnly)
 				if container.Name == string(apicommon.SecurityAgentContainerName) || container.Name == string(apicommon.SystemProbeContainerName) {
 					securityMounts++
+					assert.Equal(t, common.PasswdVolumeName, mount.Name)
 					assert.Equal(t, "/etc/passwd", mount.MountPath)
 				} else {
 					processMounts++
 					assert.Equal(t, expectedPath, mount.MountPath)
+					// GKE Warden matches volumeMounts by name, so each path keeps a distinct volume name.
+					assert.Equal(t, featutils.ProcessPasswdVolumeName(expectedPath), mount.Name)
 				}
 			case common.GroupVolumeName:
 				assert.Equal(t, "/etc/group", mount.MountPath)
@@ -140,20 +144,23 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		assert.Positive(t, securityMounts)
 	}
 
-	passwdVolumes := 0
+	passwdVolumes := map[string]int{}
 	for _, volume := range pod.Spec.Volumes {
-		if volume.Name == common.PasswdVolumeName {
-			passwdVolumes++
+		if volume.Name == common.PasswdVolumeName || volume.Name == common.HostPasswdVolumeName {
+			passwdVolumes[volume.Name]++
 			require.NotNil(t, volume.HostPath)
 			assert.Equal(t, "/etc/passwd", volume.HostPath.Path, "only the mount destination changes")
 		}
 	}
 	if expectedPath == "" {
 		assert.Zero(t, processMounts)
-		assert.Zero(t, passwdVolumes)
+		assert.Empty(t, passwdVolumes)
 	} else {
 		assert.Equal(t, 1, processMounts, "both features must share one passwd mount")
-		assert.Equal(t, 1, passwdVolumes, "both features must share one host passwd volume")
+		assert.Equal(t, 1, passwdVolumes[featutils.ProcessPasswdVolumeName(expectedPath)], "both features must share one host passwd volume")
+	}
+	if securityMounts > 0 {
+		assert.Equal(t, 1, passwdVolumes[common.PasswdVolumeName], "security mounts keep the passwd volume")
 	}
 }
 

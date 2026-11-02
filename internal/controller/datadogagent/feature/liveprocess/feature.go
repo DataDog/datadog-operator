@@ -52,11 +52,11 @@ func (f *liveProcessFeature) ID() feature.IDType {
 
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. Talos has no host user database, so the
-// passwd volume this feature adds is stripped.
+// passwd volume (passwd or host-passwd) this feature adds is stripped.
 func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	return providercaps.ProviderCapabilityMap{
 		kubernetes.TalosProvider: {
-			RemoveVolumes: []string{common.PasswdVolumeName},
+			RemoveVolumes: []string{common.PasswdVolumeName, common.HostPasswdVolumeName},
 		},
 	}
 }
@@ -141,7 +141,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	// passwd volume mount
 	mountPath := featutils.ProcessPasswdMountPath(f.owner, f.nodeOverride, agentContainerName, managers.PodTemplateSpec())
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, mountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(featutils.ProcessPasswdVolumeName(mountPath), common.PasswdHostPath, mountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
