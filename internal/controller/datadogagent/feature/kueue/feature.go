@@ -6,6 +6,7 @@
 package kueue
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -17,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -58,6 +60,19 @@ type kueueFeature struct {
 	logger logr.Logger
 }
 
+// kueueConfig is experimental and deliberately absent from the DatadogAgent CRD.
+// The annotation can be changed without committing to a stable API shape.
+type kueueConfig struct {
+	CollectWorkloadEvents *bool                  `json:"collectWorkloadEvents,omitempty"`
+	MetricsService        *kueueMetricsService   `json:"metricsService,omitempty"`
+	Conf                  *v2alpha1.CustomConfig `json:"conf,omitempty"`
+}
+
+type kueueMetricsService struct {
+	Name      *string `json:"name,omitempty"`
+	Namespace *string `json:"namespace,omitempty"`
+}
+
 // ID returns the ID of the Feature
 func (f *kueueFeature) ID() feature.IDType {
 	return feature.KueueIDType
@@ -67,10 +82,16 @@ func (f *kueueFeature) ID() feature.IDType {
 func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if ddaSpec.Features == nil || ddaSpec.Features.Kueue == nil || !apiutils.BoolValue(ddaSpec.Features.Kueue.Enabled) {
+	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKueueAnnotation) {
 		return reqComp
 	}
-	kueue := ddaSpec.Features.Kueue
+	var kueue kueueConfig
+	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KueueConfigAnnotation); ok {
+		if err := json.Unmarshal([]byte(raw), &kueue); err != nil {
+			f.logger.Error(err, "invalid Kueue configuration annotation")
+			return reqComp
+		}
+	}
 
 	if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {
 		f.logger.Info("Kueue feature requires Cluster Agent >= 7.82.0; not enabling it")

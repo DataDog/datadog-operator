@@ -46,6 +46,15 @@ func Test_kueueFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "Kueue enabled with invalid annotation configuration",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/kueue-enabled": "true",
+					"agent.datadoghq.com/kueue-config":  "{invalid",
+				}).Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "Kueue enabled with Cluster Agent too old",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithKueueEnabled(true).
