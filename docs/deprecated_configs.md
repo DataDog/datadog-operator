@@ -12,31 +12,6 @@ This document lists configuration options that are deprecated or will be depreca
 
 ## Migration Guidelines
 
-### Reconcile log fields (next release)
-
-Reconcile logs for `DatadogAgent`, `DatadogAgentInternal`, `DatadogGenericResource`,
-`DatadogMonitor`, `DatadogDashboard`, `DatadogSLO`, and `DatadogAgentProfile` use
-flat `namespace` and `name` attributes to identify the reconciled Kubernetes
-resource. The logger name is `controllers.<Kind>` on both reconciler logs and
-controller-runtime messages such as `Reconciler error`. The `reconcileID`
-attribute links messages from the same reconciliation.
-
-Update log queries, dashboards, and monitors that use the following removed
-attributes:
-
-| Removed attribute | Replacement |
-|-------------------|-------------|
-| `datadogmonitor`, `datadogdashboard`, `datadogslo`, `datadogagentprofile` | `namespace` and `name`, scoped to the corresponding `logger` |
-| Nested `DatadogAgentInternal`, `DatadogMonitor`, `DatadogDashboard`, `DatadogSLO`, `DatadogAgentProfile` objects on controller-runtime messages | Flat `namespace` and `name` |
-| `Monitor Namespace`, `Monitor Name` on monitor creation, update, and required-tag messages | `namespace`, `name` |
-
-For example, replace a filter on `@datadogmonitor.name:my-monitor` with
-`@logger:controllers.DatadogMonitor @namespace:default @name:my-monitor` (using
-the resource's namespace). DatadogAgent and DatadogGenericResource already use
-these flat fields; their object identity is unchanged by this update.
-The default encoder already suppressed the nested `DatadogAgentInternal`
-attribute; its removal affects custom loggers that previously exposed it.
-
 ### runProcessChecksInCoreAgent
 
 The `runProcessChecksInCoreAgent` field in the Global configuration has been removed. This field previously controlled whether the Process Agent or Core Agent collects process and container checks and features.
