@@ -233,6 +233,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 						Namespace: pod.Namespace,
 						Name:      pod.Name,
 						Labels:    pod.Labels,
+						// Keep ResourceVersion so client-go distinguishes updates from resyncs.
+						// See https://github.com/DataDog/datadog-operator/issues/3661.
+						ResourceVersion: pod.ResourceVersion,
 					},
 					Spec: corev1.PodSpec{
 						NodeName: pod.Spec.NodeName,
@@ -291,6 +294,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					ObjectMeta: v1.ObjectMeta{
 						Name:   node.Name,
 						Labels: node.Labels,
+						// Keep ResourceVersion so client-go distinguishes updates from resyncs.
+						// See https://github.com/DataDog/datadog-operator/issues/3661.
+						ResourceVersion: node.ResourceVersion,
 					},
 				}
 
