@@ -12,6 +12,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -22,7 +23,15 @@ import (
 )
 
 func Test_kubernetesActionsFeature_Configure(t *testing.T) {
+	defaultDDA := testutils.NewDatadogAgentBuilder().WithName("ddaDCA").Build()
+	defaults.DefaultDatadogAgentSpec(&defaultDDA.Spec)
 	tests := test.FeatureTestSuite{
+		{
+			Name:          "KubernetesActions enabled by default",
+			DDA:           defaultDDA,
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
+		},
 		{
 			Name:          "KubernetesActions not configured",
 			DDA:           testutils.NewDatadogAgentBuilder().Build(),

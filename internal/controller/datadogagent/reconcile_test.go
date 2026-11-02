@@ -1493,6 +1493,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 					WithAdmissionControllerEnabled(false).
 					WithOrchestratorExplorerEnabled(false).
 					WithKSMEnabled(false).
+					WithKubernetesActionsEnabled(false).
 					WithDogstatsdUnixDomainSocketConfigEnabled(false).
 					WithAnnotations(map[string]string{
 						autopilotKey: "true",
@@ -1579,6 +1580,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 					WithAdmissionControllerEnabled(false).
 					WithOrchestratorExplorerEnabled(false).
 					WithKSMEnabled(false).
+					WithKubernetesActionsEnabled(false).
 					WithDogstatsdUnixDomainSocketConfigEnabled(false).
 					WithAnnotations(map[string]string{
 						autopilotKey: "true",
