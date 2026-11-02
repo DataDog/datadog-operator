@@ -42,7 +42,7 @@ func TestJemallocEnvVarsVersionGate(t *testing.T) {
 		{name: "old node new runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.83.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, wantRunner: true},
 		{name: "new node old runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.83.0"}, wantNode: true},
 		{name: "version from image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0-jmx"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0"}, wantNode: true},
-		{name: "tag overrides image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0", Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0", Tag: "7.83.0"}, wantNode: true},
+		{name: "tagged image name overrides tag", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0", Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0", Tag: "7.83.0"}, wantRunner: true},
 		{name: "unknown versions", nodeImage: &v2alpha1.AgentImageConfig{Tag: "latest"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:custom"}, wantNode: true, wantRunner: true},
 	}
 	dda := &metav1.ObjectMeta{Annotations: map[string]string{EnableJemallocAnnotation: "true"}}
