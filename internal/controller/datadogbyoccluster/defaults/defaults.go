@@ -50,6 +50,9 @@ const (
 	// Storage
 	defaultStorageSize = "30Gi"
 
+	// Security context
+	pomskyUserID int64 = 1005
+
 	// Resources
 	defaultStatefulCPURequest   = "4"
 	defaultStatefulMemory       = "16Gi"
@@ -65,24 +68,28 @@ const (
 func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.DatadogBYOCCluster {
 	defaulted := cluster.DeepCopy()
 	components := defaulted.Spec.Components
+
 	applyIndexerDefaults(components.Indexer)
 	applySearcherDefaults(components.Searcher)
-	for i := range components.Pipelines {
-		applyPipelineDefaults(&components.Pipelines[i].DatadogBYOCClusterPipelineComponentSpec)
-	}
 	applyMetastoreDefaults(components.Metastore)
-	applyComponentDefaults(components.ControlPlane, defaultControlPlaneReplicas, deploymentResources())
-	applyComponentDefaults(components.Janitor, defaultJanitorReplicas, deploymentResources())
+	applyControlPlaneDefaults(components.ControlPlane)
+	applyJanitorDefaults(components.Janitor)
+
 	if components.ReadOnlyMetastore != nil {
 		applyMetastoreDefaults(components.ReadOnlyMetastore)
 	}
 	if components.Compactor != nil {
 		applyCompactorDefaults(components.Compactor)
 	}
+	for i := range components.Pipelines {
+		applyPipelineDefaults(&components.Pipelines[i].DatadogBYOCClusterPipelineComponentSpec)
+	}
+
 	return defaulted
 }
 
 func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec) {
+	// Workers default the security context for their own image.
 	applyComponentDefaults(&pipeline.DatadogBYOCClusterComponentSpec, defaultPipelineReplicas, pipelineResources())
 	if pipeline.TerminationGracePeriodSeconds == nil {
 		pipeline.TerminationGracePeriodSeconds = new(defaultPipelineTerminationGracePeriodSeconds)
@@ -111,7 +118,7 @@ func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelin
 }
 
 func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
-	applyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, defaultIndexerReplicas, statefulResources())
+	applyPomskyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, defaultIndexerReplicas, statefulResources())
 	if indexer.TerminationGracePeriodSeconds == nil {
 		indexer.TerminationGracePeriodSeconds = new(defaultIndexerTerminationGracePeriodSeconds)
 	}
@@ -142,7 +149,7 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 }
 
 func applySearcherDefaults(searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
-	applyComponentDefaults(&searcher.DatadogBYOCClusterComponentSpec, defaultSearcherReplicas, statefulResources())
+	applyPomskyComponentDefaults(&searcher.DatadogBYOCClusterComponentSpec, defaultSearcherReplicas, statefulResources())
 	if searcher.PodManagementPolicy == nil {
 		searcher.PodManagementPolicy = new(appsv1.ParallelPodManagement)
 	}
@@ -155,16 +162,42 @@ func applySearcherDefaults(searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefu
 }
 
 func applyMetastoreDefaults(metastore *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec) {
-	applyComponentDefaults(&metastore.DatadogBYOCClusterComponentSpec, defaultMetastoreReplicas, deploymentResources())
+	applyPomskyComponentDefaults(&metastore.DatadogBYOCClusterComponentSpec, defaultMetastoreReplicas, deploymentResources())
+}
+
+func applyControlPlaneDefaults(controlPlane *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) {
+	applyPomskyComponentDefaults(controlPlane, defaultControlPlaneReplicas, deploymentResources())
+}
+
+func applyJanitorDefaults(janitor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) {
+	applyPomskyComponentDefaults(janitor, defaultJanitorReplicas, deploymentResources())
 }
 
 func applyCompactorDefaults(compactor *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec) {
-	applyComponentDefaults(&compactor.DatadogBYOCClusterComponentSpec, defaultCompactorReplicas, nil)
+	applyPomskyComponentDefaults(&compactor.DatadogBYOCClusterComponentSpec, defaultCompactorReplicas, nil)
 	if compactor.TerminationGracePeriodSeconds == nil {
 		compactor.TerminationGracePeriodSeconds = new(defaultCompactorTerminationGracePeriodSeconds)
 	}
 	// Like the chart, leave the scale-down rules of the Compactor to Kubernetes.
 	applyAutoscalingDefaults(compactor.Autoscaling, defaultCompactorAutoscalingMinReplicas, defaultCompactorTargetCPUUtilization, defaultCompactorScaleUpWindowSeconds, nil)
+}
+
+func applyPomskyComponentDefaults(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, replicas int32, resources *corev1.ResourceRequirements) {
+	applyComponentDefaults(component, replicas, resources)
+	applySecurityContextDefaults(component)
+}
+
+func applySecurityContextDefaults(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) {
+	if component.PodSecurityContext == nil {
+		component.PodSecurityContext = &corev1.PodSecurityContext{FSGroup: new(pomskyUserID)}
+	}
+	if component.SecurityContext == nil {
+		component.SecurityContext = &corev1.SecurityContext{
+			RunAsNonRoot:           new(true),
+			RunAsUser:              new(pomskyUserID),
+			ReadOnlyRootFilesystem: new(true),
+		}
+	}
 }
 
 func applyComponentDefaults(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, replicas int32, resources *corev1.ResourceRequirements) {
