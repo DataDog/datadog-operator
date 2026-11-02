@@ -60,16 +60,6 @@ func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) er
 		WithOptions(ctrlcontroller.Options{
 			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
 		}).
-		// WithLogConstructor replaces the default log constructor. The default one adds
-		// both a nested "DatadogGenericResource":{name, namespace} object AND flat
-		// "namespace"/"name" fields, causing duplication. This constructor emits only
-		// flat fields, matching the format of other controllers.
-		WithLogConstructor(func(req *reconcile.Request) logr.Logger {
-			log := mgr.GetLogger().WithName("controllers").WithName("DatadogGenericResource")
-			if req != nil {
-				log = log.WithValues("namespace", req.Namespace, "name", req.Name)
-			}
-			return log
-		}).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), genericResourceControllerName)).
 		Complete(or)
 }

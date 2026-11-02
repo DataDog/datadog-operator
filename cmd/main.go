@@ -747,10 +747,9 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	// Wrap the encoder to filter out certain controller-runtime fields
 	fieldsToSkip := []string{
-		"controller",           // "datadogagentinternal", present in log name
-		"controllerGroup",      // "datadoghq.com", unnecessary
-		"controllerKind",       // "DatadogAgentInternal", present in log name
-		"DatadogAgentInternal", // {"name":"datadog-agent","namespace":"default"}, duplicate of namespace and name
+		"controller",      // present in log name
+		"controllerGroup", // "datadoghq.com", unnecessary
+		"controllerKind",  // present in log name
 	}
 	encoder := newFilteringEncoder(baseEncoder, fieldsToSkip)
 

@@ -45,7 +45,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("datadogagentprofile", req.NamespacedName)
+	reqLogger := ctrl.LoggerFrom(ctx)
 	reqLogger.Info("Reconciling DatadogAgentProfile")
 
 	var result reconcile.Result
