@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"helm.sh/helm/v3/pkg/chartutil"
+	chartutil "helm.sh/helm/v4/pkg/chart/common"
 )
 
 func TestRun(t *testing.T) {
