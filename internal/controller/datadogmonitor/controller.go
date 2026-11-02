@@ -125,7 +125,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.
 
 // Reconcile loop for DatadogMonitor
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogmonitor", pkgutils.GetNamespacedName(instance))
+	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogMonitor")
 
 	auth, credErr := r.credsManager.GetAuth()
@@ -369,7 +369,7 @@ func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMon
 
 	// Set Created Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeCreated, corev1.ConditionTrue, "DatadogMonitor Created")
-	logger.Info("Created a new DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", m.GetId())
+	logger.Info("Created a new DatadogMonitor", "Monitor ID", m.GetId())
 
 	return nil
 }
@@ -395,7 +395,7 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 	status.MonitorLastForceSyncTime = &now
 	status.CurrentHash = instanceSpecHash
-	logger.V(1).Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
+	logger.V(1).Info("Updated DatadogMonitor", "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
@@ -501,7 +501,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 
 			return false, err
 		}
-		logger.Info("Added required tags", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
+		logger.Info("Added required tags", "Monitor ID", datadogMonitor.Status.ID)
 
 		return true, nil
 	}

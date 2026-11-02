@@ -75,9 +75,13 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 	// delivered after controller startup. This ensures that every existing
 	// DatadogMonitor is reconciled promptly; only controller-scheduled
 	// background requeues are assigned low priority by the internal reconciler.
-	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).WithOptions(ctrlcontroller.Options{
-		MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
-	}).Complete(or); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(ctrlcontroller.Options{
+			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+		}).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), monitorControllerName)).
+		Complete(or); err != nil {
 		return err
 	}
 
