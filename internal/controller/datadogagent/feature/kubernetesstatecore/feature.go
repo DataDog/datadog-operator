@@ -7,6 +7,7 @@ package kubernetesstatecore
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -258,12 +260,33 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			draComponent = v2alpha1.ClusterChecksRunnerComponentName
 		}
 		draFallback := false
-		f.draRBAC = utils.IsAboveMinVersion(common.GetComponentVersion(dda, draComponent), draCollectorsMinVersion, &draFallback)
+		f.draRBAC = utils.IsAboveMinVersion(draComponentVersion(dda, ddaSpec, draComponent), draCollectorsMinVersion, &draFallback)
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
 
 	return output
+}
+
+// draComponentVersion returns the version of the image that runs the KSM check. An image
+// override that sets no tag, neither in the name nor in the tag field (for example one that
+// only sets pullPolicy or pullSecrets), keeps the bundled image tag when the image is
+// rendered (images.OverrideAgentImage), so it resolves to the component's bundled version.
+// An explicit tag is used as is, so an unparseable one still fails closed.
+func draComponentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, component v2alpha1.ComponentName) string {
+	if override, ok := ddaSpec.Override[component]; ok && override != nil && override.Image != nil && !imageSetsTag(*override.Image) {
+		if component == v2alpha1.ClusterAgentComponentName {
+			return images.ClusterAgentLatestVersion
+		}
+		return images.AgentLatestVersion
+	}
+	return common.GetComponentVersion(dda, component)
+}
+
+// imageSetsTag reports whether an image override sets a tag, in the name or in the tag
+// field. A registry port in the name does not count as a tag.
+func imageSetsTag(image v2alpha1.AgentImageConfig) bool {
+	return image.Tag != "" || strings.LastIndex(image.Name, ":") > strings.LastIndex(image.Name, "/")
 }
 
 type collectorOptions struct {

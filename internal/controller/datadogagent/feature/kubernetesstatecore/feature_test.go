@@ -413,6 +413,42 @@ func Test_ksmFeature_DRARBAC(t *testing.T) {
 			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.84.3").WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
 			want: false,
 		},
+		{
+			name: "cluster agent override without a tag keeps the bundled version",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)}),
+			want: utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+		{
+			name: "cluster agent override with an untagged name keeps the bundled version",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Name: "cluster-agent"}),
+			want: utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+		{
+			name: "cluster agent tag field 7.84.3",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Tag: "7.84.3"}),
+			want: false,
+		},
+		{
+			name: "cluster agent name with a registry port and tag 7.84.3",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/datadog/cluster-agent:7.84.3"}),
+			want: false,
+		},
+		{
+			name: "cluster agent unparseable tag field fails closed",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Name: "cluster-agent", Tag: "dev"}),
+			want: false,
+		},
+		{
+			name: "cluster checks runner override without a tag keeps the bundled version",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.84.3").Build(),
+				v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.AgentImageConfig{PullSecrets: &[]corev1.LocalObjectReference{{Name: "registry-secret"}}}),
+			want: utils.IsAboveMinVersion(images.AgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -429,4 +465,18 @@ func Test_ksmFeature_DRARBAC(t *testing.T) {
 			assert.Equal(t, tt.want, hasDRARule)
 		})
 	}
+}
+
+// withImageOverride sets the image override of a component.
+func withImageOverride(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName, image v2alpha1.AgentImageConfig) *v2alpha1.DatadogAgent {
+	if dda.Spec.Override == nil {
+		dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+	override := dda.Spec.Override[component]
+	if override == nil {
+		override = &v2alpha1.DatadogAgentComponentOverride{}
+		dda.Spec.Override[component] = override
+	}
+	override.Image = &image
+	return dda
 }
