@@ -8,10 +8,12 @@ package kueue
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -73,6 +75,27 @@ type kueueMetricsService struct {
 	Namespace *string `json:"namespace,omitempty"`
 }
 
+func (svc *kueueMetricsService) validate() error {
+	if svc == nil {
+		return nil
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "name", value: svc.Name},
+		{name: "namespace", value: svc.Namespace},
+	} {
+		if field.value == nil {
+			continue
+		}
+		if errs := validation.IsDNS1123Label(*field.value); len(errs) != 0 {
+			return fmt.Errorf("invalid metricsService.%s %q: %s", field.name, *field.value, strings.Join(errs, ", "))
+		}
+	}
+	return nil
+}
+
 // ID returns the ID of the Feature
 func (f *kueueFeature) ID() feature.IDType {
 	return feature.KueueIDType
@@ -91,6 +114,10 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 			f.logger.Error(err, "invalid Kueue configuration annotation")
 			return reqComp
 		}
+	}
+	if err := kueue.MetricsService.validate(); err != nil {
+		f.logger.Error(err, "invalid Kueue configuration annotation")
+		return reqComp
 	}
 
 	if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {

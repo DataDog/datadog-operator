@@ -7,6 +7,7 @@ package kueue
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -168,6 +169,24 @@ func Test_kueueFeature_Configure(t *testing.T) {
 			},
 			ClusterAgent: clusterAgentWantFunc(basicVolume("user-kueue")),
 		},
+	}
+	for _, tc := range []struct {
+		name   string
+		config string
+	}{
+		{name: "uppercase service name", config: `{"metricsService":{"name":"Bad-Service"}}`},
+		{name: "service name over 63 characters", config: fmt.Sprintf(`{"metricsService":{"name":%q}}`, strings.Repeat("a", 64))},
+		{name: "newline in service namespace", config: fmt.Sprintf(`{"metricsService":{"namespace":%q}}`, "bad\nnamespace")},
+	} {
+		tests = append(tests, test.FeatureTest{
+			Name: "Kueue rejects " + tc.name,
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/kueue-enabled": "true",
+					"agent.datadoghq.com/kueue-config":  tc.config,
+				}).Build(),
+			WantConfigure: false,
+		})
 	}
 
 	tests.Run(t, buildKueueFeature)
