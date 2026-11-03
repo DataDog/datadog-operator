@@ -27,6 +27,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 )
 
 func TestResources_Objects(t *testing.T) {
@@ -256,6 +257,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 
 func TestBuildResources_ConfigMap(t *testing.T) {
 	type nodeConfigValues struct {
+		clusterID string
 		indexer   map[string]any
 		ingestAPI map[string]any
 		searcher  map[string]any
@@ -289,6 +291,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
 			"version":               0.8,
+			"cluster_id":            values.clusterID,
 			"listen_address":        "0.0.0.0",
 			"gossip_listen_port":    7282,
 			"cloudprem_listen_port": 7283,
@@ -335,6 +338,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			name:        "default",
 			clusterFunc: func(*datadoghqv1alpha1.DatadogBYOCCluster) {},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -351,6 +355,7 @@ ingest_api:
   max_queue_memory_usage: 1GiB`)}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(10307921510), "max_queue_memory_usage": "1GiB"},
 				searcher: map[string]any{
@@ -375,6 +380,7 @@ ingest_api:
     policy: s3-fifo`)}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher: map[string]any{
@@ -384,6 +390,19 @@ ingest_api:
 					"partial_request_cache":             "40G",
 					"split_footer_cache":                map[string]any{"capacity": int64(536870912), "policy": "s3-fifo"},
 				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with cluster ID node config override",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "search",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
 		},
@@ -398,6 +417,7 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 17394617549, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(5153960755), "max_queue_memory_usage": int64(2576980377)},
 				searcher: map[string]any{
@@ -421,6 +441,7 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 15784004813, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(6764573491), "max_queue_memory_usage": int64(3382286745)},
 				searcher: map[string]any{
@@ -439,6 +460,7 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs)
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -451,6 +473,7 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -471,6 +494,7 @@ ingest_api:
   create_datadog_index: true`)}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -653,6 +677,13 @@ func TestBuildResources_Environment(t *testing.T) {
 				{Name: "GLOBAL_SETTING", Value: "global"},
 				{Name: "COMPONENT_SETTING", Value: "component"},
 			},
+		},
+		{
+			name: "cluster ID of the node configuration",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
+			},
+			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"}},
 		},
 	}
 
@@ -1382,6 +1413,8 @@ type wantWorkload struct {
 	template corev1.PodTemplateSpec
 }
 
+// wantDefaultEnvironment returns the default environment with additional replacing the variables of the same name
+// and adding the others.
 func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 	field := func(fieldPath string) *corev1.EnvVarSource {
 		return &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: fieldPath}}
@@ -1401,7 +1434,6 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "QW_NUM_CPUS", ValueFrom: resourceField("requests.cpu")},
 		{Name: "KUBERNETES_REQUESTS_MEMORY", ValueFrom: resourceField("requests.memory")},
 		{Name: "QW_CONFIG", Value: "/quickwit/node.yaml"},
-		{Name: "QW_CLUSTER_ID", Value: "testing-byoc"},
 		{Name: "QW_NODE_ID", Value: "$(KUBERNETES_POD_NAME)"},
 		{Name: "QW_AVAILABILITY_ZONE", ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
 		{Name: "QW_PEER_SEEDS", Value: "byoc-headless"},
@@ -1425,7 +1457,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "IMAGE_NAME", Value: "registry.example.com/cloudprem"},
 		{Name: "IMAGE_TAG", Value: "v1.2.3"},
 	}
-	env = append(env, additional...)
+	env = controllerutils.MergeEnv(env, additional)
 	return append(env,
 		corev1.EnvVar{Name: "NO_COLOR", Value: "true"},
 		corev1.EnvVar{Name: "QW_DISABLE_INGEST_V1", Value: "true"},

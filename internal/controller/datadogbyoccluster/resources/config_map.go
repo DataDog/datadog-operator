@@ -34,9 +34,11 @@ const (
 	quickwitCreateLogsIndexConfigKey             = "create_dd_logs_index"
 	quickwitCreateDatadogIndexConfigKey          = "create_datadog_index"
 	quickwitUseReadOnlyMetastoreConfigKey        = "use_metastore_read_replica"
+	quickwitClusterIDConfigKey                   = "cluster_id"
 )
 
-func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.ConfigMap, error) {
+// newNodeConfig returns the Quickwit node configuration with spec.nodeConfigOverrides merged into the defaults.
+func newNodeConfig(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (map[string]any, error) {
 	indexerMemoryLimit := cluster.Spec.Components.Indexer.Resources.Limits[corev1.ResourceMemory]
 	searcherMemoryLimit := cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
 	indexerMemoryBytes := indexerMemoryLimit.Value()
@@ -54,6 +56,7 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 	}
 
 	config := defaultNodeConfig()
+	config[quickwitClusterIDConfigKey] = cluster.Namespace + "-" + cluster.Name
 	config["ingest_api"] = map[string]any{
 		// ByteSize accepts integer byte counts, so no unit conversion is needed.
 		"max_queue_disk_usage":   maxQueueDiskUsage,
@@ -94,7 +97,11 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 			return nil, fmt.Errorf("merge spec.nodeConfigOverrides: %w", err)
 		}
 	}
-	nodeConfig, err := yaml.Marshal(config)
+	return config, nil
+}
+
+func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster, nodeConfig map[string]any) (*corev1.ConfigMap, error) {
+	data, err := yaml.Marshal(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("encode node config: %w", err)
 	}
@@ -106,7 +113,7 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 			Labels:      labels(cluster),
 			Annotations: annotations(cluster),
 		},
-		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(nodeConfig), "\n")},
+		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(data), "\n")},
 	}, nil
 }
 

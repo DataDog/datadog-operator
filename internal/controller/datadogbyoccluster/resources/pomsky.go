@@ -76,7 +76,6 @@ const (
 
 	envQuickwitNumCPUs                      = "QW_NUM_CPUS"
 	envQuickwitConfig                       = "QW_CONFIG"
-	envQuickwitClusterID                    = "QW_CLUSTER_ID"
 	envQuickwitNodeID                       = "QW_NODE_ID"
 	envQuickwitAvailabilityZone             = "QW_AVAILABILITY_ZONE"
 	envQuickwitPeerSeeds                    = "QW_PEER_SEEDS"
