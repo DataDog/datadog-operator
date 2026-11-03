@@ -62,14 +62,15 @@ func Test_CacheConfig(t *testing.T) {
 				dashboardWatchNamespaceEnvVar:       "dashboardNs",
 				genericResourceWatchNamespaceEnvVar: "genericNs",
 				csiDriverWatchNamespaceEnvVar:       "csiDriverNs",
+				byocClusterWatchNamespaceEnvVar:     "byocNs",
 			},
 
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:              {configured: true, namespaces: []string{"agentNs"}},
-				byocClusterObj:        {configured: true, namespaces: []string{"datadog"}},
-				workerObj:             {configured: true, namespaces: []string{"datadog"}},
+				byocClusterObj:        {configured: true, namespaces: []string{"byocNs"}},
+				workerObj:             {configured: true, namespaces: []string{"byocNs"}},
 				dashboardObj:          {configured: true, namespaces: []string{"dashboardNs"}},
 				genericResourceObj:    {configured: true, namespaces: []string{"genericNs"}},
 				monitorObj:            {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
@@ -79,11 +80,11 @@ func Test_CacheConfig(t *testing.T) {
 				nodeObj:               {configured: true, namespaces: nil},
 				csiDriverObj:          {configured: true, namespaces: []string{"csiDriverNs"}},
 				csiDaemonSetObj:       {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
-				&appsv1.StatefulSet{}: {configured: true, namespaces: []string{"datadog", "agentNs"}},
+				&appsv1.StatefulSet{}: {configured: true, namespaces: []string{"byocNs", "agentNs"}},
 			},
 		},
 		{
-			name: "BYOCCluster in different namespace than Agent; owned resources cached in both",
+			name: "BYOCCluster in different namespace than Agent; falls back to WATCH_NAMESPACE and owned resources cached in both",
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:       true,
 				DatadogBYOCClusterEnabled: true,
