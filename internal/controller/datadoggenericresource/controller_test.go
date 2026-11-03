@@ -779,8 +779,15 @@ func TestReconcile_PreCreateAPIRead(t *testing.T) {
 			if tc.oldID {
 				stale.Status.Id = "old-id"
 			}
+			statusWrites := 0
 			cachedClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).
-				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale).Build()
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale).
+				WithInterceptorFuncs(interceptor.Funcs{
+					SubResourceUpdate: func(ctx context.Context, c client.Client, subresource string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+						statusWrites++
+						return c.SubResource(subresource).Update(ctx, obj, opts...)
+					},
+				}).Build()
 			live := fake.NewClientBuilder().WithScheme(scheme.Scheme).
 				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale.DeepCopy()).Build()
 			latest := stale.DeepCopy()
@@ -811,11 +818,16 @@ func TestReconcile_PreCreateAPIRead(t *testing.T) {
 				logf.Log, record.NewFakeRecorder(10), ReconcilerOptions{APIReader: reader})
 			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{mockSubresource: &MockHandler{}}
 			result, err := r.Reconcile(ctx, stale)
-			require.NoError(t, err)
+			if tc.readErr {
+				require.ErrorIs(t, err, readErr)
+			} else {
+				require.NoError(t, err)
+			}
 			if !tc.readErr && !tc.missing {
 				require.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
 			}
 			require.Zero(t, mockCreateCalls)
+			require.Zero(t, statusWrites, "pre-create skip and read-error paths must not write stale status")
 			if !tc.missing {
 				stored := &datadoghqv1alpha1.DatadogGenericResource{}
 				require.NoError(t, live.Get(ctx, client.ObjectKeyFromObject(latest), stored))

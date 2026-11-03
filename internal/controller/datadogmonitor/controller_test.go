@@ -1799,8 +1799,15 @@ func TestReconcile_PreCreateAPIRead(t *testing.T) {
 			if tc.oldID {
 				stale.Status.ID = 123
 			}
+			statusWrites := 0
 			cachedClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).
-				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale).Build()
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale).
+				WithInterceptorFuncs(interceptor.Funcs{
+					SubResourceUpdate: func(ctx context.Context, c client.Client, subresource string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+						statusWrites++
+						return c.SubResource(subresource).Update(ctx, obj, opts...)
+					},
+				}).Build()
 			live := fake.NewClientBuilder().WithScheme(scheme.Scheme).
 				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale.DeepCopy()).Build()
 			latest := stale.DeepCopy()
@@ -1839,6 +1846,7 @@ func TestReconcile_PreCreateAPIRead(t *testing.T) {
 				require.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
 			}
 			require.Zero(t, createCalls.Load())
+			require.Zero(t, statusWrites, "pre-create skip and read-error paths must not write stale status")
 			if !tc.missing {
 				stored := &datadoghqv1alpha1.DatadogMonitor{}
 				require.NoError(t, live.Get(ctx, client.ObjectKeyFromObject(latest), stored))

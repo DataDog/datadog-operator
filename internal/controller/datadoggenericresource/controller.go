@@ -42,7 +42,10 @@ const (
 	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
 )
 
-var errCreateSkipped = errors.New("resource changed before create")
+var (
+	errCreateSkipped = errors.New("resource changed before create")
+	errPreCreateRead = errors.New("checking DatadogGenericResource before create")
+)
 
 type Reconciler struct {
 	client          client.Client
@@ -194,6 +197,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		if errors.Is(err, errCreateSkipped) {
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
 		}
+		if errors.Is(err, errPreCreateRead) {
+			// Surface infrastructure failures without writing status from a stale CR.
+			return ctrl.Result{}, err
+		}
 
 		if err != nil {
 			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
@@ -270,7 +277,7 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 		if apierrors.IsNotFound(err) {
 			return errCreateSkipped
 		}
-		return fmt.Errorf("checking DatadogGenericResource before create: %w", err)
+		return fmt.Errorf("%w: %w", errPreCreateRead, err)
 	}
 	if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.Id != "" && latest.Status.Id != instance.Status.Id) {
 		logger.Info("Skipping create because DatadogGenericResource changed; requeuing")
