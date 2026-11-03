@@ -256,6 +256,89 @@ func TestAWSDelegatedTokenProvider_Timeout(t *testing.T) {
 	assert.Less(t, time.Since(start), 5*time.Second)
 }
 
+func TestAWSDelegatedTokenProvider_MalformedResponseDoesNotLeakToken(t *testing.T) {
+	const secret = "secret-token-value"
+	bodies := map[string]string{
+		"token outside attributes": `{"data":{"access_token":"` + secret + `"}}`,
+		"token at top level":       `{"access_token":"` + secret + `"}`,
+		"data is a string":         `{"data":"` + secret + `"}`,
+		"wrong token type":         `{"data":{"attributes":{"access_token":123,"other":"` + secret + `"}}}`,
+		"invalid JSON":             `{"data":{"attributes":{"access_token":"` + secret + `"`,
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			defer server.Close()
+
+			provider := &awsDelegatedTokenProvider{loadCredentials: staticCredsLoader}
+			_, err := provider.Authenticate(serverContext(t, server.URL), &datadogapi.DelegatedTokenConfig{OrgUUID: "org-1"})
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), secret)
+			assert.Contains(t, err.Error(), "malformed delegated token response")
+		})
+	}
+}
+
+func TestParseDelegatedTokenResponse_Expiration(t *testing.T) {
+	exp := time.Now().Add(time.Hour).Unix()
+	for name, expires := range map[string]string{
+		"string": fmt.Sprintf(`"%d"`, exp),
+		"number": fmt.Sprintf(`%d`, exp),
+	} {
+		t.Run(name, func(t *testing.T) {
+			tok, err := parseDelegatedTokenResponse([]byte(`{"data":{"attributes":{"access_token":"tok","expires":`+expires+`}}}`), "org-1", "proof")
+			require.NoError(t, err)
+			assert.Equal(t, "tok", tok.DelegatedToken)
+			assert.Equal(t, "org-1", tok.OrgUUID)
+			assert.Equal(t, exp, tok.Expiration.Unix())
+		})
+	}
+
+	t.Run("missing defaults to 15 minutes", func(t *testing.T) {
+		tok, err := parseDelegatedTokenResponse([]byte(`{"data":{"attributes":{"access_token":"tok"}}}`), "org-1", "proof")
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now().Add(15*time.Minute), tok.Expiration, time.Minute)
+	})
+}
+
+// blockingCredsLoader simulates an AWS credential endpoint that never answers.
+func blockingCredsLoader(ctx context.Context) (aws.Credentials, string, error) {
+	<-ctx.Done()
+	return aws.Credentials{}, "", ctx.Err()
+}
+
+func TestAWSDelegatedTokenProvider_CredentialRetrievalTimeout(t *testing.T) {
+	provider := &awsDelegatedTokenProvider{loadCredentials: blockingCredsLoader, timeout: 100 * time.Millisecond}
+	start := time.Now()
+	_, err := provider.Authenticate(context.Background(), &datadogapi.DelegatedTokenConfig{OrgUUID: "org-1"})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(start), 5*time.Second)
+}
+
+func TestDelegatedTokenSource_HungCredentialsReleaseLock(t *testing.T) {
+	source := &delegatedTokenSource{
+		config: &datadogapi.DelegatedTokenConfig{
+			OrgUUID:      "org-1",
+			ProviderAuth: &awsDelegatedTokenProvider{loadCredentials: blockingCredsLoader, timeout: 100 * time.Millisecond},
+		},
+		now: time.Now,
+	}
+
+	// Concurrent reconciles all fail fast instead of waiting forever on the cache lock.
+	start := time.Now()
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Go(func() {
+			_, err := source.Token(context.Background())
+			assert.Error(t, err)
+		})
+	}
+	wg.Wait()
+	assert.Less(t, time.Since(start), 5*time.Second)
+}
+
 func TestAWSDelegatedTokenProvider_CredentialsError(t *testing.T) {
 	provider := &awsDelegatedTokenProvider{
 		loadCredentials: func(context.Context) (aws.Credentials, string, error) {

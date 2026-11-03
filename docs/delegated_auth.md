@@ -16,7 +16,9 @@ The flow works like this:
 4. Datadog verifies the proof with AWS STS. It looks up the Datadog identity linked to the IAM role and returns a short-lived access token.
 5. The Operator sends the token as a `Bearer` token. It caches the token and renews it two minutes before it expires.
 
-The Operator does not call STS directly, so it needs no IAM permissions. The role only needs to be assumable by the Operator pod.
+The role needs no IAM permission policies, only a trust policy that lets the Operator pod assume it. The signed `GetCallerIdentity` request is never sent to AWS by the Operator; Datadog sends it to STS to verify it.
+
+The Operator still talks to AWS to obtain the role's credentials. With EKS Pod Identity, it calls the EKS Pod Identity Agent on the node. With IRSA, the AWS SDK calls STS `AssumeRoleWithWebIdentity`, so the Operator needs network access to STS.
 
 ## Scope
 
@@ -58,13 +60,21 @@ aws eks create-pod-identity-association \
   --role-arn arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>
 ```
 
-With IRSA, annotate the service account with `eks.amazonaws.com/role-arn` instead.
+#### Using IRSA instead
+
+IRSA needs a different trust policy. The trust policy above only allows EKS Pod Identity. For IRSA:
+
+- The cluster needs an IAM OIDC identity provider.
+- The role's trust policy must allow `sts:AssumeRoleWithWebIdentity` from that provider, scoped to the Operator's namespace and service account.
+- The service account is annotated with `eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>`.
+
+Follow the AWS guide to [assign an IAM role to a Kubernetes service account][3] for the full steps.
 
 ### 2. Link the IAM role to a Datadog identity
 
 In your Datadog organization, map the IAM role ARN to the Datadog identity the Operator should act as. Typically this is a service account. Give that identity the permissions the Operator needs, such as monitors, SLOs and dashboards write access.
 
-If the role is not mapped, the token request fails and the error appears in the resource status.
+If the role is not mapped, the token request fails. The error, including Datadog's explanation, appears in the Operator logs as `unable to get credentials`. The status of the `DatadogMonitor`, `DatadogSLO`, `DatadogDashboard` or `DatadogGenericResource` is not updated, and the reconcile is retried.
 
 ### 3. Configure the Operator
 
@@ -91,3 +101,4 @@ If the configuration is invalid, for example an unsupported provider, the Operat
 
 [1]: https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
 [2]: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+[3]: https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html

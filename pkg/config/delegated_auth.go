@@ -14,12 +14,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -30,9 +32,15 @@ import (
 const delegatedTokenRefreshMargin = 2 * time.Minute
 
 const (
-	// delegatedTokenRequestTimeout bounds a token exchange. Token requests are serialized,
-	// so an unbounded request would block every reconcile that needs a token.
+	// delegatedTokenRequestTimeout bounds a whole token exchange: AWS credential retrieval
+	// plus the Datadog token request. Exchanges are serialized behind the token cache lock,
+	// so an unbounded exchange would block every reconcile that needs a token.
 	delegatedTokenRequestTimeout = 30 * time.Second
+	// awsCredentialsHTTPTimeout bounds each HTTP request the AWS SDK makes to obtain
+	// credentials (EKS Pod Identity agent, STS for IRSA, instance metadata). The SDK
+	// credentials cache refreshes without the caller's cancellation, so this is what
+	// ends a hung refresh.
+	awsCredentialsHTTPTimeout = 10 * time.Second
 	// maxDelegatedTokenResponseSize caps the token endpoint response read into memory.
 	maxDelegatedTokenResponseSize = 1 << 20
 )
@@ -92,7 +100,9 @@ func defaultAWSCredentialsLoader() awsCredentialsLoader {
 		once.Do(func() {
 			// LoadDefaultConfig wraps the provider chain in an aws.CredentialsCache,
 			// so credentials are only re-fetched when they are about to expire.
-			cfg, loadErr = awsconfig.LoadDefaultConfig(context.Background())
+			cfg, loadErr = awsconfig.LoadDefaultConfig(context.Background(),
+				awsconfig.WithHTTPClient(awshttp.NewBuildableClient().WithTimeout(awsCredentialsHTTPTimeout)),
+			)
 		})
 		if loadErr != nil {
 			return aws.Credentials{}, "", fmt.Errorf("unable to load AWS configuration: %w", loadErr)
@@ -115,6 +125,8 @@ type awsDelegatedTokenProvider struct {
 	region          string
 	loadCredentials awsCredentialsLoader
 	httpClient      *http.Client
+	// timeout bounds the whole exchange; zero means delegatedTokenRequestTimeout.
+	timeout time.Duration
 }
 
 var _ datadogapi.DelegatedTokenProvider = &awsDelegatedTokenProvider{}
@@ -126,6 +138,13 @@ func (p *awsDelegatedTokenProvider) Authenticate(ctx context.Context, config *da
 	if config == nil || config.OrgUUID == "" {
 		return nil, errors.New("missing org UUID in delegated token config")
 	}
+
+	timeout := p.timeout
+	if timeout <= 0 {
+		timeout = delegatedTokenRequestTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
 	awsCreds, sdkRegion, err := p.loadCredentials(ctx)
 	if err != nil {
@@ -156,15 +175,14 @@ func (p *awsDelegatedTokenProvider) Authenticate(ctx context.Context, config *da
 }
 
 // requestDelegatedToken exchanges the identity proof for a delegated token. It mirrors
-// datadogapi.GetDelegatedToken, which has no timeout and drops the server error detail.
+// datadogapi.GetDelegatedToken, which has no timeout, drops the server error detail, and
+// echoes the response (including the token) in its parse errors.
 func (p *awsDelegatedTokenProvider) requestDelegatedToken(ctx context.Context, orgUUID, proof string) (*datadogapi.DelegatedTokenCredentials, error) {
 	url, err := datadogapi.GetDelegatedTokenUrl(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve the delegated token URL: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, delegatedTokenRequestTimeout)
-	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(nil))
 	if err != nil {
 		return nil, err
@@ -189,7 +207,59 @@ func (p *awsDelegatedTokenProvider) requestDelegatedToken(ctx context.Context, o
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("token request failed: %s%s", resp.Status, apiErrorDetail(body))
 	}
-	return datadogapi.ParseDelegatedTokenResponse(body, orgUUID, proof)
+	return parseDelegatedTokenResponse(body, orgUUID, proof)
+}
+
+// parseDelegatedTokenResponse reads the token from a successful response. Unlike
+// datadogapi.ParseDelegatedTokenResponse, its errors never include response content,
+// which may hold the token and would otherwise end up in logs.
+func parseDelegatedTokenResponse(body []byte, orgUUID, proof string) (*datadogapi.DelegatedTokenCredentials, error) {
+	var payload struct {
+		Data struct {
+			Attributes struct {
+				AccessToken string          `json:"access_token"`
+				Expires     json.RawMessage `json:"expires"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		// json errors can quote offending values; report only the failure class.
+		return nil, errors.New("malformed delegated token response: invalid JSON")
+	}
+	attrs := payload.Data.Attributes
+	if attrs.AccessToken == "" {
+		return nil, errors.New("malformed delegated token response: missing data.attributes.access_token")
+	}
+
+	// Same default as the API client when the expiration is missing or unparsable.
+	expiration := time.Now().Add(15 * time.Minute)
+	if unix, ok := parseUnixSeconds(attrs.Expires); ok {
+		expiration = time.Unix(unix, 0)
+	}
+
+	return &datadogapi.DelegatedTokenCredentials{
+		OrgUUID:        orgUUID,
+		DelegatedToken: attrs.AccessToken,
+		DelegatedProof: proof,
+		Expiration:     expiration,
+	}, nil
+}
+
+// parseUnixSeconds accepts a Unix timestamp encoded as a JSON string or number.
+func parseUnixSeconds(raw json.RawMessage) (int64, bool) {
+	if len(raw) == 0 {
+		return 0, false
+	}
+	var str string
+	if err := json.Unmarshal(raw, &str); err == nil {
+		v, err := strconv.ParseInt(str, 10, 64)
+		return v, err == nil
+	}
+	var num int64
+	if err := json.Unmarshal(raw, &num); err == nil {
+		return num, true
+	}
+	return 0, false
 }
 
 // apiErrorDetail extracts the server-authored JSON:API error title/detail (for example,
