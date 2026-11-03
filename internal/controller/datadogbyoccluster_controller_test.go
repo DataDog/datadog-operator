@@ -10,6 +10,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -574,6 +576,31 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				g.Expect(cmp.Diff(originalAudit.Spec, auditWorker.Spec)).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 		})
+
+		It("leaves the managed resources unchanged while paused", func() {
+			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name}}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), &corev1.ConfigMap{})
+			}, timeout, interval).Should(Succeed())
+
+			By("pausing the cluster")
+			setBYOCTestPauseAnnotation(cluster, ptr.To("true"))
+			Eventually(func(g Gomega) {
+				g.Expect(byocTestReconciledReason(g, cluster)).To(Equal("Paused"))
+			}, timeout, interval).Should(Succeed())
+
+			By("keeping a deleted managed object deleted")
+			Expect(k8sClient.Delete(context.Background(), configMap)).To(Succeed())
+			Consistently(func() bool {
+				return apierrors.IsNotFound(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), &corev1.ConfigMap{}))
+			}, 2*time.Second, interval).Should(BeTrue())
+
+			By("recreating the object once resumed")
+			setBYOCTestPauseAnnotation(cluster, nil)
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), &corev1.ConfigMap{})
+			}, timeout, interval).Should(Succeed())
+		})
 	})
 
 	It("rejects an existing unowned worker with the expected name", func() {
@@ -614,6 +641,51 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		Expect(worker.UID).To(Equal(originalWorker.UID))
 		Expect(worker.OwnerReferences).To(BeEmpty())
 		Expect(cmp.Diff(originalWorker.Spec, worker.Spec)).To(BeEmpty())
+	})
+
+	Context("when the cluster is created paused", func() {
+		BeforeEach(func() {
+			cluster.Annotations = map[string]string{datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation: "true"}
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		It("writes only its finalizer and status until resumed", func() {
+			DeferCleanup(deleteKubernetesObject, k8sClient, cluster)
+			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name}}
+
+			By("reporting Reconciled=False with reason Paused")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(current.Finalizers).To(ContainElement("finalizer.datadoghq.com/datadogbyoccluster"))
+				condition := meta.FindStatusCondition(current.Status.Conditions, "Reconciled")
+				g.Expect(condition).NotTo(BeNil())
+				g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(condition.Reason).To(Equal("Paused"))
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Available")).To(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			By("creating no managed object")
+			Consistently(func() bool {
+				return apierrors.IsNotFound(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), &corev1.ConfigMap{}))
+			}, 2*time.Second, interval).Should(BeTrue())
+
+			By("applying the managed objects once resumed")
+			setBYOCTestPauseAnnotation(cluster, nil)
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), &corev1.ConfigMap{})).To(Succeed())
+				g.Expect(byocTestReconciledReason(g, cluster)).NotTo(Equal("Paused"))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("is deleted while paused", func() {
+			Eventually(func(g Gomega) {
+				g.Expect(byocTestReconciledReason(g, cluster)).To(Equal("Paused"))
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(context.Background(), cluster)).To(Succeed())
+			waitForBYOCTestDeletion(cluster)
+		})
 	})
 
 	Context("when the cluster is deleted", func() {
@@ -1018,6 +1090,26 @@ func removeBYOCTestFinalizers(object client.Object, finalizers ...string) {
 		}))
 		return k8sClient.Update(context.Background(), current)
 	}, timeout, interval).Should(Succeed())
+}
+
+// setBYOCTestPauseAnnotation sets the pause annotation of the cluster to value, or removes it when value is nil.
+func setBYOCTestPauseAnnotation(cluster *datadoghqv1alpha1.DatadogBYOCCluster, value *string) {
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{"annotations": map[string]*string{datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation: value}},
+	})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(k8sClient.Patch(context.Background(), cluster.DeepCopy(), client.RawPatch(types.MergePatchType, patch))).To(Succeed())
+}
+
+// byocTestReconciledReason returns the reason of the Reconciled condition of the cluster, or "" without the condition.
+func byocTestReconciledReason(g Gomega, cluster *datadoghqv1alpha1.DatadogBYOCCluster) string {
+	current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+	g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+	condition := meta.FindStatusCondition(current.Status.Conditions, "Reconciled")
+	if condition == nil {
+		return ""
+	}
+	return condition.Reason
 }
 
 func waitForBYOCTestDeletion(object client.Object) {

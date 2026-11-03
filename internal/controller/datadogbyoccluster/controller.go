@@ -51,6 +51,7 @@ const (
 	reasonApplyFailed          = "ApplyFailed"
 	reasonCleanupFailed        = "CleanupFailed"
 	reasonCleanupInProgress    = "CleanupInProgress"
+	reasonPaused               = "Paused"
 	reasonReconciled           = "Reconciled"
 	reasonAvailable            = "Available"
 	reasonWorkloadsUnavailable = "WorkloadsUnavailable"
@@ -103,6 +104,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		if err := r.Client.Update(ctx, cluster); err != nil {
 			return ctrl.Result{}, fmt.Errorf("add finalizer: %w", err)
 		}
+	}
+	if cluster.Annotations[datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation] == "true" {
+		// kubectl-datadog waits for this condition before it changes the ownership of the managed resources.
+		setCondition(cluster, conditionReconciled, metav1.ConditionFalse, reasonPaused, "Reconciliation is paused by the "+datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation+" annotation")
+		if err := r.Client.Status().Update(ctx, cluster); err != nil {
+			return ctrl.Result{}, fmt.Errorf("update DatadogBYOCCluster status: %w", err)
+		}
+		return ctrl.Result{}, nil
 	}
 
 	cluster = byocdefaults.Apply(cluster)
@@ -369,10 +378,14 @@ func deploymentStatus(deployment *appsv1.Deployment) (*datadoghqv1alpha1.Datadog
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		// Status updates do not bump the generation, so this skips requeues caused by the controller's own status writes.
+		// The pause annotation does not bump the generation either, so its changes requeue separately.
 		// Worker and workload status changes drive availability, and the other owned resources do not bump the generation on
 		// changes, so their watches stay unfiltered. HPA and PDB status is not read, so only changes to their spec, labels, or
 		// annotations requeue.
-		For(&datadoghqv1alpha1.DatadogBYOCCluster{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&datadoghqv1alpha1.DatadogBYOCCluster{}, builder.WithPredicates(predicate.Or(
+			predicate.GenerationChangedPredicate{},
+			byocutils.AnnotationChanged(datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation),
+		))).
 		Owns(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.ServiceAccount{}).

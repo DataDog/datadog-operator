@@ -12,6 +12,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+// AnnotationChanged passes updates that change the value of the annotation key, including adding or removing it.
+func AnnotationChanged(key string) predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return e.ObjectOld.GetAnnotations()[key] != e.ObjectNew.GetAnnotations()[key]
+		},
+	}
+}
+
 // HorizontalPodAutoscalerSpecChanged passes HorizontalPodAutoscaler updates that change the spec, filtering out
 // status-only updates. GenerationChangedPredicate does not work here: before Kubernetes 1.37, the API server does not
 // bump the generation of HorizontalPodAutoscalers on spec changes. Kubernetes 1.37 enables it by default through the
