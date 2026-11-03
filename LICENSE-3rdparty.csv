@@ -122,13 +122,12 @@ core,github.com/dustin/go-humanize,MIT
 core,github.com/dylibso/observe-sdk/go,Apache-2.0
 core,github.com/ebitengine/purego,Apache-2.0
 core,github.com/emicklei/go-restful/v3,MIT
-core,github.com/evanphx/json-patch,BSD-3-Clause
 core,github.com/evanphx/json-patch/v5,BSD-3-Clause
 core,github.com/exponent-io/jsonpath,MIT
 core,github.com/extism/go-sdk,BSD-3-Clause
 core,github.com/fatih/color,MIT
 core,github.com/felixge/httpsnoop,MIT
-core,github.com/fluxcd/cli-utils,Apache-2.0
+core,github.com/fluxcd/cli-utils/pkg,Apache-2.0
 core,github.com/fsnotify/fsnotify,BSD-3-Clause
 core,github.com/fxamacker/cbor/v2,MIT
 core,github.com/go-errors/errors,MIT
