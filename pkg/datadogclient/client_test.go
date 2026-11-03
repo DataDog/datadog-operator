@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
@@ -45,12 +46,12 @@ func TestClientsSendOperatorUserAgent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			version.Version = tt.version
-			generic := InitGenericClients()
+			generic := InitGenericClients(nil)
 			clients := map[string]*datadogapi.APIClient{
 				"base":                       NewAPIClient(),
-				"monitors":                   InitMonitorClient().Client,
-				"slos":                       InitSLOClient().Client,
-				"dashboards":                 InitDashboardClient().Client,
+				"monitors":                   InitMonitorClient(nil).Client,
+				"slos":                       InitSLOClient(nil).Client,
+				"dashboards":                 InitDashboardClient(nil).Client,
 				"generic dashboards":         generic.DashboardsClient.Client,
 				"generic synthetics":         generic.SyntheticsClient.Client,
 				"generic notebooks":          generic.NotebooksClient.Client,
@@ -71,4 +72,39 @@ func TestClientsSendOperatorUserAgent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDelegatedAuthClientsSendBearerToken(t *testing.T) {
+	type authHeaders struct{ authorization, apiKey, appKey string }
+	received := make(chan authHeaders, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received <- authHeaders{r.Header.Get("Authorization"), r.Header.Get("DD-API-KEY"), r.Header.Get("DD-APPLICATION-KEY")}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(server.Close)
+
+	delegatedConfig := &datadogapi.DelegatedTokenConfig{OrgUUID: "org-1", Provider: datadogapi.ProviderAWS}
+	client := InitMonitorClient(delegatedConfig)
+	client.Client.GetConfig().Servers = datadogapi.ServerConfigurations{{URL: server.URL}}
+
+	ctx := context.WithValue(context.Background(), datadogapi.ContextDelegatedToken, &datadogapi.DelegatedTokenCredentials{
+		OrgUUID:        "org-1",
+		DelegatedToken: "dd-token",
+		Expiration:     time.Now().Add(time.Hour),
+	})
+	_, _, err := client.ListMonitors(ctx)
+	require.NoError(t, err)
+	require.Equal(t, authHeaders{authorization: "Bearer dd-token"}, <-received)
+
+	// Without delegated auth, the same client type keeps using API/APP keys.
+	keysClient := InitMonitorClient(nil)
+	keysClient.Client.GetConfig().Servers = datadogapi.ServerConfigurations{{URL: server.URL}}
+	ctx = context.WithValue(context.Background(), datadogapi.ContextAPIKeys, map[string]datadogapi.APIKey{
+		"apiKeyAuth": {Key: "api"},
+		"appKeyAuth": {Key: "app"},
+	})
+	_, _, err = keysClient.ListMonitors(ctx)
+	require.NoError(t, err)
+	require.Equal(t, authHeaders{apiKey: "api", appKey: "app"}, <-received)
 }

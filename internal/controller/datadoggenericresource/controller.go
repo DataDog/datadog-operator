@@ -65,7 +65,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 	return &Reconciler{
 		client:          client,
 		credsManager:    credsManager,
-		handlers:        buildHandlers(datadogclient.InitGenericClients()),
+		handlers:        buildHandlers(datadogclient.InitGenericClients(credsManager.DelegatedTokenConfig())),
 		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
 		forceSyncPeriod: forceSyncPeriodFromEnv(log),
 		scheme:          scheme,

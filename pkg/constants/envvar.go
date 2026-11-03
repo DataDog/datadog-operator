@@ -15,4 +15,10 @@ const (
 	DDLogLevel    = "DD_LOG_LEVEL"
 	DDHostName    = "DD_HOSTNAME"
 	DDAPMEnabled  = "DD_APM_ENABLED"
+
+	// Cloud-provider based (delegated) authentication to the Datadog API.
+	// Names mirror the Datadog Agent "delegated_auth" configuration.
+	DDDelegatedAuthOrgUUID   = "DD_DELEGATED_AUTH_ORG_UUID"
+	DDDelegatedAuthProvider  = "DD_DELEGATED_AUTH_PROVIDER"
+	DDDelegatedAuthAWSRegion = "DD_DELEGATED_AUTH_AWS_REGION"
 )

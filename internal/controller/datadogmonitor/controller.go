@@ -93,7 +93,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 
 	return &Reconciler{
 		client:                 client,
-		datadogClient:          datadogclient.InitMonitorClient(),
+		datadogClient:          datadogclient.InitMonitorClient(credsManager.DelegatedTokenConfig()),
 		credsManager:           credsManager,
 		scheme:                 scheme,
 		log:                    log,

@@ -14,27 +14,37 @@ import (
 )
 
 // NewAPIClient creates a Datadog API client identified by the operator build version.
+// It authenticates with the API/APP keys carried by the request context.
 func NewAPIClient() *datadogapi.APIClient {
+	return NewAPIClientWithDelegatedAuth(nil)
+}
+
+// NewAPIClientWithDelegatedAuth creates a Datadog API client that, when delegatedTokenConfig
+// is not nil, authenticates every request with the delegated token carried by the request
+// context (datadogapi.ContextDelegatedToken) instead of API/APP keys.
+// Clients for intake endpoints (metrics, events) must keep using NewAPIClient.
+func NewAPIClientWithDelegatedAuth(delegatedTokenConfig *datadogapi.DelegatedTokenConfig) *datadogapi.APIClient {
 	config := datadogapi.NewConfiguration()
 	config.UserAgent = "Datadog Operator/" + version.GetVersion()
+	config.DelegatedTokenConfig = delegatedTokenConfig
 	return datadogapi.NewAPIClient(config)
 }
 
 // InitMonitorClient creates a stateless Datadog Monitor API client.
-func InitMonitorClient() *datadogV1.MonitorsApi {
-	apiClient := NewAPIClient()
+func InitMonitorClient(delegatedTokenConfig *datadogapi.DelegatedTokenConfig) *datadogV1.MonitorsApi {
+	apiClient := NewAPIClientWithDelegatedAuth(delegatedTokenConfig)
 	return datadogV1.NewMonitorsApi(apiClient)
 }
 
 // InitSLOClient creates a stateless Datadog SLO API client.
-func InitSLOClient() *datadogV1.ServiceLevelObjectivesApi {
-	apiClient := NewAPIClient()
+func InitSLOClient(delegatedTokenConfig *datadogapi.DelegatedTokenConfig) *datadogV1.ServiceLevelObjectivesApi {
+	apiClient := NewAPIClientWithDelegatedAuth(delegatedTokenConfig)
 	return datadogV1.NewServiceLevelObjectivesApi(apiClient)
 }
 
 // InitDashboardClient creates a stateless Datadog Dashboard API client.
-func InitDashboardClient() *datadogV1.DashboardsApi {
-	apiClient := NewAPIClient()
+func InitDashboardClient(delegatedTokenConfig *datadogapi.DelegatedTokenConfig) *datadogV1.DashboardsApi {
+	apiClient := NewAPIClientWithDelegatedAuth(delegatedTokenConfig)
 	return datadogV1.NewDashboardsApi(apiClient)
 }
 
@@ -52,8 +62,8 @@ type GenericClients struct {
 }
 
 // InitGenericClients creates stateless Datadog API clients for generic resource operations.
-func InitGenericClients() *GenericClients {
-	apiClient := NewAPIClient()
+func InitGenericClients(delegatedTokenConfig *datadogapi.DelegatedTokenConfig) *GenericClients {
+	apiClient := NewAPIClientWithDelegatedAuth(delegatedTokenConfig)
 	return &GenericClients{
 		DashboardsClient:               datadogV1.NewDashboardsApi(apiClient),
 		SyntheticsClient:               datadogV1.NewSyntheticsApi(apiClient),
