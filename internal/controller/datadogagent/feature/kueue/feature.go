@@ -8,6 +8,7 @@ package kueue
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -96,6 +97,36 @@ func (svc *kueueMetricsService) validate() error {
 	return nil
 }
 
+func (config *kueueConfig) validate() error {
+	if err := config.MetricsService.validate(); err != nil {
+		return err
+	}
+	if config.Conf == nil || config.Conf.ConfigMap == nil {
+		return nil
+	}
+	for i, item := range config.Conf.ConfigMap.Items {
+		if item.Key == "" || item.Path == "" {
+			return fmt.Errorf("conf.configMap.items[%d] requires both key and path", i)
+		}
+	}
+	return nil
+}
+
+func decodeKueueConfig(raw string, config *kueueConfig) error {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(config); err != nil {
+		return err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("multiple JSON values in Kueue configuration")
+		}
+		return err
+	}
+	return nil
+}
+
 // ID returns the ID of the Feature
 func (f *kueueFeature) ID() feature.IDType {
 	return feature.KueueIDType
@@ -110,12 +141,12 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	}
 	var kueue kueueConfig
 	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KueueConfigAnnotation); ok {
-		if err := json.Unmarshal([]byte(raw), &kueue); err != nil {
+		if err := decodeKueueConfig(raw, &kueue); err != nil {
 			f.logger.Error(err, "invalid Kueue configuration annotation")
 			return reqComp
 		}
 	}
-	if err := kueue.MetricsService.validate(); err != nil {
+	if err := kueue.validate(); err != nil {
 		f.logger.Error(err, "invalid Kueue configuration annotation")
 		return reqComp
 	}

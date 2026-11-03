@@ -169,6 +169,26 @@ func Test_kueueFeature_Configure(t *testing.T) {
 			},
 			ClusterAgent: clusterAgentWantFunc(basicVolume("user-kueue")),
 		},
+		{
+			Name: "Kueue enabled with ConfigMap projection items",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/kueue-enabled": "true",
+					"agent.datadoghq.com/kueue-config":  `{"conf":{"configMap":{"name":"user-kueue","items":[{"key":"conf.yaml","path":"conf.yaml"}]}}}`,
+				}).
+				WithClusterChecksEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: clusterAgentWantFunc(&corev1.Volume{
+				Name: kueueConfigVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "user-kueue"},
+						Items:                []corev1.KeyToPath{{Key: "conf.yaml", Path: "conf.yaml"}},
+					},
+				},
+			}),
+		},
 	}
 	for _, tc := range []struct {
 		name   string
@@ -177,6 +197,12 @@ func Test_kueueFeature_Configure(t *testing.T) {
 		{name: "uppercase service name", config: `{"metricsService":{"name":"Bad-Service"}}`},
 		{name: "service name over 63 characters", config: fmt.Sprintf(`{"metricsService":{"name":%q}}`, strings.Repeat("a", 64))},
 		{name: "newline in service namespace", config: fmt.Sprintf(`{"metricsService":{"namespace":%q}}`, "bad\nnamespace")},
+		{name: "unknown top-level field", config: `{"collectWorkloadEvent":false}`},
+		{name: "unknown metrics service field", config: `{"metricsService":{"nam":"custom-service"}}`},
+		{name: "unknown custom config field", config: `{"conf":{"configDate":"content"}}`},
+		{name: "ConfigMap item without key", config: `{"conf":{"configMap":{"name":"user-kueue","items":[{"path":"conf.yaml"}]}}}`},
+		{name: "ConfigMap item without path", config: `{"conf":{"configMap":{"name":"user-kueue","items":[{"key":"conf.yaml"}]}}}`},
+		{name: "trailing JSON value", config: `{} {}`},
 	} {
 		tests = append(tests, test.FeatureTest{
 			Name: "Kueue rejects " + tc.name,
