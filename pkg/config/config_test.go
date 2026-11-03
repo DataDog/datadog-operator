@@ -420,6 +420,7 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 	node := func() *corev1.Node {
 		return &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{"kubernetes.io/os": "linux"}},
+			Spec:       corev1.NodeSpec{ProviderID: "nebius://computeinstance-x"},
 			Status:     corev1.NodeStatus{NodeInfo: corev1.NodeSystemInfo{OSImage: "Talos (v1.13.7)"}},
 		}
 	}
@@ -435,9 +436,10 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 		return transformed.(*corev1.Node)
 	}
 
-	// Provider detection identifies Talos from osImage alone, and its node-list
-	// fallback is wired whenever this cache exists — for any of the three options
-	// below, not just introspection. So every one of them must keep osImage.
+	// Provider detection identifies Talos from osImage alone and Nebius from
+	// providerID alone, and its node-list fallback is wired whenever this cache
+	// exists — for any of the three options below, not just introspection. So every
+	// one of them must keep both fields.
 	for name, opts := range map[string]WatchOptions{
 		"introspection":      {IntrospectionEnabled: true},
 		"profiles":           {DatadogAgentProfileEnabled: true},
@@ -450,6 +452,13 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 			}
 			assert.Equal(t, "Talos (v1.13.7)", got.Status.NodeInfo.OSImage)
 			assert.Equal(t, kubernetes.TalosProvider, kubernetes.ClusterProviderFromNode(got))
+		})
+		t.Run(name+" keeps Spec.ProviderID", func(t *testing.T) {
+			got := transformNode(t, opts)
+			if got == nil {
+				return
+			}
+			assert.Equal(t, "nebius://computeinstance-x", got.Spec.ProviderID)
 		})
 	}
 }
