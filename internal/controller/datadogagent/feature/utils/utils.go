@@ -48,6 +48,8 @@ const (
 
 	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
 
+	EnableKAISchedulerAnnotation = "agent.datadoghq.com/kai-scheduler-enabled"
+
 	// DefaultAgentIpcPort and DefaultAgentIpcConfigRefreshInterval configure config sync, which
 	// serves resolved config (notably a secret-backed api_key) from the core agent to sub-processes.
 	DefaultAgentIpcPort                  = "5009"
