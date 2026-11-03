@@ -10,6 +10,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -740,6 +742,85 @@ func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
 			}
 			assert.True(t, assert.ObjectsAreEqual(instance.Status, stale.Status), "refresh the caller's status too")
 			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
+		})
+	}
+}
+
+// A stale informer object must never create a second remote resource or write
+// its stale status over an ID already persisted in the API server.
+func TestReconcile_PreCreateAPIRead(t *testing.T) {
+	scheme.Scheme.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+	for _, tc := range []struct {
+		name     string
+		oldID    bool
+		readErr  bool
+		missing  bool
+		replaced bool
+		deleting bool
+	}{
+		{name: "stale ID-less cache"},
+		{name: "stale ID during remote 404 recreation", oldID: true},
+		{name: "API read fails", readErr: true},
+		{name: "object disappeared", missing: true},
+		{name: "object replaced", replaced: true},
+		{name: "object deleting", deleting: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetMockHandlerState()
+			mockGetErr = fmt.Errorf("404 Not Found")
+			mockUpdateErr = fmt.Errorf("404 Not Found")
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			ctx := context.Background()
+			stale := mockGenericResource()
+			stale.UID = "original"
+			stale.ResourceVersion = "1"
+			stale.Finalizers = []string{datadogGenericResourceFinalizer}
+			if tc.oldID {
+				stale.Status.Id = "old-id"
+			}
+			cachedClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale).Build()
+			live := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale.DeepCopy()).Build()
+			latest := stale.DeepCopy()
+			latest.Status.Id = "persisted-id"
+			require.NoError(t, live.Status().Update(ctx, latest))
+			if tc.missing {
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+			}
+			if tc.replaced {
+				latest.UID = "replacement"
+				latest.Status.Id = ""
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(latest).Build()
+			}
+			if tc.deleting {
+				require.NoError(t, live.Delete(ctx, latest))
+			}
+			readErr := fmt.Errorf("API server unavailable")
+			reader := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(ctx context.Context, _ client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if tc.readErr {
+						return readErr
+					}
+					return live.Get(ctx, key, obj, opts...)
+				},
+			}).Build()
+			r := NewReconciler(cachedClient, config.NewCredentialManager(cachedClient), scheme.Scheme,
+				logf.Log, record.NewFakeRecorder(10), ReconcilerOptions{APIReader: reader})
+			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{mockSubresource: &MockHandler{}}
+			result, err := r.Reconcile(ctx, stale)
+			require.NoError(t, err)
+			if !tc.readErr && !tc.missing {
+				require.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+			}
+			require.Zero(t, mockCreateCalls)
+			if !tc.missing {
+				stored := &datadoghqv1alpha1.DatadogGenericResource{}
+				require.NoError(t, live.Get(ctx, client.ObjectKeyFromObject(latest), stored))
+				require.Equal(t, latest.Status.Id, stored.Status.Id)
+			}
 		})
 	}
 }

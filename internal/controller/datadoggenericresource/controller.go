@@ -2,6 +2,7 @@ package datadoggenericresource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -41,8 +42,11 @@ const (
 	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
 )
 
+var errCreateSkipped = errors.New("resource changed before create")
+
 type Reconciler struct {
 	client          client.Client
+	apiReader       client.Reader
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
 	requeuePeriod   time.Duration
@@ -53,6 +57,8 @@ type Reconciler struct {
 }
 
 type ReconcilerOptions struct {
+	// APIReader bypasses the informer cache for pre-create checks.
+	APIReader     client.Reader
 	RequeuePeriod time.Duration
 }
 
@@ -62,8 +68,13 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		options = opts[0]
 	}
 
+	if options.APIReader == nil {
+		options.APIReader = client
+	}
+
 	return &Reconciler{
 		client:          client,
+		apiReader:       options.APIReader,
 		credsManager:    credsManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
 		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
@@ -180,6 +191,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			err = r.update(ctx, auth, handler, instance, status, now, instanceSpecHash)
 		}
 
+		if errors.Is(err, errCreateSkipped) {
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
+
 		if err != nil {
 			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
 			if ctrutils.IsPermanentAPIError(err) {
@@ -248,6 +263,19 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 
 func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
+	// Check the API server immediately before creating, including recreation after
+	// a remote 404. A different persisted ID means this reconcile is stale.
+	latest := &v1alpha1.DatadogGenericResource{}
+	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); err != nil {
+		if apierrors.IsNotFound(err) {
+			return errCreateSkipped
+		}
+		return fmt.Errorf("checking DatadogGenericResource before create: %w", err)
+	}
+	if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.Id != "" && latest.Status.Id != instance.Status.Id) {
+		logger.Info("Skipping create because DatadogGenericResource changed; requeuing")
+		return errCreateSkipped
+	}
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
 	result, err := handler.createResource(auth, instance)
