@@ -445,6 +445,28 @@ func TestBuilder(t *testing.T) {
 	}
 }
 
+func TestPrivateActionRunnerSpecContainerSelection(t *testing.T) {
+	for _, nodeEnabled := range []bool{true, false} {
+		t.Run(map[bool]string{true: "both agents", false: "cluster only"}[nodeEnabled], func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().BuildWithDefaults()
+			dda.Spec.Features.PrivateActionRunner = &v2alpha1.PrivateActionRunnerFeatureConfig{
+				Enabled: new(true),
+			}
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+					v2alpha1.AgentGeneralConfigFile: {Enabled: new(nodeEnabled)},
+				}},
+			}
+			_, enabled, components, _ := feature.BuildFeatures(dda, &dda.Spec, nil, &feature.Options{})
+			assert.True(t, components.ClusterAgent.IsEnabled())
+			assert.Equal(t, nodeEnabled, wantAgentContainer(common.PrivateActionRunnerContainerName, components))
+			assert.True(t, slices.ContainsFunc(enabled, func(f feature.Feature) bool {
+				return f.ID() == feature.PrivateActionRunnerIDType
+			}))
+		})
+	}
+}
+
 func wantAgentContainer(wantedContainer common.AgentContainerName, requiredComponents feature.RequiredComponents) bool {
 	return slices.Contains(requiredComponents.Agent.Containers, wantedContainer)
 }

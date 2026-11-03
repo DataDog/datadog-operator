@@ -350,7 +350,7 @@ spec:
 : `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset.
 
 `features.kubernetesActions.communication.privateActionRunner.enabled`
-: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
+: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
 
 `features.kubernetesActions.communication.remoteConfiguration.enabled`
 : Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true
@@ -471,6 +471,12 @@ spec:
 
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
+
+`features.privateActionRunner.actionsAllowlist`
+: ActionsAllowlist contains additional action patterns allowed on both agents. Component customConfigurations.actionsAllowlist replaces this list when set. An explicit empty list clears the additional action patterns; built-in actions remain controlled by private_action_runner.default_actions_enabled.
+
+`features.privateActionRunner.enabled`
+: Enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Component customConfigurations.enabled overrides this setting. Advanced options use private_action_runner in configData. Default: false
 
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true
@@ -861,14 +867,21 @@ Use an integer value for `limits.cpu` so the runtime can read it directly. If yo
 : _type_: `map[string]object`
 <br /> CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. Each provided file replaces the corresponding default file from the Agent image without merging. Agent settings provided through environment variables take precedence over these files.
 
+`[component].customConfigurations.[container].actionsAllowlist`
+: _type_: `[]string`
+<br /> ActionsAllowlist overrides features.privateActionRunner.actionsAllowlist for this component. Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and override.clusterAgent.customConfigurations["datadog-cluster.yaml"]. Takes precedence over private_action_runner.actions_allowlist in ConfigData or ConfigMap. An explicit empty list clears the inherited additional action patterns.
+
 `[component].customConfigurations.[container].configData`
-: ConfigData corresponds to the configuration file content.
+: ConfigData corresponds to the configuration file content, including advanced private_action_runner settings.
 
 `[component].customConfigurations.[container].configMap.items`
 : Items maps a ConfigMap data `key` to a file `path` mount.
 
 `[component].customConfigurations.[container].configMap.name`
 : Name is the name of the ConfigMap.
+
+`[component].customConfigurations.[container].enabled`
+: Enabled overrides features.privateActionRunner.enabled for this component. Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and override.clusterAgent.customConfigurations["datadog-cluster.yaml"]. Takes precedence over private_action_runner.enabled in ConfigData or ConfigMap.
 
 `[component].disabled`
 : Disabled force disables a component.

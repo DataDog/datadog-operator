@@ -442,7 +442,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig{
+				CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
 					v2alpha1.AgentGeneralConfigFile: {
 						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "custom-config",
@@ -1282,4 +1282,25 @@ func assertImageConfigValues(manager *fake.PodTemplateManagers, imageOptions con
 
 func newDNSPolicyPointer(s v1.DNSPolicy) *v1.DNSPolicy {
 	return &s
+}
+
+func TestPrivateActionRunnerTypedOnlyCustomConfiguration(t *testing.T) {
+	for _, tt := range []struct {
+		component v2alpha1.ComponentName
+		file      v2alpha1.AgentConfigFileName
+		container apicommon.AgentContainerName
+	}{
+		{v2alpha1.NodeAgentComponentName, v2alpha1.AgentGeneralConfigFile, apicommon.CoreAgentContainerName},
+		{v2alpha1.ClusterAgentComponentName, v2alpha1.ClusterAgentConfigFile, apicommon.ClusterAgentContainerName},
+	} {
+		t.Run(string(tt.component), func(t *testing.T) {
+			managers := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{Spec: v1.PodSpec{Containers: []v1.Container{{Name: string(tt.container)}}}})
+			overrideCustomConfigVolumes(managers, map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
+				tt.file: {Enabled: new(false), ActionsAllowlist: new([]string{})},
+			}, tt.component, "datadog")
+			assert.Empty(t, managers.VolumeMgr.Volumes, "typed-only settings must not create an empty volume")
+			assert.Empty(t, managers.VolumeMountMgr.VolumeMountsByC)
+			assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[tt.container], &v1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_ENABLED", Value: "false"})
+		})
+	}
 }

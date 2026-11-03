@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -207,17 +208,33 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.TopologySpreadConstraints = append(manager.PodTemplateSpec().Spec.TopologySpreadConstraints, override.TopologySpreadConstraints...)
 }
 
-func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
+func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
 	sortedKeys := sortKeys(customConfs)
 	for _, fileName := range sortedKeys {
 		customConfig := customConfs[fileName]
+		if customConfig.Enabled != nil && !*customConfig.Enabled &&
+			(componentName == v2alpha1.NodeAgentComponentName && fileName == v2alpha1.AgentGeneralConfigFile ||
+				componentName == v2alpha1.ClusterAgentComponentName && fileName == v2alpha1.ClusterAgentConfigFile) {
+			// Also enforce a typed disable when raw YAML enables PAR: a disabled
+			// feature does not otherwise get to manage the existing core container.
+			for _, container := range manager.PodTemplateSpec().Spec.Containers {
+				name := apicommon.AgentContainerName(container.Name)
+				if name == apicommon.CoreAgentContainerName || name == apicommon.ClusterAgentContainerName || name == apicommon.PrivateActionRunnerContainerName {
+					manager.EnvVar().AddEnvVarToContainer(name, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_ENABLED", Value: strconv.FormatBool(*customConfig.Enabled)})
+				}
+			}
+		}
+		// Typed PAR settings are handled by the feature and need no main-file mount.
+		if customConfig.ConfigMap == nil && customConfig.ConfigData == nil {
+			continue
+		}
 		defaultConfigMapName := fmt.Sprintf("%s-%s", getDefaultConfigMapName(ddaName, string(fileName)), strings.ToLower(string(componentName)))
 		switch componentName {
 		case v2alpha1.NodeAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName:
 			// For the NodeAgent, there are a few possible config files and each need their own volume.
 			// Use a volumeName that matches the defaultConfigMapName.
 			volumeName := defaultConfigMapName
-			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
+			vol := volume.GetVolumeFromCustomConfig(v2alpha1.CustomConfig{ConfigData: customConfig.ConfigData, ConfigMap: customConfig.ConfigMap}, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
 
 			volumeMount := volume.GetVolumeMountWithSubPath(
@@ -229,7 +246,7 @@ func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConf
 		case v2alpha1.ClusterAgentComponentName:
 			// For the Cluster Agent, there is only one possible config file so can use a simple volume name.
 			volumeName := clusterAgentCustomConfigVolumeName
-			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
+			vol := volume.GetVolumeFromCustomConfig(v2alpha1.CustomConfig{ConfigData: customConfig.ConfigData, ConfigMap: customConfig.ConfigMap}, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
 
 			volumeMount := volume.GetVolumeMountWithSubPath(
@@ -250,7 +267,7 @@ func podSpecHasContainer(podSpec *corev1.PodSpec, name string) bool {
 	})
 }
 
-func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {
+func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig) []v2alpha1.AgentConfigFileName {
 	sortedKeys := make([]v2alpha1.AgentConfigFileName, 0, len(keysMap))
 	for key := range keysMap {
 		sortedKeys = append(sortedKeys, key)
