@@ -51,6 +51,9 @@ const (
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
 	// CSIDriverWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogCSIDriver controller.
 	csiDriverWatchNamespaceEnvVar = "DD_CSIDRIVER_WATCH_NAMESPACE"
+	// BYOCClusterWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogBYOCCluster and DatadogObservabilityPipelinesWorker controllers.
+	// Both controllers share it because DatadogBYOCCluster creates DatadogObservabilityPipelinesWorker objects in its own namespace.
+	byocClusterWatchNamespaceEnvVar = "DD_BYOC_CLUSTER_WATCH_NAMESPACE"
 )
 
 var (
@@ -135,7 +138,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogBYOCClusterEnabled {
-		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
+		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, byocClusterWatchNamespaceEnvVar)
 		logger.Info("DatadogBYOCCluster Enabled", "watching namespaces", slices.Collect(maps.Keys(byocClusterNamespaces)))
 		byObject[byocClusterObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
 		byObject[workerObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
