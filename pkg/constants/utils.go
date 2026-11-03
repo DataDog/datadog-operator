@@ -6,7 +6,10 @@
 package constants
 
 import (
+	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +18,8 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // GetConfName get the name of the Configmap for a CustomConfigSpec
@@ -95,6 +100,71 @@ func IsClusterChecksEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // IsCCREnabled returns whether the DDA should use Cluster Checks Runners
 func IsCCREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
+}
+
+// IsCCRComponentRequired returns whether the DDA needs the default Cluster Checks Runners or runner groups
+func IsCCRComponentRequired(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if !IsClusterChecksEnabled(ddaSpec) {
+		return false
+	}
+	groups, _ := GetClusterChecksRunnerGroups(obj, ddaSpec)
+	return IsCCREnabled(ddaSpec) || len(groups) > 0
+}
+
+// RunsOnCCR returns whether a cluster check runs on the default Cluster Checks Runners or its runner group
+func RunsOnCCR(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkName string) bool {
+	if !IsClusterChecksEnabled(ddaSpec) {
+		return false
+	}
+	if IsCCREnabled(ddaSpec) {
+		return true
+	}
+	groups, _ := GetClusterChecksRunnerGroups(obj, ddaSpec)
+	return slices.ContainsFunc(groups, func(g v2alpha1.ClusterChecksRunnerGroup) bool {
+		return slices.Contains(g.ChecksInclude, checkName)
+	})
+}
+
+// clusterChecksRunnerGroupsMinVersion is the first Agent release supporting runner groups, for both the Cluster Agent and the runners.
+const clusterChecksRunnerGroupsMinVersion = "7.86.0-0"
+
+// GetClusterChecksRunnerGroups returns the runner groups to deploy: none when the Cluster Agent is older than 7.86,
+// and only the groups whose runner image is at least 7.86. A version the Operator cannot parse is assumed recent enough.
+func GetClusterChecksRunnerGroups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]v2alpha1.ClusterChecksRunnerGroup, error) {
+	groups, err := v2alpha1.GetEffectiveClusterChecksRunnerGroups(obj)
+	if err != nil || len(groups) == 0 {
+		return nil, err
+	}
+
+	if version := componentImageVersion(ddaSpec.Override[v2alpha1.ClusterAgentComponentName], images.ClusterAgentLatestVersion); !utils.IsAboveMinVersion(version, clusterChecksRunnerGroupsMinVersion, nil) {
+		return nil, fmt.Errorf("cluster checks runner groups require Cluster Agent 7.86 or later, got %s", version)
+	}
+
+	runnerVersion := componentImageVersion(ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName], images.AgentLatestVersion)
+	var supported []v2alpha1.ClusterChecksRunnerGroup
+	var errs []error
+	for _, group := range groups {
+		version := componentImageVersion(group.Override, runnerVersion)
+		if !utils.IsAboveMinVersion(version, clusterChecksRunnerGroupsMinVersion, nil) {
+			errs = append(errs, fmt.Errorf("cluster checks runner group %q requires a runner image 7.86 or later, got %s", group.Name, version))
+			continue
+		}
+		supported = append(supported, group)
+	}
+	return supported, errors.Join(errs...)
+}
+
+func componentImageVersion(override *v2alpha1.DatadogAgentComponentOverride, defaultVersion string) string {
+	if override == nil || override.Image == nil {
+		return defaultVersion
+	}
+	if override.Image.Tag != "" {
+		return override.Image.Tag
+	}
+	if override.Image.Name != "" {
+		return strings.TrimSuffix(utils.GetTagFromImageName(override.Image.Name), "-jmx")
+	}
+	return defaultVersion
 }
 
 // GetLocalAgentServiceName returns the name used for the local agent service

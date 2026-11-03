@@ -60,7 +60,12 @@ func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *v1alpha
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, true); len(err) > 0 {
+	// Runner group pods use the CCR ServiceAccount, even without the default CCR Deployment.
+	ccrRequiredComponents := requiredComponents.ClusterChecksRunner
+	if !ccrRequiredComponents.IsEnabled() && requiredComponents.ClusterAgent.IsEnabled() && constants.IsCCRComponentRequired(ddai, &ddai.Spec) {
+		ccrRequiredComponents = feature.RequiredComponent{IsRequired: new(true)}
+	}
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, ccrRequiredComponents, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.OtelAgentGatewayComponentName, requiredComponents.OtelAgentGateway, true); len(err) > 0 {
@@ -236,6 +241,9 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha
 		return err
 	}
 	for _, deployment := range deploymentList.Items {
+		if _, isGroupDeployment := deployment.Labels[componentccr.ClusterChecksRunnerGroupLabelKey]; isGroupDeployment {
+			continue
+		}
 		if deploymentName != deployment.Name {
 			if _, err := r.deleteDeploymentWithEvent(ctx, ddai, &deployment); err != nil {
 				return err
