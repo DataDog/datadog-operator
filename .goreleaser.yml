@@ -13,7 +13,11 @@ builds:
   env:
   - CGO_ENABLED=0
   main: ./cmd/kubectl-datadog/main.go
-  ldflags: -w -X github.com/DataDog/datadog-operator/pkg/version/version.Commit=${GIT_COMMIT} -X github.com/DataDog/datadog-operator/pkg/version/version.Version=${VERSION} -X github.com/DataDog/datadog-operator/pkg/version/version.BuildTime=${DATE} -s
+  ldflags:
+  - -w -s
+  - -X github.com/DataDog/datadog-operator/pkg/version.Commit={{ .FullCommit }}
+  - -X github.com/DataDog/datadog-operator/pkg/version.Version={{ .Version }}
+  - -X github.com/DataDog/datadog-operator/pkg/version.BuildTime={{ .Date }}
   binary: kubectl-datadog
 archives:
 - id: kubectl-datadog
