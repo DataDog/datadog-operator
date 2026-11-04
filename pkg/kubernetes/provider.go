@@ -53,6 +53,9 @@ const (
 	// TalosProvider is the provider string for Talos Linux clusters.
 	TalosProvider = "talos"
 
+	// NebiusProvider is the provider string for Nebius Managed Kubernetes clusters.
+	NebiusProvider = "nebius"
+
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
 	OpenShiftProviderLabel = "node.openshift.io/os_id"
 
@@ -86,6 +89,10 @@ const (
 	// case-sensitively, the trailing " (" is intentional to match "<name> (<version>)"
 	// format, should not be changed or relaxed to strings.Contains.
 	talosOSImagePrefix = "Talos ("
+
+	// nebiusProviderIDPrefix detects Nebius from Node.Spec.ProviderID, which the
+	// Nebius cloud controller sets to "nebius://computeinstance-<id>".
+	nebiusProviderIDPrefix = "nebius://"
 )
 
 // ProviderValue allowlist
@@ -119,6 +126,10 @@ func isAKSProvider(labels map[string]string) bool {
 
 func isTalosProvider(node *corev1.Node) bool {
 	return node != nil && strings.HasPrefix(node.Status.NodeInfo.OSImage, talosOSImagePrefix)
+}
+
+func isNebiusProvider(node *corev1.Node) bool {
+	return node != nil && strings.HasPrefix(node.Spec.ProviderID, nebiusProviderIDPrefix)
 }
 
 // IsOpenShiftProvider reports whether p is OpenShift in either documented spelling
@@ -252,7 +263,9 @@ func ClusterProviderFromNodeLabels(labels map[string]string) string {
 
 // ClusterProviderFromNode maps a single node to the cluster-level provider. Most
 // providers are label-derived; Talos is detected from osImage because Talos does
-// not expose a default stable node label.
+// not expose a default stable node label. Nebius is detected from providerID and
+// checked last: it identifies the infrastructure rather than the distribution, so
+// a distribution running on Nebius (Talos, OpenShift) keeps its own provider.
 func ClusterProviderFromNode(node *corev1.Node) string {
 	if isTalosProvider(node) {
 		return TalosProvider
@@ -260,7 +273,13 @@ func ClusterProviderFromNode(node *corev1.Node) string {
 	if node == nil {
 		return DefaultProvider
 	}
-	return ClusterProviderFromNodeLabels(node.Labels)
+	if provider := ClusterProviderFromNodeLabels(node.Labels); provider != DefaultProvider {
+		return provider
+	}
+	if isNebiusProvider(node) {
+		return NebiusProvider
+	}
+	return DefaultProvider
 }
 
 // GetClusterProviderFromNodeList returns the cluster-level provider for a node
