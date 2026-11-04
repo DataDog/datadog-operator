@@ -70,34 +70,42 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
 
+	defaultPaths := []string{
+		"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
+		"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.8.yaml",
+	}
 	tests := []struct {
-		name         string
-		version      string
-		expectedPath string
+		name          string
+		version       string
+		expectedPaths []string
 	}{
 		{
-			name:         "default version",
-			version:      DefaultWorkloadAllowlistVersion,
-			expectedPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.8.yaml",
+			name:          "default version retains previous version",
+			version:       DefaultWorkloadAllowlistVersion,
+			expectedPaths: defaultPaths,
 		},
 		{
-			name:         "user override",
-			version:      "v2.5.0",
-			expectedPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v2.5.0.yaml",
+			name:    "user override",
+			version: "v2.5.0",
+			expectedPaths: []string{
+				"Datadog/datadog/datadog-datadog-daemonset-exemption-v2.5.0.yaml",
+			},
 		},
 		{
-			name:         "older explicit pin",
-			version:      "v1.0.7",
-			expectedPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
+			name:    "older explicit pin is not duplicated",
+			version: "v1.0.7",
+			expectedPaths: []string{
+				"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
+			},
 		},
 		{
-			name:         "unset version",
-			expectedPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.8.yaml",
+			name:          "unset version",
+			expectedPaths: defaultPaths,
 		},
 		{
-			name:         "malformed pin falls back to default",
-			version:      "v1.0.7-rc.1",
-			expectedPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.8.yaml",
+			name:          "malformed pin falls back to default",
+			version:       "v1.0.7-rc.1",
+			expectedPaths: defaultPaths,
 		},
 	}
 
@@ -108,8 +116,7 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 
 			got := &AllowlistSynchronizer{}
 			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
-			require.Len(t, got.Spec.AllowlistPaths, 1)
-			assert.Equal(t, tt.expectedPath, got.Spec.AllowlistPaths[0])
+			assert.Equal(t, tt.expectedPaths, got.Spec.AllowlistPaths)
 			assert.Empty(t, got.Annotations)
 			assert.Equal(t, "datadog-operator", got.Labels["app.kubernetes.io/created-by"])
 			assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])

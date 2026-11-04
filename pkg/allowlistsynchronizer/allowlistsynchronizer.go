@@ -22,6 +22,10 @@ import (
 // for process collection.
 const DefaultWorkloadAllowlistVersion = "v1.0.8"
 
+// previousWorkloadAllowlistVersion remains synchronized while the new default
+// propagates across GKE node versions.
+const previousWorkloadAllowlistVersion = "v1.0.7"
+
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
 // driver daemonset WorkloadAllowlist. v1.1.2 allows the APM registry auth and
 // registry allow list env vars.
@@ -99,14 +103,24 @@ func resolveWorkloadAllowlistVersionWithDefault(version, defaultVersion string) 
 }
 
 func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {
+	allowlistPaths := make([]string, 0, 2)
+	if version == DefaultWorkloadAllowlistVersion && version != previousWorkloadAllowlistVersion {
+		allowlistPaths = append(allowlistPaths, workloadAllowlistPath(previousWorkloadAllowlistVersion))
+	}
+	allowlistPaths = append(allowlistPaths, workloadAllowlistPath(version))
+
 	return applyAllowlistSynchronizerResourceForPath(
 		k8sClient,
 		agentAllowlistSynchronizerName,
 		agentAllowlistAppNameLabel,
-		[]string{fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version)},
+		allowlistPaths,
 		partOfLabel,
 		commonLabels,
 	)
+}
+
+func workloadAllowlistPath(version string) string {
+	return fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version)
 }
 
 func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {

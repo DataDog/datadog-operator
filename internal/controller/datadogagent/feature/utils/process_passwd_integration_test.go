@@ -224,7 +224,7 @@ func buildProcessFeaturesPod(t *testing.T, dda *v2alpha1.DatadogAgent, nodeOverr
 func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expectedPath string, security bool) {
 	t.Helper()
 
-	processMounts, securityMounts := 0, 0
+	processMounts, securityMounts, osReleaseMounts := 0, 0, 0
 	for _, container := range pod.Spec.Containers {
 		count := 0
 		for _, mount := range container.VolumeMounts {
@@ -242,6 +242,10 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 					// GKE Warden matches volumeMounts by name, so each path keeps a distinct volume name.
 					assert.Equal(t, featutils.ProcessPasswdVolumeName(expectedPath), mount.Name)
 				}
+			case common.OSReleaseFileVolumeName:
+				osReleaseMounts++
+				assert.True(t, mount.ReadOnly)
+				assert.Equal(t, common.OSReleaseFileMountPath, mount.MountPath)
 			case common.GroupVolumeName:
 				assert.Equal(t, "/etc/group", mount.MountPath)
 			}
@@ -267,6 +271,14 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		assert.Equal(t, 1, processMounts, "both features must share one passwd mount")
 		assert.Equal(t, 1, passwdVolumes[featutils.ProcessPasswdVolumeName(expectedPath)], "both features must share one host passwd volume")
 	}
+	// The Agent sets HOST_ETC=/host/etc once that directory exists, so os-release
+	// must follow the relocated passwd mount, and only that mount.
+	if expectedPath == common.HostPasswdMountPath {
+		assert.Equal(t, processMounts, osReleaseMounts, "relocated passwd must bring os-release")
+	} else {
+		assert.Zero(t, osReleaseMounts)
+	}
+
 	if securityMounts > 0 {
 		assert.Equal(t, 1, passwdVolumes[common.PasswdVolumeName], "security mounts keep the passwd volume")
 	}

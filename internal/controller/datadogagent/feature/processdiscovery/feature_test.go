@@ -133,6 +133,15 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 				},
 			}
 
+			if expectedPath == common.HostPasswdMountPath {
+				// The relocated passwd also brings host os-release under /host/etc.
+				wantVolumeMounts = append(wantVolumeMounts[:1], append([]corev1.VolumeMount{{
+					Name:      common.OSReleaseFileVolumeName,
+					MountPath: common.OSReleaseFileMountPath,
+					ReadOnly:  true,
+				}}, wantVolumeMounts[1:]...)...)
+			}
+
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, wantVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, wantVolumeMounts))
 
@@ -162,6 +171,17 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						},
 					},
 				},
+			}
+
+			if expectedPath == common.HostPasswdMountPath {
+				wantVolumes = append(wantVolumes[:1], append([]corev1.Volume{{
+					Name: common.OSReleaseFileVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.OSReleaseFileHostPath,
+						},
+					},
+				}}, wantVolumes[1:]...)...)
 			}
 
 			volumes := mgr.VolumeMgr.Volumes

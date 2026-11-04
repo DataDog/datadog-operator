@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -64,6 +65,20 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 		return common.HostPasswdMountPath
 	}
 	return common.PasswdMountPath
+}
+
+// ProcessPasswdVolumes returns the host passwd volume and mount for a process
+// container. When passwd is relocated under /host/etc, os-release is mounted
+// there too: the Agent sets HOST_ETC=/host/etc whenever that directory exists,
+// and host metadata reads os-release from HOST_ETC.
+func ProcessPasswdVolumes(mountPath string) ([]corev1.Volume, []corev1.VolumeMount) {
+	passwdVol, passwdMount := volume.GetVolumes(ProcessPasswdVolumeName(mountPath), common.PasswdHostPath, mountPath, true)
+	volumes, mounts := []corev1.Volume{passwdVol}, []corev1.VolumeMount{passwdMount}
+	if mountPath == common.HostPasswdMountPath {
+		osReleaseVol, osReleaseMount := volume.GetVolumes(common.OSReleaseFileVolumeName, common.OSReleaseFileHostPath, common.OSReleaseFileMountPath, true)
+		volumes, mounts = append(volumes, osReleaseVol), append(mounts, osReleaseMount)
+	}
+	return volumes, mounts
 }
 
 // ProcessPasswdVolumeName returns the volume backing a process passwd mount path.
