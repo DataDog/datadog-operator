@@ -31,8 +31,9 @@ func serviceType(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) 
 	return corev1.ServiceTypeClusterIP
 }
 
+// servicePorts exposes the API port next to the source ports, as the Observability Pipelines Worker chart does.
 func servicePorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) []corev1.ServicePort {
-	result := make([]corev1.ServicePort, 0, len(ports))
+	result := make([]corev1.ServicePort, 0, len(ports)+1)
 	for _, port := range ports {
 		result = append(result, corev1.ServicePort{
 			Name:       port.Name,
@@ -41,7 +42,7 @@ func servicePorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerP
 			TargetPort: intstr.FromInt32(port.Port),
 		})
 	}
-	return result
+	return append(result, corev1.ServicePort{Name: APIPortName, Port: APIPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(APIPort)})
 }
 
 func portProtocol(port datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) corev1.Protocol {

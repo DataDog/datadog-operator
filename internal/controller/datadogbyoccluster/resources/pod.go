@@ -18,6 +18,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 // podInput contains the cluster-wide inputs shared by every component pod.
@@ -53,13 +54,13 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 	}
 	serviceAccountName, _ := serviceAccountName(cluster)
 
-	configVolume := corev1.Volume{
-		Name: configVolumeName,
-		VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-			LocalObjectReference: corev1.LocalObjectReference{Name: cluster.Name},
-			Items:                []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}},
-		}},
+	configMap := &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: cluster.Name}}
+	// As in the chart, a component that mounts only the node configuration projects only that key, and the indexer
+	// mounts the whole ConfigMap as its directory.
+	if c.configVolumeMount.SubPath != "" {
+		configMap.Items = []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}}
 	}
+	configVolume := corev1.Volume{Name: configVolumeName, VolumeSource: corev1.VolumeSource{ConfigMap: configMap}}
 	volumes := slices.Concat(
 		[]corev1.Volume{configVolume},
 		c.workload.dataVolumes(),
@@ -177,7 +178,8 @@ func telemetryEnvironment(clusterID, site string, image byocimage.ResolvedImage)
 	return []corev1.EnvVar{
 		{Name: envQuickwitOpenTelemetryExporter, Value: "true"},
 		{Name: envBYOCTelemetryEnabled, Value: "true"},
-		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		// The node name is not host.name, which would resolve the telemetry to an unrelated host with the same alias.
+		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: envOTelExporterProtocol, Value: telemetryExporterProtocol},
 		{Name: envOTelExporterLogsEndpoint, Value: intake + "logs"},
 		{Name: envOTelExporterMetricsTemporality, Value: telemetryMetricsTemporality},

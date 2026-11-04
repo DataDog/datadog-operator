@@ -28,6 +28,7 @@ import (
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func TestResources_Objects(t *testing.T) {
@@ -683,7 +684,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
 				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
 			},
-			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"}},
+			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version}},
 		},
 	}
 
@@ -716,6 +717,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			terminationGracePeriodSeconds: ptr.To[int64](300),
 		})
 		want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
+		want.StatefulSet.Spec.Template.Spec.Volumes[0].ConfigMap.Items = nil
 		want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
 			ObjectMeta: metav1.ObjectMeta{Name: "data"},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -1446,7 +1448,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "DD_SITE", Value: "datadoghq.com"},
 		{Name: "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER", Value: "true"},
 		{Name: "BYOC_TELEMETRY_ENABLED", Value: "true"},
-		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "http/protobuf"},
 		{Name: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"},
 		{Name: "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", Value: "delta"},

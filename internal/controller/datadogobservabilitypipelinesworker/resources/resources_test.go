@@ -222,6 +222,7 @@ func TestBuildResources_Services(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4317)},
 						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4318)},
+						{Name: "api", Port: 8686, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(8686)},
 					},
 				},
 			},

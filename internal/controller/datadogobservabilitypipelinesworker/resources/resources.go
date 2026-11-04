@@ -70,8 +70,8 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	if autoscaling := worker.Spec.Autoscaling; autoscaling != nil {
 		r.HPA = newHPA(objectMeta(worker), autoscaling)
 	}
-	if ports := servicePorts(worker.Spec.Ports); len(ports) > 0 {
-		r.Service = newService(objectMeta(worker), selectorLabels(worker), ports, serviceType(worker))
+	if len(worker.Spec.Ports) > 0 {
+		r.Service = newService(objectMeta(worker), selectorLabels(worker), servicePorts(worker.Spec.Ports), serviceType(worker))
 	}
 
 	metadata := obsoleteObjectMeta(worker)
