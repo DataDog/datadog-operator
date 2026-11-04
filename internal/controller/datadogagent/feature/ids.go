@@ -75,6 +75,8 @@ const (
 	HelmCheckIDType = "helm_check"
 	// KueueIDType Kueue feature.
 	KueueIDType = "kueue"
+	// KAISchedulerIDType KAI Scheduler feature.
+	KAISchedulerIDType = "kai_scheduler"
 	// InstrumentationCRDIDType Instrumentation CRD feature.
 	InstrumentationCRDIDType = "instrumentation_crd"
 	// DummyIDType Dummy feature.
