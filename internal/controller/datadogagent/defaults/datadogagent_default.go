@@ -123,9 +123,11 @@ const (
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 	defaultKubeletPodResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
 
-	// defaultOpenShiftKubeletTLSVerify applies only on OpenShift; elsewhere the field
-	// stays unset, which emits no DD_KUBELET_TLS_VERIFY at all (see global/agent.go).
+	// defaultOpenShiftKubeletTLSVerify and defaultNebiusKubeletTLSVerify apply only on
+	// their provider; elsewhere the field stays unset, which emits no
+	// DD_KUBELET_TLS_VERIFY at all (see global/agent.go).
 	defaultOpenShiftKubeletTLSVerify = false
+	defaultNebiusKubeletTLSVerify    = false
 
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
@@ -157,8 +159,11 @@ func DefaultDatadogAgentSpec(ddaSpec *v2alpha1.DatadogAgentSpec) {
 // DefaultDatadogAgentSpec, which guarantees the Global sub-structs are non-nil. Like
 // the rest of this package it only fills unset values.
 func DefaultProviderSpecificConfig(ddaSpec *v2alpha1.DatadogAgentSpec, provider string) {
-	if kubernetes.IsOpenShiftProvider(provider) {
+	switch {
+	case kubernetes.IsOpenShiftProvider(provider):
 		defaultOpenShiftConfig(ddaSpec)
+	case provider == kubernetes.NebiusProvider:
+		defaultNebiusConfig(ddaSpec)
 	}
 }
 
@@ -168,6 +173,14 @@ func defaultOpenShiftConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	// than the cluster CA, so verification fails and the Agent cannot scrape the
 	// kubelet. Datadog documents disabling it on OpenShift for this reason.
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.Kubelet.TLSVerify, defaultOpenShiftKubeletTLSVerify)
+}
+
+// defaultNebiusConfig applies the Nebius Managed Kubernetes global defaults.
+func defaultNebiusConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	// The Nebius kubelet serving cert is not signed by a CA the Agent trusts, so with
+	// verification on the node Agent cannot reach the kubelet and crashloops (it also
+	// takes its hostname from the kubelet).
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.Kubelet.TLSVerify, defaultNebiusKubeletTLSVerify)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
