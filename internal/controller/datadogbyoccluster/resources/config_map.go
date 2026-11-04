@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
