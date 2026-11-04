@@ -25,6 +25,7 @@ type RunOptions struct {
 	Targets            []Target // parsed --target=<type>/<name>
 	SkipCA             bool
 	EnsurePDBs         bool
+	Force              bool
 	DryRun             bool
 	Yes                bool
 	EvictionTimeout    time.Duration
@@ -37,7 +38,7 @@ type RunOptions struct {
 // killed run leaves no permanently corrupting state — re-running cleans up.
 func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *genericclioptions.ConfigFlags, clientset *kubernetes.Clientset, opts RunOptions) error {
 	log.SetOutput(streams.ErrOut)
-	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(streams.ErrOut)))
+	ctrl.SetLogger(zap.New(zap.UseDevMode(opts.Debug), zap.WriteTo(streams.ErrOut)))
 
 	cli, err := clients.Build(ctx, configFlags, clientset)
 	if err != nil {
@@ -121,6 +122,16 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	// label-based cleanup picks them up. On a SIGINT mid-flight the temp
 	// PDBs may leak; a subsequent run cleans them up via the same label.
 	if opts.EnsurePDBs {
+		// Reclaim any temp PDB leaked by a prior interrupted run before creating
+		// fresh ones. Otherwise, if the user has since added their own PDB for
+		// the same workload, the pod would be covered by both PDBs and the
+		// Eviction API refuses pods matched by more than one PDB, deadlocking
+		// the drain below. Unlike the no-op exit path, this is not best-effort:
+		// a failed cleanup here must abort before draining, since a surviving
+		// leaked PDB is exactly what would deadlock the drain.
+		if err := cleanupTempPDBs(ctx, cli.K8sClient, opts.DryRun); err != nil {
+			return fmt.Errorf("failed to reclaim leaked temporary PDBs: %w", err)
+		}
 		if err := ensureTempPDBs(ctx, clientset, cli.K8sClient, targets, opts.DryRun); err != nil {
 			if cleanupErr := cleanupTempPDBs(ctx, cli.K8sClient, opts.DryRun); cleanupErr != nil {
 				log.Printf("Warning: failed to cleanup partial temporary PDBs: %v", cleanupErr)
@@ -129,8 +140,10 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		}
 	}
 
+	// Step 3: drain and remove every target's nodes.
 	drainOpts := nodeDrainOptions{
 		DryRun:          opts.DryRun,
+		Force:           opts.Force,
 		EvictionTimeout: opts.EvictionTimeout,
 		NodeTimeout:     opts.NodeTimeout,
 		PollInterval:    2 * time.Second,
@@ -218,7 +231,7 @@ func evictTarget(ctx context.Context, clientset kubernetes.Interface, cli *clien
 	case clusterinfo.NodeManagerEKSManagedNodeGroup:
 		return evictEKSManagedNodeGroup(ctx, cli.EKS, clientset, clusterName, t.Entity, t.Nodes, drainOpts)
 	case clusterinfo.NodeManagerKarpenter:
-		return evictKarpenterUserNodePool(ctx, clientset, t.Entity, t.Nodes, drainOpts)
+		return evictKarpenterUserNodePool(ctx, clientset, cli.K8sClient, t.Entity, t.Nodes, drainOpts)
 	case clusterinfo.NodeManagerStandalone:
 		return evictStandalone(ctx, clientset, cli.EC2, t.Nodes, drainOpts)
 	default:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -23,6 +24,7 @@ import (
 // nodeDrainOptions captures the per-call tunables for evicting a node's pods.
 type nodeDrainOptions struct {
 	DryRun          bool
+	Force           bool          // evict pods not managed by a controller (bare pods)
 	EvictionTimeout time.Duration // per pod, bound for retries on 429
 	NodeTimeout     time.Duration // total wait for the node to become empty
 	PollInterval    time.Duration // interval between empty-checks; default 2s
@@ -36,6 +38,10 @@ type nodeDrainOptions struct {
 // Pods that cannot be evicted (PDB-blocked beyond EvictionTimeout, etc.) are
 // logged as warnings; drainNode then continues with the remaining pods rather
 // than aborting the whole run.
+//
+// A pod not managed by a controller (a "bare" pod) has no replacement once
+// evicted, so — like `kubectl drain` — drainNode refuses the whole node unless
+// opts.Force is set, leaving the node cordoned and its instance intact.
 func drainNode(ctx context.Context, clientset kubernetes.Interface, nodeName string, opts nodeDrainOptions) error {
 	if opts.DryRun {
 		log.Printf("[dry-run] would drain node %s", nodeName)
@@ -44,6 +50,17 @@ func drainNode(ctx context.Context, clientset kubernetes.Interface, nodeName str
 	pods, err := listPodsOnNode(ctx, clientset, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
+	}
+	if !opts.Force {
+		var bare []string
+		for i := range pods {
+			if p := &pods[i]; !shouldSkipEviction(p) && metav1.GetControllerOf(p) == nil {
+				bare = append(bare, p.Namespace+"/"+p.Name)
+			}
+		}
+		if len(bare) > 0 {
+			return fmt.Errorf("node %s hosts %d pod(s) not managed by a controller (%s); evicting them would delete them permanently with no replacement. Re-run with --force to evict them anyway", nodeName, len(bare), strings.Join(bare, ", "))
+		}
 	}
 	for _, p := range pods {
 		if shouldSkipEviction(&p) {
