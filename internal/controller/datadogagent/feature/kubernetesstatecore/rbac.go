@@ -130,6 +130,17 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 		})
 	}
 
+	if collectorOpts.enableDRARBAC {
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.ResourceAPIGroup},
+			Resources: []string{
+				rbac.ResourceClaimsResource,
+				rbac.ResourceSlicesResource,
+				rbac.DeviceTaintRulesResource,
+			},
+		})
+	}
+
 	commonVerbs := []string{
 		rbac.ListVerb,
 		rbac.WatchVerb,

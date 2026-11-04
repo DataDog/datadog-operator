@@ -36,6 +36,12 @@ const (
 	// Sharding only coexists safely with the cluster_aggregates_only
 	// collection mode as of https://github.com/DataDog/datadog-agent/pull/54126.
 	ksmShardingMinVersion = "7.83.0-0"
+
+	// Minimum agent version that supports the DRA collectors (resourceclaims,
+	// resourceslices, devicetaintrules). Older agents fail the whole check when
+	// asked for resourceclaims on clusters serving the DRA API, so the DRA RBAC
+	// rule is only granted from this version.
+	draCollectorsMinVersion = "7.85.0-0"
 )
 
 // GetKubeStateMetricsRBACResourceName return the RBAC resources name

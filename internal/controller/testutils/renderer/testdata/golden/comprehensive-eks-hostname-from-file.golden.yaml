@@ -217,6 +217,15 @@ rules:
   - list
   - watch
 - apiGroups:
+  - resource.k8s.io
+  resources:
+  - devicetaintrules
+  - resourceclaims
+  - resourceslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses

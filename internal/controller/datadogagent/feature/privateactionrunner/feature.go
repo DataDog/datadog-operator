@@ -90,8 +90,9 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
 		version := runnerAgentVersion(dda, ddaSpec)
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
-		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
-			f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
+		f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
+		if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
+			f.splitEnabled = false
 		}
 		// An older Agent does not serve the capture socket, so the runner would
 		// dial a socket that never exists.
