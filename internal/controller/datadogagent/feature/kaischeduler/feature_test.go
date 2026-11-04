@@ -34,14 +34,21 @@ var dcaRBACName = fmt.Sprintf("%s-%s-%s-dca", resourcesNamespace, resourcesName,
 func Test_kaiSchedulerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name:          "KAI Scheduler annotation absent",
-			DDA:           testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).Build(),
+			Name: "KAI Scheduler annotation absent",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithGPUMonitoringEnabled(true).
+				WithClusterAgentImage(clusterAgentImage).
+				WithNodeAgentImage(nodeAgentImage).
+				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "KAI Scheduler annotation not true",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithAnnotations(kaiSchedulerAnnotation("false")).
+				WithGPUMonitoringEnabled(true).
+				WithClusterAgentImage(clusterAgentImage).
+				WithNodeAgentImage(nodeAgentImage).
 				Build(),
 			WantConfigure: false,
 		},
