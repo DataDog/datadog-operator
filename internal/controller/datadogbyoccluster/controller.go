@@ -377,14 +377,11 @@ func deploymentStatus(deployment *appsv1.Deployment) (*datadoghqv1alpha1.Datadog
 // SetupWithManager creates the DatadogBYOCCluster controller and its owned-resource watches.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// Status updates do not bump the generation, so this skips requeues caused by the controller's own status writes.
-		// The pause annotation does not bump the generation either, so its changes requeue separately.
-		// Worker and workload status changes drive availability, and the other owned resources do not bump the generation on
-		// changes, so their watches stay unfiltered. HPA and PDB status is not read, so only changes to their spec, labels, or
-		// annotations requeue.
+		// Requeue the cluster on spec or annotation changes (the pause annotation does not bump the generation), not on its
+		// own status writes. Owned resources stay unfiltered, except HPAs and PDBs, whose status is not read.
 		For(&datadoghqv1alpha1.DatadogBYOCCluster{}, builder.WithPredicates(predicate.Or(
 			predicate.GenerationChangedPredicate{},
-			byocutils.AnnotationChanged(datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation),
+			predicate.AnnotationChangedPredicate{},
 		))).
 		Owns(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}).
 		Owns(&corev1.ConfigMap{}).

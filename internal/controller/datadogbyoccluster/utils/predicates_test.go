@@ -14,52 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func TestAnnotationChangedUpdate(t *testing.T) {
-	newObject := func(annotations map[string]string) client.Object {
-		return &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "object", Annotations: annotations}}
-	}
-
-	tests := []struct {
-		name      string
-		oldObject client.Object
-		newObject client.Object
-		want      bool
-	}{
-		{
-			name:      "annotation added",
-			oldObject: newObject(nil),
-			newObject: newObject(map[string]string{"key": "true"}),
-			want:      true,
-		},
-		{
-			name:      "annotation removed",
-			oldObject: newObject(map[string]string{"key": "true"}),
-			newObject: newObject(nil),
-			want:      true,
-		},
-		{
-			name:      "annotation value changed",
-			oldObject: newObject(map[string]string{"key": "true"}),
-			newObject: newObject(map[string]string{"key": "false"}),
-			want:      true,
-		},
-		{
-			name:      "annotation unchanged",
-			oldObject: newObject(map[string]string{"key": "true"}),
-			newObject: newObject(map[string]string{"key": "true", "other": "value"}),
-			want:      false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := AnnotationChanged("key").Update(event.UpdateEvent{ObjectOld: tt.oldObject, ObjectNew: tt.newObject})
-			if got != tt.want {
-				t.Errorf("Update() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestHorizontalPodAutoscalerSpecChangedUpdate(t *testing.T) {
 	newHPA := func(labels map[string]string, maxReplicas, currentReplicas int32) *autoscalingv2.HorizontalPodAutoscaler {
 		return &autoscalingv2.HorizontalPodAutoscaler{
