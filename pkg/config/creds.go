@@ -177,6 +177,16 @@ func (cm *CredentialManager) DelegatedTokenConfig() *datadogapi.DelegatedTokenCo
 	return cm.delegatedAuth.config
 }
 
+// InvalidateDelegatedToken drops the cached delegated token if it is the given one, so
+// the next GetAuth requests a new token. API clients call it when Datadog rejects the
+// token with 401 Unauthorized. It is a no-op when delegated auth is disabled.
+func (cm *CredentialManager) InvalidateDelegatedToken(token string) {
+	if !cm.DelegatedAuthEnabled() {
+		return
+	}
+	cm.delegatedAuth.Invalidate(token)
+}
+
 // GetAuth returns a fresh Datadog API authentication context using the latest
 // credentials and the parsed API URL. This should be called on every reconcile.
 //

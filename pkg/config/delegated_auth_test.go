@@ -149,6 +149,145 @@ func TestDelegatedTokenSource_Error(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDelegatedTokenSource_RenewalFailureKeepsValidToken(t *testing.T) {
+	current := time.Unix(1_700_000_000, 0)
+	now := func() time.Time { return current }
+	provider := &fakeTokenProvider{lifetime: 15 * time.Minute, now: now}
+	source := newFakeTokenSource(provider, now)
+
+	tok, err := source.Token(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "token-1", tok.DelegatedToken)
+
+	// Within the refresh margin, renewal fails: the still valid token is returned.
+	provider.err = errors.New("datadog unreachable")
+	current = current.Add(14 * time.Minute)
+	tok, err = source.Token(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "token-1", tok.DelegatedToken)
+	assert.EqualValues(t, 2, provider.calls.Load())
+
+	// Once the token has expired, the renewal error is returned.
+	current = current.Add(time.Minute)
+	_, err = source.Token(context.Background())
+	require.ErrorContains(t, err, "datadog unreachable")
+
+	// Renewal recovers once the provider does.
+	provider.err = nil
+	tok, err = source.Token(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "token-4", tok.DelegatedToken)
+}
+
+func TestDelegatedTokenSource_Invalidate(t *testing.T) {
+	provider := &fakeTokenProvider{lifetime: 15 * time.Minute, now: time.Now}
+	source := newFakeTokenSource(provider, time.Now)
+
+	tok, err := source.Token(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "token-1", tok.DelegatedToken)
+
+	// A rejected token is dropped and the next call fetches a new one.
+	source.Invalidate("token-1")
+	tok, err = source.Token(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "token-2", tok.DelegatedToken)
+
+	// A late rejection of an already replaced token keeps the current one.
+	source.Invalidate("token-1")
+	tok, err = source.Token(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "token-2", tok.DelegatedToken)
+	assert.EqualValues(t, 2, provider.calls.Load())
+
+	// A rejected token is not reused even if renewal fails.
+	source.Invalidate("token-2")
+	provider.err = errors.New("boom")
+	_, err = source.Token(context.Background())
+	require.Error(t, err)
+}
+
+func TestCredentialManager_InvalidateDelegatedToken(t *testing.T) {
+	// No-op when delegated auth is disabled, including on a nil manager.
+	var nilManager *CredentialManager
+	nilManager.InvalidateDelegatedToken("token")
+	(&CredentialManager{}).InvalidateDelegatedToken("token")
+
+	provider := &fakeTokenProvider{lifetime: 15 * time.Minute, now: time.Now}
+	cm := &CredentialManager{delegatedAuth: newFakeTokenSource(provider, time.Now)}
+	_, err := cm.GetAuth()
+	require.NoError(t, err)
+	cm.InvalidateDelegatedToken("token-1")
+	_, err = cm.GetAuth()
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, provider.calls.Load())
+}
+
+// TestDefaultAWSCredentialsLoader_StalledPodIdentityEndpoint checks that a stalled EKS Pod
+// Identity agent cannot hang credential retrieval: the container credentials provider must
+// use the bounded HTTP client, otherwise the SDK credentials cache refresh never returns.
+func TestDefaultAWSCredentialsLoader_StalledPodIdentityEndpoint(t *testing.T) {
+	var stalled atomic.Bool
+	stalled.Store(true)
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if stalled.Load() {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"AccessKeyId":"AKIDTEST","SecretAccessKey":"secret","Token":"session","Expiration":%q}`,
+			time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
+	}))
+	t.Cleanup(func() {
+		close(release)
+		server.Close()
+	})
+
+	// Only the container credentials provider may resolve credentials.
+	dir := t.TempDir()
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+	t.Setenv("AWS_ROLE_ARN", "")
+	t.Setenv("AWS_CONFIG_FILE", dir+"/config")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", dir+"/credentials")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
+	t.Setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", "")
+	t.Setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE", "")
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI", server.URL+"/v1/credentials")
+	t.Setenv("AWS_REGION", "us-east-1")
+
+	load := defaultAWSCredentialsLoader(200 * time.Millisecond)
+
+	// While the endpoint stalls, retrieval fails on the HTTP timeout instead of hanging.
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := load(context.Background())
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("credential retrieval hung on a stalled Pod Identity endpoint")
+	}
+
+	// Once the endpoint answers, the next retrieval is not stuck behind the failed one.
+	stalled.Store(false)
+	creds, region, err := load(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "AKIDTEST", creds.AccessKeyID)
+	assert.Equal(t, "session", creds.SessionToken)
+	assert.Equal(t, "us-east-1", region)
+}
+
 func TestDelegatedTokenSource_Concurrent(t *testing.T) {
 	provider := &fakeTokenProvider{lifetime: 15 * time.Minute, now: time.Now}
 	source := newFakeTokenSource(provider, time.Now)

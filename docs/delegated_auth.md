@@ -14,7 +14,7 @@ The flow works like this:
 2. It signs an STS `GetCallerIdentity` request with those credentials. The signature proves its identity and is bound to your Datadog org UUID.
 3. It sends that proof to `/api/v2/delegated-token` on your Datadog site.
 4. Datadog verifies the proof with AWS STS. It looks up the Datadog identity linked to the IAM role and returns a short-lived access token.
-5. The Operator sends the token as a `Bearer` token. It caches the token and renews it two minutes before it expires.
+5. The Operator sends the token as a `Bearer` token. It caches the token and renews it two minutes before it expires. If renewal fails, the Operator keeps using the current token until it expires. If Datadog rejects a token with `401 Unauthorized`, the Operator drops it and requests a new one on the next reconcile.
 
 The role needs no IAM permission policies, only a trust policy that lets the Operator pod assume it. The signed `GetCallerIdentity` request is never sent to AWS by the Operator; Datadog sends it to STS to verify it.
 
@@ -72,7 +72,16 @@ Follow the AWS guide to [assign an IAM role to a Kubernetes service account][3] 
 
 ### 2. Link the IAM role to a Datadog identity
 
-In your Datadog organization, map the IAM role ARN to the Datadog identity the Operator should act as. Typically this is a service account. Give that identity the permissions the Operator needs, such as monitors, SLOs and dashboards write access.
+Create an identity mapping that links the role to the Datadog identity the Operator should act as. Follow the Datadog guide to [configure AWS identity mapping][4]. In Datadog, go to **Organization Settings** > **Workload Identity Federation** > **Identity Mappings**.
+
+- **Prerequisites:** the AWS account must be added to the [Datadog AWS integration][5], and you need the `workload_identity_federation_config_read` and `workload_identity_federation_config_write` permissions.
+- **AWS identity:** use the role's STS assumed-role ARN, not its IAM role ARN. Pods get a new session name every time, so end the ARN with a wildcard:
+  ```
+  arn:aws:sts::<ACCOUNT_ID>:assumed-role/<ROLE_NAME>/*
+  ```
+- **Datadog identity:** a service account is recommended. Give it the permissions the Operator needs, such as monitors, SLOs and dashboards write access.
+
+Workload Identity Federation is not available on Datadog for Government sites.
 
 If the role is not mapped, the token request fails. The error, including Datadog's explanation, appears in the Operator logs as `unable to get credentials`. The status of the `DatadogMonitor`, `DatadogSLO`, `DatadogDashboard` or `DatadogGenericResource` is not updated, and the reconcile is retried.
 
@@ -102,3 +111,5 @@ If the configuration is invalid, for example an unsupported provider, the Operat
 [1]: https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
 [2]: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 [3]: https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html
+[4]: https://docs.datadoghq.com/account_management/workload_identity_federation/#configure-aws-identity-mapping-in-datadog
+[5]: https://docs.datadoghq.com/integrations/amazon_web_services/

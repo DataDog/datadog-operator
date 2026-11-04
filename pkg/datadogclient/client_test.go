@@ -84,8 +84,7 @@ func TestDelegatedAuthClientsSendBearerToken(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	delegatedConfig := &datadogapi.DelegatedTokenConfig{OrgUUID: "org-1", Provider: datadogapi.ProviderAWS}
-	client := InitMonitorClient(delegatedConfig)
+	client := InitMonitorClient(&fakeDelegatedAuth{})
 	client.Client.GetConfig().Servers = datadogapi.ServerConfigurations{{URL: server.URL}}
 
 	ctx := context.WithValue(context.Background(), datadogapi.ContextDelegatedToken, &datadogapi.DelegatedTokenCredentials{
@@ -107,4 +106,45 @@ func TestDelegatedAuthClientsSendBearerToken(t *testing.T) {
 	_, _, err = keysClient.ListMonitors(ctx)
 	require.NoError(t, err)
 	require.Equal(t, authHeaders{apiKey: "api", appKey: "app"}, <-received)
+}
+
+type fakeDelegatedAuth struct {
+	invalidated []string
+}
+
+func (f *fakeDelegatedAuth) DelegatedTokenConfig() *datadogapi.DelegatedTokenConfig {
+	return &datadogapi.DelegatedTokenConfig{OrgUUID: "org-1", Provider: datadogapi.ProviderAWS}
+}
+
+func (f *fakeDelegatedAuth) InvalidateDelegatedToken(token string) {
+	f.invalidated = append(f.invalidated, token)
+}
+
+func TestDelegatedAuthClientInvalidatesTokenOnUnauthorized(t *testing.T) {
+	status := http.StatusUnauthorized
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(`{"errors":["denied"]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	auth := &fakeDelegatedAuth{}
+	client := InitMonitorClient(auth)
+	client.Client.GetConfig().Servers = datadogapi.ServerConfigurations{{URL: server.URL}}
+	ctx := context.WithValue(context.Background(), datadogapi.ContextDelegatedToken, &datadogapi.DelegatedTokenCredentials{
+		OrgUUID:        "org-1",
+		DelegatedToken: "revoked-token",
+		Expiration:     time.Now().Add(time.Hour),
+	})
+
+	_, _, err := client.ListMonitors(ctx)
+	require.Error(t, err)
+	require.Equal(t, []string{"revoked-token"}, auth.invalidated)
+
+	// 403 means missing permissions; a new token would not help.
+	status = http.StatusForbidden
+	_, _, err = client.ListMonitors(ctx)
+	require.Error(t, err)
+	require.Equal(t, []string{"revoked-token"}, auth.invalidated)
 }

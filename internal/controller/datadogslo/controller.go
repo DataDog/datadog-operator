@@ -58,7 +58,7 @@ type Reconciler struct {
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
-		datadogClient: datadogclient.InitSLOClient(credsManager.DelegatedTokenConfig()),
+		datadogClient: datadogclient.InitSLOClient(credsManager),
 		credsManager:  credsManager,
 		log:           log,
 		recorder:      recorder,

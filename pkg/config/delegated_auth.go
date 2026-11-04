@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/endpointcreds"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
@@ -89,8 +90,9 @@ type awsCredentialsLoader func(ctx context.Context) (aws.Credentials, string, er
 
 // defaultAWSCredentialsLoader resolves credentials through the AWS SDK default chain, which
 // supports EKS Pod Identity (container credentials endpoint), IRSA (web identity token),
-// static environment variables, shared config and instance metadata.
-func defaultAWSCredentialsLoader() awsCredentialsLoader {
+// static environment variables, shared config and instance metadata. httpTimeout bounds
+// each HTTP request the SDK makes to obtain credentials.
+func defaultAWSCredentialsLoader(httpTimeout time.Duration) awsCredentialsLoader {
 	var (
 		once    sync.Once
 		cfg     aws.Config
@@ -100,8 +102,14 @@ func defaultAWSCredentialsLoader() awsCredentialsLoader {
 		once.Do(func() {
 			// LoadDefaultConfig wraps the provider chain in an aws.CredentialsCache,
 			// so credentials are only re-fetched when they are about to expire.
+			httpClient := awshttp.NewBuildableClient().WithTimeout(httpTimeout)
 			cfg, loadErr = awsconfig.LoadDefaultConfig(context.Background(),
-				awsconfig.WithHTTPClient(awshttp.NewBuildableClient().WithTimeout(awsCredentialsHTTPTimeout)),
+				awsconfig.WithHTTPClient(httpClient),
+				// The container credentials provider (EKS Pod Identity) does not use the
+				// client set by WithHTTPClient, so it gets the bounded client explicitly.
+				awsconfig.WithEndpointCredentialOptions(func(o *endpointcreds.Options) {
+					o.HTTPClient = httpClient
+				}),
 			)
 		})
 		if loadErr != nil {
@@ -305,7 +313,7 @@ func newDelegatedTokenSource(settings *DelegatedAuthSettings) *delegatedTokenSou
 			Provider: settings.Provider,
 			ProviderAuth: &awsDelegatedTokenProvider{
 				region:          settings.Region,
-				loadCredentials: defaultAWSCredentialsLoader(),
+				loadCredentials: defaultAWSCredentialsLoader(awsCredentialsHTTPTimeout),
 			},
 		},
 		now: time.Now,
@@ -313,23 +321,44 @@ func newDelegatedTokenSource(settings *DelegatedAuthSettings) *delegatedTokenSou
 }
 
 // Token returns a valid delegated token, fetching a new one if the cached token is
-// missing or close to expiration. The returned value is a copy and may be stored in
-// a request context without being shared across goroutines.
+// missing or close to expiration. If renewal fails while the cached token has not
+// expired yet, the cached token is returned and renewal is retried on the next call.
+// The returned value is a copy and may be stored in a request context without being
+// shared across goroutines.
 func (s *delegatedTokenSource) Token(ctx context.Context) (*datadogapi.DelegatedTokenCredentials, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.token == nil || s.token.DelegatedToken == "" || s.now().Add(delegatedTokenRefreshMargin).After(s.token.Expiration) {
 		token, err := s.config.ProviderAuth.Authenticate(ctx, s.config)
+		if err == nil && (token == nil || token.DelegatedToken == "") {
+			err = errors.New("empty delegated token returned by Datadog")
+		}
 		if err != nil {
-			return nil, err
+			if s.token == nil || s.token.DelegatedToken == "" || !s.now().Before(s.token.Expiration) {
+				return nil, err
+			}
+			// Keep using the cached token until it actually expires.
+		} else {
+			s.token = token
 		}
-		if token == nil || token.DelegatedToken == "" {
-			return nil, errors.New("empty delegated token returned by Datadog")
-		}
-		s.token = token
 	}
 
 	tokenCopy := *s.token
 	return &tokenCopy, nil
+}
+
+// Invalidate drops the cached token if it is the given one, so the next call to Token
+// requests a new token. Datadog rejecting a token before its expiration (for example,
+// after the identity mapping changed) is reported through this method. A token that was
+// already replaced is ignored, so a late rejection cannot discard a newer token.
+func (s *delegatedTokenSource) Invalidate(token string) {
+	if token == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.token != nil && s.token.DelegatedToken == token {
+		s.token = nil
+	}
 }
