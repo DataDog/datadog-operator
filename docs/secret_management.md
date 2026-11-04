@@ -2,6 +2,8 @@
 
 For enhanced security, the Datadog Operator can retrieve Datadog credentials (API key and application key) using [Secrets][4]. 
 
+On AWS, the Operator can also replace its application key with its IAM role (EKS Pod Identity or IRSA). See [Cloud identity (delegated) authentication](delegated_auth.md).
+
 ## Setting up Secrets
 
 Choose one of the following methods to set up Secrets:

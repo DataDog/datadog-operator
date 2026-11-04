@@ -63,6 +63,9 @@ type CredentialManager struct {
 
 	ddaDecryptor secrets.Decryptor
 	ddaCredsMap  sync.Map
+
+	// delegatedAuth is set when cloud-provider based authentication is enabled.
+	delegatedAuth *delegatedTokenSource
 }
 
 // NewCredentialManagerWithDecryptor returns a CredentialManager using the provided decryptor.
@@ -85,6 +88,7 @@ func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.D
 	if err := cm.parseAPIURL(); err != nil {
 		cm.logger.Error(err, "Failed to parse API URL")
 	}
+	cm.initDelegatedAuth()
 	return cm
 }
 
@@ -107,6 +111,7 @@ func NewCredentialManager(client client.Reader) *CredentialManager {
 	if err := cm.parseAPIURL(); err != nil {
 		cm.logger.Error(err, "Failed to parse API URL")
 	}
+	cm.initDelegatedAuth()
 	return cm
 }
 
@@ -142,16 +147,72 @@ func (cm *CredentialManager) parseAPIURL() error {
 	return nil
 }
 
+// initDelegatedAuth enables cloud-provider based authentication when configured
+// through the environment. Misconfiguration is logged and falls back to API/APP keys.
+func (cm *CredentialManager) initDelegatedAuth() {
+	settings, err := DelegatedAuthSettingsFromEnv()
+	if err != nil {
+		cm.logger.Error(err, "Invalid delegated authentication configuration, falling back to API and application keys")
+		return
+	}
+	if settings == nil {
+		return
+	}
+	cm.delegatedAuth = newDelegatedTokenSource(settings)
+	cm.logger.Info("Delegated authentication enabled for the Datadog API", "provider", settings.Provider, "orgUUID", settings.OrgUUID)
+}
+
+// DelegatedAuthEnabled reports whether the operator authenticates to the Datadog API
+// with its cloud provider identity instead of an application key.
+func (cm *CredentialManager) DelegatedAuthEnabled() bool {
+	return cm != nil && cm.delegatedAuth != nil
+}
+
+// DelegatedTokenConfig returns the configuration that API clients must carry to use
+// delegated token authentication, or nil when delegated auth is disabled.
+func (cm *CredentialManager) DelegatedTokenConfig() *datadogapi.DelegatedTokenConfig {
+	if !cm.DelegatedAuthEnabled() {
+		return nil
+	}
+	return cm.delegatedAuth.config
+}
+
+// InvalidateDelegatedToken drops the cached delegated token if it is the given one, so
+// the next GetAuth requests a new token. API clients call it when Datadog rejects the
+// token with 401 Unauthorized. It is a no-op when delegated auth is disabled.
+func (cm *CredentialManager) InvalidateDelegatedToken(token string) {
+	if !cm.DelegatedAuthEnabled() {
+		return
+	}
+	cm.delegatedAuth.Invalidate(token)
+}
+
 // GetAuth returns a fresh Datadog API authentication context using the latest
 // credentials and the parsed API URL. This should be called on every reconcile.
+//
+// When delegated authentication is enabled, the context carries a valid delegated
+// token instead of API/APP keys; it must be used with a client created with
+// DelegatedTokenConfig().
 func (cm *CredentialManager) GetAuth() (context.Context, error) {
+	auth := cm.withServerVariables(context.Background())
+
+	if cm.DelegatedAuthEnabled() {
+		// The token endpoint is resolved from the server variables, so the token
+		// is requested from the same Datadog site as the API calls.
+		token, err := cm.delegatedAuth.Token(auth)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get delegated token: %w", err)
+		}
+		return context.WithValue(auth, datadogapi.ContextDelegatedToken, token), nil
+	}
+
 	creds, err := cm.GetCredentials()
 	if err != nil {
 		return nil, err
 	}
 
-	auth := context.WithValue(
-		context.Background(),
+	return context.WithValue(
+		auth,
 		datadogapi.ContextAPIKeys,
 		map[string]datadogapi.APIKey{
 			"apiKeyAuth": {
@@ -161,17 +222,19 @@ func (cm *CredentialManager) GetAuth() (context.Context, error) {
 				Key: creds.AppKey,
 			},
 		},
-	)
+	), nil
+}
 
-	if cm.apiURL != nil {
-		auth = context.WithValue(auth, datadogapi.ContextServerIndex, 1)
-		auth = context.WithValue(auth, datadogapi.ContextServerVariables, map[string]string{
-			"name":     cm.apiURL.Host,
-			"protocol": cm.apiURL.Protocol,
-		})
+// withServerVariables points the context at the configured Datadog site, if any.
+func (cm *CredentialManager) withServerVariables(ctx context.Context) context.Context {
+	if cm.apiURL == nil {
+		return ctx
 	}
-
-	return auth, nil
+	ctx = context.WithValue(ctx, datadogapi.ContextServerIndex, 1)
+	return context.WithValue(ctx, datadogapi.ContextServerVariables, map[string]string{
+		"name":     cm.apiURL.Host,
+		"protocol": cm.apiURL.Protocol,
+	})
 }
 
 // GetCredentials returns the API and APP keys respectively from the operator configurations.
@@ -195,7 +258,9 @@ func (cm *CredentialManager) fetchCredentials() (Creds, error) {
 	apiKey := os.Getenv(constants.DDAPIKey)
 	appKey := os.Getenv(constants.DDAppKey)
 
-	if apiKey == "" || appKey == "" {
+	// With delegated auth, the application key is replaced by the cloud identity;
+	// the API key is still needed for intake (metrics, events, remote config).
+	if apiKey == "" || (appKey == "" && !cm.DelegatedAuthEnabled()) {
 		return Creds{}, errors.New("empty API key and/or App key")
 	}
 
@@ -204,7 +269,7 @@ func (cm *CredentialManager) fetchCredentials() (Creds, error) {
 		encrypted = append(encrypted, apiKey)
 	}
 
-	if secrets.IsEnc(appKey) {
+	if appKey != "" && secrets.IsEnc(appKey) {
 		encrypted = append(encrypted, appKey)
 	}
 
