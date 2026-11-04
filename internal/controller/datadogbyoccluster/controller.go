@@ -105,9 +105,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 			return ctrl.Result{}, fmt.Errorf("add finalizer: %w", err)
 		}
 	}
-	if cluster.Annotations[datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation] == "true" {
-		// kubectl-datadog waits for this condition before it changes the ownership of the managed resources.
-		setCondition(cluster, conditionReconciled, metav1.ConditionFalse, reasonPaused, "Reconciliation is paused by the "+datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation+" annotation")
+	if cluster.Annotations[byocutils.PauseAnnotationKey] == "true" {
+		// The pause is mainly meant for the migration from the CloudPrem and OPW Helm charts.
+		setCondition(cluster, conditionReconciled, metav1.ConditionFalse, reasonPaused, "Reconciliation is paused by the "+byocutils.PauseAnnotationKey+" annotation")
 		if err := r.Client.Status().Update(ctx, cluster); err != nil {
 			return ctrl.Result{}, fmt.Errorf("update DatadogBYOCCluster status: %w", err)
 		}

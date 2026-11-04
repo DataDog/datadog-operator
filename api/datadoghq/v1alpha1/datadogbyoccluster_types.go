@@ -14,11 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// DatadogBYOCClusterPauseReconciliationAnnotation set to "true" pauses the reconciliation of a DatadogBYOCCluster.
-// While paused, the controller writes nothing but the finalizer and status of the cluster, and reports
-// Reconciled=False with reason Paused. Deletion still runs. Any other value does not pause the cluster.
-const DatadogBYOCClusterPauseReconciliationAnnotation = "byoc.datadoghq.com/pause-reconciliation"
-
 // DatadogBYOCClusterSignal is the telemetry signal stored by a BYOC cluster.
 type DatadogBYOCClusterSignal string
 

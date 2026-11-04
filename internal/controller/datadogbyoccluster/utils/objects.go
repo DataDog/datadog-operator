@@ -20,6 +20,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// PauseAnnotationKey set to "true" pauses the reconciliation of a DatadogBYOCCluster. While paused, the
+// controller writes nothing but the finalizer and status of the cluster, and reports Reconciled=False with reason
+// Paused. Deletion still runs. Any other value does not pause the cluster.
+const PauseAnnotationKey = "byoc.datadoghq.com/pause"
+
 // ErrObjectConflict reports an existing object with a managed name that the owner does not control.
 var ErrObjectConflict = errors.New("exists and is not controlled by")
 

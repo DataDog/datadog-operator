@@ -35,6 +35,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	byocutils "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/utils"
 )
 
 const (
@@ -645,7 +646,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 
 	Context("when the cluster is created paused", func() {
 		BeforeEach(func() {
-			cluster.Annotations = map[string]string{datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation: "true"}
+			cluster.Annotations = map[string]string{byocutils.PauseAnnotationKey: "true"}
 			createKubernetesObject(k8sClient, cluster)
 		})
 
@@ -1095,7 +1096,7 @@ func removeBYOCTestFinalizers(object client.Object, finalizers ...string) {
 // setBYOCTestPauseAnnotation sets the pause annotation of the cluster to value, or removes it when value is nil.
 func setBYOCTestPauseAnnotation(cluster *datadoghqv1alpha1.DatadogBYOCCluster, value *string) {
 	patch, err := json.Marshal(map[string]any{
-		"metadata": map[string]any{"annotations": map[string]*string{datadoghqv1alpha1.DatadogBYOCClusterPauseReconciliationAnnotation: value}},
+		"metadata": map[string]any{"annotations": map[string]*string{byocutils.PauseAnnotationKey: value}},
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient.Patch(context.Background(), cluster.DeepCopy(), client.RawPatch(types.MergePatchType, patch))).To(Succeed())
