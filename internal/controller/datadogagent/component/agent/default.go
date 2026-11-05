@@ -54,6 +54,11 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 			agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
 		}
 	}
+	for i := range agentContainers {
+		if isConfigStreamConsumerContainer(agentContainers[i].Name) {
+			agentContainers[i].Env = append(agentContainers[i].Env, configStreamConsumerEnvVar())
+		}
+	}
 
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -461,6 +466,30 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 
 func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envVarsForCoreAgent(dda), podNameEnvVar())
+}
+
+// isConfigStreamConsumerContainer reports whether the container reads the config stream consumer
+// switch; the core agent is included so its streamed snapshot reports the same value.
+func isConfigStreamConsumerContainer(name string) bool {
+	switch apicommon.AgentContainerName(name) {
+	case apicommon.CoreAgentContainerName,
+		apicommon.UnprivilegedSingleAgentContainerName,
+		apicommon.TraceAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SecurityAgentContainerName,
+		apicommon.SystemProbeContainerName:
+		return true
+	}
+	return false
+}
+
+// configStreamConsumerEnvVar disables config streaming by default: since Agent 7.85.0 consumers
+// drop their own environment, which loses per-container settings.
+func configStreamConsumerEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name:  DDRemoteAgentConfigStreamConsumerEnabled,
+		Value: "false",
+	}
 }
 
 func podNameEnvVar() corev1.EnvVar {
