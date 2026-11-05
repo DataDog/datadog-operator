@@ -27,7 +27,6 @@ COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY pkg/ pkg/
-COPY cmd/helpers/ cmd/helpers/
 COPY cmd/yaml-mapper/ cmd/yaml-mapper/
 
 # Build
@@ -41,7 +40,6 @@ RUN if [ "$FIPS_ENABLED" = "true" ]; then \
     CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
     fi
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o yaml-mapper cmd/yaml-mapper/main.go
 
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS certs
@@ -63,7 +61,6 @@ WORKDIR /
 COPY --from=builder --chown=:0 /workspace/manager .
 COPY --from=sgc --chmod=755 /secret-generic-connector /usr/local/bin/secret-generic-connector
 
-COPY --from=builder --chown=:0 /workspace/helpers .
 COPY --chmod=550 scripts/readsecret.sh .
 
 COPY --from=builder --chown=:0 /workspace/yaml-mapper .
