@@ -524,13 +524,7 @@ func run(opts *options) error {
 				return
 			case <-mgr.Elected():
 			}
-			// Remote Config authenticates with the API key only, so DD_APP_KEY is not required.
-			rcCreds, rcCredsErr := credsManager.GetCredentialsForMetadata()
-			if rcCredsErr != nil {
-				setupErrorf(setupLog, rcCredsErr, "Unable to get API key for Remote Config")
-				return
-			}
-			if rcErr := rcUpdater.Setup(rcCreds); rcErr != nil {
+			if rcErr := rcUpdater.SetupWithCredentials(credsManager); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
