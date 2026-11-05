@@ -43,6 +43,7 @@ func TestReconcileGenericMonitorForceSync(t *testing.T) {
 		remotePriority           string
 		wantUpdates, wantCreates int
 		wantSync                 bool
+		wantPolicyRead           bool
 	}{
 		{name: "no-op with server defaults", spec: spec, wantSync: true},
 		{name: "zero priority matches canonical null", spec: `{"priority":0}`, wantSync: true},
@@ -51,9 +52,11 @@ func TestReconcileGenericMonitorForceSync(t *testing.T) {
 		{name: "SDK omits null tags", spec: `{"tags":null}`, wantSync: true},
 		{name: "SDK omits null option", spec: `{"options":{"include_tags":null}}`, wantSync: true},
 		{name: "nullable explicit null still clears priority", spec: `{"priority":null}`, wantSync: true},
-		{name: "restriction policy matches", spec: `{"restriction_policy":{"bindings":[{"relation":"editor","principals":["role:managed"]}]}}`, wantSync: true},
-		{name: "restriction policy drifts", spec: `{"restriction_policy":{"bindings":[{"relation":"editor","principals":["role:other"]}]}}`, wantUpdates: 1, wantSync: true},
-		{name: "null restriction policy clears policy", spec: `{"restriction_policy":null}`, wantUpdates: 1, wantSync: true},
+		{name: "restriction policy matches", spec: `{"restriction_policy":{"bindings":[{"relation":"editor","principals":["role:managed"]}]}}`, wantSync: true, wantPolicyRead: true},
+		{name: "restriction policy drifts", spec: `{"restriction_policy":{"bindings":[{"relation":"editor","principals":["role:other"]}]}}`, wantUpdates: 1, wantSync: true, wantPolicyRead: true},
+		{name: "ignored policy does not hide name drift", spec: `{"name":"Desired CPU","restriction_policy":null}`, wantUpdates: 1, wantSync: true},
+		{name: "API ignores null policy", spec: `{"restriction_policy":null}`, wantSync: true},
+		{name: "empty policy bindings clear existing policy", spec: `{"restriction_policy":{"bindings":[]}}`, wantUpdates: 1, wantSync: true, wantPolicyRead: true},
 		{name: "assets match", spec: `{"assets":[{"category":"runbook","name":"Runbook","url":"https://example.com/runbook"}]}`, wantSync: true},
 		{name: "assets drift", spec: `{"assets":[{"category":"runbook","name":"Runbook","url":"https://example.com/new-runbook"}]}`, wantUpdates: 1, wantSync: true},
 		{name: "nested option drift", spec: `{"name":"CPU","options":{"include_tags":false}}`, wantUpdates: 1, wantSync: true},
@@ -73,7 +76,7 @@ func TestReconcileGenericMonitorForceSync(t *testing.T) {
 				switch r.Method {
 				case http.MethodGet:
 					assert.Equal(t, "true", r.URL.Query().Get("with_assets"))
-					if strings.Contains(tt.spec, "restriction_policy") {
+					if tt.wantPolicyRead {
 						assert.Equal(t, "true", r.URL.Query().Get("with_restriction_policy"))
 					} else {
 						assert.Empty(t, r.URL.Query().Get("with_restriction_policy"))

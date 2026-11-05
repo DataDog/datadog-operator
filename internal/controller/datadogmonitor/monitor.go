@@ -35,7 +35,9 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 	m.SetTags(u.Tags)
 
 	u.SetPriority(ptr.Deref(dm.Spec.Priority, 0))
-	u.SetRestrictedRoles(dm.Spec.RestrictedRoles)
+	if dm.Spec.RestrictedRoles == nil {
+		u.SetRestrictedRolesNil()
+	}
 	u.SetDraftStatus(datadogV1.MONITORDRAFTSTATUS_PUBLISHED)
 	return m, u
 }
@@ -242,7 +244,13 @@ func buildMonitorSpec(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) 
 	}
 	u.SetQuery(query)
 	if restrictedRoles != nil {
-		u.SetRestrictedRoles(restrictedRoles)
+		// The API clears restrictions with null and rejects an empty array.
+		// Keep [] as an owned clear in the CR while sending its API form.
+		if len(restrictedRoles) == 0 {
+			u.SetRestrictedRolesNil()
+		} else {
+			u.SetRestrictedRoles(restrictedRoles)
+		}
 	}
 	u.SetOptions(o)
 

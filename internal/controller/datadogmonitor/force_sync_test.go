@@ -80,10 +80,15 @@ func TestReconcileMonitorForceSync(t *testing.T) {
 						return
 					}
 				case http.MethodPut:
+					var payload map[string]any
+					assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 					if tt.name == "explicit zero clears remote priority" || tt.name == "omitted to zero is a spec change" {
-						var payload map[string]any
-						assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 						assert.Equal(t, float64(0), payload["priority"])
+					}
+					if tt.name == "omitted to empty roles is a spec change" {
+						roles, present := payload["restricted_roles"]
+						assert.True(t, present, "the clear must be sent")
+						assert.Nil(t, roles, "the live API accepts null and rejects [] for clearing roles")
 					}
 					updates++
 				case http.MethodPost:

@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -41,8 +42,10 @@ func (h *MonitorHandler) getResource(auth context.Context, instance *v1alpha1.Da
 func (h *MonitorHandler) remoteMatchesSpec(auth context.Context, instance *v1alpha1.DatadogGenericResource) (bool, error) {
 	desired, parseErr := buildMonitorUpdateRequest(instance)
 	comparisonClient := h.client
+	comparisonRequest := desired
 	if parseErr == nil {
-		comparisonClient = monitorComparisonClient(h.client, desired)
+		comparisonRequest = monitorComparisonRequest(desired)
+		comparisonClient = monitorComparisonClient(h.client, comparisonRequest)
 	}
 	monitor, err := getMonitor(auth, comparisonClient, instance.Status.Id, *datadogV1.NewGetMonitorOptionalParameters().WithWithAssets(true))
 	if err != nil {
@@ -52,9 +55,32 @@ func (h *MonitorHandler) remoteMatchesSpec(auth context.Context, instance *v1alp
 		// Let the update path report invalid specs and apply its error backoff.
 		return false, nil //nolint:nilerr // Parse errors must follow the existing update error path.
 	}
-	matches, compareErr := utils.MonitorMatchesSpec(desired, monitor)
+	matches, compareErr := utils.MonitorMatchesSpec(comparisonRequest, monitor)
 	// An inconclusive comparison must not suppress an update.
 	return compareErr == nil && matches, nil
+}
+
+// The monitor update API ignores null policies: they do not clear an existing
+// policy. Do not claim ownership of a value this write path cannot apply.
+// Keep the original SDK payload unchanged, including unparsed JSON.
+func monitorComparisonRequest(desired *datadogV1.MonitorUpdateRequest) *datadogV1.MonitorUpdateRequest {
+	properties := desired.AdditionalProperties
+	if desired.UnparsedObject != nil {
+		properties = desired.UnparsedObject
+	}
+	policy, supplied := properties["restriction_policy"]
+	if !supplied || policy != nil {
+		return desired
+	}
+	requestCopy := *desired
+	properties = maps.Clone(properties)
+	delete(properties, "restriction_policy")
+	if desired.UnparsedObject != nil {
+		requestCopy.UnparsedObject = properties
+	} else {
+		requestCopy.AdditionalProperties = properties
+	}
+	return &requestCopy
 }
 
 // The SDK exposes assets as a GET option, but restriction_policy is still an
@@ -62,9 +88,11 @@ func (h *MonitorHandler) remoteMatchesSpec(auth context.Context, instance *v1alp
 // adds that option while preserving SDK authentication, retries, and decoding.
 // Never change the shared client/configuration during a reconciliation.
 func monitorComparisonClient(api *datadogV1.MonitorsApi, desired *datadogV1.MonitorUpdateRequest) *datadogV1.MonitorsApi {
-	_, withPolicy := desired.AdditionalProperties["restriction_policy"]
-	_, withUnparsedPolicy := desired.UnparsedObject["restriction_policy"]
-	if !withPolicy && !withUnparsedPolicy {
+	properties := desired.AdditionalProperties
+	if desired.UnparsedObject != nil {
+		properties = desired.UnparsedObject
+	}
+	if _, withPolicy := properties["restriction_policy"]; !withPolicy {
 		return api
 	}
 	cfg := *api.Client.GetConfig()
