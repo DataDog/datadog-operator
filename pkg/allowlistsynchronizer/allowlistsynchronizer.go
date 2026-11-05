@@ -79,10 +79,10 @@ type AllowlistSynchronizerSpec struct {
 	AllowlistPaths []string `json:"allowlistPaths,omitempty"`
 }
 
-// resolveWorkloadAllowlistVersion returns the requested allowlist version if it
+// ResolveWorkloadAllowlistVersion returns the requested allowlist version if it
 // is non-empty and well-formed, otherwise it falls back to
 // DefaultWorkloadAllowlistVersion (logging the malformed input).
-func resolveWorkloadAllowlistVersion(version string) string {
+func ResolveWorkloadAllowlistVersion(version string) string {
 	return resolveWorkloadAllowlistVersionWithDefault(version, DefaultWorkloadAllowlistVersion)
 }
 
@@ -193,7 +193,7 @@ func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, ap
 // that required-label admission policies (e.g. Kyverno) do not reject the
 // create/patch. Operator-owned keys take precedence on conflicts.
 func CreateAllowlistSynchronizer(version, partOfLabel string, commonLabels map[string]string) {
-	resolvedVersion := resolveWorkloadAllowlistVersion(version)
+	resolvedVersion := ResolveWorkloadAllowlistVersion(version)
 
 	createAllowlistSynchronizer(resolvedVersion, partOfLabel, commonLabels, applyAllowlistSynchronizerResource)
 }

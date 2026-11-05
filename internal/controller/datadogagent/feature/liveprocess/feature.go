@@ -142,10 +142,16 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	// passwd volume mount
 	mountPath := featutils.ProcessPasswdMountPath(f.owner, f.nodeOverride, agentContainerName, managers.PodTemplateSpec())
-	passwdVols, passwdMounts := featutils.ProcessPasswdVolumes(mountPath)
-	for i := range passwdMounts {
-		managers.VolumeMount().AddVolumeMountToContainer(&passwdMounts[i], agentContainerName)
-		managers.Volume().AddVolume(&passwdVols[i])
+	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
+	managers.Volume().AddVolume(&passwdVol)
+
+	// Mounting passwd under /host/etc makes the Agent read host files from there,
+	// so host os-release must be mounted there too.
+	if mountPath == common.HostPasswdMountPath {
+		osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.OSReleaseFileVolumeName, common.OSReleaseFileHostPath, common.OSReleaseFileMountPath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, agentContainerName)
+		managers.Volume().AddVolume(&osReleaseVol)
 	}
 
 	// cgroups volume mount

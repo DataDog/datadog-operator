@@ -34,7 +34,7 @@ func TestResolveWorkloadAllowlistVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, resolveWorkloadAllowlistVersion(tt.input))
+			assert.Equal(t, tt.expected, ResolveWorkloadAllowlistVersion(tt.input))
 		})
 	}
 }
@@ -112,7 +112,7 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fake.NewClientBuilder().WithScheme(scheme).Build()
-			require.NoError(t, applyAllowlistSynchronizerResource(c, resolveWorkloadAllowlistVersion(tt.version), "default-foo", nil))
+			require.NoError(t, applyAllowlistSynchronizerResource(c, ResolveWorkloadAllowlistVersion(tt.version), "default-foo", nil))
 
 			got := &AllowlistSynchronizer{}
 			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))

@@ -6,7 +6,6 @@
 package utils
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -30,7 +29,6 @@ var (
 	// -0 includes 7.86.0+ prereleases (RC/devel), matching other Agent feature minimum versions.
 	processHostPasswdMinVersion          = semver.MustParse("7.86.0-0")
 	processHostPasswdMinAllowlistVersion = semver.MustParse("1.0.8")
-	processAllowlistVersionRegexp        = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 )
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
@@ -67,18 +65,11 @@ func ProcessPasswdMountPath(dda metav1.Object, override *v2alpha1.DatadogAgentCo
 	return common.PasswdMountPath
 }
 
-// ProcessPasswdVolumes returns the host passwd volume and mount for a process
-// container. When passwd is relocated under /host/etc, os-release is mounted
-// there too: the Agent sets HOST_ETC=/host/etc whenever that directory exists,
-// and host metadata reads os-release from HOST_ETC.
-func ProcessPasswdVolumes(mountPath string) ([]corev1.Volume, []corev1.VolumeMount) {
-	passwdVol, passwdMount := volume.GetVolumes(ProcessPasswdVolumeName(mountPath), common.PasswdHostPath, mountPath, true)
-	volumes, mounts := []corev1.Volume{passwdVol}, []corev1.VolumeMount{passwdMount}
-	if mountPath == common.HostPasswdMountPath {
-		osReleaseVol, osReleaseMount := volume.GetVolumes(common.OSReleaseFileVolumeName, common.OSReleaseFileHostPath, common.OSReleaseFileMountPath, true)
-		volumes, mounts = append(volumes, osReleaseVol), append(mounts, osReleaseMount)
-	}
-	return volumes, mounts
+// ProcessPasswdVolume returns the host passwd volume and mount for a process
+// container. It derives the volume name from the mount path so the two always
+// match the WorkloadAllowlist (passwd at /etc/passwd, host-passwd at /host/etc/passwd).
+func ProcessPasswdVolume(mountPath string) (corev1.Volume, corev1.VolumeMount) {
+	return volume.GetVolumes(ProcessPasswdVolumeName(mountPath), common.PasswdHostPath, mountPath, true)
 }
 
 // ProcessPasswdVolumeName returns the volume backing a process passwd mount path.
@@ -94,11 +85,8 @@ func ProcessPasswdVolumeName(mountPath string) string {
 // override validation: missing or malformed pins use the shared default.
 // Valid older pins must retain /etc/passwd even with a compatible Agent image.
 func autopilotSupportsProcessHostPasswd(dda metav1.Object) bool {
-	version := dda.GetAnnotations()[experimental.ExperimentalAnnotationPrefix+"/"+experimental.ExperimentalAutopilotAllowlistVersionSubkey]
-	if !processAllowlistVersionRegexp.MatchString(version) {
-		version = allowlistsynchronizer.DefaultWorkloadAllowlistVersion
-	}
-	allowlistVersion, err := semver.NewVersion(version)
+	pin := dda.GetAnnotations()[experimental.ExperimentalAnnotationPrefix+"/"+experimental.ExperimentalAutopilotAllowlistVersionSubkey]
+	allowlistVersion, err := semver.NewVersion(allowlistsynchronizer.ResolveWorkloadAllowlistVersion(pin))
 	return err == nil && !allowlistVersion.LessThan(processHostPasswdMinAllowlistVersion)
 }
 

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -471,19 +470,14 @@ func TestProcessPasswdVolumeName(t *testing.T) {
 	assert.Equal(t, common.HostPasswdVolumeName, ProcessPasswdVolumeName(common.HostPasswdMountPath))
 }
 
-func TestProcessPasswdVolumes(t *testing.T) {
-	volumes, mounts := ProcessPasswdVolumes(common.PasswdMountPath)
-	require.Len(t, volumes, 1)
-	require.Len(t, mounts, 1)
-	assert.Equal(t, common.PasswdVolumeName, mounts[0].Name)
+func TestProcessPasswdVolume(t *testing.T) {
+	_, mount := ProcessPasswdVolume(common.PasswdMountPath)
+	assert.Equal(t, common.PasswdVolumeName, mount.Name)
+	assert.Equal(t, common.PasswdMountPath, mount.MountPath)
 
-	volumes, mounts = ProcessPasswdVolumes(common.HostPasswdMountPath)
-	require.Len(t, volumes, 2)
-	require.Len(t, mounts, 2)
-	assert.Equal(t, common.HostPasswdVolumeName, mounts[0].Name)
-	assert.Equal(t, common.HostPasswdMountPath, mounts[0].MountPath)
-	assert.Equal(t, common.OSReleaseFileVolumeName, mounts[1].Name)
-	assert.Equal(t, common.OSReleaseFileMountPath, mounts[1].MountPath)
-	assert.True(t, mounts[1].ReadOnly)
-	assert.Equal(t, common.OSReleaseFileHostPath, volumes[1].HostPath.Path)
+	volume, mount := ProcessPasswdVolume(common.HostPasswdMountPath)
+	assert.Equal(t, common.HostPasswdVolumeName, mount.Name)
+	assert.Equal(t, common.HostPasswdMountPath, mount.MountPath)
+	assert.True(t, mount.ReadOnly)
+	assert.Equal(t, common.PasswdHostPath, volume.HostPath.Path)
 }
