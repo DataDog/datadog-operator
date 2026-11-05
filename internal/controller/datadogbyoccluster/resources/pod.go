@@ -22,9 +22,10 @@ import (
 
 // podInput contains the cluster-wide inputs shared by every component pod.
 type podInput struct {
-	cluster  *datadoghqv1alpha1.DatadogBYOCCluster
-	image    byocimage.ResolvedImage
-	checksum string
+	cluster   *datadoghqv1alpha1.DatadogBYOCCluster
+	image     byocimage.ResolvedImage
+	checksum  string
+	clusterID string
 }
 
 func newPodTemplate(in podInput, c component) (corev1.PodTemplateSpec, error) {
@@ -107,7 +108,6 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 
 func newEnvironment(in podInput, c component) []corev1.EnvVar {
 	cluster := in.cluster
-	clusterID := cluster.Namespace + "-" + cluster.Name
 	datadog := cluster.Spec.Datadog
 	site := *datadog.Site
 	resourceField := func(resourceName string) *corev1.EnvVarSource {
@@ -133,7 +133,6 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 		{Name: envQuickwitNumCPUs, ValueFrom: resourceField("requests.cpu")},
 		{Name: envKubernetesRequestsMemory, ValueFrom: resourceField("requests.memory")},
 		{Name: envQuickwitConfig, Value: nodeConfigPath},
-		{Name: envQuickwitClusterID, Value: clusterID},
 		{Name: envQuickwitNodeID, Value: "$(KUBERNETES_POD_NAME)"},
 		{Name: envQuickwitAvailabilityZone, ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
 		{Name: envQuickwitPeerSeeds, Value: headlessServiceName(cluster.Name)},
@@ -152,7 +151,7 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 		env = append(env, corev1.EnvVar{Name: envDatadogAPIKey, ValueFrom: &corev1.EnvVarSource{SecretKeyRef: datadog.APIKeySecretRef}})
 	}
 	if *datadog.BYOCTelemetry {
-		env = append(env, telemetryEnvironment(clusterID, site, in.image)...)
+		env = append(env, telemetryEnvironment(in.clusterID, site, in.image)...)
 	}
 	if cluster.Spec.Components.Compactor != nil {
 		env = append(env, corev1.EnvVar{Name: envQuickwitStandaloneCompactors, Value: "true"})
