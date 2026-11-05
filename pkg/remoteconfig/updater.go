@@ -396,6 +396,7 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	cfg.SetDefault("site", site)
 	cfg.SetDefault("remote_configuration.config_root", configRoot)
 	cfg.SetDefault("remote_configuration.director_root", directorRoot)
+	cfg.BuildSchema()
 	hostname, _ := os.Hostname()
 
 	if endpoint == "" {
