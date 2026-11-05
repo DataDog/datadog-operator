@@ -22,18 +22,18 @@ import (
 )
 
 func TestRender_Jemalloc(t *testing.T) {
-	const preload = "/opt/lib/nosys.so /opt/datadog-agent/embedded/lib/libjemalloc.so"
+	const preload = "/opt/lib/nosys.so"
 	for _, tt := range []struct {
 		name          string
-		enabled       *bool
+		disabled      *bool
 		comprehensive bool
 	}{
 		{name: "omitted"},
-		{name: "disabled", enabled: new(false)},
-		{name: "enabled", enabled: new(true)},
-		{name: "optional containers", enabled: new(true), comprehensive: true},
+		{name: "annotation false", disabled: new(false)},
+		{name: "disabled", disabled: new(true)},
+		{name: "optional containers", disabled: new(true), comprehensive: true},
 		{name: "runners annotation omitted", comprehensive: true},
-		{name: "runners annotation disabled", enabled: new(false), comprehensive: true},
+		{name: "runners annotation false", disabled: new(false), comprehensive: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			path := "testdata/minimal-dda.yaml"
@@ -42,18 +42,22 @@ func TestRender_Jemalloc(t *testing.T) {
 			}
 			dda, err := LoadDDA(path)
 			require.NoError(t, err)
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+			}
 			if dda.Spec.Features == nil {
 				dda.Spec.Features = &v2alpha1.DatadogFeatures{}
 			}
-			if tt.enabled != nil {
+			if tt.disabled != nil {
 				if dda.Annotations == nil {
 					dda.Annotations = map[string]string{}
 				}
 				value := "false"
-				if *tt.enabled {
+				if *tt.disabled {
 					value = "true"
 				}
-				dda.Annotations[component.EnableJemallocAnnotation] = value
+				dda.Annotations[component.DisableJemallocAnnotation] = value
 			}
 			if tt.comprehensive {
 				dda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{
@@ -64,10 +68,9 @@ func TestRender_Jemalloc(t *testing.T) {
 			objects, _, err := Render(Options{DDA: dda})
 			require.NoError(t, err)
 			var expected []corev1.EnvVar
-			if tt.enabled != nil && *tt.enabled {
+			if tt.disabled != nil && *tt.disabled {
 				expected = []corev1.EnvVar{
 					{Name: "LD_PRELOAD", Value: preload},
-					{Name: "MALLOC_CONF", Value: "background_thread:true,dirty_decay_ms:5000"},
 				}
 			}
 			var node *appsv1.DaemonSet
@@ -90,10 +93,9 @@ func TestRender_Jemalloc(t *testing.T) {
 			assert.Equal(t, tt.comprehensive, runnerFound, "jemalloc must not enable runners on its own")
 			assertAllocatorEnvironment(t, node.Spec.Template.Spec.InitContainers, nil)
 			for _, c := range node.Spec.Template.Spec.Containers {
-				var want []corev1.EnvVar
-				switch c.Name {
-				case "agent", "system-probe", "trace-agent":
-					want = expected
+				want := expected
+				if c.Name == string(apicommon.OtelAgent) {
+					want = nil
 				}
 				assertAllocatorEnvironment(t, []corev1.Container{c}, want)
 			}
@@ -116,15 +118,15 @@ func TestRender_JemallocVersionGate(t *testing.T) {
 		wantNode   bool
 		wantRunner bool
 	}{
-		{name: "both too old", nodeTag: "7.83.0", runnerTag: "7.83.0"},
-		{name: "both supported", nodeTag: "7.84.0", runnerTag: "7.84.0", wantNode: true, wantRunner: true},
-		{name: "only runner supported", nodeTag: "7.83.0", runnerTag: "7.84.0", wantRunner: true},
-		{name: "only node supported", nodeTag: "7.84.0", runnerTag: "7.83.0", wantNode: true},
+		{name: "both too old", nodeTag: "7.86.0", runnerTag: "7.86.0"},
+		{name: "both supported", nodeTag: "7.87.0", runnerTag: "7.87.0", wantNode: true, wantRunner: true},
+		{name: "only runner supported", nodeTag: "7.86.0", runnerTag: "7.87.0", wantRunner: true},
+		{name: "only node supported", nodeTag: "7.87.0", runnerTag: "7.86.0", wantNode: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			dda, err := LoadDDA("testdata/comprehensive-dda.yaml")
 			require.NoError(t, err)
-			dda.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
+			dda.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: tt.nodeTag}},
 				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.runnerTag}},
@@ -153,8 +155,7 @@ func TestRender_JemallocVersionGate(t *testing.T) {
 				var expected []corev1.EnvVar
 				if enabled {
 					expected = []corev1.EnvVar{
-						{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so /opt/datadog-agent/embedded/lib/libjemalloc.so"},
-						{Name: "MALLOC_CONF", Value: "background_thread:true,dirty_decay_ms:5000"},
+						{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so"},
 					}
 				}
 				assertAllocatorEnvironment(t, pod.Containers, expected)
@@ -179,8 +180,12 @@ func TestRender_JemallocAutopilot(t *testing.T) {
 			dda, err := LoadDDA("testdata/comprehensive-dda.yaml")
 			require.NoError(t, err)
 			dda.Annotations = map[string]string{
-				component.EnableJemallocAnnotation: "true",
-				tt.key:                             tt.value,
+				component.DisableJemallocAnnotation: "true",
+				tt.key:                              tt.value,
+			}
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
 			}
 			objects, _, err := Render(Options{DDA: dda})
 			require.NoError(t, err)
@@ -208,7 +213,10 @@ func TestRender_JemallocAutopilot(t *testing.T) {
 func TestRender_JemallocWindowsProfile(t *testing.T) {
 	dda, err := LoadDDA("testdata/minimal-dda.yaml")
 	require.NoError(t, err)
-	dda.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
+	dda.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+	}
 	profiles, err := LoadDAPs([]string{"testdata/linux-profile.yaml"})
 	require.NoError(t, err)
 	profiles[0].Name = "windows-profile"
@@ -229,10 +237,11 @@ func TestRender_JemallocWindowsProfile(t *testing.T) {
 func TestRender_JemallocOverrides(t *testing.T) {
 	dda, err := LoadDDA("testdata/minimal-dda.yaml")
 	require.NoError(t, err)
-	dda.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
+	dda.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
 	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
 	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"},
 			Env: []corev1.EnvVar{
 				{Name: "LD_PRELOAD", Value: "/custom/profiler.so /opt/datadog-agent/embedded/lib/libjemalloc.so"},
 				{Name: "MALLOC_CONF", Value: "dirty_decay_ms:1000"},

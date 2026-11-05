@@ -47,12 +47,11 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentSingleContainer(dda)
 	} else {
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
-		jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
-		for i := range agentContainers {
-			switch apicommon.AgentContainerName(agentContainers[i].Name) {
-			case apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName, apicommon.TraceAgentContainerName:
-				agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
-			}
+	}
+	jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
+	for i := range agentContainers {
+		if agentContainers[i].Name != string(apicommon.OtelAgent) {
+			agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
 		}
 	}
 
