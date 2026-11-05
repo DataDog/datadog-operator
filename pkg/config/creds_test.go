@@ -67,6 +67,44 @@ func Test_getCredentials(t *testing.T) {
 			resetFunc: func(cm *CredentialManager) {},
 		},
 		{
+			// GetCredentialsForMetadata (used by Remote Config and metadata) caches
+			// API-key-only creds; GetCredentials must still require the App key.
+			name: "cached API-key-only creds without DD_APP_KEY should error",
+			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_API_KEY", "foo")
+				cm.cacheCreds(Creds{APIKey: "foo", AppKey: ""})
+				return secrets.NewDummyDecryptor(0)
+			},
+			want:    Creds{},
+			wantErr: true,
+			wantFunc: func(t *testing.T, d *secrets.DummyDecryptor, cm *CredentialManager) {
+				d.AssertNotCalled(t, "Decrypt")
+			},
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_API_KEY")
+			},
+		},
+		{
+			name: "cached API-key-only creds are completed from DD_APP_KEY",
+			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_API_KEY", "foo")
+				os.Setenv("DD_APP_KEY", "bar")
+				cm.cacheCreds(Creds{APIKey: "foo", AppKey: ""})
+				return secrets.NewDummyDecryptor(0)
+			},
+			want:    Creds{APIKey: "foo", AppKey: "bar"},
+			wantErr: false,
+			wantFunc: func(t *testing.T, d *secrets.DummyDecryptor, cm *CredentialManager) {
+				cachedCreds, cached := cm.getCredsFromCache()
+				assert.True(t, cached)
+				assert.EqualValues(t, Creds{APIKey: "foo", AppKey: "bar"}, cachedCreds)
+			},
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+		{
 			name: "creds found, both encrypted",
 			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
 				os.Setenv("DD_API_KEY", "ENC[ApiKey]")
