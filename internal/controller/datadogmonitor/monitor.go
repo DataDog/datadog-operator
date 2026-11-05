@@ -11,18 +11,38 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/go-logr/logr"
+	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
+// buildMonitor preserves the create/update payloads, including implicit values
+// historically sent by this controller. Comparisons use buildMonitorSpec instead.
 func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogV1.Monitor, *datadogV1.MonitorUpdateRequest) {
+	u := buildMonitorSpec(logger, dm)
+	m := datadogV1.NewMonitor(dm.Spec.Query, datadogV1.MonitorType(dm.Spec.Type))
+	m.SetName(dm.Spec.Name)
+	m.SetMessage(dm.Spec.Message)
+	m.SetPriority(ptr.Deref(dm.Spec.Priority, 0))
+	m.SetOptions(*u.Options)
+	m.SetTags(u.Tags)
+
+	u.SetPriority(ptr.Deref(dm.Spec.Priority, 0))
+	u.SetRestrictedRoles(dm.Spec.RestrictedRoles)
+	u.SetDraftStatus(datadogV1.MONITORDRAFTSTATUS_PUBLISHED)
+	return m, u
+}
+
+// buildMonitorSpec translates supplied CR fields to their API representation.
+// Start with zero-value API structs so SDK defaults do not become managed fields.
+func buildMonitorSpec(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) *datadogV1.MonitorUpdateRequest {
 	monitorType := datadogV1.MonitorType(dm.Spec.Type)
 	name := dm.Spec.Name
 	msg := dm.Spec.Message
@@ -213,31 +233,23 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetOnMissingData(datadogV1.OnMissingDataOption(options.OnMissingData))
 	}
 
-	m := datadogV1.NewMonitor(query, monitorType)
-	{
-		m.SetName(name)
-		m.SetMessage(msg)
-		m.SetPriority(priority)
-		m.SetOptions(o)
+	u := &datadogV1.MonitorUpdateRequest{}
+	u.SetType(monitorType)
+	u.SetName(name)
+	u.SetMessage(msg)
+	if priority != nil {
+		u.SetPriority(*priority)
 	}
-
-	u := datadogV1.NewMonitorUpdateRequest()
-	{
-		u.SetType(monitorType)
-		u.SetName(name)
-		u.SetMessage(msg)
-		u.SetPriority(priority)
-		u.SetQuery(query)
+	u.SetQuery(query)
+	if restrictedRoles != nil {
 		u.SetRestrictedRoles(restrictedRoles)
-		u.SetOptions(o)
 	}
+	u.SetOptions(o)
 
-	tags := dm.Spec.Tags
-	sort.Strings(tags)
-	m.SetTags(tags)
+	tags := slices.Clone(dm.Spec.Tags)
+	slices.Sort(tags)
 	u.SetTags(tags)
-
-	return m, u
+	return u
 }
 
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID int) (datadogV1.Monitor, error) {

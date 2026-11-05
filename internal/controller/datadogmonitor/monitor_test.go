@@ -38,7 +38,7 @@ func Test_buildMonitor(t *testing.T) {
 			Type:            "metric alert",
 			Name:            "Test monitor",
 			Message:         "Something went wrong",
-			Priority:        int64(3),
+			Priority:        ptr.To(int64(3)),
 			Tags: []string{
 				"env:staging",
 				"kube_namespace:test",
@@ -91,7 +91,9 @@ func Test_buildMonitor(t *testing.T) {
 		},
 	}
 
+	original := dm.DeepCopy()
 	monitor, monitorUR := buildMonitor(testLogger, dm)
+	assert.Equal(t, original.Spec, dm.Spec, "building a monitor must not mutate the custom resource")
 
 	assert.Equal(t, dm.Spec.Query, monitor.GetQuery(), "discrepancy found in parameter: Query")
 	assert.Equal(t, dm.Spec.Query, monitorUR.GetQuery(), "discrepancy found in parameter: Query")
@@ -105,11 +107,11 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, dm.Spec.Message, monitor.GetMessage(), "discrepancy found in parameter: Message")
 	assert.Equal(t, dm.Spec.Message, monitorUR.GetMessage(), "discrepancy found in parameter: Message")
 
-	assert.Equal(t, dm.Spec.Priority, monitor.GetPriority(), "discrepancy found in parameter: Priority")
-	assert.Equal(t, dm.Spec.Priority, monitorUR.GetPriority(), "discrepancy found in parameter: Priority")
+	assert.Equal(t, *dm.Spec.Priority, monitor.GetPriority(), "discrepancy found in parameter: Priority")
+	assert.Equal(t, *dm.Spec.Priority, monitorUR.GetPriority(), "discrepancy found in parameter: Priority")
 
-	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
-	assert.Equal(t, dm.Spec.Tags, monitorUR.GetTags(), "discrepancy found in parameter: Tags")
+	assert.ElementsMatch(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
+	assert.ElementsMatch(t, dm.Spec.Tags, monitorUR.GetTags(), "discrepancy found in parameter: Tags")
 
 	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitor.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
 	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitorUR.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
@@ -300,7 +302,7 @@ func Test_createMonitor(t *testing.T) {
 	assert.Equal(t, string(dm.Spec.Type), string(monitor.GetType()), "discrepancy found in parameter: Type")
 	assert.Equal(t, dm.Spec.Name, monitor.GetName(), "discrepancy found in parameter: Name")
 	assert.Equal(t, dm.Spec.Message, monitor.GetMessage(), "discrepancy found in parameter: Message")
-	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
+	assert.ElementsMatch(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 }
 
 func Test_updateMonitor(t *testing.T) {
@@ -344,7 +346,7 @@ func Test_updateMonitor(t *testing.T) {
 	assert.Equal(t, string(dm.Spec.Type), string(monitor.GetType()), "discrepancy found in parameter: Type")
 	assert.Equal(t, dm.Spec.Name, monitor.GetName(), "discrepancy found in parameter: Name")
 	assert.Equal(t, dm.Spec.Message, monitor.GetMessage(), "discrepancy found in parameter: Message")
-	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
+	assert.ElementsMatch(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 
 }
 

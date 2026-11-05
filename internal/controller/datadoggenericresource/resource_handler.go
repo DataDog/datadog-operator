@@ -30,3 +30,9 @@ type ResourceHandler interface {
 	// StateSynced condition.
 	refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error)
 }
+
+// forceSyncComparer lets handlers reuse the existence GET to compare the remote
+// definition. Handlers that do not implement it retain unconditional force updates.
+type forceSyncComparer interface {
+	remoteMatchesSpec(auth context.Context, instance *v1alpha1.DatadogGenericResource) (bool, error)
+}

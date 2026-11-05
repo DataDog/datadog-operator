@@ -22,8 +22,9 @@ type DatadogMonitorSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Message string `json:"message,omitempty"`
-	// Priority is an integer from 1 (high) to 5 (low) indicating alert severity
-	Priority int64 `json:"priority,omitempty"`
+	// Priority is an integer from 1 (high) to 5 (low) indicating alert severity.
+	// Set to 0 to clear the priority; omit it to leave priority unmanaged during force sync.
+	Priority *int64 `json:"priority,omitempty"`
 	// Query is the Datadog monitor query
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -32,10 +33,12 @@ type DatadogMonitorSpec struct {
 	// `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`,
 	// see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).
 	// +listType=set
-	RestrictedRoles []string `json:"restrictedRoles,omitempty"`
+	// +optional
+	RestrictedRoles []string `json:"restrictedRoles,omitzero"`
 	// Tags is the monitor tags associated with your monitor
 	// +listType=set
-	Tags []string `json:"tags,omitempty"`
+	// +optional
+	Tags []string `json:"tags,omitzero"`
 	// Type is the monitor type
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=metric alert;query alert;service check;event alert;log alert;process alert;rum alert;trace-analytics alert;slo alert;event-v2 alert;audit alert;composite;error-tracking alert
@@ -129,7 +132,8 @@ type DatadogMonitorOptions struct {
 	// be a subset of the grouping tags in the query. For example, a query grouped by cluster and namespace cannot
 	// notify on region. Setting notify_by to [*] configures the monitor to notify as a simple-alert.
 	// +listType=set
-	NotifyBy []string `json:"notifyBy,omitempty"`
+	// +optional
+	NotifyBy []string `json:"notifyBy,omitzero"`
 	// A Boolean indicating whether this monitor notifies when data stops reporting.
 	NotifyNoData *bool `json:"notifyNoData,omitempty"`
 	// An enum that controls how groups or monitors are treated if an evaluation does not return data points.
@@ -145,7 +149,8 @@ type DatadogMonitorOptions struct {
 	RenotifyOccurrences *int64 `json:"renotifyOccurrences,omitempty"`
 	// The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.
 	// +listType=set
-	RenotifyStatuses []datadogV1.MonitorRenotifyStatusType `json:"renotifyStatuses,omitempty"`
+	// +optional
+	RenotifyStatuses []datadogV1.MonitorRenotifyStatusType `json:"renotifyStatuses,omitzero"`
 	// A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
 	// recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.
 	RequireFullWindow *bool `json:"requireFullWindow,omitempty"`

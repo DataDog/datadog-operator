@@ -179,6 +179,8 @@ Further example manifests are provided [in the supported resources table](#suppo
 
 The `DatadogGenericResource` controller exposes several tuning options for large installations or load tests.
 
+For `monitor` resources, periodic force sync compares the remote definition with the fields supplied in `jsonSpec`, including nested fields. Omitted fields and server defaults are ignored. Comparison uses the same SDK request representation as updates, so values the SDK omits (for example, `"tags": null`) are also ignored; use `"tags": []` to clear tags. An explicit `"priority": 0` or `"priority": null` clears priority. The comparison requests assets and, when supplied, the restriction policy so those fields can be checked against the live definition. When the supplied fields already match, the controller advances the last force-sync timestamp without issuing an update. Changes to `jsonSpec` continue to trigger an update. Other resource types continue to update on every force sync.
+
 | Option | Default | Description |
 | --- | --- | --- |
 | `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. |

@@ -33,6 +33,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -208,10 +209,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				shouldUpdate = true
 			}
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
-			// A force sync periodically reapplies the desired monitor definition
-			// to correct out-of-band changes. Check that the remote monitor still
-			// exists first so an out-of-band deletion takes the create path.
-			_, err = r.get(auth, instance, newStatus)
+			// Compare the supplied fields before writing. The GET also detects
+			// out-of-band deletions so they still take the create path.
+			m, err = r.get(auth, instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -220,7 +220,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 					result.RequeueAfter = defaultErrRequeuePeriod
 				}
 			} else {
-				shouldUpdate = true
+				matches, compareErr := controllerutils.MonitorMatchesSpec(buildMonitorSpec(logger, instance), m)
+				if compareErr != nil {
+					logger.V(1).Info("Unable to compare monitor; updating", "error", compareErr)
+				}
+				// The update path also adds required tags to the CR. Keep doing
+				// that even if all currently supplied fields already match.
+				requiredTagsPresent := apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) || len(controllerutils.GetTagsToAdd(instance.Spec.Tags)) == 0
+				shouldUpdate = compareErr != nil || !matches || !requiredTagsPresent
+				if !shouldUpdate {
+					newStatus.MonitorLastForceSyncTime = &now
+					newStatus.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+				}
 			}
 		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.requeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
 			// Refresh state only when no lifecycle or specification operation is
