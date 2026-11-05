@@ -70,6 +70,7 @@ const requiredTag = "generated:kubernetes"
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
 	client                 client.Client
+	apiReader              client.Reader
 	datadogClient          *datadogV1.MonitorsApi
 	credsManager           *config.CredentialManager
 	log                    logr.Logger
@@ -81,6 +82,8 @@ type Reconciler struct {
 }
 
 type ReconcilerOptions struct {
+	// APIReader bypasses the informer cache for pre-create checks.
+	APIReader     client.Reader
 	RequeuePeriod time.Duration
 }
 
@@ -91,8 +94,13 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		options = opts[0]
 	}
 
+	if options.APIReader == nil {
+		options.APIReader = client
+	}
+
 	return &Reconciler{
 		client:                 client,
+		apiReader:              options.APIReader,
 		datadogClient:          datadogclient.InitMonitorClient(),
 		credsManager:           credsManager,
 		scheme:                 scheme,
@@ -240,6 +248,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	// Create and update actions
 	if shouldCreate {
+		// Bypass the cache before creating. Keep recreation after a remote 404
+		// when the persisted ID still matches the one we observed.
+		latest := &datadoghqv1alpha1.DatadogMonitor{}
+		if getErr := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); getErr != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(getErr)
+		}
+		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) {
+			logger.Info("Skipping create because DatadogMonitor changed; requeuing")
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
 		if isSupportedMonitorType(instance.Spec.Type) {
 			logger.V(1).Info("Creating monitor in Datadog")
 			// Make sure required tags are present
