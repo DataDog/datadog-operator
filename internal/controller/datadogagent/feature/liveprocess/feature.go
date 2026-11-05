@@ -33,11 +33,12 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	// Process passwd mounts depend on the image that will actually run.
-	// ManageNodeAgent runs before image/container overrides and receives only
-	// pod managers. Retain the CR metadata and node-agent overrides from Configure
-	// so mount selection can account for the final image, renamed containers,
-	// and provider restrictions instead of relying on the pre-override pod.
+	// The passwd mount path depends on the Agent image that will actually run.
+	// ManageNodeAgent runs before user overrides (image tag, experimental image
+	// annotation, container renames) are applied, and it only receives the pod
+	// managers. Keep the DatadogAgent and its node Agent override from Configure
+	// so ProcessPasswdMountPath can predict the final image instead of reading
+	// the not-yet-overridden pod.
 	owner          metav1.Object
 	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	scrubArgs      *bool
