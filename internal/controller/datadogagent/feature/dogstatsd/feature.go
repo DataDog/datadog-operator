@@ -6,6 +6,7 @@
 package dogstatsd
 
 import (
+	"context"
 	"path/filepath"
 	"strconv"
 
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -137,8 +139,12 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers)
 	return nil
 }
 
-func applyDogstatsdDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
-	ports := dogstatsdLocalAgentServicePorts(ddai, ddaiSpec)
+// applyDogstatsdDDASharedDependencies reconciles shared dependencies for the effective node configurations.
+func applyDogstatsdDDASharedDependencies(_ context.Context, dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddais []*v1alpha1.DatadogAgentInternal, _ *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports := make([]corev1.ServicePort, 0, len(ddais))
+	for _, ddai := range ddais {
+		ports = append(ports, dogstatsdLocalAgentServicePorts(ddai, &ddai.Spec)...)
+	}
 	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}

@@ -16,6 +16,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -404,7 +405,17 @@ func TestApplyOTLPDDASharedDependencies(t *testing.T) {
 	})
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := applyOTLPDDASharedDependencies(dda, &dda.Spec, dda, &dda.Spec, nil, managers)
+	grpcDDAI := &v1alpha1.DatadogAgentInternal{Spec: *dda.Spec.DeepCopy()}
+	grpcDDAI.Spec.Features.OTLP.Receiver.Protocols.HTTP.Enabled = ptr.To(false)
+	httpDDAI := &v1alpha1.DatadogAgentInternal{Spec: *dda.Spec.DeepCopy()}
+	httpDDAI.Spec.Features.OTLP.Receiver.Protocols.GRPC.Enabled = ptr.To(false)
+	ddais := []*v1alpha1.DatadogAgentInternal{
+		{}, // An inactive configuration must not skip later profiles.
+		grpcDDAI,
+		httpDDAI,
+		grpcDDAI.DeepCopy(), // Identical ports from multiple profiles are deduplicated.
+	}
+	err := applyOTLPDDASharedDependencies(t.Context(), dda, &dda.Spec, ddais, nil, managers)
 	assert.NoError(t, err)
 
 	serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
@@ -430,6 +441,14 @@ func TestApplyOTLPDDASharedDependencies(t *testing.T) {
 			},
 		}, service.Spec.Ports)
 	}
+
+	// Collecting ports in one call must still reject incompatible profile ports.
+	conflictingDDAI := grpcDDAI.DeepCopy()
+	conflictingDDAI.Spec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig.Port = ptr.To[int32](14317)
+	err = applyOTLPDDASharedDependencies(t.Context(), dda, &dda.Spec,
+		[]*v1alpha1.DatadogAgentInternal{grpcDDAI, conflictingDDAI}, nil,
+		feature.NewResourceManagers(store.NewStore(nil, &store.StoreOptions{PlatformInfo: depsStore.GetPlatformInfo()})))
+	assert.ErrorContains(t, err, "conflicts with existing port")
 }
 
 type Settings struct {

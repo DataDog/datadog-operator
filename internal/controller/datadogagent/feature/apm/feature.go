@@ -6,9 +6,11 @@
 package apm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -16,8 +18,11 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -82,7 +87,8 @@ type apmFeature struct {
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
 
-	singleStepInstrumentation *instrumentationConfig
+	singleStepInstrumentation    *instrumentationConfig
+	nodeLanguageDetectionEnabled bool
 
 	processCheckRunsInCoreAgent bool
 
@@ -158,6 +164,9 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	f.nodeAPMEnabled = shouldEnableAPM(apm)
+	ssi := apm.SingleStepInstrumentation
+	f.nodeLanguageDetectionEnabled = ssi != nil && apiutils.BoolValue(ssi.Enabled) &&
+		ssi.LanguageDetection != nil && apiutils.BoolValue(ssi.LanguageDetection.Enabled)
 	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 	// Node APM controls trace-agent configuration and node-scoped dependencies.
@@ -231,12 +240,20 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 	}
 
-	// Language detection still needs process-agent support on nodes when process
-	// checks are not running in the core agent.
-	if f.nodeAPMEnabled {
-		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
+	if f.nodeLanguageDetectionEnabled {
+		if !f.nodeAPMEnabled {
+			reqComp.Agent = feature.RequiredComponent{
+				IsRequired: new(true),
+				Containers: []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
+				},
+			}
+		}
+		if !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
+	}
+	if f.nodeAPMEnabled {
 		if apm.ErrorTrackingStandalone != nil {
 			f.errorTrackingStandalone = apiutils.BoolValue(apm.ErrorTrackingStandalone.Enabled)
 		}
@@ -256,6 +273,46 @@ func (f *apmFeature) shouldSetInjectionMode() bool {
 	return f.singleStepInstrumentation != nil &&
 		f.singleStepInstrumentation.enabled &&
 		f.singleStepInstrumentation.injectionMode != ""
+}
+
+func (f *apmFeature) manageLanguageDetection(coreContainer apicommon.AgentContainerName, managers feature.PodTemplateManagers) {
+	// APM SSI Language Detection
+	if f.nodeLanguageDetectionEnabled {
+
+		// Enable language detection in core agent
+		managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+			Name:  DDLanguageDetectionEnabled,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "true",
+		})
+
+		// Enable language detection in process agent
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionEnabled,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "true",
+		})
+
+		// Always add this envvar to Core and Process containers
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  common.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(coreContainer, runInCoreAgentEnvVar)
+	} else {
+		// Language Detection reporting is enabled by default in the Agent
+		managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "false",
+		})
+	}
 }
 
 func (f *apmFeature) shouldEnableLanguageDetection() bool {
@@ -331,11 +388,50 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	return nil
 }
 
-func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec, sharedSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
-	ports := apmLocalAgentServicePorts(ddai, withSharedServicePort(ddaiSpec, sharedSpec))
-	if len(ports) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
+// applyAPMDDASharedDependencies reconciles shared dependencies for the effective node configurations.
+func applyAPMDDASharedDependencies(ctx context.Context, dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddais []*v1alpha1.DatadogAgentInternal, sharedSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	sharedPort := int32(constants.DefaultApmPort)
+	if ddaSpec.Features != nil && ddaSpec.Features.APM != nil {
+		if hostPort := ddaSpec.Features.APM.HostPortConfig; hostPort != nil && (ptr.Deref(hostPort.Enabled, false) || experimental.IsAutopilotEnabled(dda)) {
+			sharedPort = ptr.Deref(hostPort.Port, sharedPort)
+		}
+	}
+	if sharedSpec != nil && sharedSpec.Features != nil && sharedSpec.Features.APM != nil {
+		if hostPort := sharedSpec.Features.APM.HostPortConfig; hostPort != nil && hostPort.Port != nil {
+			sharedPort = *hostPort.Port
+		}
+	}
+	listeners := map[int32][]string{}
+	for _, ddai := range ddais {
+		if ddai.Spec.Features == nil || !shouldEnableAPM(ddai.Spec.Features.APM) {
+			continue
+		}
+		listener := int32(constants.DefaultApmPort)
+		config := ddai.Spec.Features.APM.HostPortConfig
+		if constants.IsHostNetworkEnabled(&ddai.Spec, v2alpha1.NodeAgentComponentName) && config != nil && (ptr.Deref(config.Enabled, false) || experimental.IsAutopilotEnabled(ddai)) {
+			listener = ptr.Deref(config.Port, listener)
+		}
+		listeners[listener] = append(listeners[listener], ddai.Namespace+"/"+ddai.Name)
+	}
+	if len(listeners) > 1 {
+		descriptions := make([]string, 0, len(listeners))
+		for port, names := range listeners {
+			slices.Sort(names)
+			descriptions = append(descriptions, fmt.Sprintf("%v: %d", names, port))
+		}
+		slices.Sort(descriptions)
+		ctrl.LoggerFrom(ctx).Info("APM port mismatch: configure all profiles with APM enabled, including the default Agent, to use the same port", "listeners", descriptions)
+	}
+
+	if len(listeners) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
+	ports := []corev1.ServicePort{{
+		Name:       constants.DefaultApmPortName,
+		Protocol:   corev1.ProtocolTCP,
+		Port:       sharedPort,
+		TargetPort: intstr.FromString(constants.DefaultApmPortName),
+	}}
 
 	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	return managers.ServiceManager().AddService(
@@ -345,41 +441,6 @@ func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 		ports,
 		&serviceInternalTrafficPolicy,
 	)
-}
-
-func apmLocalAgentServicePorts(ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec) []corev1.ServicePort {
-	if ddaiSpec == nil || ddaiSpec.Features == nil || !shouldEnableAPM(ddaiSpec.Features.APM) {
-		return nil
-	}
-
-	apm := ddaiSpec.Features.APM
-	hostPortEnabled := false
-	hostPortHostPort := int32(constants.DefaultApmPort)
-	if apm.HostPortConfig != nil {
-		hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
-		if apm.HostPortConfig.Port != nil {
-			hostPortHostPort = *apm.HostPortConfig.Port
-		}
-	}
-	if experimental.IsAutopilotEnabled(ddai) {
-		hostPortEnabled = true
-	}
-
-	apmPort := corev1.ServicePort{
-		Protocol:   corev1.ProtocolTCP,
-		TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
-		Port:       constants.DefaultApmPort,
-		Name:       constants.DefaultApmPortName,
-	}
-	if hostPortEnabled {
-		apmPort.Port = hostPortHostPort
-		apmPort.Name = apmHostPortName
-		if constants.IsHostNetworkEnabled(ddaiSpec, v2alpha1.NodeAgentComponentName) {
-			apmPort.TargetPort = intstr.FromInt(int(hostPortHostPort))
-		}
-	}
-
-	return []corev1.ServicePort{apmPort}
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -495,6 +556,7 @@ func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageLanguageDetection(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	if !f.nodeAPMEnabled {
 		return nil
 	}
@@ -505,6 +567,7 @@ func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageLanguageDetection(apicommon.CoreAgentContainerName, managers)
 	if !f.nodeAPMEnabled {
 		return nil
 	}
@@ -547,44 +610,6 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		})
 	}
 	managers.Port().AddPortToContainer(agentContainerName, apmPort)
-
-	// APM SSI Language Detection
-	if f.shouldEnableLanguageDetection() {
-
-		// Enable language detection in core agent
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  DDLanguageDetectionEnabled,
-			Value: "true",
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  DDLanguageDetectionReportingEnabled,
-			Value: "true",
-		})
-
-		// Enable language detection in process agent
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
-			Name:  DDLanguageDetectionEnabled,
-			Value: "true",
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
-			Name:  DDLanguageDetectionReportingEnabled,
-			Value: "true",
-		})
-
-		// Always add this envvar to Core and Process containers
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  common.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
-		}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
-	} else {
-		// Language Detection reporting is enabled by default in the Agent
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  DDLanguageDetectionReportingEnabled,
-			Value: "false",
-		})
-	}
 
 	// uds
 	if f.udsEnabled {

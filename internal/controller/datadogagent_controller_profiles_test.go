@@ -1121,10 +1121,13 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			ddai := &v1alpha1.DatadogAgentInternal{}
 			getObjectAndCheck(ddai, types.NamespacedName{Namespace: namespace, Name: agent.Name}, func() bool {
 				apm := ddai.Spec.Features.APM
-				return apm.HostPortConfig != nil && ptr.Deref(apm.HostPortConfig.Port, 0) == 9126
+				if !baseAPMEnabled {
+					return !ptr.Deref(apm.Enabled, true) && apm.HostPortConfig == nil
+				}
+				return apm.HostPortConfig != nil && !ptr.Deref(apm.HostPortConfig.Enabled, true) && ptr.Deref(apm.HostPortConfig.Port, 0) == 8126
 			})
 			if profileAPMEnabled == nil {
-				// Node APM still inherits false; check the shared port independently.
+				// SSI does not enable node APM. No profile requests an APM listener.
 				return
 			}
 			service := &v1.Service{}
@@ -1133,16 +1136,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				g.Expect(service.Spec.Ports).To(ContainElement(SatisfyAll(
 					HaveField("Name", constants.DefaultApmPortName),
 					HaveField("Port", int32(9126)),
-					HaveField("TargetPort.IntVal", int32(constants.DefaultApmPort)),
+					HaveField("TargetPort.StrVal", constants.DefaultApmPortName),
 				)))
 			}, timeout, interval).Should(Succeed())
 		},
 			Entry("explicit APM enablement", true, ptr.To(true), false),
-			Entry("base APM disabled, profile SSI enables APM", false, nil, true),
+			Entry("base APM disabled, explicit ports still conflict with SSI enabled", false, nil, true),
 		)
 
 		DescribeTable("should distinguish defaults from explicit shared settings",
-			func(ddaValue, profileValue *bool, want bool, conflict bool) {
+			func(ddaValue, profileValue *bool, want bool) {
 				agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
 				agent.Spec.Features.APM.Enabled = ptr.To(true)
 				agent.Spec.Features.APM.SingleStepInstrumentation.Enabled = ptr.To(true)
@@ -1161,11 +1164,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				DeferCleanup(cleanupAPMSharedOverlayObjects, agent, profiles)
 				createAPMSharedOverlayObjects(agent, profiles)
 				checkProfileAppliedStatus(namespace, profiles[0].Name, metav1.ConditionTrue, "")
-				if conflict {
-					checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionFalse, "languageDetection.enabled has conflicting values")
-				} else {
-					checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionTrue, "")
-				}
+				checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionTrue, "")
 				checkDefaultDDAIInstrumentation(namespace, agent.Name, func(ssi *v2alpha1.SingleStepInstrumentation) bool {
 					return ssi.LanguageDetection != nil && ssi.LanguageDetection.Enabled != nil && *ssi.LanguageDetection.Enabled == want
 				})
@@ -1181,11 +1180,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					return !want
 				})
 			},
-			Entry("both unset", nil, nil, true, false),
-			Entry("DDA set, profile unset", ptr.To(false), nil, false, false),
-			Entry("DDA unset, profile set", nil, ptr.To(false), false, false),
-			Entry("same explicit values", ptr.To(false), ptr.To(false), false, false),
-			Entry("different explicit values", ptr.To(true), ptr.To(false), true, true),
+			Entry("both unset", nil, nil, true),
+			Entry("DDA set, profile unset", ptr.To(false), nil, false),
+			Entry("DDA unset, profile set", nil, ptr.To(false), false),
+			Entry("same explicit values", ptr.To(false), ptr.To(false), false),
+			Entry("profile overrides explicit DDA value", ptr.To(true), ptr.To(false), false),
 		)
 
 		It("should merge accepted profile instrumentation into the default DDAI", func() {

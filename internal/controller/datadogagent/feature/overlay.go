@@ -6,24 +6,27 @@
 package feature
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // ProfileSharedConfigOverlayFunc validates and applies one profile's shared settings.
-// validationSpec tracks raw DDA and accepted profile values, without defaults.
+// validationSpec tracks explicit contributions from accepted profiles only.
 // defaultDDAISpec receives accepted settings on the generated default DDAI.
 // originalDefaultDDAISpec is read-only context for prerequisites and inheritance.
 // Discard both candidates on error.
 type ProfileSharedConfigOverlayFunc func(validationSpec, defaultDDAISpec, originalDefaultDDAISpec, profile *v2alpha1.DatadogAgentSpec) error
 
 // DDASharedDependenciesFunc adds DDA-owned resources shared by all DDAIs.
-// ddai and ddaiSpec are read-only; sharedSpec contains the final shared settings.
-type DDASharedDependenciesFunc func(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec, sharedSpec *v2alpha1.DatadogAgentSpec, managers ResourceManagers) error
+// sharedSpec contains explicit contributions from accepted profiles only.
+// The DDA spec, shared spec, and effective DDAIs are read-only.
+type DDASharedDependenciesFunc func(ctx context.Context, dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddais []*v1alpha1.DatadogAgentInternal, sharedSpec *v2alpha1.DatadogAgentSpec, managers ResourceManagers) error
 
 // profileSharedConfigOverlays is populated by feature package init functions
 // through RegisterProfileSharedConfigOverlay.
@@ -80,8 +83,8 @@ func sortedProfileSharedConfigOverlayIDs() []IDType {
 }
 
 // ApplyDDASharedDependencies applies all registered DDA shared dependency hooks
-// for one rendered DDAI spec.
-func ApplyDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec, sharedSpec *v2alpha1.DatadogAgentSpec, managers ResourceManagers) error {
+// for the complete set of effective DDAIs.
+func ApplyDDASharedDependencies(ctx context.Context, dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddais []*v1alpha1.DatadogAgentInternal, sharedSpec *v2alpha1.DatadogAgentSpec, managers ResourceManagers) error {
 	// Sort feature IDs because map iteration order is unspecified.
 	sortedKeys := make([]IDType, 0, len(ddaSharedDependencies))
 	for key := range ddaSharedDependencies {
@@ -90,7 +93,7 @@ func ApplyDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 	slices.Sort(sortedKeys)
 
 	for _, id := range sortedKeys {
-		if err := ddaSharedDependencies[id](dda, ddaSpec, ddai, ddaiSpec, sharedSpec, managers); err != nil {
+		if err := ddaSharedDependencies[id](ctx, dda, ddaSpec, ddais, sharedSpec, managers); err != nil {
 			return fmt.Errorf("%s DDA shared dependencies failed: %w", id, err)
 		}
 	}

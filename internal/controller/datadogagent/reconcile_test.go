@@ -2100,7 +2100,7 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 				assert.NotNil(t, apmPort)
 				assert.Equal(t, corev1.ProtocolTCP, apmPort.Protocol)
 				assert.Equal(t, int32(constants.DefaultApmPort), apmPort.Port)
-				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+				assert.Equal(t, intstr.FromString(constants.DefaultApmPortName), apmPort.TargetPort)
 
 				defaultDDAI := &v1alpha1.DatadogAgentInternal{}
 				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI)
@@ -2114,7 +2114,7 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 			},
 		},
 		{
-			name: "explicit profile port overrides defaulted DDA and profile ports",
+			name: "explicit profile port overrides the Service without changing default nodes",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
 				WithObjects(
@@ -2139,6 +2139,8 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 				defaultDDAI := &v1alpha1.DatadogAgentInternal{}
 				assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI))
 				assert.True(t, *defaultDDAI.Spec.Features.APM.Enabled)
+				assert.False(t, *defaultDDAI.Spec.Features.APM.HostPortConfig.Enabled)
+				assert.Equal(t, int32(8126), *defaultDDAI.Spec.Features.APM.HostPortConfig.Port)
 				assert.Nil(t, defaultDDAI.Spec.Global.Credentials.APIKey)
 				assert.NotNil(t, defaultDDAI.Spec.Global.Credentials.APISecret)
 				assert.Nil(t, defaultDDAI.Spec.Global.ClusterAgentToken)
@@ -2146,7 +2148,7 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 				hash, err := comparison.GenerateMD5ForSpec(defaultDDAI.Spec)
 				assert.NoError(t, err)
 				assert.Equal(t, hash, defaultDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
-				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), port.TargetPort)
+				assert.Equal(t, intstr.FromString(constants.DefaultApmPortName), port.TargetPort)
 				for _, name := range []string{"a-port-omitted", "b-port-explicit"} {
 					profile := &v1alpha1.DatadogAgentProfile{}
 					assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: name}, profile))
@@ -2178,7 +2180,7 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 				apmPort := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
 				assert.NotNil(t, apmPort)
 				assert.Equal(t, int32(8126), apmPort.Port)
-				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+				assert.Equal(t, intstr.FromString(constants.DefaultApmPortName), apmPort.TargetPort)
 
 				appliedProfile := &v1alpha1.DatadogAgentProfile{}
 				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-a"}, appliedProfile)
@@ -2202,22 +2204,22 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 		},
 	}
 
-	// Reuse the conflict assertions with profiles that derive APM enablement from SSI.
+	// SSI does not enable node APM, but explicit profile ports still conflict.
 	derivedA, derivedB := conflictingProfileA.DeepCopy(), conflictingProfileB.DeepCopy()
 	for _, profile := range []*v1alpha1.DatadogAgentProfile{derivedA, derivedB} {
 		profile.Spec.Config.Features.APM.Enabled = nil
 		profile.Spec.Config.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)}
 	}
 	derivedTest := tests[len(tests)-1]
-	derivedTest.name = "SSI-derived APM rejects conflicting profile ports without failing DDA reconciliation"
+	derivedTest.name = "SSI-enabled profiles reject conflicting ports without changing default node APM"
 	derivedTest.clientBuilder = fake.NewClientBuilder().
 		WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
 		WithObjects(derivedA, derivedB)
 	derivedTest.wantFunc = func(t *testing.T, c client.Client) {
 		defaultDDAI := &v1alpha1.DatadogAgentInternal{}
 		assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI))
-		assert.NotNil(t, defaultDDAI.Spec.Features.APM.HostPortConfig)
-		assert.Equal(t, ptr.To[int32](8126), defaultDDAI.Spec.Features.APM.HostPortConfig.Port)
+		assert.Nil(t, defaultDDAI.Spec.Features.APM.HostPortConfig)
+		assert.False(t, *defaultDDAI.Spec.Features.APM.Enabled)
 		for name, status := range map[string]metav1.ConditionStatus{"apm-profile-a": metav1.ConditionTrue, "apm-profile-b": metav1.ConditionFalse} {
 			profile := &v1alpha1.DatadogAgentProfile{}
 			assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: name}, profile))
