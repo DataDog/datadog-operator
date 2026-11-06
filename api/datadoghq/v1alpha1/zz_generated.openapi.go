@@ -4992,7 +4992,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorSpec(ref commo
 					},
 					"priority": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Priority is an integer from 1 (high) to 5 (low) indicating alert severity",
+							Description: "Priority is an integer from 1 (high) to 5 (low) indicating alert severity. Set to 0 to clear the priority; omit it to leave priority unmanaged during force sync.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},

@@ -164,9 +164,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			logger.Info("DatadogGenericResource manifest has changed")
 			shouldUpdate = true
 		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
-			// Periodically force a sync with the API to ensure parity
-			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = handler.getResource(auth, instance)
+			// Reuse the existence GET for handlers that can compare the supplied
+			// spec with the remote definition. Other handlers always update.
+			matches := false
+			if comparer, ok := handler.(forceSyncComparer); ok {
+				matches, err = comparer.remoteMatchesSpec(auth, instance)
+			} else {
+				err = handler.getResource(auth, instance)
+			}
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -177,7 +182,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
 				// create()/update() advance it themselves once the sync actually succeeds.
 			} else {
-				shouldUpdate = true
+				shouldUpdate = !matches
+				if matches {
+					status.LastForceSyncTime = &now
+					status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+					condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
+				}
 			}
 		} else if instance.Status.StateLastUpdateTime == nil || ((r.requeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
 			// Idle tick: refresh Datadog-side state for resource types that expose it.

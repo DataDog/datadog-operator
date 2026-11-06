@@ -237,7 +237,7 @@
           "type": "object"
         },
         "priority": {
-          "description": "Priority is an integer from 1 (high) to 5 (low) indicating alert severity",
+          "description": "Priority is an integer from 1 (high) to 5 (low) indicating alert severity.\nSet to 0 to clear the priority; omit it to leave priority unmanaged during force sync.",
           "format": "int64",
           "type": "integer"
         },
