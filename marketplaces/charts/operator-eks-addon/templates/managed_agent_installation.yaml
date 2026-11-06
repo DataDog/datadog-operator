@@ -10,6 +10,9 @@
 {{- with .acknowledgedOperationID }}
 {{- $_ := set $intent "acknowledgedOperationID" . -}}
 {{- end }}
+{{- with .datadogAgent }}
+{{- $_ := set $intent "datadogAgent" . -}}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
