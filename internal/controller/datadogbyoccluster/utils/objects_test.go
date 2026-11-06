@@ -7,12 +7,12 @@ package utils
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,11 +25,11 @@ func TestApplyControlled(t *testing.T) {
 	ownerReferences := []metav1.OwnerReference{{APIVersion: "v1", Kind: "ConfigMap", Name: "owner", UID: "owner-uid", Controller: new(true), BlockOwnerDeletion: new(true)}}
 
 	tests := []struct {
-		name    string
-		cached  *corev1.ConfigMap
-		live    *corev1.ConfigMap
-		wantErr string
-		wantObj *corev1.ConfigMap
+		name         string
+		cached       *corev1.ConfigMap
+		live         *corev1.ConfigMap
+		wantConflict bool
+		wantObj      *corev1.ConfigMap
 	}{
 		{
 			name: "object unchanged since the cache read",
@@ -62,7 +62,7 @@ func TestApplyControlled(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "applied", Namespace: "default", ResourceVersion: "2"},
 				Data:       map[string]string{"key": "old"},
 			},
-			wantErr: "Operation cannot be fulfilled",
+			wantConflict: true,
 		},
 	}
 
@@ -83,19 +83,14 @@ func TestApplyControlled(t *testing.T) {
 
 			err := ApplyControlled(ctx, cache, c, clientgoscheme.Scheme, owner, desired, "test")
 
-			if err != nil {
-				if tt.wantErr == "" {
-					t.Errorf("ApplyControlled() error = %v, wantErr %v", err, tt.wantErr)
-				}
-
-				if !strings.Contains(err.Error(), tt.wantErr) {
-					t.Errorf("ApplyControlled() error = %v, want an error containing %q", err, tt.wantErr)
+			if tt.wantConflict {
+				if !apierrors.IsConflict(err) {
+					t.Errorf("ApplyControlled() error = %v, want a conflict error", err)
 				}
 				return
 			}
-
-			if tt.wantErr != "" {
-				t.Errorf("ApplyControlled() return no error, want %q", tt.wantErr)
+			if err != nil {
+				t.Fatalf("ApplyControlled() error: %v", err)
 			}
 
 			got := &corev1.ConfigMap{}
