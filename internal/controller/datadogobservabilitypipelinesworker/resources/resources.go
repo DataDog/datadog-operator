@@ -33,10 +33,7 @@ func (r *Resources) Objects() []client.Object {
 	if r.ServiceAccount != nil {
 		objects = append(objects, r.ServiceAccount)
 	}
-	if r.Service != nil {
-		objects = append(objects, r.Service)
-	}
-	objects = append(objects, r.StatefulSet)
+	objects = append(objects, r.Service, r.StatefulSet)
 	if r.HPA != nil {
 		objects = append(objects, r.HPA)
 	}
@@ -65,19 +62,14 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	}
 	r := &Resources{
 		StatefulSet:         newStatefulSet(objectMeta(worker), selectorLabels(worker), newPodTemplate(worker, image), worker.Name, &worker.Spec.DatadogBYOCClusterStatefulComponentSpec),
+		Service:             newService(objectMeta(worker), selectorLabels(worker), servicePorts(worker.Spec.Ports), serviceType(worker)),
 		PodDisruptionBudget: podDisruptionBudget,
 	}
 	if autoscaling := worker.Spec.Autoscaling; autoscaling != nil {
 		r.HPA = newHPA(objectMeta(worker), autoscaling)
 	}
-	if len(worker.Spec.Ports) > 0 {
-		r.Service = newService(objectMeta(worker), selectorLabels(worker), servicePorts(worker.Spec.Ports), serviceType(worker))
-	}
 
 	metadata := obsoleteObjectMeta(worker)
-	if r.Service == nil {
-		r.obsoleteObjects = append(r.obsoleteObjects, &corev1.Service{ObjectMeta: metadata})
-	}
 	switch name, managed := serviceAccountName(worker); {
 	case managed:
 		r.ServiceAccount = newServiceAccount(worker)
