@@ -25284,6 +25284,7 @@ spec:
                     byoc:
                       properties:
                         digest:
+                          minLength: 1
                           type: string
                         imagePullSecrets:
                           items:
@@ -25314,6 +25315,7 @@ spec:
                     observabilityPipelinesWorker:
                       properties:
                         digest:
+                          minLength: 1
                           type: string
                         imagePullSecrets:
                           items:

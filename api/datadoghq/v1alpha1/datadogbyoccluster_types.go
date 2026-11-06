@@ -98,6 +98,7 @@ type DatadogBYOCImageSpec struct {
 
 	// Digest is the image digest.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Digest *string `json:"digest,omitempty"`
 
 	// PullPolicy is the image pull policy used by the workload container.

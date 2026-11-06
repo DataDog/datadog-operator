@@ -40151,6 +40151,7 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
+                  "minLength": 1,
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -40195,6 +40196,7 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
+                  "minLength": 1,
                   "type": "string"
                 },
                 "imagePullSecrets": {
