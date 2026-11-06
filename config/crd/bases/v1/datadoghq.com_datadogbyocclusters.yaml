@@ -26,9 +26,6 @@ spec:
         - jsonPath: .status.conditions[?(@.type=='Reconciled')].status
           name: Reconciled
           type: string
-        - jsonPath: .status.pipelines[*].name
-          name: Pipelines
-          type: string
         - jsonPath: .status.conditions[?(@.type=='Available')].reason
           name: Reason
           priority: 1

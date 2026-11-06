@@ -688,7 +688,6 @@ type DatadogBYOCClusterDeploymentStatus struct {
 // +kubebuilder:printcolumn:name="Signal",type="string",JSONPath=".spec.signal"
 // +kubebuilder:printcolumn:name="Available",type="string",JSONPath=".status.conditions[?(@.type=='Available')].status"
 // +kubebuilder:printcolumn:name="Reconciled",type="string",JSONPath=".status.conditions[?(@.type=='Reconciled')].status"
-// +kubebuilder:printcolumn:name="Pipelines",type="string",JSONPath=".status.pipelines[*].name"
 // +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[?(@.type=='Available')].reason",priority=1
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
