@@ -87,10 +87,12 @@ func (f *fakeMonitorAPI) editRemote(edit func(map[string]any)) {
 	edit(f.monitor)
 }
 
-func TestReconcileDatadogMonitor_ForceSyncSkipsUpdateWhileRemoteUnchanged(t *testing.T) {
+// newForceSyncTestReconciler returns a reconciler that talks to a fakeMonitorAPI.
+func newForceSyncTestReconciler(t *testing.T) (*Reconciler, *fakeMonitorAPI) {
+	t.Helper()
 	api := &fakeMonitorAPI{}
 	server := httptest.NewServer(api)
-	defer server.Close()
+	t.Cleanup(server.Close)
 
 	t.Setenv("DD_URL", server.URL)
 	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
@@ -110,7 +112,11 @@ func TestReconcileDatadogMonitor_ForceSyncSkipsUpdateWhileRemoteUnchanged(t *tes
 		requeuePeriod: defaultRequeuePeriod,
 	}
 	r.apiReader = r.client
+	return r, api
+}
 
+func TestReconcileDatadogMonitor_ForceSyncSkipsUpdateWhileRemoteUnchanged(t *testing.T) {
+	r, api := newForceSyncTestReconciler(t)
 	dm := genericDatadogMonitor(r.client)
 	get := func() *datadoghqv1alpha1.DatadogMonitor {
 		t.Helper()
@@ -193,4 +199,29 @@ func TestReconcileDatadogMonitor_ForceSyncSkipsUpdateWhileRemoteUnchanged(t *tes
 		assert.Equal(t, before+1, api.puts.Load())
 		assert.Equal(t, createdHash, synced.Status.RemoteDefinitionHash)
 	})
+}
+
+func TestReconcileDatadogMonitor_CreateAppliesRestrictedRoles(t *testing.T) {
+	r, api := newForceSyncTestReconciler(t)
+	dm := genericDatadogMonitor(r.client)
+	dm.Spec.RestrictedRoles = []string{"role-b", "role-a"}
+	require.NoError(t, r.client.Update(context.TODO(), dm))
+
+	// Add the finalizer, add the required tags, then create the monitor.
+	for range 3 {
+		require.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(dm), dm))
+		_, err := r.Reconcile(context.TODO(), dm)
+		require.NoError(t, err)
+	}
+	api.editRemote(func(m map[string]any) {
+		assert.ElementsMatch(t, []any{"role-a", "role-b"}, m["restricted_roles"], "create applies the restricted roles")
+	})
+
+	// The first force sync after a create is due immediately and finds the
+	// monitor unchanged.
+	require.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(dm), dm))
+	require.Nil(t, dm.Status.MonitorLastForceSyncTime)
+	_, err := r.Reconcile(context.TODO(), dm)
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), api.puts.Load())
 }
