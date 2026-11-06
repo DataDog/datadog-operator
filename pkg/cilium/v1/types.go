@@ -33,9 +33,6 @@ const (
 	EntityWorld Entity = "world"
 	// EntityKubeAPIServer is a Kubernetes API server entity.
 	EntityKubeAPIServer Entity = "kube-apiserver"
-	// EntityKubeApiServer is retained for compatibility.
-	// Deprecated: use EntityKubeAPIServer.
-	EntityKubeApiServer = EntityKubeAPIServer //nolint:staticcheck
 )
 
 // NetworkPolicy is a Cilium network policy
