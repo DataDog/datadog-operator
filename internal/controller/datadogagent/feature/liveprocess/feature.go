@@ -33,14 +33,10 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	// The passwd mount path depends on the Agent image that will actually run.
-	// ManageNodeAgent runs before user overrides (image tag, experimental image
-	// annotation, container renames) are applied, and it only receives the pod
-	// managers. Keep the DatadogAgent and its node Agent override from Configure
-	// so ProcessPasswdMountPath can predict the final image instead of reading
-	// the not-yet-overridden pod.
+	// The passwd mount path depends on the node Agent version, but ManageNodeAgent
+	// only receives the pod managers. Keep the DatadogAgent from Configure so
+	// ProcessPasswdMountPath can read its node Agent image override.
 	owner          metav1.Object
-	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	scrubArgs      *bool
 	stripArgs      *bool
 	runInCoreAgent bool
@@ -64,7 +60,7 @@ func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.Provid
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	f.owner, f.nodeOverride = dda, ddaSpec.Override[v2alpha1.NodeAgentComponentName]
+	f.owner = dda
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = new(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
@@ -141,7 +137,7 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	// passwd volume mount
-	mountPath := featutils.ProcessPasswdMountPath(f.owner, f.nodeOverride, agentContainerName, managers.PodTemplateSpec())
+	mountPath := featutils.ProcessPasswdMountPath(f.owner)
 	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)

@@ -32,14 +32,10 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
-	// The passwd mount path depends on the Agent image that will actually run.
-	// ManageNodeAgent runs before user overrides (image tag, experimental image
-	// annotation, container renames) are applied, and it only receives the pod
-	// managers. Keep the DatadogAgent and its node Agent override from Configure
-	// so ProcessPasswdMountPath can predict the final image instead of reading
-	// the not-yet-overridden pod.
+	// The passwd mount path depends on the node Agent version, but ManageNodeAgent
+	// only receives the pod managers. Keep the DatadogAgent from Configure so
+	// ProcessPasswdMountPath can read its node Agent image override.
 	owner          metav1.Object
-	nodeOverride   *v2alpha1.DatadogAgentComponentOverride
 	runInCoreAgent bool
 }
 
@@ -59,7 +55,7 @@ func (p *processDiscoveryFeature) NodeAgentProviderCapabilities() providercaps.P
 }
 
 func (p *processDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	p.owner, p.nodeOverride = dda, ddaSpec.Override[v2alpha1.NodeAgentComponentName]
+	p.owner = dda
 	var reqComp feature.RequiredComponents
 	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddaSpec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
@@ -119,7 +115,7 @@ func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers featur
 
 func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
-	mountPath := featutils.ProcessPasswdMountPath(p.owner, p.nodeOverride, agentContainerName, managers.PodTemplateSpec())
+	mountPath := featutils.ProcessPasswdMountPath(p.owner)
 	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)

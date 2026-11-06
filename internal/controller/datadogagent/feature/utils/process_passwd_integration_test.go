@@ -52,10 +52,11 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			tag:          "v7.86.0",
 			expectedPath: "/host/etc/passwd",
 		},
+		// Datadog does not publish X.Y tags; the shared version parser needs a full X.Y.Z version.
 		{
 			name:         "minor alias",
 			tag:          "7.86",
-			expectedPath: "/host/etc/passwd",
+			expectedPath: "/etc/passwd",
 		},
 		{
 			name:         "prerelease full variant",

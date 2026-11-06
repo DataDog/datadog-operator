@@ -23,7 +23,12 @@ import (
 const DefaultWorkloadAllowlistVersion = "v1.0.8"
 
 // previousWorkloadAllowlistVersion remains synchronized while the new default
-// propagates across GKE node versions.
+// propagates across GKE node versions. Google rolls out a newly published
+// allowlist gradually, so a cluster can briefly see only the previous version.
+// Without it, the default synchronizer would request only v1.0.8 and Autopilot
+// would reject every Agent pod on such clusters, including older Agents that do
+// not need v1.0.8. Mirrors previousCSIWorkloadAllowlistVersion. Remove it (or
+// move it forward) once the default is available on all supported GKE versions.
 const previousWorkloadAllowlistVersion = "v1.0.7"
 
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
