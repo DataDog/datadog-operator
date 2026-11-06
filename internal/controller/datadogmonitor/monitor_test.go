@@ -111,6 +111,9 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 	assert.Equal(t, dm.Spec.Tags, monitorUR.GetTags(), "discrepancy found in parameter: Tags")
 
+	assert.Equal(t, dm.Spec.RestrictedRoles, monitor.GetRestrictedRoles(), "discrepancy found in parameter: RestrictedRoles")
+	assert.Equal(t, dm.Spec.RestrictedRoles, monitorUR.GetRestrictedRoles(), "discrepancy found in parameter: RestrictedRoles")
+
 	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitor.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
 	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitorUR.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
 
