@@ -118,6 +118,16 @@ const (
 	PasswdHostPath   = "/etc/passwd"
 	PasswdMountPath  = "/etc/passwd"
 
+	// GKE Warden matches volumeMounts by name, so the relocated process passwd mount uses its own volume.
+	HostPasswdVolumeName = "host-passwd"
+	HostPasswdMountPath  = "/host/etc/passwd"
+
+	// Mounted with the relocated passwd: the Agent sets HOST_ETC=/host/etc whenever that directory exists.
+	// The volume name matches the Helm chart and the GKE Autopilot WorkloadAllowlist.
+	OSReleaseFileVolumeName = "os-release-file"
+	OSReleaseFileHostPath   = "/etc/os-release"
+	OSReleaseFileMountPath  = "/host/etc/os-release"
+
 	ProcdirVolumeName = "procdir"
 	ProcdirHostPath   = "/proc"
 	ProcdirMountPath  = "/host/proc"

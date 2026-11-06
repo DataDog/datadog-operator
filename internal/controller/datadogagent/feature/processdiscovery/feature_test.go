@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -81,6 +82,20 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
 		},
 		{
+			Name: "host passwd on supported core agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, "/host/etc/passwd"),
+		},
+		{
+			Name: "host passwd on supported unprivileged single agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, "/host/etc/passwd"),
+		},
+		{
 			Name:          "process discovery on Windows",
 			DDA:           windowsProfile,
 			WantConfigure: true,
@@ -90,7 +105,11 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, expectedPasswdPaths ...string) *test.ComponentTest {
+	expectedPath := common.PasswdMountPath
+	if len(expectedPasswdPaths) > 0 {
+		expectedPath = expectedPasswdPaths[0]
+	}
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -98,21 +117,31 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      common.PasswdVolumeName,
-					MountPath: common.PasswdMountPath,
+					Name:      featutils.ProcessPasswdVolumeName(expectedPath),
+					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
-				{
+			}
+			// The relocated passwd also brings host os-release under /host/etc.
+			if expectedPath == common.HostPasswdMountPath {
+				wantVolumeMounts = append(wantVolumeMounts, corev1.VolumeMount{
+					Name:      common.OSReleaseFileVolumeName,
+					MountPath: common.OSReleaseFileMountPath,
+					ReadOnly:  true,
+				})
+			}
+			wantVolumeMounts = append(wantVolumeMounts,
+				corev1.VolumeMount{
 					Name:      common.CgroupsVolumeName,
 					MountPath: common.CgroupsMountPath,
 					ReadOnly:  true,
 				},
-				{
+				corev1.VolumeMount{
 					Name:      common.ProcdirVolumeName,
 					MountPath: common.ProcdirMountPath,
 					ReadOnly:  true,
 				},
-			}
+			)
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, wantVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, wantVolumeMounts))
@@ -120,14 +149,26 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volumes
 			wantVolumes := []corev1.Volume{
 				{
-					Name: common.PasswdVolumeName,
+					Name: featutils.ProcessPasswdVolumeName(expectedPath),
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.PasswdHostPath,
 						},
 					},
 				},
-				{
+			}
+			if expectedPath == common.HostPasswdMountPath {
+				wantVolumes = append(wantVolumes, corev1.Volume{
+					Name: common.OSReleaseFileVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.OSReleaseFileHostPath,
+						},
+					},
+				})
+			}
+			wantVolumes = append(wantVolumes,
+				corev1.Volume{
 					Name: common.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -135,7 +176,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						},
 					},
 				},
-				{
+				corev1.Volume{
 					Name: common.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -143,7 +184,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						},
 					},
 				},
-			}
+			)
 
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))

@@ -33,6 +33,10 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
+	// The passwd mount path depends on the node Agent version, but ManageNodeAgent
+	// only receives the pod managers. Keep the DatadogAgent from Configure so
+	// ProcessPasswdMountPath can read its node Agent image override.
+	owner          metav1.Object
 	scrubArgs      *bool
 	stripArgs      *bool
 	runInCoreAgent bool
@@ -45,17 +49,18 @@ func (f *liveProcessFeature) ID() feature.IDType {
 
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. Talos has no host user database, so the
-// passwd volume this feature adds is stripped.
+// passwd volume (passwd or host-passwd, plus os-release with host-passwd) this feature adds is stripped.
 func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	return providercaps.ProviderCapabilityMap{
 		kubernetes.TalosProvider: {
-			RemoveVolumes: []string{common.PasswdVolumeName},
+			RemoveVolumes: []string{common.PasswdVolumeName, common.HostPasswdVolumeName, common.OSReleaseFileVolumeName},
 		},
 	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.owner = dda
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = new(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
@@ -132,9 +137,18 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+	mountPath := featutils.ProcessPasswdMountPath(f.owner)
+	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
+
+	// Mounting passwd under /host/etc makes the Agent read host files from there,
+	// so host os-release must be mounted there too.
+	if mountPath == common.HostPasswdMountPath {
+		osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.OSReleaseFileVolumeName, common.OSReleaseFileHostPath, common.OSReleaseFileMountPath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, agentContainerName)
+		managers.Volume().AddVolume(&osReleaseVol)
+	}
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
