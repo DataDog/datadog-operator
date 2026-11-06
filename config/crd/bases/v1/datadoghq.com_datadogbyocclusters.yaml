@@ -29,10 +29,6 @@ spec:
         - jsonPath: .status.pipelines[*].name
           name: Pipelines
           type: string
-        - jsonPath: .spec.release.tag
-          name: Release
-          priority: 1
-          type: string
         - jsonPath: .status.conditions[?(@.type=='Available')].reason
           name: Reason
           priority: 1
