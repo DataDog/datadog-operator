@@ -25284,6 +25284,7 @@ spec:
                     byoc:
                       properties:
                         digest:
+                          minLength: 1
                           type: string
                         imagePullSecrets:
                           items:
@@ -25314,6 +25315,7 @@ spec:
                     observabilityPipelinesWorker:
                       properties:
                         digest:
+                          minLength: 1
                           type: string
                         imagePullSecrets:
                           items:
@@ -25358,15 +25360,6 @@ spec:
                         region:
                           type: string
                       type: object
-                  type: object
-                release:
-                  properties:
-                    digest:
-                      type: string
-                    repository:
-                      type: string
-                    tag:
-                      type: string
                   type: object
                 signal:
                   default: logs
