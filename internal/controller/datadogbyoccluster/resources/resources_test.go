@@ -93,7 +93,7 @@ func TestResources_Objects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -244,7 +244,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -513,7 +513,7 @@ ingest_api:
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
 			tt.clusterFunc(cluster)
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -556,7 +556,7 @@ func TestBuildResources_HeadlessService(t *testing.T) {
 		},
 	}
 
-	resources, err := buildResources(cluster, testRelease())
+	resources, err := buildResources(cluster, testImages())
 	if err != nil {
 		t.Fatalf("BuildResources() unexpected error: %v", err)
 	}
@@ -605,7 +605,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			cluster.Spec.Identity = tt.identity
 			cluster.Spec.Provider = tt.provider
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -692,7 +692,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			cluster := testCluster()
 			tt.input(cluster)
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -844,7 +844,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Indexer = tt.indexer
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -966,7 +966,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Searcher = tt.searcher
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1030,7 +1030,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Metastore = tt.metastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1067,7 +1067,7 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ControlPlane = tt.controlPlane
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1104,7 +1104,7 @@ func TestBuildResources_Janitor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Janitor = tt.janitor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1172,7 +1172,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1253,7 +1253,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Compactor = tt.compactor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1295,7 +1295,7 @@ func buildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 	return BuildResources(byocdefaults.Apply(cluster), images)
 }
 
-func testRelease() *byocimage.ResolvedImages {
+func testImages() *byocimage.ResolvedImages {
 	return &byocimage.ResolvedImages{
 		Pomsky: byocimage.ResolvedImage{
 			Repository: "registry.example.com/cloudprem",

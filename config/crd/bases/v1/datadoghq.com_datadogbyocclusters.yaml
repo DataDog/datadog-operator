@@ -25359,15 +25359,6 @@ spec:
                           type: string
                       type: object
                   type: object
-                release:
-                  properties:
-                    digest:
-                      type: string
-                    repository:
-                      type: string
-                    tag:
-                      type: string
-                  type: object
                 signal:
                   default: logs
                   enum:

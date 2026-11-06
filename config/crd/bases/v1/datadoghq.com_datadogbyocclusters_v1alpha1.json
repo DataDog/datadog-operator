@@ -40266,21 +40266,6 @@
           },
           "type": "object"
         },
-        "release": {
-          "additionalProperties": false,
-          "properties": {
-            "digest": {
-              "type": "string"
-            },
-            "repository": {
-              "type": "string"
-            },
-            "tag": {
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
         "signal": {
           "default": "logs",
           "enum": [
