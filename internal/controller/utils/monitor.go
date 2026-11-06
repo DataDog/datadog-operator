@@ -41,13 +41,14 @@ func MonitorDefinitionHash(monitor datadogV1.Monitor, extraFields ...string) (st
 	for _, field := range slices.Concat(monitorDefinitionFields, extraFields) {
 		definition[field] = fields[field]
 	}
-	// Tags are a set; their order is not part of the definition.
-	if tags, ok := definition["tags"].([]any); ok {
-		slices.SortFunc(tags, func(a, b any) int {
-			as, _ := a.(string)
-			bs, _ := b.(string)
-			return strings.Compare(as, bs)
-		})
+	// These lists are sets, and Datadog does not always return them in the same
+	// order: restricted roles come back as sent on create but in another order
+	// on reads.
+	sortStrings(definition["tags"])
+	sortStrings(definition["restricted_roles"])
+	if options, ok := definition["options"].(map[string]any); ok {
+		sortStrings(options["notify_by"])
+		sortStrings(options["renotify_statuses"])
 	}
 	// Write responses repeat the monitor ID in each asset; reads do not.
 	if assets, ok := definition["assets"].([]any); ok {
@@ -58,4 +59,15 @@ func MonitorDefinitionHash(monitor datadogV1.Monitor, extraFields ...string) (st
 		}
 	}
 	return comparison.GenerateMD5ForSpec(definition)
+}
+
+// sortStrings sorts a decoded JSON list of strings in place.
+func sortStrings(list any) {
+	if values, ok := list.([]any); ok {
+		slices.SortFunc(values, func(a, b any) int {
+			as, _ := a.(string)
+			bs, _ := b.(string)
+			return strings.Compare(as, bs)
+		})
+	}
 }

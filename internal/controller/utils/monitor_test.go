@@ -17,8 +17,8 @@ import (
 
 const baseMonitor = `{
 	"id": 1, "name": "m", "type": "query alert", "query": "avg(last_5m):avg:system.load.1{*} > 1",
-	"message": "msg", "tags": ["a:1", "b:2"], "priority": null, "restricted_roles": null,
-	"draft_status": "published", "options": {"thresholds": {"critical": 1}, "notify_no_data": false},
+	"message": "msg", "tags": ["a:1", "b:2"], "priority": null, "restricted_roles": ["r1", "r2"],
+	"draft_status": "published", "options": {"thresholds": {"critical": 1}, "notify_no_data": false, "notify_by": ["env", "service"], "renotify_statuses": ["alert", "warn"]},
 	"overall_state": "OK", "modified": "2026-11-06T20:56:31.851443+00:00",
 	"state": {"groups": {}}, "assets": [{"name": "runbook", "url": "https://example.com"}]
 }`
@@ -48,9 +48,11 @@ func TestMonitorDefinitionHash(t *testing.T) {
 		{name: "state changes", edits: map[string]any{"overall_state": "Alert", "state": map[string]any{"groups": map[string]any{"host:a": map[string]any{"status": "Alert"}}}}, wantSame: true},
 		{name: "modified timestamp", edits: map[string]any{"modified": "2026-11-07T00:00:00+00:00"}, wantSame: true},
 		{name: "tag order", edits: map[string]any{"tags": []string{"b:2", "a:1"}}, wantSame: true},
+		{name: "restricted role order", edits: map[string]any{"restricted_roles": []string{"r2", "r1"}}, wantSame: true},
+		{name: "notify_by and renotify_statuses order", edits: map[string]any{"options": map[string]any{"thresholds": map[string]any{"critical": 1}, "notify_no_data": false, "notify_by": []string{"service", "env"}, "renotify_statuses": []string{"warn", "alert"}}}, wantSame: true},
 		{name: "assets without asking for them", edits: map[string]any{"assets": nil}, wantSame: true},
 		{name: "message", edits: map[string]any{"message": "edited"}},
-		{name: "options sub-field", edits: map[string]any{"options": map[string]any{"thresholds": map[string]any{"critical": 1}, "notify_no_data": false, "renotify_interval": 60}}},
+		{name: "options sub-field", edits: map[string]any{"options": map[string]any{"thresholds": map[string]any{"critical": 1}, "notify_no_data": false, "notify_by": []string{"env", "service"}, "renotify_statuses": []string{"alert", "warn"}, "renotify_interval": 60}}},
 		{name: "priority", edits: map[string]any{"priority": 3}},
 		{name: "restricted roles", edits: map[string]any{"restricted_roles": []string{"role"}}},
 		{name: "draft status", edits: map[string]any{"draft_status": "draft"}},
