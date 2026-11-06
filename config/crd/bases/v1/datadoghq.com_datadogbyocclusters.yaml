@@ -16,7 +16,31 @@ spec:
     singular: datadogbyoccluster
   scope: Namespaced
   versions:
-    - name: v1alpha1
+    - additionalPrinterColumns:
+        - jsonPath: .spec.signal
+          name: Signal
+          type: string
+        - jsonPath: .status.conditions[?(@.type=='Available')].status
+          name: Available
+          type: string
+        - jsonPath: .status.conditions[?(@.type=='Reconciled')].status
+          name: Reconciled
+          type: string
+        - jsonPath: .status.pipelines[*].name
+          name: Pipelines
+          type: string
+        - jsonPath: .spec.release.tag
+          name: Release
+          priority: 1
+          type: string
+        - jsonPath: .status.conditions[?(@.type=='Available')].reason
+          name: Reason
+          priority: 1
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           properties:
@@ -17754,7 +17778,6 @@ spec:
                           - pipelineID
                           - ports
                         type: object
-                      minItems: 1
                       type: array
                       x-kubernetes-list-map-keys:
                         - name
@@ -23707,7 +23730,6 @@ spec:
                     - indexer
                     - janitor
                     - metastore
-                    - pipelines
                     - searcher
                   type: object
                 datadog:

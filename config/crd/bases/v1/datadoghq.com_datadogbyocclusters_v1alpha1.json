@@ -28214,7 +28214,6 @@
                 ],
                 "type": "object"
               },
-              "minItems": 1,
               "type": "array",
               "x-kubernetes-list-map-keys": [
                 "name"
@@ -37688,7 +37687,6 @@
             "indexer",
             "janitor",
             "metastore",
-            "pipelines",
             "searcher"
           ],
           "type": "object"
