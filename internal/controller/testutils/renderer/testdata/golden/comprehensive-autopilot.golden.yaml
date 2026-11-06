@@ -1224,7 +1224,7 @@ spec:
   - name: traceport
     port: 8126
     protocol: TCP
-    targetPort: 8126
+    targetPort: traceport
   - name: dogstatsdport
     port: 8125
     protocol: UDP
