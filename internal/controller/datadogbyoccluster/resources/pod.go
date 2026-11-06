@@ -54,13 +54,13 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 	}
 	serviceAccountName, _ := serviceAccountName(cluster)
 
-	configMap := &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: cluster.Name}}
-	// As in the chart, a component that mounts only the node configuration projects only that key, and the indexer
-	// mounts the whole ConfigMap as its directory.
-	if c.configVolumeMount.SubPath != "" {
-		configMap.Items = []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}}
+	configVolume := corev1.Volume{
+		Name: configVolumeName,
+		VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{Name: cluster.Name},
+			Items:                []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}},
+		}},
 	}
-	configVolume := corev1.Volume{Name: configVolumeName, VolumeSource: corev1.VolumeSource{ConfigMap: configMap}}
 	volumes := slices.Concat(
 		[]corev1.Volume{configVolume},
 		c.workload.dataVolumes(),

@@ -717,7 +717,6 @@ func TestBuildResources_Indexer(t *testing.T) {
 			terminationGracePeriodSeconds: ptr.To[int64](300),
 		})
 		want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
-		want.StatefulSet.Spec.Template.Spec.Volumes[0].ConfigMap.Items = nil
 		want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
 			ObjectMeta: metav1.ObjectMeta{Name: "data"},
 			Spec: corev1.PersistentVolumeClaimSpec{
