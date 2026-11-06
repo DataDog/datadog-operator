@@ -166,7 +166,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = handler.getResource(auth, instance)
+			remoteHash := ""
+			if hasher, ok := handler.(remoteDefinitionHasher); ok {
+				remoteHash, err = hasher.getRemoteDefinitionHash(auth, instance)
+			} else {
+				err = handler.getResource(auth, instance)
+			}
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -176,6 +181,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
 				// create()/update() advance it themselves once the sync actually succeeds.
+			} else if remoteHash != "" && remoteHash == instance.Status.RemoteDefinitionHash {
+				// Nobody edited the resource since our last write, so reapplying the
+				// spec would be a no-op.
+				logger.V(1).Info("Remote resource unchanged since the last update; skipping force-sync update", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
+				status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+				status.LastForceSyncTime = &now
 			} else {
 				shouldUpdate = true
 			}
@@ -239,8 +251,17 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	logger := ctrl.LoggerFrom(ctx)
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
+	// Until an update succeeds, the remote resource may not match the spec, so
+	// force syncs must not be skipped.
+	status.RemoteDefinitionHash = ""
 
-	err := handler.updateResource(auth, instance)
+	var remoteHash string
+	var err error
+	if hasher, ok := handler.(remoteDefinitionHasher); ok {
+		remoteHash, err = hasher.updateResourceWithHash(auth, instance)
+	} else {
+		err = handler.updateResource(auth, instance)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 			// If the remote resource was deleted out-of-band after we stored its ID,
@@ -263,6 +284,7 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.LastForceSyncTime = &now
+	status.RemoteDefinitionHash = remoteHash
 
 	logger.Info("Updated DatadogGenericResource", "Generic Resource Id", instance.Status.Id)
 	return nil
@@ -301,6 +323,7 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	status.Creator = result.Creator
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
+	status.RemoteDefinitionHash = result.RemoteDefinitionHash
 
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
 	r.recordEvent(instance, event)
