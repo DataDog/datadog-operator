@@ -1,0 +1,43 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-on-call-escalation-policy-sample
+spec:
+  type: on_call_escalation_policy
+  # Replace <TEAM_ID> with an existing Datadog team ID.
+  # Create on-call-schedule-sample.yaml first, then replace <SCHEDULE_ID> with:
+  # kubectl get ddgr ddgr-on-call-schedule-sample -o jsonpath='{.status.id}'
+  # DDGR references use Datadog IDs, not Kubernetes resource names.
+  jsonSpec: |-
+    {
+      "data": {
+        "type": "policies",
+        "attributes": {
+          "name": "Example On-Call escalation policy (DatadogGenericResource)",
+          "resolve_page_on_policy_end": true,
+          "retries": 1,
+          "steps": [
+            {
+              "assignment": "default",
+              "escalate_after_seconds": 600,
+              "targets": [
+                {
+                  "type": "schedules",
+                  "id": "<SCHEDULE_ID>"
+                }
+              ]
+            }
+          ]
+        },
+        "relationships": {
+          "teams": {
+            "data": [
+              {
+                "type": "teams",
+                "id": "<TEAM_ID>"
+              }
+            ]
+          }
+        }
+      }
+    }

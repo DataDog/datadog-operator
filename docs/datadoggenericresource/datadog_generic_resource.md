@@ -57,6 +57,8 @@ A `DatadogGenericResource` object has two fields:
 | `monitor_notification_rule` | v1.30.0        | https://docs.datadoghq.com/api/latest/monitors/create-a-monitor-notification-rule/    | [Notification rule manifest](../../examples/datadoggenericresource/notification-rule-sample.yaml) |
 | `slo_correction`          | v1.31.0          | https://docs.datadoghq.com/api/latest/service-level-objective-corrections/#create-an-slo-correction | [SLO correction manifest](../../examples/datadoggenericresource/slo-correction-sample.yaml) |
 | `software_catalog_entity` | v1.32.0          | https://docs.datadoghq.com/api/latest/software-catalog/#create-or-update-entity      | [Software Catalog entity manifest](../../examples/datadoggenericresource/software-catalog-entity-sample.yaml) |
+| `on_call_schedule`       | Unreleased       | https://docs.datadoghq.com/api/latest/on-call/#create-on-call-schedule              | [On-Call schedule manifest](../../examples/datadoggenericresource/on-call-schedule-sample.yaml) |
+| `on_call_escalation_policy` | Unreleased    | https://docs.datadoghq.com/api/latest/on-call/#create-on-call-escalation-policy     | [On-Call escalation policy manifest](../../examples/datadoggenericresource/on-call-escalation-policy-sample.yaml) |
 
 ## Prerequisites
 
@@ -174,6 +176,20 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     ```
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
+
+## On-Call schedules and escalation policies
+
+Use `on_call_schedule` to manage rotation schedules and `on_call_escalation_policy` to manage escalation steps. The Operator's application key needs `on_call_read` and `on_call_write` access. Referenced users and teams must already exist in Datadog.
+
+Use the corresponding create API payload as `jsonSpec`, including the `data` wrapper. The Datadog API resource type inside that wrapper is `"schedules"` or `"policies"`, respectively. Omit the top-level `data.id`: the Operator stores the created ID in `.status.id` and uses it for subsequent updates and deletion. Layer and escalation-step IDs are optional: updates preserve supplied IDs, while omitting them lets the API replace those layers or steps.
+
+The example policy targets the example schedule. Create the schedule first, then copy its Datadog ID into the policy's target:
+
+```shell
+kubectl get ddgr ddgr-on-call-schedule-sample -o jsonpath='{.status.id}'
+```
+
+Replace the user, team, and schedule ID placeholders in the manifests before applying them. References use Datadog IDs; DDGR does not resolve Kubernetes resource names or order dependent resources. If a schedule is recreated after deletion from Datadog, update any policies that referenced its old ID. Remove dependent policy references before deleting a schedule.
 
 ## Controller tuning
 
