@@ -63,6 +63,8 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
+	conditionMessages := make(map[string][]string)
+	evaluatedConditions := make(map[string]bool)
 
 	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, r.reconcilerOptionsToFeatureOptions(ctx, instance))
 	// update list of enabled features for metrics forwarder
@@ -72,7 +74,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	// (mirrors Helm's install-time fail) before any dependency/resource is created; a degraded
 	// feature only warns. Evaluated on the verdict BuildFeatures returned.
 	if r.providerSupportBlocks(logger, instance, unsupportedFeatures, newStatus, now) {
-		return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, nil, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, nil, now, conditionMessages, evaluatedConditions)
 	}
 
 	// 1. Manage dependencies.
@@ -83,17 +85,17 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	// only manage dependencies for default DDAIs
 	if !isDDAILabeledWithProfile(instance) {
 		if err = r.manageGlobalDependencies(ctx, instance, resourceManagers, requiredComponents); err != nil {
-			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now, conditionMessages, evaluatedConditions)
 		}
 		if err = r.manageFeatureDependencies(enabledFeatures, resourceManagers); err != nil {
-			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now, conditionMessages, evaluatedConditions)
 		}
 		if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
-			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now, conditionMessages, evaluatedConditions)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
 		if err = r.applyAndCleanupDependencies(ctx, instance, depsStore); err != nil {
-			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now, conditionMessages, evaluatedConditions)
 		}
 	}
 
@@ -108,33 +110,36 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 			Features:           append(configuredFeatures, enabledFeatures...),
 			ResourceManagers:   resourceManagers,
 			Status:             newStatus,
+			ConditionMessages:  conditionMessages,
 			Provider:           provider,
 		}
 
 		result, err = r.componentRegistry.ReconcileComponents(ctx, params)
 		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now, conditionMessages, evaluatedConditions)
 		}
 	}
 
 	// 2.b. Node Agent. provider is read from the DDAI annotation above — the DDA
 	// controller stamps gke-autopilot there for both the OOTB and experimental opt-in paths.
-	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider)
+	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider, conditionMessages)
 	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now, conditionMessages, evaluatedConditions)
 	}
+	// All components, including the Node Agent, have now checked for conflicts.
+	evaluatedConditions[common.OverrideReconcileConflictConditionType] = true
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 3. Cleanup extraneous resources.
 	if err = r.cleanupExtraneousResources(ctx, instance, newStatus, resourceManagers); err != nil {
 		logger.Error(err, "Error cleaning up extraneous resources")
-		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now, conditionMessages, evaluatedConditions)
 	}
 
 	// 4. Cleanup stale dependencies (only for default DDAIs).
 	if !isDDAILabeledWithProfile(instance) {
 		if cleanupErrs := depsStore.Cleanup(ctx, r.client, true); len(cleanupErrs) > 0 {
-			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, cleanupErrs[0], now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, cleanupErrs[0], now, conditionMessages, evaluatedConditions)
 		}
 	}
 
@@ -142,7 +147,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
+	return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now, conditionMessages, evaluatedConditions)
 }
 
 // providerSupportBlocks acts on the provider-support verdict returned by BuildFeatures. Features
@@ -183,7 +188,7 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 	return false
 }
 
-func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time, conditionMessages map[string][]string, evaluatedConditions map[string]bool) (reconcile.Result, error) {
 	span, ctx := trace.StartSpan(ctx)
 	var updateErr error
 	defer trace.FinishSpan(span, &updateErr)
@@ -193,6 +198,13 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", currentError.Error(), false)
+	}
+
+	// Clear only conditions whose checks completed without reporting any messages.
+	for conditionType, evaluated := range evaluatedConditions {
+		if evaluated && len(conditionMessages[conditionType]) == 0 {
+			condition.DeleteDatadogAgentInternalStatusCondition(newStatus, conditionType)
+		}
 	}
 
 	r.setMetricsForwarderStatus(ctx, agentdeployment, newStatus)
