@@ -415,10 +415,16 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 
 	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
 	// Users must explicitly add infraattributes and prometheus if needed.
+	// DD_OTELCOLLECTOR_GATEWAY_DAEMONSET makes the converter add cumulativetodelta to
+	// metrics pipelines exporting to the gateway.
 	if o.otelGatewayEnabled {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
 			Name:  DDOtelCollectorConverterFeatures,
-			Value: "health_check,zpages,pprof,ddflare",
+			Value: "health_check,zpages,pprof,ddflare,cumulativetodelta",
+		})
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+			Name:  DDOtelCollectorGatewayDaemonSet,
+			Value: "true",
 		})
 	}
 
