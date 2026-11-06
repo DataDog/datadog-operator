@@ -1073,7 +1073,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "OtelAgent container should not get JMX suffix when JMXEnabled is true",
+			name: "component-level image override leaves OtelAgent on ddot-collector image",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				// Add regular agent containers
@@ -1085,6 +1085,8 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Image: &v2alpha1.AgentImageConfig{
+					Name:       "agent",
+					Tag:        "7.99.0",
 					JMXEnabled: true,
 				},
 			},
@@ -1100,11 +1102,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					}
 				}
 
-				// Core agent should have JMX suffix
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.72.1-jmx", coreAgentImage, "Core agent should have JMX suffix")
+				// Core agent should get the overridden image (with JMX suffix)
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.99.0-jmx", coreAgentImage, "Core agent should get the overridden image")
 
-				// OtelAgent should NOT have JMX suffix
-				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.72.1", otelAgentImage, "OtelAgent should not have JMX suffix")
+				// OtelAgent should be left untouched on the ddot-collector image
+				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.72.1", otelAgentImage, "OtelAgent image should not be rewritten by the component-level override")
 			},
 		},
 		{
