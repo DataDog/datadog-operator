@@ -17,6 +17,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,6 +86,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 
 	worker = workerdefaults.Apply(worker)
 	available, failure := r.reconcileResources(ctx, worker)
+	if failure != nil && apierrors.IsConflict(failure.err) {
+		// An object changed since the cache read it.
+		return ctrl.Result{RequeueAfter: byocutils.ConflictRequeueDelay}, nil
+	}
 	worker.Status.ObservedGeneration = new(worker.Generation)
 	setConditions(worker, available, failure)
 

@@ -107,6 +107,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 
 	cluster = byocdefaults.Apply(cluster)
 	available, deletingWorkers, failure := r.reconcileResources(ctx, cluster)
+	if failure != nil && apierrors.IsConflict(failure.err) {
+		// An object changed since the cache read it.
+		return ctrl.Result{RequeueAfter: byocutils.ConflictRequeueDelay}, nil
+	}
 	setConditions(cluster, available, deletingWorkers, failure)
 
 	var err error
