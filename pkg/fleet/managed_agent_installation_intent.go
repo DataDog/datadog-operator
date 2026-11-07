@@ -424,6 +424,8 @@ func decodeManagedAgentInstallationIntent(raw []byte, identity ManagedAgentInsta
 	switch identity.Provider() {
 	case ManagedAgentInstallationProviderEKS:
 		return decodeEKSManagedAgentInstallationIntent(raw, identity)
+	case ManagedAgentInstallationProviderGeneric:
+		return decodeGenericManagedAgentInstallationIntent(raw, identity)
 	default:
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported managed Agent installation provider %q", identity.Provider())
 	}
