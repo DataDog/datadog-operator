@@ -1059,6 +1059,11 @@ func (in *DatadogBYOCClusterPipelineSpec) DeepCopyInto(out *DatadogBYOCClusterPi
 		*out = new(DatadogBYOCClusterPipelineDatadogSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PipelineConfig != nil {
+		in, out := &in.PipelineConfig, &out.PipelineConfig
+		*out = new(string)
+		**out = **in
+	}
 	in.DatadogBYOCClusterPipelineComponentSpec.DeepCopyInto(&out.DatadogBYOCClusterPipelineComponentSpec)
 }
 

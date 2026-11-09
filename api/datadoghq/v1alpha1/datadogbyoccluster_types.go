@@ -307,6 +307,12 @@ type DatadogBYOCClusterPipelineSpec struct {
 	// +optional
 	Datadog *DatadogBYOCClusterPipelineDatadogSpec `json:"datadog,omitempty"`
 
+	// PipelineConfig is an Observability Pipelines pipeline in YAML, passed through to the worker.
+	// When set, the worker runs it locally instead of fetching pipelineID from Remote Config,
+	// and pipelineID becomes optional. Its YAML is validated by the worker, not the cluster.
+	// +optional
+	PipelineConfig *string `json:"pipelineConfig,omitempty"`
+
 	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
 }
 
@@ -325,7 +331,7 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`
 
 	// PipelineID identifies an existing Observability Pipeline to use. It must be a UUID.
-	// A Worker requires it unless pipelineConfig is set; a DatadogBYOCCluster pipeline always requires it.
+	// A Worker or a DatadogBYOCCluster pipeline requires it unless pipelineConfig is set.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	PipelineID *string `json:"pipelineID,omitempty"`

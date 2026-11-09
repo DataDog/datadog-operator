@@ -2323,7 +2323,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PipelineID identifies an existing Observability Pipeline to use. It must be a UUID. A Worker requires it unless pipelineConfig is set; a DatadogBYOCCluster pipeline always requires it.",
+							Description: "PipelineID identifies an existing Observability Pipeline to use. It must be a UUID. A Worker or a DatadogBYOCCluster pipeline requires it unless pipelineConfig is set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2404,6 +2404,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 						SchemaProps: spec.SchemaProps{
 							Description: "Datadog overrides the cluster connection settings for this pipeline.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineDatadogSpec"),
+						},
+					},
+					"pipelineConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PipelineConfig is an Observability Pipelines pipeline in YAML, passed through to the worker. When set, the worker runs it locally instead of fetching pipelineID from Remote Config, and pipelineID becomes optional. Its YAML is validated by the worker, not the cluster.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"replicas": {
@@ -2686,7 +2693,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PipelineID identifies an existing Observability Pipeline to use. It must be a UUID. A Worker requires it unless pipelineConfig is set; a DatadogBYOCCluster pipeline always requires it.",
+							Description: "PipelineID identifies an existing Observability Pipeline to use. It must be a UUID. A Worker or a DatadogBYOCCluster pipeline requires it unless pipelineConfig is set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5697,7 +5704,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PipelineID identifies an existing Observability Pipeline to use. It must be a UUID. A Worker requires it unless pipelineConfig is set; a DatadogBYOCCluster pipeline always requires it.",
+							Description: "PipelineID identifies an existing Observability Pipeline to use. It must be a UUID. A Worker or a DatadogBYOCCluster pipeline requires it unless pipelineConfig is set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
