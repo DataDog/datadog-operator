@@ -68,6 +68,24 @@ func TestGenericManagedAgentInstallationIdentityValidate(t *testing.T) {
 	err = invalid.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "lowercase SHA-256 digest")
+
+	invalid = NewGenericManagedAgentInstallationIdentity(
+		" "+validGenericManagedAgentInstallationIdentity.InstallationID()+" ",
+		validManagedAgentInstallationTargetHash,
+	)
+	err = invalid.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "surrounding whitespace")
+}
+
+func TestGenericManagedAgentInstallationIdentityTargetIDInvalidDigest(t *testing.T) {
+	// TargetID must return "" for a hash it cannot decode, which the
+	// Validate path normally rejects before TargetID is consulted.
+	invalid := NewGenericManagedAgentInstallationIdentity(
+		validGenericManagedAgentInstallationIdentity.InstallationID(),
+		"zzzz-not-hex",
+	)
+	assert.Empty(t, invalid.TargetID())
 }
 
 func TestGenericManagedAgentInstallationIdentityUpdaterTags(t *testing.T) {
