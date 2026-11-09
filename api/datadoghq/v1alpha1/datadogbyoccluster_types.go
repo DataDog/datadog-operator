@@ -292,8 +292,7 @@ type DatadogBYOCClusterComponentsSpec struct {
 	// Pipelines configures the named Observability Pipelines Worker workloads.
 	// Each entry creates a DatadogObservabilityPipelinesWorker owned by this cluster; direct edits are reverted,
 	// and a same-name worker not owned by this cluster is reported as a conflict.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinItems=1
+	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Pipelines []DatadogBYOCClusterPipelineSpec `json:"pipelines,omitempty"`
@@ -686,6 +685,11 @@ type DatadogBYOCClusterDeploymentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogbyocclusters,scope=Namespaced,shortName=ddbyoc
+// +kubebuilder:printcolumn:name="Signal",type="string",JSONPath=".spec.signal"
+// +kubebuilder:printcolumn:name="Available",type="string",JSONPath=".status.conditions[?(@.type=='Available')].status"
+// +kubebuilder:printcolumn:name="Reconciled",type="string",JSONPath=".status.conditions[?(@.type=='Reconciled')].status"
+// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[?(@.type=='Available')].reason",priority=1
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 type DatadogBYOCCluster struct {
 	metav1.TypeMeta   `json:",inline"`

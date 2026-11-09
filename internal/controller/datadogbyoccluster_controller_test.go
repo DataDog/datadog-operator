@@ -573,6 +573,21 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				g.Expect(auditWorker.DeletionTimestamp.IsZero()).To(BeTrue())
 				g.Expect(cmp.Diff(originalAudit.Spec, auditWorker.Spec)).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
+
+			By("deleting every worker when all pipelines are removed")
+			setPipelines()
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(auditWorker), auditWorker)).To(Succeed())
+				g.Expect(auditWorker.DeletionTimestamp.IsZero()).To(BeFalse())
+			}, timeout, interval).Should(Succeed())
+			removeBYOCTestFinalizers(auditWorker, metav1.FinalizerDeleteDependents)
+			waitForBYOCTestDeletion(auditWorker)
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				g.Expect(current.Status.Pipelines).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
