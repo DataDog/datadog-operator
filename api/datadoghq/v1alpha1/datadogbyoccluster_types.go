@@ -34,13 +34,8 @@ type DatadogBYOCClusterSpec struct {
 	// +kubebuilder:validation:Enum=logs;traces
 	Signal *DatadogBYOCClusterSignal `json:"signal,omitempty"`
 
-	// Release identifies the BYOC release artifact.
-	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
-	// +optional
-	Release *DatadogBYOCClusterReleaseSpec `json:"release,omitempty"`
-
-	// ImageOverrides overrides the images selected by the release.
-	// Removing an override restores the image selected by the current release.
+	// ImageOverrides overrides the default images.
+	// Removing an override restores the default image.
 	// +optional
 	ImageOverrides *DatadogBYOCClusterImageOverrides `json:"imageOverrides,omitempty"`
 
@@ -72,24 +67,7 @@ type DatadogBYOCClusterSpec struct {
 	NodeConfigOverrides *runtime.RawExtension `json:"nodeConfigOverrides,omitempty"`
 }
 
-// DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.
-// +k8s:openapi-gen=true
-type DatadogBYOCClusterReleaseSpec struct {
-	// Repository is the OCI repository containing BYOC release artifacts.
-	// The public Datadog BYOC release repository is used when this field is omitted.
-	// +optional
-	Repository *string `json:"repository,omitempty"`
-
-	// Tag is the OCI tag of the BYOC release artifact.
-	// +optional
-	Tag *string `json:"tag,omitempty"`
-
-	// Digest is the OCI digest of the BYOC release artifact.
-	// +optional
-	Digest *string `json:"digest,omitempty"`
-}
-
-// DatadogBYOCClusterImageOverrides defines overrides for the images selected by a BYOC release.
+// DatadogBYOCClusterImageOverrides defines overrides for the default BYOC images.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterImageOverrides struct {
 	// BYOC overrides the image used by all enabled BYOC components.
@@ -105,7 +83,7 @@ type DatadogBYOCClusterImageOverrides struct {
 }
 
 // DatadogBYOCImageSpec defines common BYOC workload image settings.
-// For an image override, omitted repository and version fields retain values from the release.
+// For an image override, omitted repository and version fields retain the default values.
 // +k8s:openapi-gen=true
 type DatadogBYOCImageSpec struct {
 	// Repository is the complete image repository, including the image name.
@@ -120,6 +98,7 @@ type DatadogBYOCImageSpec struct {
 
 	// Digest is the image digest.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Digest *string `json:"digest,omitempty"`
 
 	// PullPolicy is the image pull policy used by the workload container.
@@ -129,7 +108,7 @@ type DatadogBYOCImageSpec struct {
 	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image.
-	// They are added only to Pods using this image and are not used to fetch the release artifact.
+	// They are added only to Pods using this image.
 	// +optional
 	// +listType=map
 	// +listMapKey=name

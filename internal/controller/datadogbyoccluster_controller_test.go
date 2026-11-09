@@ -10,7 +10,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"time"
 
@@ -32,13 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
 const (
-	byocSuccessReleaseTag = "success"
-	byocUpdatedReleaseTag = "updated"
-	byocFailureReleaseTag = "failure"
 	byocPipelineID        = "pipeline-id"
 	testDeletionFinalizer = "test.datadoghq.com/deletion"
 )
@@ -58,9 +53,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		cluster = &datadoghqv1alpha1.DatadogBYOCCluster{
 			ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
 			Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To(byocSuccessReleaseTag),
-				},
 				Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
 					APIKeySecretRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
@@ -102,7 +94,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		deleteKubernetesObject(k8sClient, namespace)
 	})
 
-	Context("when release resolution succeeds", func() {
+	Context("when the cluster is created", func() {
 		BeforeEach(func() {
 			createKubernetesObject(k8sClient, cluster)
 		})
@@ -121,9 +113,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				},
 				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 					Signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs),
-					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-						Tag: ptr.To(byocSuccessReleaseTag),
-					},
 					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
 						Site:          ptr.To("datadoghq.com"),
 						BYOCTelemetry: ptr.To(true),
@@ -165,13 +154,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				},
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
 					Conditions: []metav1.Condition{
-						{
-							Type:               "ReleaseResolved",
-							Status:             metav1.ConditionTrue,
-							ObservedGeneration: 1,
-							Reason:             "Resolved",
-							Message:            "Workload images resolved successfully",
-						},
 						{
 							Type:               "Reconciled",
 							Status:             metav1.ConditionTrue,
@@ -800,203 +782,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
-
-	Context("when release resolution fails", func() {
-		BeforeEach(func() {
-			cluster.Spec.Release.Tag = ptr.To(byocFailureReleaseTag)
-			createKubernetesObject(k8sClient, cluster)
-		})
-
-		AfterEach(func() {
-			deleteKubernetesObject(k8sClient, cluster)
-		})
-
-		It("reports the failure without creating managed resources", func() {
-			want := &datadoghqv1alpha1.DatadogBYOCCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "byoc",
-					Namespace:  namespace.Name,
-					Generation: 1,
-					Finalizers: []string{"finalizer.datadoghq.com/datadogbyoccluster"},
-				},
-				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-					Signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs),
-					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-						Tag: ptr.To(byocFailureReleaseTag),
-					},
-					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
-						Site:          ptr.To("datadoghq.com"),
-						BYOCTelemetry: ptr.To(true),
-						APIKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "api-key",
-						},
-						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
-							Port: ptr.To[int32](8125),
-						},
-					},
-					Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-						AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-					},
-					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
-							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
-								URISecretRef: &corev1.SecretKeySelector{
-									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
-									Key:                  "primary-uri",
-								},
-							},
-						},
-						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
-						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
-							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
-								URISecretRef: &corev1.SecretKeySelector{
-									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
-									Key:                  "read-only-metastore-uri",
-								},
-							},
-						},
-						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
-					},
-				},
-				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:               "ReleaseResolved",
-							Status:             metav1.ConditionFalse,
-							ObservedGeneration: 1,
-							Reason:             "ResolutionFailed",
-							Message:            "release unavailable",
-						},
-						{
-							Type:               "Reconciled",
-							Status:             metav1.ConditionFalse,
-							ObservedGeneration: 1,
-							Reason:             "ResolutionFailed",
-							Message:            "release unavailable",
-						},
-						{
-							Type:               "Available",
-							Status:             metav1.ConditionFalse,
-							ObservedGeneration: 1,
-							Reason:             "ResolutionFailed",
-							Message:            "release unavailable",
-						},
-					},
-				},
-			}
-
-			Eventually(func() string {
-				got := &datadoghqv1alpha1.DatadogBYOCCluster{}
-				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), got); err != nil {
-					return err.Error()
-				}
-				return cmp.Diff(want, got,
-					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "UID", "CreationTimestamp", "ManagedFields"),
-					cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
-				)
-			}, timeout, interval).Should(BeEmpty())
-
-			err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc", Namespace: namespace.Name}, &corev1.ConfigMap{})
-			Expect(apierrors.IsNotFound(err)).Should(BeTrue())
-		})
-	})
 })
-
-type fakeBYOCImageResolver struct {
-	results map[string]fakeBYOCImageResult
-}
-
-type fakeBYOCImageResult struct {
-	images *byocimage.ResolvedImages
-	err    error
-}
-
-func newFakeBYOCImageResolver() byocimage.ImageResolver {
-	return &fakeBYOCImageResolver{
-		results: map[string]fakeBYOCImageResult{
-			byocSuccessReleaseTag: {
-				images: &byocimage.ResolvedImages{
-					Pomsky: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/cloudprem",
-						Tag:        "envtest",
-					},
-					ObservabilityPipelinesWorker: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/observability-pipelines-worker",
-						Tag:        "envtest",
-					},
-				},
-			},
-			byocUpdatedReleaseTag: {
-				images: &byocimage.ResolvedImages{
-					Pomsky: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/cloudprem",
-						Tag:        "envtest",
-					},
-					ObservabilityPipelinesWorker: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/observability-pipelines-worker",
-						Tag:        "envtest-updated",
-					},
-				},
-			},
-			byocFailureReleaseTag: {err: errors.New("release unavailable")},
-		},
-	}
-}
-
-func (r *fakeBYOCImageResolver) Resolve(_ context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec, overrides *datadoghqv1alpha1.DatadogBYOCClusterImageOverrides) (*byocimage.ResolvedImages, error) {
-	if overrides != nil && completeFakeImageOverride(overrides.BYOC) && completeFakeImageOverride(overrides.ObservabilityPipelinesWorker) {
-		return &byocimage.ResolvedImages{
-			Pomsky:                       fakeResolvedImage(byocimage.ResolvedImage{}, overrides.BYOC),
-			ObservabilityPipelinesWorker: fakeResolvedImage(byocimage.ResolvedImage{}, overrides.ObservabilityPipelinesWorker),
-		}, nil
-	}
-	var tag string
-	if spec != nil {
-		tag = ptr.Deref(spec.Tag, "")
-	}
-	result, found := r.results[tag]
-	if !found {
-		return nil, errors.New("unexpected release")
-	}
-	if result.err != nil {
-		return nil, result.err
-	}
-	images := *result.images
-	if overrides != nil {
-		images.Pomsky = fakeResolvedImage(images.Pomsky, overrides.BYOC)
-		images.ObservabilityPipelinesWorker = fakeResolvedImage(images.ObservabilityPipelinesWorker, overrides.ObservabilityPipelinesWorker)
-	}
-	return &images, nil
-}
-
-func completeFakeImageOverride(override *datadoghqv1alpha1.DatadogBYOCImageSpec) bool {
-	return override != nil && ptr.Deref(override.Repository, "") != "" &&
-		((ptr.Deref(override.Tag, "") != "") != (ptr.Deref(override.Digest, "") != ""))
-}
-
-func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1.DatadogBYOCImageSpec) byocimage.ResolvedImage {
-	if override == nil {
-		return base
-	}
-	if override.Repository != nil {
-		base.Repository = *override.Repository
-	}
-	if override.Tag != nil {
-		base.Tag, base.Digest = *override.Tag, ""
-	} else if override.Digest != nil {
-		base.Tag, base.Digest = "", *override.Digest
-	}
-	if override.PullPolicy != nil {
-		base.ImagePullPolicy = *override.PullPolicy
-	}
-	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
-	return base
-}
 
 func byocTestPipeline() *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec {
 	return &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{

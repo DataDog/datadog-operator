@@ -40,12 +40,9 @@ import (
 const (
 	datadogBYOCClusterFinalizer = "finalizer.datadoghq.com/datadogbyoccluster"
 
-	conditionReleaseResolved = "ReleaseResolved"
-	conditionReconciled      = "Reconciled"
-	conditionAvailable       = "Available"
+	conditionReconciled = "Reconciled"
+	conditionAvailable  = "Available"
 
-	reasonResolved             = "Resolved"
-	reasonResolutionFailed     = "ResolutionFailed"
 	reasonInvalidConfiguration = "InvalidConfiguration"
 	reasonConflict             = "Conflict"
 	reasonApplyFailed          = "ApplyFailed"
@@ -64,18 +61,15 @@ type Reconciler struct {
 	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
-
-	ImageResolver byocimage.ImageResolver
 }
 
 // errWorkerDeleting reports a desired worker that is still being deleted.
 var errWorkerDeleting = errors.New("worker is being deleted")
 
-// reconcileFailure is the condition reported as False when reconciliation fails.
+// reconcileFailure is the reason reported on the Reconciled and Available conditions when reconciliation fails.
 type reconcileFailure struct {
-	conditionType string
-	reason        string
-	err           error
+	reason string
+	err    error
 	// terminal is set when retrying cannot succeed until the spec changes.
 	terminal bool
 }
@@ -89,7 +83,7 @@ type reconcileFailure struct {
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile resolves the requested release and converges all managed resources.
+// Reconcile converges all managed resources.
 func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	cluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
 	if err := r.Client.Get(ctx, request.NamespacedName, cluster); err != nil {
@@ -130,23 +124,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 // and whether obsolete workers are still being deleted.
 func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (available, deletingWorkers bool, failure *reconcileFailure) {
 	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
-		return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
+		return false, false, &reconcileFailure{reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
-	images, err := r.ImageResolver.Resolve(ctx, cluster.Spec.Release, cluster.Spec.ImageOverrides)
-	if err != nil {
-		return false, false, &reconcileFailure{conditionType: conditionReleaseResolved, reason: reasonResolutionFailed, err: err}
-	}
-	setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, reasonResolved, "Workload images resolved successfully")
-
+	images := byocimage.Resolve(cluster.Spec.ImageOverrides)
 	resources, err := byocresources.BuildResources(cluster, images)
 	if err != nil {
-		return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
+		return false, false, &reconcileFailure{reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	workers := make([]*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, 0, len(cluster.Spec.Components.Pipelines))
 	for _, pipeline := range cluster.Spec.Components.Pipelines {
 		worker, err := byocresources.BuildObservabilityPipelinesWorker(cluster, &pipeline, images.ObservabilityPipelinesWorker)
 		if err != nil {
-			return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: fmt.Errorf("pipeline %s: %w", pipeline.Name, err), terminal: true}
+			return false, false, &reconcileFailure{reason: reasonInvalidConfiguration, err: fmt.Errorf("pipeline %s: %w", pipeline.Name, err), terminal: true}
 		}
 		workers = append(workers, worker)
 	}
@@ -163,12 +152,12 @@ func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv
 	}
 	for _, object := range resources.ObsoleteObjects() {
 		if _, err := byocutils.DeleteIfControlled(ctx, r.Client, r.Client, cluster, object); err != nil {
-			return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: err}
+			return false, false, &reconcileFailure{reason: reasonCleanupFailed, err: err}
 		}
 	}
 	deleting, cleanupErr := r.deleteObsoleteWorkers(ctx, r.Client, cluster, workers)
 	if cleanupErr != nil {
-		return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: cleanupErr}
+		return false, false, &reconcileFailure{reason: reasonCleanupFailed, err: cleanupErr}
 	}
 	// The applied objects hold the live status returned by the server-side apply.
 	return updateComponentStatus(cluster, resources, workers), deleting, nil
@@ -258,16 +247,13 @@ func applyFailure(object client.Object, err error) *reconcileFailure {
 	if errors.Is(err, byocutils.ErrObjectConflict) {
 		reason = reasonConflict
 	}
-	return &reconcileFailure{conditionType: conditionReconciled, reason: reason, err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
+	return &reconcileFailure{reason: reason, err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
 }
 
 func setConditions(cluster *datadoghqv1alpha1.DatadogBYOCCluster, available, deletingWorkers bool, failure *reconcileFailure) {
 	if failure != nil {
 		message := failure.err.Error()
-		setCondition(cluster, failure.conditionType, metav1.ConditionFalse, failure.reason, message)
-		if failure.conditionType == conditionReleaseResolved {
-			setCondition(cluster, conditionReconciled, metav1.ConditionFalse, failure.reason, message)
-		}
+		setCondition(cluster, conditionReconciled, metav1.ConditionFalse, failure.reason, message)
 		setCondition(cluster, conditionAvailable, metav1.ConditionFalse, failure.reason, message)
 		return
 	}

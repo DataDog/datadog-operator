@@ -40149,6 +40149,7 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
+                  "minLength": 1,
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -40193,6 +40194,7 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
+                  "minLength": 1,
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -40260,21 +40262,6 @@
                 }
               },
               "type": "object"
-            }
-          },
-          "type": "object"
-        },
-        "release": {
-          "additionalProperties": false,
-          "properties": {
-            "digest": {
-              "type": "string"
-            },
-            "repository": {
-              "type": "string"
-            },
-            "tag": {
-              "type": "string"
             }
           },
           "type": "object"
