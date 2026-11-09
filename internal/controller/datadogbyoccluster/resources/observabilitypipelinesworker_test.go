@@ -176,12 +176,22 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
 			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:               defaultImage,
-			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
-				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "http://global-override:7280"}},
-			},
 			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 				want := wantDefaultWorker()
 				want.Spec.Env[0].Value = "https://byoc-indexer:7280"
+				return want
+			}(),
+		},
+		{
+			name:     "global destination endpoint overrides the indexer Service",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "https://byoc-indexer.testing.svc.cluster.local:7280"}},
+			},
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env[0].Value = "https://byoc-indexer.testing.svc.cluster.local:7280"
 				return want
 			}(),
 		},
@@ -325,9 +335,9 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 								Replicas: ptr.To[int32](2),
 								Env: []corev1.EnvVar{
+									{Name: envPipelineDestinationEndpoint, Value: "replaced"},
 									{Name: "SHARED_SETTING", Value: "pipeline"},
 									{Name: "GLOBAL_SETTING", Value: "global"},
-									{Name: envPipelineDestinationEndpoint, Value: "http://byoc-indexer:7280"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
 								},
