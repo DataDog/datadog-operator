@@ -55,8 +55,7 @@ const (
 	healthPort    int32 = 7284
 )
 
-// gossipProtocolVersion enables the compression of the gossip digests. Pomsky v0.1.33 and later read both versions,
-// but older nodes cannot read version 1, so a cluster running them keeps version 0 through nodeConfigOverrides.
+// gossipProtocolVersion enables gossip compression, which Pomsky older than v0.1.33 cannot read.
 const gossipProtocolVersion = 1
 
 const (
