@@ -291,15 +291,16 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 	}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
-			"version":               0.8,
-			"cluster_id":            values.clusterID,
-			"listen_address":        "0.0.0.0",
-			"gossip_listen_port":    7282,
-			"cloudprem_listen_port": 7283,
-			"data_dir":              "/quickwit/qwdata",
-			"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-			"health":                map[string]any{"listen_port": 7284},
-			"cloudprem":             values.cloudprem,
+			"version":                 0.8,
+			"cluster_id":              values.clusterID,
+			"listen_address":          "0.0.0.0",
+			"gossip_listen_port":      7282,
+			"gossip_protocol_version": 1,
+			"cloudprem_listen_port":   7283,
+			"data_dir":                "/quickwit/qwdata",
+			"grpc":                    map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+			"health":                  map[string]any{"listen_port": 7284},
+			"cloudprem":               values.cloudprem,
 			"docs_clustering": []any{
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
