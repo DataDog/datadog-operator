@@ -90,12 +90,14 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 	component.Labels = labels(cluster, componentLabel(PipelineComponentName), component.Labels)
 	component.Annotations = annotations(cluster, component.Annotations)
 	component.Env = controllerutils.MergeEnv(global.Env, component.Env)
-	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{
-		{
-			Name:  envPipelineDestinationEndpoint,
-			Value: scheme + "://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
-		},
-	})
+	// Logs (default) and traces use different OPW destinations; traces needs the Pomsky BYOC traces route as a path.
+	destinationEnv := envPipelineDestinationEndpoint
+	endpoint := scheme + "://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort)))
+	if cluster.Spec.Signal != nil && *cluster.Spec.Signal == datadoghqv1alpha1.DatadogBYOCClusterSignalTraces {
+		destinationEnv = envPipelineDestinationTracesEndpoint
+		endpoint += byocTracesPath
+	}
+	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{{Name: destinationEnv, Value: endpoint}})
 	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
 	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
 	component.VolumeMounts = controllerutils.MergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)
