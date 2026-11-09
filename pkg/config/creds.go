@@ -178,7 +178,9 @@ func (cm *CredentialManager) GetAuth() (context.Context, error) {
 // This function tries to decrypt the secrets using the secret backend if needed.
 // It returns an error if the creds aren't configured or if the secret backend fails to decrypt.
 func (cm *CredentialManager) GetCredentials() (Creds, error) {
-	if creds, found := cm.getCredsFromCache(); found {
+	// The cache can hold API-key-only credentials (see GetCredentialsForMetadata);
+	// only serve it here when it also has the App key this function guarantees.
+	if creds, found := cm.getCredsFromCache(); found && creds.AppKey != "" {
 		return creds, nil
 	}
 
