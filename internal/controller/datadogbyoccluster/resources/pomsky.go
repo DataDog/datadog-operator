@@ -55,7 +55,6 @@ const (
 	healthPort    int32 = 7284
 )
 
-// gossipProtocolVersion enables gossip compression, which Pomsky older than v0.1.33 cannot read.
 const gossipProtocolVersion = 1
 
 const (
