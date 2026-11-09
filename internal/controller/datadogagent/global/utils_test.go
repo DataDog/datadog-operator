@@ -11,7 +11,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"

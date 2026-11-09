@@ -306,7 +306,6 @@ core,google.golang.org/grpc,Apache-2.0
 core,google.golang.org/protobuf,BSD-3-Clause
 core,gopkg.in/evanphx/json-patch.v4,BSD-3-Clause
 core,gopkg.in/inf.v0,BSD-3-Clause
-core,gopkg.in/yaml.v2,Apache-2.0
 core,gopkg.in/yaml.v3,MIT
 core,helm.sh/helm/v4,Apache-2.0
 core,k8s.io/api,Apache-2.0

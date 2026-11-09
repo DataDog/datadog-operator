@@ -74,7 +74,6 @@ require (
 	golang.org/x/text v0.43.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
-	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/kubectl v0.37.1
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
