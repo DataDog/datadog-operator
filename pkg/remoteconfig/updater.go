@@ -63,6 +63,26 @@ type RemoteConfigUpdater struct {
 	clientMu                              sync.RWMutex
 	updaterTags                           []string
 	subscriptions                         []remoteConfigSubscription
+
+	// leaderCheck reports whether this replica is the elected leader. Agent
+	// tasks only run on the leader. A nil leaderCheck means this replica is
+	// the only one that can run tasks.
+	leaderCheck func() bool
+	// flareRunner runs flare tasks. A nil flareRunner reports flare tasks as
+	// not implemented.
+	flareRunner FlareRunner
+	// logLevel applies the log_level of AGENT_CONFIG. A nil logLevel reports
+	// log_level configs as unsupported.
+	logLevel LogLevelSetter
+	// remoteLogLevel is the log level currently set through AGENT_CONFIG, or
+	// "" if the startup level is in effect.
+	remoteLogLevel string
+
+	tasksMu      sync.Mutex
+	taskStatuses map[string]state.ApplyStatus
+	tasksWG      sync.WaitGroup
+	// tasksStop is closed by Stop to cancel running agent tasks.
+	tasksStop chan struct{}
 }
 
 type remoteConfigSubscription struct {
@@ -175,6 +195,9 @@ func (d OrchestratorK8sCRDRemoteConfig) GetID() string {
 
 type CoreAgentFeaturesConfig struct {
 	SBOM *SbomConfig `json:"sbom"`
+	// LogLevel is the Datadog Agent log level name the Operator logger uses
+	// while this config is active. Fleet Automation sets it before a flare.
+	LogLevel string `json:"log_level,omitempty"`
 }
 
 type SystemProbeFeaturesConfig struct {
@@ -193,6 +216,22 @@ type SbomConfig struct {
 type FeatureEnabledConfig struct {
 	Enabled *bool `json:"enabled"`
 }
+
+// hasFeatures reports whether the config enables or disables a DatadogAgent
+// feature, as opposed to only setting the log level.
+func (d DatadogAgentRemoteConfig) hasFeatures() bool {
+	return (d.CoreAgent != nil && d.CoreAgent.SBOM != nil) || d.SystemProbe != nil || d.SecurityAgent != nil
+}
+
+// logLevel returns the log level set by the config, if any.
+func (d DatadogAgentRemoteConfig) logLevel() string {
+	if d.CoreAgent == nil {
+		return ""
+	}
+	return d.CoreAgent.LogLevel
+}
+
+var errNoDatadogAgent = errors.New("cannot find any DatadogAgent")
 
 type agentConfigOrder struct {
 	Order         []string `json:"order"`
@@ -312,6 +351,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 
 	r.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
 	r.Subscribe(string(state.ProductOrchestratorK8sCRDs), r.crdConfigUpdateCallback)
+	r.Subscribe(string(state.ProductAgentTask), r.agentTaskUpdateCallback)
 
 	return nil
 }
@@ -327,7 +367,7 @@ func (r *RemoteConfigUpdater) newUpdaterClient(configFetcher client.ConfigFetche
 	return newRemoteConfigClient(
 		configFetcher,
 		client.WithUpdater(),
-		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
+		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs, state.ProductAgentTask),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
 	)
@@ -461,7 +501,7 @@ func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg 
 	}
 
 	if len(ddaList.Items) == 0 {
-		return errors.New("cannot find any DatadogAgent")
+		return errNoDatadogAgent
 	}
 
 	// Return first DatadogAgent as only one is supported
@@ -497,20 +537,43 @@ func (r *RemoteConfigUpdater) getAndUpdateDatadogAgentWithRetry(ctx context.Cont
 
 }
 
+// agentConfigUpdate is the parsed content of the AGENT_CONFIG configs.
+type agentConfigUpdate struct {
+	// merged is the merged DatadogAgent feature configuration.
+	merged DatadogAgentRemoteConfig
+	// logLevel is the merged log level, or "" if no config sets one.
+	logLevel string
+	// configs holds the parsed layers by config path. The configuration
+	// order file is not included.
+	configs map[string]DatadogAgentRemoteConfig
+}
+
 func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 
 	ctx := context.Background()
 
-	configIDs := make([]string, 0, len(updates))
 	for id := range updates {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
-		configIDs = append(configIDs, id)
 	}
 
-	mergedUpdate, err := r.parseReceivedUpdates(updates, applyStatus)
+	update, err := r.parseReceivedUpdates(updates, applyStatus)
 	if err != nil {
 		r.logger.Error(err, "Failed to merge updates")
 		return
+	}
+	mergedUpdate := update.merged
+
+	// Apply the log level first, and report the configs that only set it
+	// right away: it doesn't depend on a DatadogAgent, and Fleet Automation
+	// waits for it before it requests a flare.
+	logLevelErr := r.applyRemoteLogLevel(update.logLevel)
+	if logLevelErr != nil {
+		r.logger.Error(logLevelErr, "Failed to apply the log level from Remote Configuration")
+	}
+	for path, layer := range update.configs {
+		if layer.logLevel() != "" && !layer.hasFeatures() {
+			reportApplyStatus(applyStatus, path, logLevelErr)
+		}
 	}
 
 	if mergedUpdate.ID == "" {
@@ -520,41 +583,106 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		r.logger.Info("Merged", "update", mergedUpdate)
 	}
 
-	if err := r.getAndUpdateDatadogAgentWithRetry(ctx, mergedUpdate, r.updateInstanceStatus); err != nil {
-		r.logger.Error(err, "Failed to update status")
-		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
-		return
+	featuresErr := r.updateRemoteConfigFeatures(ctx, mergedUpdate)
+	if featuresErr != nil {
+		r.logger.Error(featuresErr, "Failed to update status")
 	}
 
-	// Acknowledge that configs were received
-	for _, id := range configIDs {
-		applyStatus(id, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
+	// Report the other configs: a config is acknowledged only if everything
+	// it sets was applied. The configuration order file and layers that set
+	// nothing report any failure.
+	for path := range updates {
+		layer, isLayer := update.configs[path]
+		switch {
+		case isLayer && layer.logLevel() != "" && !layer.hasFeatures():
+			// Already reported.
+		case isLayer && layer.hasFeatures() && layer.logLevel() != "":
+			reportApplyStatus(applyStatus, path, errors.Join(logLevelErr, featuresErr))
+		case isLayer && layer.hasFeatures():
+			reportApplyStatus(applyStatus, path, featuresErr)
+		default:
+			reportApplyStatus(applyStatus, path, errors.Join(logLevelErr, featuresErr))
+		}
 	}
 
-	r.logger.Info("Successfully applied configuration")
+	if logLevelErr == nil && featuresErr == nil {
+		r.logger.Info("Successfully applied configuration")
+	}
 }
 
-func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
+// reportApplyStatus reports a config as acknowledged (applied) if err is nil,
+// and as failed with err otherwise.
+func reportApplyStatus(applyStatus func(string, state.ApplyStatus), path string, err error) {
+	if err != nil {
+		applyStatus(path, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+		return
+	}
+	applyStatus(path, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
+}
+
+// updateRemoteConfigFeatures stores the merged feature configuration in the
+// DatadogAgent status.
+func (r *RemoteConfigUpdater) updateRemoteConfigFeatures(ctx context.Context, mergedUpdate DatadogAgentRemoteConfig) error {
+	if !mergedUpdate.hasFeatures() {
+		// Nothing to enable, only previous features to reset. Without a
+		// DatadogAgent there is no status to reset, so don't wait for one.
+		err := r.getAndUpdateDatadogAgent(ctx, mergedUpdate, r.updateInstanceStatus)
+		if err == nil || errors.Is(err, errNoDatadogAgent) {
+			return nil
+		}
+	}
+	return r.getAndUpdateDatadogAgentWithRetry(ctx, mergedUpdate, r.updateInstanceStatus)
+}
+
+// applyRemoteLogLevel sets the Operator log level to level, or restores the
+// startup level if level is empty.
+func (r *RemoteConfigUpdater) applyRemoteLogLevel(level string) error {
+	if level == r.remoteLogLevel {
+		return nil
+	}
+	if r.logLevel == nil {
+		if level == "" {
+			return nil
+		}
+		return fmt.Errorf("cannot set log level %q: changing the log level at runtime is not supported", level)
+	}
+	if level == "" {
+		r.logLevel.ResetLogLevel()
+		r.remoteLogLevel = ""
+		r.logger.Info("Removed the Remote Configuration log level, restored the startup log level")
+		return nil
+	}
+	if err := r.logLevel.SetLogLevel(level); err != nil {
+		return fmt.Errorf("cannot set log level: %w", err)
+	}
+	r.remoteLogLevel = level
+	r.logger.Info("Set the log level through Remote Configuration", "logLevel", level)
+	return nil
+}
+
+func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (agentConfigUpdate, error) {
 
 	// Unmarshal configs and config order
 	var order agentConfigOrder
 	configByID := make(map[string]DatadogAgentRemoteConfig)
+	configByPath := make(map[string]DatadogAgentRemoteConfig)
 	for configPath, c := range updates {
 		if c.Metadata.ID == "configuration_order" {
 			if err := json.Unmarshal(c.Config, &order); err != nil {
 				r.logger.Info("Error unmarshalling configuration_order:", "err", err)
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
-				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration order")
+				return agentConfigUpdate{}, fmt.Errorf("could not unmarshal configuration order")
 			}
 		} else {
 			var configData DatadogAgentRemoteConfig
 			if err := json.Unmarshal(c.Config, &configData); err != nil {
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				r.logger.Info("Error unmarshalling JSON:", "err", err)
-				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration %s", c.Metadata.ID)
+				return agentConfigUpdate{}, fmt.Errorf("could not unmarshal configuration %s", c.Metadata.ID)
 			} else {
 				configData.ID = c.Metadata.ID
 				configByID[configData.ID] = configData
+				configByPath[configPath] = configData
 			}
 		}
 	}
@@ -568,7 +696,27 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 		}
 	}
 
-	return finalConfig, nil
+	return agentConfigUpdate{
+		merged:   finalConfig,
+		logLevel: mergeLogLevel(order, configByID),
+		configs:  configByPath,
+	}, nil
+}
+
+// mergeLogLevel returns the log level of the AGENT_CONFIG layers with the
+// Datadog Agent's precedence (state.MergeRCAgentConfig): order[0] wins over
+// order[1], and internal_order wins over order. Layers without a log level
+// don't override lower-priority layers.
+func mergeLogLevel(order agentConfigOrder, configByID map[string]DatadogAgentRemoteConfig) string {
+	var level string
+	for _, ids := range [][]string{order.Order, order.InternalOrder} {
+		for _, id := range slices.Backward(ids) {
+			if config, found := configByID[id]; found && config.logLevel() != "" {
+				level = config.logLevel()
+			}
+		}
+	}
+	return level
 }
 
 func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
@@ -765,6 +913,13 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, co
 }
 
 func (r *RemoteConfigUpdater) Stop() error {
+	r.tasksMu.Lock()
+	if r.tasksStop != nil {
+		close(r.tasksStop)
+		r.tasksStop = nil
+	}
+	r.tasksMu.Unlock()
+
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
 	if r.rcService != nil {
@@ -803,6 +958,29 @@ func WithDynamicUpdaterTags(tags func(context.Context) ([]string, error)) Remote
 func WithInitialInstallerConfigVersion(version string) RemoteConfigUpdaterOption {
 	return func(updater *RemoteConfigUpdater) {
 		updater.initialInstallerConfigVersionOverride = version
+	}
+}
+
+// WithLeaderCheck makes agent tasks, such as flares, run only while isLeader
+// returns true. Without it, the updater runs every agent task it receives.
+func WithLeaderCheck(isLeader func() bool) RemoteConfigUpdaterOption {
+	return func(updater *RemoteConfigUpdater) {
+		updater.leaderCheck = isLeader
+	}
+}
+
+// WithFlareRunner sets the FlareRunner that handles flare tasks. Without it,
+// flare tasks are reported as not implemented.
+func WithFlareRunner(runner FlareRunner) RemoteConfigUpdaterOption {
+	return func(updater *RemoteConfigUpdater) {
+		updater.flareRunner = runner
+	}
+}
+
+// WithLogLevelSetter lets AGENT_CONFIG change the Operator log level.
+func WithLogLevelSetter(setter LogLevelSetter) RemoteConfigUpdaterOption {
+	return func(updater *RemoteConfigUpdater) {
+		updater.logLevel = setter
 	}
 }
 
