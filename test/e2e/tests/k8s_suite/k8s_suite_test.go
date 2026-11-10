@@ -7,6 +7,7 @@ package k8ssuite
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
@@ -202,6 +203,46 @@ serviceAccount:
 			s.verifyKSMCheck(c)
 		}, 10*time.Minute, 30*time.Second, "could not validate KSM (cluster check) metrics in time")
 
+	})
+
+	s.T().Run("Process collection mounts host passwd at /host/etc/passwd", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-process-passwd.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := []agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "datadog-agent-process-passwd",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}
+		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+
+		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-process-passwd"),
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithLocal(s.local),
+		}
+
+		applyDDA("e2e-operator-process-passwd", provisionerOptions)
+
+		selector := common.NodeAgentSelector + ",agent.datadoghq.com/name=datadog-agent-process-passwd"
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), selector)
+
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: selector,
+				FieldSelector: "status.phase=Running",
+			})
+			if !assert.NoError(c, err) {
+				return
+			}
+			assert.NotEmpty(c, agentPods.Items)
+			for _, pod := range agentPods.Items {
+				s.assertProcessHostPasswd(c, pod)
+			}
+		}, 10*time.Minute, 15*time.Second, "could not validate the /host/etc/passwd mount in time")
 	})
 
 	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
@@ -567,6 +608,47 @@ serviceAccount:
 			s.verifyDSDMetrics(c, "e2e.dsd.uds.counter")
 		}, 3*time.Minute, 10*time.Second, "DSD UDS with ADP: metrics not received by fakeintake")
 	})
+}
+
+// assertProcessHostPasswd checks a running Agent pod that uses the relocated passwd mount.
+func (s *k8sSuite) assertProcessHostPasswd(c *assert.CollectT, pod corev1.Pod) {
+	mounts := map[string]string{}
+	for _, container := range pod.Spec.Containers {
+		if container.Name != coreAgentContainerName {
+			continue
+		}
+		for _, mount := range container.VolumeMounts {
+			mounts[mount.MountPath] = mount.Name
+		}
+	}
+	assert.Equal(c, "host-passwd", mounts["/host/etc/passwd"], "host passwd mount")
+	assert.NotContains(c, mounts, "/etc/passwd", "host passwd must not hide the image's /etc/passwd")
+	assert.Equal(c, "os-release-file", mounts["/host/etc/os-release"], "host os-release mount")
+
+	client := s.Env().KubernetesCluster.KubernetesClient
+	// The image's own users must stay visible; host files are under /host/etc.
+	stdout, _, err := client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, []string{
+		"sh", "-c", "test -s /host/etc/passwd && test -s /host/etc/os-release && getent passwd dd-agent",
+	})
+	if !assert.NoError(c, err) {
+		return
+	}
+	assert.Contains(c, stdout, "dd-agent:")
+
+	// The Agent reads host os-release from HOST_ETC=/host/etc, so host metadata must still have a platform.
+	stdout, _, err = client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("-j"))
+	if !assert.NoError(c, err) {
+		return
+	}
+	var status struct {
+		HostInfo struct {
+			Platform string `json:"platform"`
+		} `json:"hostinfo"`
+	}
+	if !assert.NoError(c, json.Unmarshal([]byte(stdout), &status)) {
+		return
+	}
+	assert.NotEmpty(c, status.HostInfo.Platform, "host platform from /host/etc/os-release")
 }
 
 func (s *k8sSuite) verifyDSDMetrics(c *assert.CollectT, metricName string) {

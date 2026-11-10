@@ -1,0 +1,21 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent-process-passwd
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-process-passwd
+spec:
+  global:
+    registry: public.ecr.aws/datadog
+    kubelet:
+      tlsVerify: false
+  features:
+    liveProcessCollection:
+      enabled: true
+  override:
+    nodeAgent:
+      image:
+        # Agent 7.86.0+ mounts host passwd at /host/etc/passwd.
+        # TODO: switch to 7.86.0 once it is released.
+        tag: 7.86.0-rc.6
