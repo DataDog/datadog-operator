@@ -31,7 +31,6 @@ import (
 
 // This test only assembles pod templates in memory. It does not use a cluster.
 func TestBothProcessFeaturesPasswdMount(t *testing.T) {
-	const allowlistAnnotation = experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotAllowlistVersionSubkey
 	for _, tt := range []struct {
 		name         string
 		tag          string
@@ -115,45 +114,10 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			tag:   "7.86.0",
 			talos: true,
 		},
+		// GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
 		{
-			name:         "Autopilot default allowlist",
+			name:         "Autopilot provider",
 			tag:          "7.86.0",
-			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
-			expectedPath: "/host/etc/passwd",
-		},
-		{
-			name: "Autopilot explicit new allowlist",
-			tag:  "7.86.0",
-			annotations: map[string]string{
-				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
-				allowlistAnnotation:              "v1.0.8",
-			},
-			expectedPath: "/host/etc/passwd",
-		},
-		{
-			name: "Autopilot pinned old allowlist",
-			tag:  "7.86.0",
-			annotations: map[string]string{
-				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
-				allowlistAnnotation:              "v1.0.7",
-			},
-			expectedPath: "/etc/passwd",
-		},
-		{
-			name:         "Autopilot old Agent",
-			tag:          "7.85.0",
-			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
-			expectedPath: "/etc/passwd",
-		},
-		{
-			name:         "Autopilot prerelease Agent",
-			tag:          "7.87.0-rc.1",
-			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
-			expectedPath: "/host/etc/passwd",
-		},
-		{
-			name:         "Autopilot separate process agent",
-			tag:          "7.59.0",
 			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
 			expectedPath: "/etc/passwd",
 		},
@@ -161,16 +125,19 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			name:         "Autopilot experimental opt-in",
 			tag:          "7.86.0",
 			annotations:  map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"},
-			expectedPath: "/host/etc/passwd",
+			expectedPath: "/etc/passwd",
 		},
 		{
-			name: "Autopilot malformed pin uses default",
-			tag:  "7.86.0",
-			annotations: map[string]string{
-				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
-				allowlistAnnotation:              "v1.0.7-rc.1",
-			},
-			expectedPath: "/host/etc/passwd",
+			name:         "Autopilot prerelease Agent",
+			tag:          "7.87.0-rc.1",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name:         "Autopilot separate process agent",
+			tag:          "7.59.0",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/etc/passwd",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

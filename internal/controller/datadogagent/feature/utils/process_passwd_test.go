@@ -230,103 +230,49 @@ func newPasswdTestDDA(image *v2alpha1.AgentImageConfig, annotations map[string]s
 	return dda
 }
 
-func TestProcessPasswdMountPathAutopilotAllowlist(t *testing.T) {
-	const host = "/host/etc/passwd"
-	const legacy = common.PasswdMountPath
+// GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
+func TestProcessPasswdMountPathAutopilot(t *testing.T) {
 	const allowlistAnnotation = experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotAllowlistVersionSubkey
 	tests := []struct {
-		name         string
-		version      string
-		expectedPath string
+		name        string
+		tag         string
+		annotations map[string]string
 	}{
 		{
-			name:         "default",
-			expectedPath: host,
+			name: "provider annotation",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+			},
 		},
 		{
-			name:         "first compatible allowlist",
-			version:      "v1.0.8",
-			expectedPath: host,
+			name: "experimental annotation",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey: "TrUe",
+			},
 		},
 		{
-			name:         "newer patch",
-			version:      "v1.0.9",
-			expectedPath: host,
+			name: "newer allowlist pin",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "v1.0.8",
+			},
 		},
 		{
-			name:         "newer minor",
-			version:      "v1.1.0",
-			expectedPath: host,
-		},
-		{
-			name:         "newer major",
-			version:      "v2.0.0",
-			expectedPath: host,
-		},
-		{
-			name:         "previous allowlist",
-			version:      "v1.0.7",
-			expectedPath: legacy,
-		},
-		{
-			name:         "older allowlist",
-			version:      "v1.0.0",
-			expectedPath: legacy,
-		},
-		{
-			name:         "leading zero old version",
-			version:      "v01.00.007",
-			expectedPath: legacy,
-		},
-		{
-			name:         "missing prefix falls back to default",
-			version:      "1.0.7",
-			expectedPath: host,
-		},
-		{
-			name:         "prerelease falls back to default",
-			version:      "v1.0.7-rc.1",
-			expectedPath: host,
-		},
-		{
-			name:         "metadata falls back to default",
-			version:      "v1.0.7+build",
-			expectedPath: host,
-		},
-		{
-			name:         "abbreviated version falls back to default",
-			version:      "v1.0",
-			expectedPath: host,
-		},
-		{
-			name:         "whitespace falls back to default",
-			version:      " v1.0.7 ",
-			expectedPath: host,
-		},
-		{
-			name:         "malformed falls back to default",
-			version:      "invalid",
-			expectedPath: host,
-		},
-		{
-			name:         "unparseable accepted format is conservative",
-			version:      "v18446744073709551616.0.0",
-			expectedPath: legacy,
+			name: "release candidate",
+			tag:  "7.87.0-rc.1",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+			},
 		},
 	}
-	for _, provider := range []struct{ name, key, value string }{
-		{"provider", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider},
-		{"experimental", experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey, "TrUe"},
-	} {
-		for _, tt := range tests {
-			t.Run(provider.name+"/"+tt.name, func(t *testing.T) {
-				dda := newPasswdTestDDA(&v2alpha1.AgentImageConfig{Tag: "7.86.0"}, map[string]string{
-					provider.key:        provider.value,
-					allowlistAnnotation: tt.version,
-				})
-				assert.Equal(t, tt.expectedPath, ProcessPasswdMountPath(dda))
-			})
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := newPasswdTestDDA(&v2alpha1.AgentImageConfig{Tag: tt.tag}, tt.annotations)
+			assert.Equal(t, common.PasswdMountPath, ProcessPasswdMountPath(dda))
+		})
 	}
 }
 

@@ -6,7 +6,6 @@
 package utils
 
 import (
-	"github.com/Masterminds/semver/v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -25,8 +23,6 @@ const (
 	// -0 includes 7.86.0+ prereleases (RC/devel), matching other Agent feature minimum versions.
 	processHostPasswdMinVersion = "7.86.0-0"
 )
-
-var processHostPasswdMinAllowlistVersion = semver.MustParse("1.0.8")
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility. HOST_ETC is initialized by the Agent;
@@ -40,12 +36,12 @@ var processHostPasswdMinAllowlistVersion = semver.MustParse("1.0.8")
 // usernames: an older Agent given /host/etc/passwd falls back to image-local
 // users, and a 7.86+ Agent given /etc/passwd behaves as before this change.
 func ProcessPasswdMountPath(dda metav1.Object) string {
-	// Windows does not use the Unix host-passwd resolver. Older Autopilot
-	// allowlist pins permit only the legacy destination.
+	// Windows does not use the Unix host-passwd resolver.
 	if dda != nil && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
 		return common.PasswdMountPath
 	}
-	if experimental.IsAutopilotEnabled(dda) && !autopilotSupportsProcessHostPasswd(dda) {
+	// GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
+	if experimental.IsAutopilotEnabled(dda) {
 		return common.PasswdMountPath
 	}
 	// Unparseable versions, such as digest-only images or custom tags, keep the legacy path.
@@ -70,13 +66,4 @@ func ProcessPasswdVolumeName(mountPath string) string {
 		return common.HostPasswdVolumeName
 	}
 	return common.PasswdVolumeName
-}
-
-// autopilotSupportsProcessHostPasswd follows CreateAllowlistSynchronizer's
-// override validation: missing or malformed pins use the shared default.
-// Valid older pins must retain /etc/passwd even with a compatible Agent image.
-func autopilotSupportsProcessHostPasswd(dda metav1.Object) bool {
-	pin := dda.GetAnnotations()[experimental.ExperimentalAnnotationPrefix+"/"+experimental.ExperimentalAutopilotAllowlistVersionSubkey]
-	allowlistVersion, err := semver.NewVersion(allowlistsynchronizer.ResolveWorkloadAllowlistVersion(pin))
-	return err == nil && !allowlistVersion.LessThan(processHostPasswdMinAllowlistVersion)
 }

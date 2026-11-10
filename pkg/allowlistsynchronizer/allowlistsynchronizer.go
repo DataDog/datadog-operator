@@ -18,18 +18,8 @@ import (
 )
 
 // DefaultWorkloadAllowlistVersion is the default version of the Datadog
-// daemonset WorkloadAllowlist. v1.0.8 permits read-only /host/etc/passwd mounts
-// for process collection.
-const DefaultWorkloadAllowlistVersion = "v1.0.8"
-
-// previousWorkloadAllowlistVersion remains synchronized while the new default
-// propagates across GKE node versions. Google rolls out a newly published
-// allowlist gradually, so a cluster can briefly see only the previous version.
-// Without it, the default synchronizer would request only v1.0.8 and Autopilot
-// would reject every Agent pod on such clusters, including older Agents that do
-// not need v1.0.8. Mirrors previousCSIWorkloadAllowlistVersion. Remove it (or
-// move it forward) once the default is available on all supported GKE versions.
-const previousWorkloadAllowlistVersion = "v1.0.7"
+// daemonset WorkloadAllowlist.
+const DefaultWorkloadAllowlistVersion = "v1.0.7"
 
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
 // driver daemonset WorkloadAllowlist. v1.1.2 allows the APM registry auth and
@@ -84,10 +74,10 @@ type AllowlistSynchronizerSpec struct {
 	AllowlistPaths []string `json:"allowlistPaths,omitempty"`
 }
 
-// ResolveWorkloadAllowlistVersion returns the requested allowlist version if it
+// resolveWorkloadAllowlistVersion returns the requested allowlist version if it
 // is non-empty and well-formed, otherwise it falls back to
 // DefaultWorkloadAllowlistVersion (logging the malformed input).
-func ResolveWorkloadAllowlistVersion(version string) string {
+func resolveWorkloadAllowlistVersion(version string) string {
 	return resolveWorkloadAllowlistVersionWithDefault(version, DefaultWorkloadAllowlistVersion)
 }
 
@@ -108,24 +98,14 @@ func resolveWorkloadAllowlistVersionWithDefault(version, defaultVersion string) 
 }
 
 func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {
-	allowlistPaths := make([]string, 0, 2)
-	if version == DefaultWorkloadAllowlistVersion && version != previousWorkloadAllowlistVersion {
-		allowlistPaths = append(allowlistPaths, workloadAllowlistPath(previousWorkloadAllowlistVersion))
-	}
-	allowlistPaths = append(allowlistPaths, workloadAllowlistPath(version))
-
 	return applyAllowlistSynchronizerResourceForPath(
 		k8sClient,
 		agentAllowlistSynchronizerName,
 		agentAllowlistAppNameLabel,
-		allowlistPaths,
+		[]string{fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version)},
 		partOfLabel,
 		commonLabels,
 	)
-}
-
-func workloadAllowlistPath(version string) string {
-	return fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version)
 }
 
 func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {
@@ -198,7 +178,7 @@ func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, ap
 // that required-label admission policies (e.g. Kyverno) do not reject the
 // create/patch. Operator-owned keys take precedence on conflicts.
 func CreateAllowlistSynchronizer(version, partOfLabel string, commonLabels map[string]string) {
-	resolvedVersion := ResolveWorkloadAllowlistVersion(version)
+	resolvedVersion := resolveWorkloadAllowlistVersion(version)
 
 	createAllowlistSynchronizer(resolvedVersion, partOfLabel, commonLabels, applyAllowlistSynchronizerResource)
 }
