@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -123,9 +122,10 @@ func inManifest(plan *converter.Plan, desired client.Object) bool {
 	return false
 }
 
-// adoptObject gives every field of the live object to the field manager of the controller, then makes the cluster
-// its controller. Services keep the fields of other managers, because the cluster cannot express load balancer
-// settings. The cluster adopts the object only once both writes are done, so a retry after a conflict starts over.
+// adoptObject gives the fields of the live object to the field manager of the controller, then makes the cluster its
+// controller. Services keep the fields of the managers other than the tools that apply the manifests, because the
+// cluster cannot express load balancer settings (givesFields). The cluster adopts the object only once both writes are
+// done, so a retry after a conflict starts over.
 func (m *Migration) adoptObject(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error { return m.giveToCluster(ctx, cluster, desired) })
 }
@@ -141,10 +141,8 @@ func (m *Migration) giveToCluster(ctx context.Context, cluster *datadoghqv1alpha
 	case !adoptable(live):
 		return fmt.Errorf("%s %w", m.name(desired), errNotAdoptable)
 	}
-	if _, isService := live.(*corev1.Service); !isService {
-		if err = m.giveFields(ctx, live); err != nil {
-			return err
-		}
+	if err = m.giveFields(ctx, live); err != nil {
+		return err
 	}
 	patch, err := controllerReferencePatch(live, cluster)
 	if err != nil {
@@ -153,7 +151,7 @@ func (m *Migration) giveToCluster(ctx context.Context, cluster *datadoghqv1alpha
 	return m.Client.Patch(ctx, live, patch, client.FieldOwner(fieldManager))
 }
 
-// giveFields gives every field of the live object to the field manager of the controller, and updates live.
+// giveFields gives the fields of the live object to the field manager of the controller, and updates live.
 func (m *Migration) giveFields(ctx context.Context, live client.Object) error {
 	gvk, err := apiutil.GVKForObject(live, m.Client.Scheme())
 	if err != nil {

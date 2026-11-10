@@ -13,11 +13,14 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/applyconfigurations"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -29,9 +32,9 @@ import (
 // which are what prevents the migration. It renders the resources of the live DatadogBYOCCluster, which adopt gives the
 // objects to, or of file before the cluster is applied. The API server computes the objects after the migration with
 // dry-run requests, so both sides have its defaults:
-//   - an object that the cluster adopts is replaced with the resource of the cluster, because adopt gives every field
+//   - an object that the cluster adopts is replaced with the resource of the cluster, because adopt gives the fields
 //     of the object to the controller, whose apply then removes the fields that it does not set. A Service keeps the
-//     fields of the other managers, as the controller applies it,
+//     fields of the managers other than the tools that apply the manifests (givesFields),
 //   - a resource that the cluster or a Worker creates is created, and compared with the object of a manifest that it
 //     replaces, if any,
 //   - a resource that the cluster already controls, after adopt, is applied as the controller applies it.
@@ -164,18 +167,66 @@ func (d *differ) afterMigration(ctx context.Context, live, desired client.Object
 		return nil, err
 	}
 	after.GetObjectKind().SetGroupVersionKind(gvk)
-	_, isService := after.(*corev1.Service)
 	switch {
 	case live == nil:
 		err = d.Client.Create(ctx, after, client.DryRunAll)
-	case isService || d.createdByCluster(live):
+	case d.createdByCluster(live):
 		err = d.Client.Patch(ctx, after, client.Apply, client.ForceOwnership, client.FieldOwner(byocutils.ClusterFieldOwner), client.DryRunAll)
 	default:
+		if after, err = d.withKeptFields(live, after, gvk); err != nil {
+			return nil, err
+		}
 		after.SetResourceVersion(live.GetResourceVersion())
 		keepReplicas(live, after)
 		err = d.Client.Update(ctx, after, client.DryRunAll)
 	}
 	return after, err
+}
+
+// withKeptFields returns desired with the fields of live that adopt does not give to the controller (givesFields),
+// such as the load balancer settings of a Service, because the apply of the controller leaves them.
+func (d *differ) withKeptFields(live, desired client.Object, gvk schema.GroupVersionKind) (client.Object, error) {
+	kept := &fieldpath.Set{}
+	for _, entry := range live.GetManagedFields() {
+		if entry.Subresource != "" || entry.FieldsV1 == nil || givesFields(live, entry, byocutils.ClusterFieldOwner) {
+			continue
+		}
+		fields := &fieldpath.Set{}
+		if err := fields.FromJSON(entry.FieldsV1.GetRawReader()); err != nil {
+			return nil, fmt.Errorf("decode fields of manager %s: %w", entry.Manager, err)
+		}
+		kept = kept.Union(fields)
+	}
+	if kept.Empty() {
+		return desired, nil
+	}
+	converter := applyconfigurations.NewTypeConverter(d.Client.Scheme())
+	live = live.DeepCopyObject().(client.Object)
+	live.GetObjectKind().SetGroupVersionKind(gvk)
+	liveValue, err := converter.ObjectToTyped(live)
+	if err != nil {
+		return nil, err
+	}
+	desiredValue, err := converter.ObjectToTyped(desired)
+	if err != nil {
+		return nil, err
+	}
+	merged, err := liveValue.ExtractItems(kept).Merge(desiredValue)
+	if err != nil {
+		return nil, err
+	}
+	object, err := converter.TypedToObject(merged)
+	if err != nil {
+		return nil, err
+	}
+	typed, err := d.Client.Scheme().New(gvk)
+	if err != nil {
+		return nil, err
+	}
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(object.(*unstructured.Unstructured).Object, typed); err != nil {
+		return nil, err
+	}
+	return typed.(client.Object), nil
 }
 
 // keepReplicas keeps the replicas of a live workload when the resource of the cluster does not set them, because adopt
