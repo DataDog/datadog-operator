@@ -21,6 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// ClusterFieldOwner is the field manager of the DatadogBYOCCluster controller. kubectl-byoc-migrate gives the fields of
+// resources migrated from Helm to this manager, so the controller must keep applying with it.
+const ClusterFieldOwner = "datadog-byoccluster-controller"
+
 // ErrObjectConflict reports an existing object with a managed name that the owner does not control.
 var ErrObjectConflict = errors.New("exists and is not controlled by")
 
