@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
@@ -782,4 +783,37 @@ func Test_cleanUpUnusedDDAIs(t *testing.T) {
 			assert.Equal(t, tt.wantDDAIs, ddaiList)
 		})
 	}
+}
+
+func Test_fleetManagedInstallNoScheduleToleration(t *testing.T) {
+	toleration := fleetManagedInstallNoScheduleToleration()
+
+	// Keyless Exists: tolerates every NoSchedule taint, whatever its key —
+	// customers choose taint keys, so the default must not match a fixed one.
+	assert.Empty(t, toleration.Key)
+	assert.Equal(t, corev1.TolerationOpExists, toleration.Operator)
+	assert.Equal(t, corev1.TaintEffectNoSchedule, toleration.Effect)
+	assert.Nil(t, toleration.TolerationSeconds)
+
+	// A NoExecute taint must NOT be tolerated, so operational evictions
+	// (e.g. CoreWeave SUNK) still drain the Agent.
+	noExecuteTaint := corev1.Taint{Key: "sunk.coreweave.com/lock", Value: "true", Effect: corev1.TaintEffectNoExecute}
+	assert.False(t, toleration.ToleratesTaint(klog.TODO(), &noExecuteTaint, false))
+
+	// Any NoSchedule taint must be tolerated.
+	noScheduleTaint := corev1.Taint{Key: "nvidia.com/gpu", Value: "true", Effect: corev1.TaintEffectNoSchedule}
+	assert.True(t, toleration.ToleratesTaint(klog.TODO(), &noScheduleTaint, false))
+}
+
+func Test_isFleetManagedDatadogAgent(t *testing.T) {
+	assert.False(t, isFleetManagedDatadogAgent(nil))
+
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}
+	assert.False(t, isFleetManagedDatadogAgent(dda))
+
+	dda.Labels = map[string]string{constants.FleetManagedByLabel: "something-else"}
+	assert.False(t, isFleetManagedDatadogAgent(dda))
+
+	dda.Labels = map[string]string{constants.FleetManagedByLabel: constants.FleetManagedByValue}
+	assert.True(t, isFleetManagedDatadogAgent(dda))
 }

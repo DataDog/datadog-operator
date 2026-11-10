@@ -12,6 +12,7 @@ import (
 	"slices"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +30,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -115,10 +115,10 @@ func applyFleetManagedInstallNodeAgentToleration(
 	dda *v2alpha1.DatadogAgent,
 	spec *v2alpha1.DatadogAgentSpec,
 ) {
-	if !fleet.IsFleetManagedDatadogAgent(dda) {
+	if !isFleetManagedDatadogAgent(dda) {
 		return
 	}
-	toleration := fleet.ManagedInstallNoScheduleToleration()
+	toleration := fleetManagedInstallNoScheduleToleration()
 	if spec.Override == nil {
 		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
 	}
@@ -129,6 +129,27 @@ func applyFleetManagedInstallNodeAgentToleration(
 	}
 	if !slices.Contains(nodeAgentOverride.Tolerations, toleration) {
 		nodeAgentOverride.Tolerations = append(nodeAgentOverride.Tolerations, toleration)
+	}
+}
+
+// isFleetManagedDatadogAgent reports whether the DatadogAgent is a Fleet
+// managed-install. The label is defined in pkg/constants (shared with
+// pkg/fleet): the controllers must not import pkg/fleet, whose integration
+// tests import them back.
+func isFleetManagedDatadogAgent(dda *v2alpha1.DatadogAgent) bool {
+	return dda != nil && dda.Labels[constants.FleetManagedByLabel] == constants.FleetManagedByValue
+}
+
+// fleetManagedInstallNoScheduleToleration is the default node-Agent toleration
+// for Fleet managed installs: a keyless Exists toleration limited to the
+// NoSchedule effect, so the node Agent is placed on nodes carrying any
+// NoSchedule taint (customers choose the taint key), while NoExecute taints
+// are deliberately not tolerated so operational evictions still drain the
+// Agent.
+func fleetManagedInstallNoScheduleToleration() corev1.Toleration {
+	return corev1.Toleration{
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
 	}
 }
 

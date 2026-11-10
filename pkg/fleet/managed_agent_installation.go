@@ -31,11 +31,15 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
-	fleetManagedByLabel                        = "fleet.datadoghq.com/managed-by"
+	// The managed-by label and value are shared with the controllers (which
+	// must not import this package): their canonical definition lives in
+	// pkg/constants.
+	fleetManagedByLabel                        = constants.FleetManagedByLabel
 	fleetConfigIDLabel                         = "fleet.datadoghq.com/config-id"
 	fleetManagedAgentInstallationStateLabel    = "fleet.datadoghq.com/managed-agent-installation-state"
 	fleetManagedAgentInstallationProviderLabel = "fleet.datadoghq.com/managed-agent-installation-provider"
@@ -43,7 +47,7 @@ const (
 	fleetTargetIDLabel                         = "fleet.datadoghq.com/target-id"
 	fleetConfigHashAnnotation                  = "fleet.datadoghq.com/config-hash"
 	fleetCreateTaskIDAnnotation                = "fleet.datadoghq.com/create-task-id"
-	fleetManagedByValue                        = "fleet-automation"
+	fleetManagedByValue                        = constants.FleetManagedByValue
 	fleetManagedAgentInstallationStatePartial  = "partial"
 	fleetManagedAgentInstallationStateReady    = "ready"
 	fleetPartialConfigVersionPrefix            = "partial:"
