@@ -465,7 +465,7 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 }
 
 func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
-	return append(envVarsForCoreAgent(dda), podNameEnvVar())
+	return append(envVarsForCoreAgent(dda), podNameEnvVar(), common.HealthPlatformDisabledEnvVar())
 }
 
 // isConfigStreamConsumerContainer reports whether the container reads the config stream consumer

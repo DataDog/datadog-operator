@@ -227,6 +227,7 @@ func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []cor
 			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
+		common.HealthPlatformDisabledEnvVar(),
 		{
 			Name:  common.KubernetesEnvVar,
 			Value: "yes",

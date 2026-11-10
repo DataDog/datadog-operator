@@ -179,6 +179,7 @@ func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) [
 			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
+		common.HealthPlatformDisabledEnvVar(),
 		{
 			Name: common.DDAPMInstrumentationInstallID,
 			ValueFrom: &corev1.EnvVarSource{

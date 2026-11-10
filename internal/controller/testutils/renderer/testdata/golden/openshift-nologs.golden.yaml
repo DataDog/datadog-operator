@@ -1328,7 +1328,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: e3ca191cd1d0e711057d90e278a39196
+    agent.datadoghq.com/agentspechash: c928e9c8bfe72a85b1e01ed441cd4ac4
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1396,6 +1396,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_HEALTH_PLATFORM_ENABLED
+          value: "false"
         - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
           value: "false"
         - name: DD_CLUSTER_NAME
@@ -1870,7 +1872,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 09b38ab5e402282533dbfb77917510c0
+    agent.datadoghq.com/agentspechash: 9c1fcc11622b04ce306b5797950beaf6
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1935,6 +1937,8 @@ spec:
           value: "true"
         - name: DD_HEALTH_PORT
           value: "5555"
+        - name: DD_HEALTH_PLATFORM_ENABLED
+          value: "false"
         - name: DD_INSTRUMENTATION_INSTALL_ID
           valueFrom:
             configMapKeyRef:

@@ -240,6 +240,10 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 			Value: "5555",
 		},
 		{
+			Name:  "DD_HEALTH_PLATFORM_ENABLED",
+			Value: "false",
+		},
+		{
 			Name:  "DD_KUBE_RESOURCES_NAMESPACE",
 			Value: testDdaNamespace,
 		},

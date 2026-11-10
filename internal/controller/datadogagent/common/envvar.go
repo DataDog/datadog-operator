@@ -5,6 +5,8 @@
 
 package common
 
+import corev1 "k8s.io/api/core/v1"
+
 const (
 	DDAPMInstrumentationInstallTime       = "DD_INSTRUMENTATION_INSTALL_TIME"
 	DDAPMInstrumentationInstallID         = "DD_INSTRUMENTATION_INSTALL_ID"
@@ -17,6 +19,7 @@ const (
 	DDAuthTokenFilePath                   = "DD_AUTH_TOKEN_FILE_PATH"
 	DDContainerCollectionEnabled          = "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED"
 	DDDogstatsdEnabled                    = "DD_USE_DOGSTATSD"
+	DDHealthPlatformEnabled               = "DD_HEALTH_PLATFORM_ENABLED"
 	DDHealthPort                          = "DD_HEALTH_PORT"
 	DDHostRootEnvVar                      = "HOST_ROOT"
 	DDJMXUseContainerSupport              = "DD_JMX_USE_CONTAINER_SUPPORT"
@@ -46,3 +49,14 @@ const (
 	// to add kubelet config provider and listener
 	KubernetesEnvVar = "KUBERNETES" //common
 )
+
+// HealthPlatformDisabledEnvVar turns off the Agent Health Platform (health_platform.enabled).
+// It is set by default on the containers that run Autodiscovery (node Agent, Cluster Agent and
+// Cluster Checks Runner) as a temporary mitigation: Agents 7.79.0+ report Autodiscovery annotation
+// issues to it synchronously, which can stall Autodiscovery long enough that short-lived pods never
+// get their checks or log sources scheduled. Users opt back in by setting
+// DD_HEALTH_PLATFORM_ENABLED=true in the component's env override, which takes precedence.
+// Agents older than 7.74.0 do not know the setting and ignore it.
+func HealthPlatformDisabledEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{Name: DDHealthPlatformEnabled, Value: "false"}
+}
