@@ -15,8 +15,6 @@ const (
 	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
 	ProviderAnnotationKey = "agent.datadoghq.com/cluster-provider"
 
-	// LegacyProvider Legacy Provider (empty name)
-	LegacyProvider = ""
 	// DefaultProvider Default provider name
 	DefaultProvider = "default"
 
