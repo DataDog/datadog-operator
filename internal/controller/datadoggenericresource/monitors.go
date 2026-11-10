@@ -58,7 +58,8 @@ func (h *MonitorHandler) updateResourceWithHash(auth context.Context, instance *
 
 // monitorDefinitionHash returns the definition hash of a monitor returned by the
 // API, or "" when force syncs must keep updating it: a restriction policy in the
-// spec is not part of the monitor definition that the hash covers.
+// spec is not part of the monitor definition that the hash covers, and supplied
+// fields missing from the response cannot be monitored for drift.
 func monitorDefinitionHash(instance *v1alpha1.DatadogGenericResource, monitor datadogV1.Monitor) string {
 	var spec map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &spec); err != nil {
@@ -67,7 +68,28 @@ func monitorDefinitionHash(instance *v1alpha1.DatadogGenericResource, monitor da
 	if _, ok := spec["restriction_policy"]; ok {
 		return ""
 	}
-	hash, err := utils.MonitorDefinitionHash(monitor, "assets")
+	data, err := json.Marshal(monitor)
+	if err != nil {
+		return ""
+	}
+	var remoteFields map[string]json.RawMessage
+	if err = json.Unmarshal(data, &remoteFields); err != nil {
+		return ""
+	}
+	// The SDK preserves unknown properties, so jsonSpec can manage fields that
+	// are not in the shared definition list, even without an SDK upgrade.
+	// Response-only fields such as "state" are deliberately not filtered out:
+	// hashing one only costs extra updates, while a filter list that wrongly
+	// excluded a writable field would hide drift. The docs ask users to keep
+	// response-only fields out of jsonSpec.
+	fields := []string{"assets"}
+	for field := range spec {
+		if _, returned := remoteFields[field]; !returned {
+			return ""
+		}
+		fields = append(fields, field)
+	}
+	hash, err := utils.MonitorDefinitionHash(monitor, fields...)
 	if err != nil {
 		return ""
 	}

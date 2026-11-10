@@ -83,3 +83,38 @@ func TestMonitorDefinitionHash(t *testing.T) {
 		assert.NotEqual(t, withAssets, editedAssets)
 	})
 }
+
+func TestMonitorDefinitionHashLargeIntegers(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		nested bool
+	}{
+		{name: "top-level field"},
+		{name: "nested option", nested: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			hashNumber := func(value json.Number) string {
+				definition := map[string]any{"future_setting": value}
+				fields := []string{"future_setting"}
+				if tt.nested {
+					definition = map[string]any{"options": definition}
+					fields = nil
+				}
+				definition["query"] = "q"
+				definition["type"] = "query alert"
+				data, err := json.Marshal(definition)
+				require.NoError(t, err)
+				var monitor datadogV1.Monitor
+				require.NoError(t, json.Unmarshal(data, &monitor))
+				require.Nil(t, monitor.UnparsedObject, "the fixture must decode through the typed SDK model")
+				digest, err := MonitorDefinitionHash(monitor, fields...)
+				require.NoError(t, err)
+				return digest
+			}
+
+			firstHash := hashNumber(json.Number("9007199254740992"))
+			secondHash := hashNumber(json.Number("9007199254740993"))
+			assert.NotEqual(t, firstHash, secondHash, "adjacent large integers must remain distinguishable")
+		})
+	}
+}

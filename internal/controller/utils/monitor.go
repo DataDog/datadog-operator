@@ -6,6 +6,7 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"slices"
 	"strings"
@@ -33,7 +34,10 @@ func MonitorDefinitionHash(monitor datadogV1.Monitor, extraFields ...string) (st
 		return "", err
 	}
 	var fields map[string]any
-	if err = json.Unmarshal(data, &fields); err != nil {
+	// Preserve exact numbers in SDK additional properties instead of rounding to float64.
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err = decoder.Decode(&fields); err != nil {
 		return "", err
 	}
 
