@@ -16,10 +16,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
-// monitorDefinitionFields are the monitor fields that creates and updates set.
-// State, timestamps and other server-managed fields are excluded so that only
-// edits to the definition change the hash.
-var monitorDefinitionFields = []string{
+// MonitorDefinitionFields are the top-level monitor fields that creates and
+// updates set. State, timestamps and other server-managed fields are excluded so
+// that only edits to the definition change the hash. DatadogMonitor tests check
+// that this list matches the fields its update requests send.
+var MonitorDefinitionFields = []string{
 	"name", "type", "query", "message", "tags", "options", "priority", "restricted_roles", "draft_status",
 }
 
@@ -41,8 +42,8 @@ func MonitorDefinitionHash(monitor datadogV1.Monitor, extraFields ...string) (st
 		return "", err
 	}
 
-	definition := make(map[string]any, len(monitorDefinitionFields)+len(extraFields))
-	for _, field := range slices.Concat(monitorDefinitionFields, extraFields) {
+	definition := make(map[string]any, len(MonitorDefinitionFields)+len(extraFields))
+	for _, field := range slices.Concat(MonitorDefinitionFields, extraFields) {
 		definition[field] = fields[field]
 	}
 	// These lists are sets, and Datadog does not always return them in the same

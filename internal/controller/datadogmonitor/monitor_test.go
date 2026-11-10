@@ -7,24 +7,31 @@ package datadogmonitor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -505,5 +512,61 @@ func Test_translateClientError(t *testing.T) {
 
 			assert.Equal(t, test.wantPermanent, ctrutils.IsPermanentAPIError(result))
 		})
+	}
+}
+
+// TestUpdateRequestFieldsMatchBuildMonitor fails when the update request that
+// buildMonitor builds sends a top-level field that the force-sync hash does not
+// cover, or stops sending one: for example a new spec field, or a default that
+// an SDK upgrade adds to NewMonitorUpdateRequest.
+func TestUpdateRequestFieldsMatchBuildMonitor(t *testing.T) {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Name:            "test monitor",
+			Message:         "message",
+			Priority:        2,
+			Query:           "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.5",
+			RestrictedRoles: []string{"role"},
+			Tags:            []string{"env:test"},
+			Type:            datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Options:         datadoghqv1alpha1.DatadogMonitorOptions{IncludeTags: ptr.To(true)},
+		},
+	}
+	_, u := buildMonitor(logf.Log, dm)
+	data, err := json.Marshal(u)
+	require.NoError(t, err)
+	var sent map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &sent))
+
+	assert.ElementsMatch(t, slices.Collect(maps.Keys(sent)), controllerutils.MonitorDefinitionFields)
+}
+
+// TestUpdateRequestFieldsCoverSpec fails when a DatadogMonitorSpec field is
+// added without deciding which update request field it maps to.
+func TestUpdateRequestFieldsCoverSpec(t *testing.T) {
+	// Spec fields and the top-level update request field they are sent in;
+	// "" for fields that only configure the controller.
+	specToRequest := map[string]string{
+		"name":              "name",
+		"message":           "message",
+		"priority":          "priority",
+		"query":             "query",
+		"restrictedRoles":   "restricted_roles",
+		"tags":              "tags",
+		"type":              "type",
+		"options":           "options",
+		"controllerOptions": "",
+	}
+
+	specType := reflect.TypeFor[datadoghqv1alpha1.DatadogMonitorSpec]()
+	for field := range specType.Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		requestField, ok := specToRequest[name]
+		if !assert.Truef(t, ok, "spec field %q is not mapped to an update request field; add it to buildMonitor and controllerutils.MonitorDefinitionFields, or map it to \"\"", name) {
+			continue
+		}
+		if requestField != "" {
+			assert.Containsf(t, controllerutils.MonitorDefinitionFields, requestField, "spec field %q is sent in %q, which the force-sync hash does not cover", name, requestField)
+		}
 	}
 }
