@@ -91,7 +91,7 @@ func TestStartInitializesStableClient(t *testing.T) {
 	updater.SetInstallerPackages(wantState)
 	assert.Equal(t, wantState, updater.GetInstallerPackages())
 	updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {})
-	require.Len(t, updater.subscriptions, 3)
+	require.Len(t, updater.subscriptions, 4)
 
 	require.NoError(t, updater.Stop())
 	assert.Nil(t, updater.Client())
