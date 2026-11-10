@@ -196,6 +196,30 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			}(),
 		},
 		{
+			name: "destination endpoint keeps its position after the variables it references",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("existing-pipeline"),
+				Ports:      testPipelinePorts(),
+				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Env: []corev1.EnvVar{
+							{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
+							{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
+						},
+					},
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{
+					{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
+					{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
+				}
+				return want
+			}(),
+		},
+		{
 			name: "gRPC TLS only",
 			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`grpc:
   tls:
@@ -335,9 +359,9 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 								Replicas: ptr.To[int32](2),
 								Env: []corev1.EnvVar{
-									{Name: envPipelineDestinationEndpoint, Value: "replaced"},
 									{Name: "SHARED_SETTING", Value: "pipeline"},
 									{Name: "GLOBAL_SETTING", Value: "global"},
+									{Name: envPipelineDestinationEndpoint, Value: "replaced"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
 								},

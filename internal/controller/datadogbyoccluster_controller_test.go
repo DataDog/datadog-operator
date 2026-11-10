@@ -457,8 +457,8 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						Replicas: ptr.To[int32](3),
 						Env: []corev1.EnvVar{
-							{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
 							{Name: "AUDIT_ONLY", Value: "true"},
+							{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
 						},
 						Resources: &corev1.ResourceRequirements{
 							Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},

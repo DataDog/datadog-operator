@@ -89,12 +89,14 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 
 	component.Labels = labels(cluster, componentLabel(PipelineComponentName), component.Labels)
 	component.Annotations = annotations(cluster, component.Annotations)
-	component.Env = controllerutils.MergeEnv([]corev1.EnvVar{
-		{
+	component.Env = controllerutils.MergeEnv(global.Env, component.Env)
+	// A variable set by the user keeps its position, so that it can reference the variables defined before it.
+	if !slices.ContainsFunc(component.Env, func(env corev1.EnvVar) bool { return env.Name == envPipelineDestinationEndpoint }) {
+		component.Env = append(component.Env, corev1.EnvVar{
 			Name:  envPipelineDestinationEndpoint,
 			Value: scheme + "://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
-		},
-	}, controllerutils.MergeEnv(global.Env, component.Env))
+		})
+	}
 	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
 	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
 	component.VolumeMounts = controllerutils.MergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)
