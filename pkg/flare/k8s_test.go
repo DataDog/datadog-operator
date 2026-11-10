@@ -24,6 +24,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -280,4 +281,138 @@ func TestCollectPodLogs(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, previous)
+}
+
+func TestDistribution(t *testing.T) {
+	node := func(providerID string, labels map[string]string) []corev1.Node {
+		return []corev1.Node{{ObjectMeta: metav1.ObjectMeta{Labels: labels}, Spec: corev1.NodeSpec{ProviderID: providerID}}}
+	}
+	tests := []struct {
+		version string
+		nodes   []corev1.Node
+		want    string
+	}{
+		{"v1.30.1-eks-abc", nil, "eks"},
+		{"v1.30.1-gke.100", nil, "gke"},
+		{"v1.30.1+k3s1", nil, "k3s"},
+		{"v1.30.1+rke2r1", nil, "rke2"},
+		{"v1.30.1", node("", map[string]string{"node.openshift.io/os_id": "rhcos"}), "openshift"},
+		{"v1.30.1", node("azure:///subscriptions/x", nil), "aks"},
+		{"v1.30.1", node("aws:///us-east-1a/i-1", nil), "aws"},
+		{"v1.30.1", node("gce://project/zone/name", nil), "gce"},
+		{"v1.30.1", node("kind://docker/kind/kind-control-plane", nil), "kind"},
+		{"v1.30.1", node("nebius://instance", nil), "nebius"},
+		{"v1.30.1", node("", nil), "unknown"},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, distribution(&version.Info{GitVersion: tt.version}, tt.nodes), tt.version)
+	}
+	assert.Equal(t, "unknown", distribution(nil, nil))
+}
+
+func TestContainerState(t *testing.T) {
+	now := metav1.Now()
+	assert.Contains(t, containerState(corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: now}}), "running since")
+	assert.Contains(t, containerState(corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{Reason: "OOMKilled", ExitCode: 137, FinishedAt: now}}), "OOMKilled (exit code 137)")
+	assert.Empty(t, containerState(corev1.ContainerState{}))
+}
+
+func TestOperatorRBACWithRoleBindings(t *testing.T) {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op", Namespace: "datadog"}}
+	role := &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: "leader-election", Namespace: "datadog"}, Rules: []rbacv1.PolicyRule{{Resources: []string{"leases"}}}}
+	sa := rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Name: "default", Namespace: "datadog"}
+	roleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "leader-election", Namespace: "datadog"}, RoleRef: rbacv1.RoleRef{Kind: "Role", Name: "leader-election"}, Subjects: []rbacv1.Subject{sa}}
+	clusterRoleBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "view", Namespace: "datadog"}, RoleRef: rbacv1.RoleRef{Kind: "ClusterRole", Name: "missing"}, Subjects: []rbacv1.Subject{sa}}
+	otherBinding := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: "datadog"}, RoleRef: rbacv1.RoleRef{Kind: "Role", Name: "x"}, Subjects: []rbacv1.Subject{{Kind: "User", Name: "bob"}}}
+	env := testEnv(t, pod, role, roleBinding, clusterRoleBinding, otherBinding)
+	env.OperatorPod = pod
+	files, manifest := runCollectors(t, env, Collector{Name: "rbac", Collect: collectRBAC})
+	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status, "the missing ClusterRole is reported")
+	rbac := files["config/rbac/operator-serviceaccount-rbac.yaml"]
+	assert.Contains(t, rbac, "serviceAccount: datadog/default")
+	assert.Contains(t, rbac, "leases")
+	assert.NotContains(t, rbac, "bob")
+}
+
+func TestOperatorDeploymentErrors(t *testing.T) {
+	_, manifest := runCollectors(t, testEnv(t), Collector{Name: "deployment", Collect: collectOperatorDeployment})
+	assert.Equal(t, StatusError, manifest.Collectors[0].Status)
+
+	orphan := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op", Namespace: "datadog"}}
+	_, err := operatorDeployment(context.Background(), testEnv(t).Reader, orphan)
+	require.ErrorContains(t, err, "isn't owned by a Deployment")
+
+	owned := orphan.DeepCopy()
+	owned.OwnerReferences = []metav1.OwnerReference{{Kind: "ReplicaSet", Name: "missing"}}
+	_, err = operatorDeployment(context.Background(), testEnv(t).Reader, owned)
+	require.ErrorContains(t, err, "ReplicaSet")
+}
+
+func TestCollectPodLogsLimits(t *testing.T) {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op", Namespace: "datadog"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}}}
+	_, manifest := runCollectors(t, Env{}, Collector{Name: "no-clientset", Collect: func(ctx context.Context, c *Collection) error {
+		CollectPodLogs(ctx, c, "logs", pod)
+		return nil
+	}})
+	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status)
+
+	env := testEnv(t, pod)
+	archive := NewArchive(ArchiveOptions{MaxBytes: manifestReserve})
+	manifest = Run(context.Background(), env, archive, []Collector{{Name: "full", Collect: func(ctx context.Context, c *Collection) error {
+		CollectPodLogs(ctx, c, "logs", pod)
+		return nil
+	}}}, RunOptions{})
+	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status)
+	assert.Contains(t, manifest.Collectors[0].Errors[0], "size limit")
+
+	env.Clientset.(*kubefake.Clientset).PrependReactor("get", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, assert.AnError
+	})
+	_, manifest = runCollectors(t, env, Collector{Name: "error", Collect: func(ctx context.Context, c *Collection) error {
+		CollectPodLogs(ctx, c, "logs", pod)
+		return nil
+	}})
+	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status)
+}
+
+func TestHelpers(t *testing.T) {
+	assert.Equal(t, "_", safeName(""))
+	assert.Equal(t, "a_b", safeName("a/b"))
+	assert.True(t, isNotInstalled(assert.AnError) == false)
+	a := NewArchive(ArchiveOptions{})
+	require.NoError(t, a.AddJSON("x.json", map[string]string{"a": "b"}))
+	assert.Equal(t, []FileInfo{{Path: "x.json", Size: int64(len("{\n  \"a\": \"b\"\n}"))}}, a.Files())
+	require.Error(t, a.AddJSON("bad.json", make(chan int)))
+	require.Error(t, a.AddYAML("bad.yaml", make(chan int)))
+}
+
+// failingReader fails every read, like an API server that refuses access.
+type failingReader struct{ client.Reader }
+
+func (failingReader) Get(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error {
+	return assert.AnError
+}
+
+func (failingReader) List(context.Context, client.ObjectList, ...client.ListOption) error {
+	return assert.AnError
+}
+
+func TestCollectorsReportAPIErrors(t *testing.T) {
+	clientset := kubefake.NewSimpleClientset()
+	clientset.PrependReactor("*", "*", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, assert.AnError
+	})
+	clientset.Discovery().(*fakediscovery.FakeDiscovery).PrependReactor("*", "*", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, assert.AnError
+	})
+	env := Env{Reader: failingReader{}, Clientset: clientset, OperatorPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op", Namespace: "datadog"}}}
+	collectors := append(DatadogResourcesCollectors(), ConfigCollectors()...)
+	collectors = append(collectors, WorkloadsCollector(), ClusterCollector())
+	files, manifest := runCollectors(t, env, collectors...)
+	assert.False(t, manifest.Complete)
+	for _, result := range manifest.Collectors {
+		assert.Contains(t, []string{StatusError, StatusPartial}, result.Status, result.Name)
+		assert.NotEmpty(t, result.Errors, result.Name)
+	}
+	assert.Contains(t, files, ManifestFile)
 }

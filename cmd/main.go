@@ -514,7 +514,7 @@ func run(opts *options) error {
 		// rcUpdater is set below. The flare runner only reads its state
 		// while it runs a flare task, after Remote Configuration started.
 		var rcUpdater *remoteconfig.RemoteConfigUpdater
-		flareRunner, flareErr := newFlareRunner(opts, restConfig, mgr, credsManager, isLeader, func() any {
+		flareRunner, flareErr := newFlareRunner(opts, restConfig, mgr.GetAPIReader(), credsManager, isLeader, func() any {
 			return rcUpdater.FlareState()
 		})
 		if flareErr != nil {
@@ -928,15 +928,15 @@ func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, node
 }
 
 // newFlareRunner returns the runner of the flares Fleet Automation requests
-// through Remote Configuration. It reads the cluster with the manager's API
-// reader, so a flare doesn't start informers.
-func newFlareRunner(opts *options, restConfig *rest.Config, mgr manager.Manager, creds remoteflare.CredentialsGetter, isLeader func() bool, rcState func() any) (*remoteflare.Runner, error) {
+// through Remote Configuration. Pass the manager's API reader, so a flare
+// doesn't start informers.
+func newFlareRunner(opts *options, restConfig *rest.Config, reader client.Reader, creds remoteflare.CredentialsGetter, isLeader func() bool, rcState func() any) (*remoteflare.Runner, error) {
 	clientset, err := kubeclientset.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the Kubernetes clientset for flares: %w", err)
 	}
 	return remoteflare.NewRunner(remoteflare.Config{
-		Reader:                mgr.GetAPIReader(),
+		Reader:                reader,
 		Clientset:             clientset,
 		Credentials:           creds,
 		MetricsAddr:           opts.metricsAddr,

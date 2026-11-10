@@ -25,7 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/remotecommand"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/pkg/flare"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
@@ -170,7 +172,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	// Identify the leader pod
-	leaderPod, err := o.getLeader(ctx)
+	leaderPod, err := getLeader(ctx, o.Client, o.Clientset, o.UserNamespace)
 	if err != nil {
 		cmd.Println(fmt.Sprintf("Couldn't identify operator leader pod: %v", err))
 	}
@@ -184,7 +186,9 @@ func (o *options) run(cmd *cobra.Command) error {
 	archive := flare.NewArchive(flare.ArchiveOptions{Root: "datadog-operator"})
 
 	pluginCollectors := []flare.Collector{
-		{Name: "operator/logs", Timeout: 60 * time.Second, Collect: o.collectOperatorLogs},
+		{Name: "operator/logs", Timeout: 60 * time.Second, Collect: func(ctx context.Context, c *flare.Collection) error {
+			return collectOperatorLogs(ctx, c, o.Clientset, o.UserNamespace)
+		}},
 		{Name: "operator/metrics", Collect: func(ctx context.Context, c *flare.Collection) error {
 			return o.collectMetrics(ctx, c, leaderPod)
 		}},
@@ -249,13 +253,13 @@ func (o *options) run(cmd *cobra.Command) error {
 }
 
 // collectOperatorLogs collects the logs of all the Operator pods.
-func (o *options) collectOperatorLogs(ctx context.Context, c *flare.Collection) error {
-	pods, err := o.Clientset.CoreV1().Pods(o.UserNamespace).List(ctx, metav1.ListOptions{LabelSelector: operatorLabel})
+func collectOperatorLogs(ctx context.Context, c *flare.Collection, clientset kubernetes.Interface, namespace string) error {
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: operatorLabel})
 	if err != nil {
 		return err
 	}
 	if len(pods.Items) == 0 {
-		return fmt.Errorf("no pod with label %s in namespace %s", operatorLabel, o.UserNamespace)
+		return fmt.Errorf("no pod with label %s in namespace %s", operatorLabel, namespace)
 	}
 	summaries := make([]flare.PodSummary, 0, len(pods.Items))
 	for i := range pods.Items {
@@ -375,16 +379,16 @@ func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, erro
 
 // getLeader returns the leader pod, from the leader election Lease, or the
 // ConfigMap older Operators used.
-func (o *options) getLeader(ctx context.Context) (*corev1.Pod, error) {
+func getLeader(ctx context.Context, reader client.Reader, clientset kubernetes.Interface, namespace string) (*corev1.Pod, error) {
 	leaderName := ""
 	lease := &coordinationv1.Lease{}
-	if err := o.Client.Get(ctx, types.NamespacedName{Namespace: o.UserNamespace, Name: leaderElectionID}, lease); err == nil {
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: leaderElectionID}, lease); err == nil {
 		if lease.Spec.HolderIdentity != nil {
 			// The identity is <pod name>_<uuid>.
 			leaderName, _, _ = strings.Cut(*lease.Spec.HolderIdentity, "_")
 		}
 	} else {
-		cm, cmErr := o.Clientset.CoreV1().ConfigMaps(o.UserNamespace).Get(ctx, leaderElectionID, metav1.GetOptions{})
+		cm, cmErr := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, leaderElectionID, metav1.GetOptions{})
 		if cmErr != nil {
 			return nil, errors.Join(err, cmErr)
 		}
@@ -399,7 +403,7 @@ func (o *options) getLeader(ctx context.Context) (*corev1.Pod, error) {
 	}
 
 	// Get operator leader pod
-	return o.Clientset.CoreV1().Pods(o.UserNamespace).Get(ctx, leaderName, metav1.GetOptions{})
+	return clientset.CoreV1().Pods(namespace).Get(ctx, leaderName, metav1.GetOptions{})
 }
 
 // execInPod execs a given command in a given pod

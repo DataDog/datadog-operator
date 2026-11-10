@@ -14,14 +14,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/fleet"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
