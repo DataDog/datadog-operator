@@ -1436,7 +1436,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: b281e2a4060d2d2cb7699bdff2123f93
+    agent.datadoghq.com/agentspechash: be3c49641d977567b6250ac166dfe9c1
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1506,6 +1506,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1683,6 +1685,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1765,6 +1769,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -2238,7 +2244,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 28027019486708cf6def12cd9096881c
+    agent.datadoghq.com/agentspechash: 9f2274d1bb6586d4b13b221d33ddb79d
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2364,7 +2370,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.85.0
+        image: gcr.io/datadoghq/agent:7.85.2
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2419,7 +2425,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.85.0
+        image: gcr.io/datadoghq/agent:7.85.2
         name: init-config
         resources: {}
         volumeMounts:
@@ -2448,7 +2454,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.85.0
+        image: gcr.io/datadoghq/agent:7.85.2
         name: init-copy-check-assets
         resources: {}
         securityContext:
