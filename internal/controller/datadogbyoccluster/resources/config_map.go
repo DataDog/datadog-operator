@@ -39,11 +39,11 @@ const (
 
 // newNodeConfig returns the Quickwit node configuration with spec.nodeConfigOverrides merged into the defaults.
 func newNodeConfig(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (map[string]any, error) {
-	indexerMemoryLimit := cluster.Spec.Components.Indexer.Resources.Limits[corev1.ResourceMemory]
+	indexerResources := cluster.Spec.Components.Indexer.Resources
 	searcherMemoryLimit := cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
-	indexerMemoryBytes := indexerMemoryLimit.Value()
-	searcherMemoryBytes := searcherMemoryLimit.Value()
-	maxQueueDiskUsage := indexerMemoryBytes * 3 / 5
+	maxQueueMemoryUsage := calculateMaxQueueMemoryUsage(indexerResources)
+	maxQueueDiskUsage := maxQueueMemoryUsage * 2
+	searcherGiB := sizingGiB(searcherMemoryLimit.Value())
 
 	var override map[string]any
 	if cluster.Spec.NodeConfigOverrides != nil && len(cluster.Spec.NodeConfigOverrides.Raw) != 0 {
@@ -60,18 +60,20 @@ func newNodeConfig(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (map[string]an
 	config["ingest_api"] = map[string]any{
 		// ByteSize accepts integer byte counts, so no unit conversion is needed.
 		"max_queue_disk_usage":   maxQueueDiskUsage,
-		"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
+		"max_queue_memory_usage": maxQueueMemoryUsage,
 	}
+	// The searcher sizing follows the CloudPrem Helm chart sizing map, which scales with the memory in
+	// whole GiB and writes cache capacities in decimal units (G = 10^9 bytes).
 	searcher := config[quickwitSearcherServiceName].(map[string]any)
-	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125))
+	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(searcherGiB * 3.125))
 	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitFastFieldCacheCapacityConfigKey}) {
-		searcher[quickwitFastFieldCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes * 13 / 32}
+		searcher[quickwitFastFieldCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: int64(searcherGiB * 406_250_000)}
 	}
 	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitPartialRequestCacheCapacityConfigKey}) {
-		searcher[quickwitPartialRequestCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes / 64}
+		searcher[quickwitPartialRequestCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: int64(searcherGiB * 15_625_000)}
 	}
 	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitSplitFooterCacheCapacityConfigKey}) {
-		searcher[quickwitSplitFooterCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: searcherMemoryBytes / 32}
+		searcher[quickwitSplitFooterCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: int64(searcherGiB * 31_250_000)}
 	}
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
@@ -125,6 +127,31 @@ func overrideSets(override map[string]any, paths ...[]string) bool {
 		_, found, _ := unstructured.NestedFieldNoCopy(override, path...)
 		return found
 	})
+}
+
+// calculateMaxQueueMemoryUsage returns the indexer WAL memory budget. The CloudPrem Helm chart sizing map
+// tuned it with overload tests to 0.8, 2.4, 7.2 and 21.6 GiB for 2, 4, 8 and 16 cores: it triples each
+// time the cores double. The cores are the CPU request, or the limit, rounded up to a whole core, as the
+// chart rounds its indexer CPU limit. The budget is capped at 40% of the memory limit, above the chart's
+// largest ratio of 37%, so that a pod with many cores and little memory keeps memory for indexing.
+func calculateMaxQueueMemoryUsage(resources *corev1.ResourceRequirements) int64 {
+	cpu, found := resources.Requests[corev1.ResourceCPU]
+	if !found {
+		cpu = resources.Limits[corev1.ResourceCPU]
+	}
+	cores := max(1, (cpu.MilliValue()+999)/1000)
+	memoryLimit := resources.Limits[corev1.ResourceMemory]
+	budgetBytes := int64(0.8 * bytesPerGiB * math.Pow(3, math.Log2(float64(cores)/2)))
+	return min(budgetBytes, memoryLimit.Value()*2/5)
+}
+
+// sizingGiB returns the memory rounded down to a whole GiB, as the CloudPrem Helm chart sizing map does.
+// Memory under 1 GiB keeps its fraction so that the caches are not sized to zero.
+func sizingGiB(memoryBytes int64) float64 {
+	if memoryBytes < bytesPerGiB {
+		return float64(memoryBytes) / bytesPerGiB
+	}
+	return float64(memoryBytes / bytesPerGiB)
 }
 
 func calculateSplitStoreMaxNumBytes(capacity resource.Quantity, maxQueueDiskUsage int64) int64 {
