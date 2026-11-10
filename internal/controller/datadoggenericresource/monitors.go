@@ -78,6 +78,10 @@ func monitorDefinitionHash(instance *v1alpha1.DatadogGenericResource, monitor da
 	}
 	// The SDK preserves unknown properties, so jsonSpec can manage fields that
 	// are not in the shared definition list, even without an SDK upgrade.
+	// Response-only fields such as "state" are deliberately not filtered out:
+	// hashing one only costs extra updates, while a filter list that wrongly
+	// excluded a writable field would hide drift. The docs ask users to keep
+	// response-only fields out of jsonSpec.
 	fields := []string{"assets"}
 	for field := range spec {
 		if _, returned := remoteFields[field]; !returned {
