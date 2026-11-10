@@ -82,8 +82,9 @@ func (f *fakeMonitorAPI) editRemote(edit func(map[string]any)) {
 
 func TestReconcileGenericResource_MonitorForceSyncSkipsUpdateWhileRemoteUnchanged(t *testing.T) {
 	for _, tt := range []struct {
-		name     string
-		jsonSpec string
+		name        string
+		jsonSpec    string
+		futureField bool
 		// wantSkip is whether an unchanged remote monitor skips the update.
 		wantSkip bool
 	}{
@@ -91,6 +92,12 @@ func TestReconcileGenericResource_MonitorForceSyncSkipsUpdateWhileRemoteUnchange
 			name:     "monitor",
 			jsonSpec: `{"name":"m","type":"metric alert","query":"avg(last_5m):avg:system.load.1{*} > 1","message":"msg","tags":["b:2","a:1"],"options":{"thresholds":{"critical":1}}}`,
 			wantSkip: true,
+		},
+		{
+			name:        "monitor with a field unknown to the SDK",
+			jsonSpec:    `{"name":"m","type":"metric alert","query":"avg(last_5m):avg:system.load.1{*} > 1","message":"msg","future_setting":{"enabled":true}}`,
+			futureField: true,
+			wantSkip:    true,
 		},
 		{
 			name:     "monitor with restriction policy always updates",
@@ -174,6 +181,20 @@ func TestReconcileGenericResource_MonitorForceSyncSkipsUpdateWhileRemoteUnchange
 
 			forceSync()
 			assert.Equal(t, before+1, api.puts.Load(), "the next force sync is skipped again")
+
+			if tt.futureField {
+				before = api.puts.Load()
+				api.editRemote(func(m map[string]any) {
+					m["future_setting"] = map[string]any{"enabled": false}
+				})
+				forceSync()
+				assert.Equal(t, before+1, api.puts.Load(), "drift in an SDK-unknown field triggers an update")
+				api.editRemote(func(m map[string]any) {
+					assert.Equal(t, map[string]any{"enabled": true}, m["future_setting"], "the SDK sends the desired field on update")
+				})
+				forceSync()
+				assert.Equal(t, before+1, api.puts.Load(), "the repaired monitor is skipped again")
+			}
 		})
 	}
 }
