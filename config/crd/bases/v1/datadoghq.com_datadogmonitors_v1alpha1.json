@@ -398,6 +398,10 @@
           "description": "Primary defines whether the monitor is managed by the Kubernetes custom\nresource (true) or outside Kubernetes (false)",
           "type": "boolean"
         },
+        "remoteDefinitionHash": {
+          "description": "RemoteDefinitionHash is the hash of the monitor definition returned by Datadog\nafter the last successful create or update. A force sync skips the update\nwhile the remote monitor still has this hash.",
+          "type": "string"
+        },
         "triggeredState": {
           "description": "TriggeredState only includes details for monitor groups that are triggering",
           "items": {
