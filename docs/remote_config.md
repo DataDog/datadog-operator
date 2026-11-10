@@ -40,3 +40,10 @@ Then install the Datadog Operator:
 ```shell
 helm install my-datadog-operator datadog/datadog-operator -f values.yaml
 ```
+
+## Log level and flares from Fleet Automation
+
+When Remote Configuration is enabled, the Datadog Operator also receives these Fleet Automation requests. They don't need any other setting.
+
+* **Log level**: a log level set from Fleet Automation (for example the temporary `debug` level set before a flare) changes the Operator log level at runtime. The Operator restores the level it started with (`-loglevel`) when the setting is removed.
+* **Flare requests** (in development): the Operator receives flare requests for its cluster. Only the leader replica handles a request. This version doesn't send a flare yet, so Fleet Automation shows the request as failed, with the error `remote flare is not implemented yet in this version of the Datadog Operator`.

@@ -339,8 +339,9 @@ func main() {
 // do not use `os.Exit()` in this function
 func run(opts *options) error {
 	// Logging setup
-	if err := customSetupLogging(*opts.logLevel, opts.logEncoder); err != nil {
-		return setupErrorf(setupLog, err, "Unable to setup the logger")
+	atomicLogLevel, logErr := customSetupLogging(*opts.logLevel, opts.logEncoder)
+	if logErr != nil {
+		return setupErrorf(setupLog, logErr, "Unable to setup the logger")
 	}
 
 	// Print version information
@@ -500,7 +501,17 @@ func run(opts *options) error {
 	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
+		rcUpdaterOptions := []remoteconfig.RemoteConfigUpdaterOption{
+			remoteconfig.WithLogLevelSetter(remoteconfig.NewAtomicLogLevel(atomicLogLevel)),
+			remoteconfig.WithLeaderCheck(func() bool {
+				select {
+				case <-mgr.Elected():
+					return true
+				default:
+					return false
+				}
+			}),
+		}
 		if managedAgentInstallationIdentity.Configured() {
 			identityTags, tagsErr := managedAgentInstallationIdentity.UpdaterTags()
 			if tagsErr != nil {
@@ -724,7 +735,9 @@ func (f *filteringEncoder) Clone() zapcore.Encoder {
 	}
 }
 
-func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
+// customSetupLogging sets up the controller-runtime logger. It returns the
+// logger's level, which can be changed at runtime.
+func customSetupLogging(logLevel zapcore.Level, logEncoder string) (zap.AtomicLevel, error) {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -736,7 +749,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	case "json":
 		baseEncoder = zapcore.NewJSONEncoder(encoderConfig)
 	default:
-		return fmt.Errorf("unknown log encoder: %s", logEncoder)
+		return zap.AtomicLevel{}, fmt.Errorf("unknown log encoder: %s", logEncoder)
 	}
 
 	// Wrap the encoder to filter out certain controller-runtime fields
@@ -749,15 +762,17 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
-	zapOpts.Level = zap.NewAtomicLevelAt(logLevel)
+	atomicLevel := zap.NewAtomicLevelAt(logLevel)
+	zapOpts.Level = atomicLevel
 
 	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		stdoutLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return (level == zapcore.InfoLevel || level == zapcore.DebugLevel) && zapOpts.Level.Enabled(level)
+			// Debug and lower levels include logr V(2) and higher messages.
+			return level <= zapcore.InfoLevel && zapOpts.Level.Enabled(level)
 		})
 
 		stderrLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return (level != zapcore.InfoLevel && level != zapcore.DebugLevel) && zapOpts.Level.Enabled(level)
+			return level > zapcore.InfoLevel && zapOpts.Level.Enabled(level)
 		})
 
 		stdoutSyncer := zapcore.Lock(os.Stdout)
@@ -774,7 +789,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	zapOpts.ZapOpts = append(zapOpts.ZapOpts, core)
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseFlagOptions(&zapOpts)))
 
-	return nil
+	return atomicLevel, nil
 }
 
 func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGoroutines *int) {
