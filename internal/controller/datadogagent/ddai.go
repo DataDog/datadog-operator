@@ -101,16 +101,7 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 }
 
 // applyFleetManagedInstallNodeAgentToleration gives Fleet managed-install
-// node Agents a default NoSchedule toleration (FX-1141). Managed installs
-// take the toleration knob away from customers: the bootstrap spec has no
-// tolerations, DatadogAgentProfile overrides cannot set them, and Fleet's
-// operator config schema excludes spec.override — so customer-tainted nodes
-// (commonly GPU node groups tainted nvidia.com/gpu:NoSchedule) silently get
-// no node Agent. The toleration is added to the DDAI at render time only: the
-// DDA spec, and therefore the accepted config hash Fleet replays against,
-// is untouched, and existing installs pick the toleration up on the next
-// render. NoExecute is deliberately not tolerated, so operational eviction
-// taints still drain the Agent. Non-managed installs are unchanged.
+// node Agents a default NoSchedule toleration.
 func applyFleetManagedInstallNodeAgentToleration(
 	dda *v2alpha1.DatadogAgent,
 	spec *v2alpha1.DatadogAgentSpec,
