@@ -7,6 +7,7 @@ package resources
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -309,6 +310,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			},
 			"indexer":    values.indexer,
 			"ingest_api": values.ingestAPI,
+			"metastore":  map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 50}},
 			"searcher":   values.searcher,
 		}
 		nodeConfig, err := yaml.Marshal(config)
@@ -772,9 +774,13 @@ func TestBuildResources_Environment(t *testing.T) {
 func TestBuildResources_Indexer(t *testing.T) {
 	wantDefault := func() *ComponentResources {
 		want := wantDefaultStatefulSet(wantStatefulSetOptions{
-			component:                     "indexer",
-			configVolumeMount:             corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
-			additionalEnv:                 []corev1.EnvVar{{Name: "QW_INGEST_DECOMMISSION_TIMEOUT", Value: "270s"}},
+			component:         "indexer",
+			configVolumeMount: corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
+			additionalEnv: []corev1.EnvVar{
+				{Name: "QW_INGEST_DECOMMISSION_TIMEOUT", Value: "270s"},
+				{Name: "QW_ENABLE_IN_MEMORY_INDEXING", Value: "true"},
+				{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "50MiB"},
+			},
 			terminationGracePeriodSeconds: ptr.To[int64](300),
 		})
 		want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
@@ -917,10 +923,66 @@ func TestBuildResources_Indexer(t *testing.T) {
 	}
 }
 
+func TestBuildResources_IndexerMaxWriteThroughput(t *testing.T) {
+	tests := []struct {
+		name      string
+		resources *corev1.ResourceRequirements
+		want      []corev1.EnvVar
+	}{
+		{
+			name:      "whole cores",
+			resources: &corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2")}},
+			want:      []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "25MiB"}},
+		},
+		{
+			name:      "rounds the cores up",
+			resources: &corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2600m")}},
+			want:      []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "37.5MiB"}},
+		},
+		{
+			name: "prefers the request over the limit",
+			resources: &corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("16")},
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("15600m")},
+			},
+			want: []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "200MiB"}},
+		},
+		{
+			name:      "falls back to the limit",
+			resources: &corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("32")}},
+			want:      []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "400MiB"}},
+		},
+		{
+			name:      "no CPU",
+			resources: &corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("16Gi")}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Indexer = &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{Resources: tt.resources},
+			}
+
+			resources, err := buildResources(cluster, testImages())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			env := resources.Component(IndexerComponentName).StatefulSet.Spec.Template.Spec.Containers[0].Env
+			got := slices.DeleteFunc(slices.Clone(env), func(e corev1.EnvVar) bool { return e.Name != "QW_INDEXING_MAX_WRITE_THROUGHPUT" })
+			if diff := cmp.Diff(tt.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("QW_INDEXING_MAX_WRITE_THROUGHPUT mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestBuildResources_Searcher(t *testing.T) {
 	wantDefault := func() *ComponentResources {
 		return wantDefaultStatefulSet(wantStatefulSetOptions{
-			component: "searcher",
+			component:     "searcher",
+			additionalEnv: []corev1.EnvVar{{Name: "QW_DISABLE_LOAD_ESTIMATION", Value: "true"}},
 			additionalServicePorts: []corev1.ServicePort{{
 				Name:       "cloudprem",
 				Port:       7283,
@@ -1275,7 +1337,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			name:      "defaults",
 			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 			want: func() *ComponentResources {
-				return wantDefault(60, "54s")
+				return wantDefault(300, "270s")
 			},
 		},
 		{
@@ -1295,7 +1357,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			},
 			want: func() *ComponentResources {
-				want := wantDefault(60, "54s")
+				want := wantDefault(300, "270s")
 				want.Deployment.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
 					component:          "compactor",
@@ -1533,6 +1595,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		corev1.EnvVar{Name: "QW_DISABLE_TELEMETRY", Value: "true"},
 		corev1.EnvVar{Name: "QW_LOG_FORMAT", Value: "DDG"},
 		corev1.EnvVar{Name: "QW_RANDOM_SPLIT_PREFIX", Value: "true"},
+		corev1.EnvVar{Name: "QW_ENABLE_LOCALITY_AWARE_SCHEDULING", Value: "true"},
 	)
 }
 

@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -131,18 +132,24 @@ func overrideSets(override map[string]any, paths ...[]string) bool {
 
 // calculateMaxQueueMemoryUsage returns the indexer WAL memory budget. The CloudPrem Helm chart sizing map
 // tuned it with overload tests to 0.8, 2.4, 7.2 and 21.6 GiB for 2, 4, 8 and 16 cores: it triples each
-// time the cores double. The cores are the CPU request, or the limit, rounded up to a whole core, as the
-// chart rounds its indexer CPU limit. The budget is capped at 40% of the memory limit, above the chart's
-// largest ratio of 37%, so that a pod with many cores and little memory keeps memory for indexing.
+// time the cores double. The budget is capped at 40% of the memory limit, above the chart's largest
+// ratio of 37%, so that a pod with many cores and little memory keeps memory for indexing.
 func calculateMaxQueueMemoryUsage(resources *corev1.ResourceRequirements) int64 {
-	cpu, found := resources.Requests[corev1.ResourceCPU]
-	if !found {
-		cpu = resources.Limits[corev1.ResourceCPU]
-	}
-	cores := max(1, (cpu.MilliValue()+999)/1000)
+	cores := max(1, cpuCores(resources))
 	memoryLimit := resources.Limits[corev1.ResourceMemory]
 	budgetBytes := int64(0.8 * bytesPerGiB * math.Pow(3, math.Log2(float64(cores)/2)))
 	return min(budgetBytes, memoryLimit.Value()*2/5)
+}
+
+// cpuCores returns the CPU request, or the limit, rounded up to a whole core, as the CloudPrem Helm chart
+// rounds its indexer CPU limit. It returns 0 without a CPU resource.
+func cpuCores(resources *corev1.ResourceRequirements) int64 {
+	requirements := ptr.Deref(resources, corev1.ResourceRequirements{})
+	cpu, found := requirements.Requests[corev1.ResourceCPU]
+	if !found {
+		cpu = requirements.Limits[corev1.ResourceCPU]
+	}
+	return (cpu.MilliValue() + 999) / 1000
 }
 
 // sizingGiB returns the memory rounded down to a whole GiB, as the CloudPrem Helm chart sizing map does.

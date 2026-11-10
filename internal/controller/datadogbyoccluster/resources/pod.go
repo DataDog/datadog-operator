@@ -164,6 +164,7 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 		corev1.EnvVar{Name: envQuickwitDisableTelemetry, Value: "true"},
 		corev1.EnvVar{Name: envQuickwitLogFormat, Value: quickwitLogFormat},
 		corev1.EnvVar{Name: envQuickwitRandomSplitPrefix, Value: "true"},
+		corev1.EnvVar{Name: envQuickwitLocalityAwareScheduling, Value: "true"},
 	)
 	env = controllerutils.MergeEnv(env, cluster.Spec.Global.Env)
 	return controllerutils.MergeEnv(env, c.spec.Env)
