@@ -75,8 +75,10 @@ type RemoteConfigUpdater struct {
 	// log_level configs as unsupported.
 	logLevel LogLevelSetter
 	// remoteLogLevel is the log level currently set through AGENT_CONFIG, or
-	// "" if the startup level is in effect.
+	// "" if the startup level is in effect. Only the AGENT_CONFIG callback
+	// writes it, under logLevelMu, so that flares can read it.
 	remoteLogLevel string
+	logLevelMu     sync.RWMutex
 
 	tasksMu      sync.Mutex
 	taskStatuses map[string]state.ApplyStatus
@@ -648,16 +650,22 @@ func (r *RemoteConfigUpdater) applyRemoteLogLevel(level string) error {
 	}
 	if level == "" {
 		r.logLevel.ResetLogLevel()
-		r.remoteLogLevel = ""
+		r.setRemoteLogLevel("")
 		r.logger.Info("Removed the Remote Configuration log level, restored the startup log level")
 		return nil
 	}
 	if err := r.logLevel.SetLogLevel(level); err != nil {
 		return fmt.Errorf("cannot set log level: %w", err)
 	}
-	r.remoteLogLevel = level
+	r.setRemoteLogLevel(level)
 	r.logger.Info("Set the log level through Remote Configuration", "logLevel", level)
 	return nil
+}
+
+func (r *RemoteConfigUpdater) setRemoteLogLevel(level string) {
+	r.logLevelMu.Lock()
+	defer r.logLevelMu.Unlock()
+	r.remoteLogLevel = level
 }
 
 func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (agentConfigUpdate, error) {
