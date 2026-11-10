@@ -12,10 +12,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	chartutil "helm.sh/helm/v4/pkg/chart/common"
+
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 )
 
 func TestRun(t *testing.T) {

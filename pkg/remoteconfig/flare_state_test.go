@@ -28,3 +28,8 @@ func TestFlareState(t *testing.T) {
 	assert.Equal(t, "debug", st.RemoteLogLevel)
 	assert.Equal(t, []FlareTaskState{{ID: "a", State: "acknowledged"}, {ID: "b", State: "error", Error: "boom"}}, st.AgentTasks)
 }
+
+func TestApplyStateName(t *testing.T) {
+	assert.Equal(t, "unacknowledged", applyStateName(state.ApplyStateUnacknowledged))
+	assert.Equal(t, "unknown", applyStateName(state.ApplyStateUnknown))
+}

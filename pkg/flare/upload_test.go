@@ -7,9 +7,12 @@ package flare
 
 import (
 	"context"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -165,4 +168,45 @@ func (f *failAfterHead) RoundTrip(r *http.Request) (*http.Response, error) {
 	f.posts.Add(1)
 	r.URL.Host = "127.0.0.1:1"
 	return f.base.RoundTrip(r)
+}
+
+func TestUploadResolveErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	_, err := (&Uploader{BaseURL: server.URL + "?api_key=secret", APIKey: testAPIKey}).Upload(context.Background(), UploadRequest{})
+	require.ErrorContains(t, err, "unable to reach the flare intake")
+	assert.NotContains(t, err.Error(), "secret")
+
+	_, err = (&Uploader{BaseURL: "http://127.0.0.1:1", APIKey: testAPIKey}).Upload(context.Background(), UploadRequest{})
+	require.ErrorContains(t, err, "unable to reach the flare intake")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = (&Uploader{BaseURL: server.URL, APIKey: testAPIKey}).Upload(ctx, UploadRequest{})
+	require.Error(t, err)
+}
+
+func TestUploadUnexpectedContentType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead {
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(strings.Repeat("x", 300)))
+	}))
+	defer server.Close()
+	_, err := (&Uploader{BaseURL: server.URL, APIKey: testAPIKey}).Upload(context.Background(), UploadRequest{Hostname: "h"})
+	require.ErrorContains(t, err, "unexpected content type")
+}
+
+func TestIsRetryableUploadError(t *testing.T) {
+	assert.True(t, isRetryableUploadError(&net.DNSError{Err: "no such host"}))
+	assert.True(t, isRetryableUploadError(&net.OpError{Op: "dial", Err: errors.New("refused")}))
+	assert.False(t, isRetryableUploadError(&net.OpError{Op: "read", Err: errors.New("reset")}))
+	assert.True(t, isRetryableUploadError(errors.New("net/http: TLS handshake timeout")))
+	assert.False(t, isRetryableUploadError(errors.New("other")))
+	assert.Equal(t, "https://x/y", stripQuery("https://x/y?api_key=1"))
+	assert.Equal(t, "%zz", stripQuery("%zz"))
 }
