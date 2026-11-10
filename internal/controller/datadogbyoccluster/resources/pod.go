@@ -18,6 +18,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 // podInput contains the cluster-wide inputs shared by every component pod.
@@ -177,7 +178,8 @@ func telemetryEnvironment(clusterID, site string, image byocimage.ResolvedImage)
 	return []corev1.EnvVar{
 		{Name: envQuickwitOpenTelemetryExporter, Value: "true"},
 		{Name: envBYOCTelemetryEnabled, Value: "true"},
-		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		// The node name is not host.name, which would resolve the telemetry to an unrelated host with the same alias.
+		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: envOTelExporterProtocol, Value: telemetryExporterProtocol},
 		{Name: envOTelExporterLogsEndpoint, Value: intake + "logs"},
 		{Name: envOTelExporterMetricsTemporality, Value: telemetryMetricsTemporality},

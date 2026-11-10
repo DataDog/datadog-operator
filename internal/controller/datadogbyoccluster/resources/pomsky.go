@@ -55,6 +55,8 @@ const (
 	healthPort    int32 = 7284
 )
 
+const gossipProtocolVersion = 1
+
 const (
 	startupProbePath                   = "/health/readyz"
 	startupProbeFailureThreshold int32 = 60
@@ -130,13 +132,14 @@ const (
 // defaultNodeConfig returns the node configuration defaults that do not depend on the cluster spec.
 func defaultNodeConfig() map[string]any {
 	return map[string]any{
-		"version":               0.8,
-		"listen_address":        "0.0.0.0",
-		"gossip_listen_port":    gossipPort,
-		"cloudprem_listen_port": cloudpremPort,
-		"data_dir":              defaultDataPath,
-		"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-		"health":                map[string]any{"listen_port": healthPort},
+		"version":                 0.8,
+		"listen_address":          "0.0.0.0",
+		"gossip_listen_port":      gossipPort,
+		"gossip_protocol_version": gossipProtocolVersion,
+		"cloudprem_listen_port":   cloudpremPort,
+		"data_dir":                defaultDataPath,
+		"grpc":                    map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+		"health":                  map[string]any{"listen_port": healthPort},
 		quickwitCloudPremConfigKey: map[string]any{
 			"mtls_header":              "X-Amzn-Mtls-Clientcert",
 			"create_dd_metrics_index":  false,

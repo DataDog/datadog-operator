@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,9 @@ import (
 
 // ErrObjectConflict reports an existing object with a managed name that the owner does not control.
 var ErrObjectConflict = errors.New("exists and is not controlled by")
+
+// ConflictRequeueDelay is the delay before reconciling again after a write failed because an object changed.
+const ConflictRequeueDelay = time.Second
 
 // GetFresh reads the object from the cache, and from the API server when the cache does not have it.
 func GetFresh(ctx context.Context, cache, apiReader client.Reader, object client.Object) error {
@@ -36,7 +40,7 @@ func GetFresh(ctx context.Context, cache, apiReader client.Reader, object client
 
 // ApplyControlled sets owner as the controller of desired and applies desired with a forced server-side apply.
 // It returns an error wrapping ErrObjectConflict without writing when an object with the same name exists and owner
-// does not control it. When owner controls the existing object, the apply fails if that object was replaced.
+// does not control it, and a conflict error when the object changed since it was read.
 func ApplyControlled(ctx context.Context, c client.Client, apiReader client.Reader, scheme *runtime.Scheme, owner, desired client.Object, fieldOwner string) error {
 	current := desired.DeepCopyObject().(client.Object)
 	switch err := GetFresh(ctx, c, apiReader, current); {
@@ -51,9 +55,7 @@ func ApplyControlled(ctx context.Context, c client.Client, apiReader client.Read
 		}
 		return fmt.Errorf("%w %s %s", ErrObjectConflict, ownerGVK.Kind, owner.GetName())
 	default:
-		// The cache may still hold an object that was since replaced by an unowned one. The API server rejects
-		// the apply unless the live object has this UID, so the replacement is not adopted.
-		desired.SetUID(current.GetUID())
+		desired.SetResourceVersion(current.GetResourceVersion())
 	}
 	if err := controllerutil.SetControllerReference(owner, desired, scheme); err != nil {
 		return err

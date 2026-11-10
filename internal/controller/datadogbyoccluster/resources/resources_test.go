@@ -28,6 +28,7 @@ import (
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func TestResources_Objects(t *testing.T) {
@@ -93,7 +94,7 @@ func TestResources_Objects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -244,7 +245,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -290,15 +291,16 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 	}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
-			"version":               0.8,
-			"cluster_id":            values.clusterID,
-			"listen_address":        "0.0.0.0",
-			"gossip_listen_port":    7282,
-			"cloudprem_listen_port": 7283,
-			"data_dir":              "/quickwit/qwdata",
-			"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-			"health":                map[string]any{"listen_port": 7284},
-			"cloudprem":             values.cloudprem,
+			"version":                 0.8,
+			"cluster_id":              values.clusterID,
+			"listen_address":          "0.0.0.0",
+			"gossip_listen_port":      7282,
+			"gossip_protocol_version": 1,
+			"cloudprem_listen_port":   7283,
+			"data_dir":                "/quickwit/qwdata",
+			"grpc":                    map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+			"health":                  map[string]any{"listen_port": 7284},
+			"cloudprem":               values.cloudprem,
 			"docs_clustering": []any{
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
@@ -513,7 +515,7 @@ ingest_api:
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
 			tt.clusterFunc(cluster)
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -556,7 +558,7 @@ func TestBuildResources_HeadlessService(t *testing.T) {
 		},
 	}
 
-	resources, err := buildResources(cluster, testRelease())
+	resources, err := buildResources(cluster, testImages())
 	if err != nil {
 		t.Fatalf("BuildResources() unexpected error: %v", err)
 	}
@@ -605,7 +607,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			cluster.Spec.Identity = tt.identity
 			cluster.Spec.Provider = tt.provider
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -683,7 +685,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
 				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
 			},
-			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"}},
+			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version}},
 		},
 	}
 
@@ -692,7 +694,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			cluster := testCluster()
 			tt.input(cluster)
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -844,7 +846,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Indexer = tt.indexer
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -966,7 +968,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Searcher = tt.searcher
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1030,7 +1032,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Metastore = tt.metastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1067,7 +1069,7 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ControlPlane = tt.controlPlane
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1104,7 +1106,7 @@ func TestBuildResources_Janitor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Janitor = tt.janitor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1172,7 +1174,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1253,7 +1255,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Compactor = tt.compactor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1295,7 +1297,7 @@ func buildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 	return BuildResources(byocdefaults.Apply(cluster), images)
 }
 
-func testRelease() *byocimage.ResolvedImages {
+func testImages() *byocimage.ResolvedImages {
 	return &byocimage.ResolvedImages{
 		Pomsky: byocimage.ResolvedImage{
 			Repository: "registry.example.com/cloudprem",
@@ -1446,7 +1448,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "DD_SITE", Value: "datadoghq.com"},
 		{Name: "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER", Value: "true"},
 		{Name: "BYOC_TELEMETRY_ENABLED", Value: "true"},
-		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "http/protobuf"},
 		{Name: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"},
 		{Name: "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", Value: "delta"},

@@ -111,12 +111,6 @@ func (platformInfo *PlatformInfo) GetAPIVersions(name string) (preferred string,
 	return preferred, other
 }
 
-// GetApiVersions returns the preferred and alternate API versions for a resource.
-// Deprecated: use GetAPIVersions.
-func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string, other string) { //nolint:staticcheck
-	return platformInfo.GetAPIVersions(name)
-}
-
 func (platformInfo *PlatformInfo) GetVersionInfo() *version.Info {
 	return platformInfo.versionInfo
 }
