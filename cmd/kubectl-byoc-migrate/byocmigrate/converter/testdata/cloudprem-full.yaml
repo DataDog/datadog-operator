@@ -1,0 +1,2047 @@
+# Rendered from the cloudprem chart 0.5.4 (pomsky-helm-charts/charts/quickwit) with:
+# helm template cloudprem <chart> --namespace logs --set datadog.apiKeyExistingSecret=datadog-secret --set image.digest=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef --set aws.accountId=123456789012 --set environment[0].name=AWS_REGION --set environment[0].value=us-east-1 --set metastore.extraEnvFrom[0].secretRef.name=cloudprem-metastore --set indexer.persistentVolume.enabled=true --set indexer.persistentVolume.storage=100Gi --set indexer.autoscaling.enabled=true --set searcher.podDisruptionBudget.maxUnavailable=1 --set metastore_ro.enabled=true --set metastore_ro.extraEnv[0].name=QW_METASTORE_READ_REPLICA_URI --set metastore_ro.extraEnv[0].valueFrom.secretKeyRef.name=cloudprem-metastore --set metastore_ro.extraEnv[0].valueFrom.secretKeyRef.key=read-replica-uri --set enableStandaloneCompactors=true --set compactor.autoscaling.enabled=true
+---
+# Source: cloudprem/templates/metastore-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudprem-metastore
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: metastore
+  maxUnavailable: 1
+---
+# Source: cloudprem/templates/searcher-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cloudprem-searcher
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: searcher
+  maxUnavailable: 1
+---
+# Source: cloudprem/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: false
+metadata:
+  name: cloudprem
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/cloudprem
+    eks.amazonaws.com/sts-regional-endpoints: "true"
+
+---
+# Source: cloudprem/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudprem
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+data:
+  node.yaml: |-
+    cloudprem:
+      create_dd_logs_index: true
+      create_dd_metrics_index: false
+      create_dd_sketches_index: false
+      create_dd_traces_index: false
+      mtls_header: X-Amzn-Mtls-Clientcert
+    cloudprem_listen_port: 7283
+    data_dir: /quickwit/qwdata
+    docs_clustering:
+    - fingerprint:
+      - kind: structure
+    - fingerprint:
+      - kind: raw
+        path: source
+    - fingerprint:
+      - kind: raw
+        path: status
+    - fingerprint:
+      - kind: tokenized
+        path: message
+    gossip_listen_port: 7282
+    gossip_protocol_version: 1
+    grpc:
+      keep_alive:
+        interval: 30s
+        timeout: 10s
+    health:
+      listen_port: 7284
+    indexer:
+      split_store_max_num_bytes: 200G
+      split_store_max_num_splits: 10000
+    ingest_api:
+      max_queue_disk_usage: 7.2GiB
+      max_queue_memory_usage: 3.6GiB
+    listen_address: 0.0.0.0
+    metastore:
+      postgres:
+        max_connections: 50
+        min_connections: 10
+    searcher:
+      aggregation_memory_limit: 500M
+      fast_field_cache_capacity: 4.875G
+      max_num_concurrent_split_searches: 40
+      partial_request_cache_capacity: 187.5M
+      split_footer_cache_capacity: 375M
+      use_metastore_read_replica: true
+    version: 0.8
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-searcher
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+    - port: 7283
+      targetPort: cloudprem
+      name: cloudprem
+    - port: 7284
+      targetPort: health
+      name: health
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: searcher
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-headless
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    # Needed by istio with mTLS mode set to STRICT.
+    # The port names must starts with "tcp-" or "udp-" to work...
+    # See https://istio.io/latest/docs/ops/common-problems/network-issues/#503-error-while-accessing-headless-services
+    - name: tcp-http
+      port: 7280
+      protocol: TCP
+    - name: tcp-grpc
+      port: 7281
+      protocol: TCP
+    - name: udp
+      port: 7282
+      protocol: UDP
+    - name: tcp-cloudprem
+      port: 7283
+      protocol: TCP
+    - name: tcp-health
+      port: 7284
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-indexer
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      protocol: TCP
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+    - port: 7284
+      targetPort: health
+      protocol: TCP
+      name: health
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: indexer
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-metastore
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      protocol: TCP
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+    - port: 7284
+      targetPort: health
+      protocol: TCP
+      name: health
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: metastore
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-metastore-ro
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      protocol: TCP
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: metastore-ro
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-control-plane
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      protocol: TCP
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+    - port: 7284
+      targetPort: health
+      protocol: TCP
+      name: health
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: control-plane
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-janitor
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      protocol: TCP
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+    - port: 7284
+      targetPort: health
+      protocol: TCP
+      name: health
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: janitor
+---
+# Source: cloudprem/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudprem-compactor
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7280
+      targetPort: rest
+      protocol: TCP
+      name: rest
+    - port: 7281
+      targetPort: grpc
+      name: grpc
+  selector:
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/component: compactor
+
+---
+# Source: cloudprem/templates/compactor-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudprem-compactor
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: compactor
+  strategy:
+    {}
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: compactor
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "compactor"]
+          env:
+            - name: QW_COMPACTOR_DECOMMISSION_TIMEOUT
+              value: "270s"
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/node.yaml
+              subPath: node.yaml
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+            {}
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+            items:
+              - key: node.yaml
+                path: node.yaml
+        - name: data
+          emptyDir: {}
+      tolerations:
+        []
+
+---
+# Source: cloudprem/templates/control-plane-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudprem-control-plane
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: control-plane
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: control-plane
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "control_plane"]
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/node.yaml
+              subPath: node.yaml
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+            limits:
+              memory: 4Gi
+            requests:
+              cpu: 2
+              memory: 4Gi
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+            items:
+              - key: node.yaml
+                path: node.yaml
+        - name: data
+          emptyDir: {}
+      tolerations:
+        []
+
+---
+# Source: cloudprem/templates/janitor-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudprem-janitor
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: janitor
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: janitor
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "janitor"]
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/node.yaml
+              subPath: node.yaml
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+              limits:
+                memory: 4Gi
+              requests:
+                cpu: 2
+                memory: 4Gi
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+            items:
+              - key: node.yaml
+                path: node.yaml
+        - name: data
+          emptyDir: {}
+      tolerations:
+        []
+
+---
+# Source: cloudprem/templates/metastore-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudprem-metastore
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: metastore
+  strategy:
+    {}
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: metastore
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "metastore"]
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+          envFrom:
+            - secretRef:
+                name: cloudprem-metastore
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/node.yaml
+              subPath: node.yaml
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+            limits:
+              memory: 4Gi
+            requests:
+              cpu: 2
+              memory: 4Gi
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+            items:
+              - key: node.yaml
+                path: node.yaml
+        - name: data
+          emptyDir: {}
+      tolerations:
+        []
+
+---
+# Source: cloudprem/templates/metastore-ro-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudprem-metastore-ro
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: metastore-ro
+  strategy:
+    {}
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: metastore-ro
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "metastore_read_replica"]
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+            - name: QW_METASTORE_READ_REPLICA_URI
+              valueFrom:
+                secretKeyRef:
+                  key: read-replica-uri
+                  name: cloudprem-metastore
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/node.yaml
+              subPath: node.yaml
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+            limits:
+              memory: 4Gi
+            requests:
+              cpu: 2
+              memory: 4Gi
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+            items:
+              - key: node.yaml
+                path: node.yaml
+        - name: data
+          emptyDir: {}
+      tolerations:
+        []
+---
+# Source: cloudprem/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cloudprem-indexer
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: indexer-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: cloudprem-indexer
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 70
+          type: Utilization
+      type: Resource
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 0
+
+---
+# Source: cloudprem/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cloudprem-compactor
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: compactor-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cloudprem-compactor
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 80
+          type: Utilization
+      type: Resource
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+---
+# Source: cloudprem/templates/indexer-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cloudprem-indexer
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  serviceName: cloudprem-headless
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: indexer
+  updateStrategy:
+    {}
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: indexer
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "indexer"]
+          env:
+            - name: QW_INGEST_DECOMMISSION_TIMEOUT
+              value: "270s"
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+            - name: QW_ENABLE_IN_MEMORY_INDEXING
+              value: "true"
+            - name: QW_INDEXING_MAX_WRITE_THROUGHPUT
+              value: 50MiB
+            - name: KUBERNETES_STORAGE_SIZE
+              value: "100Gi"
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+            limits:
+              memory: 13100Mi
+            requests:
+              cpu: 3600m
+              memory: 13100Mi
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+      tolerations:
+        []
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "100Gi"
+
+---
+# Source: cloudprem/templates/searcher-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cloudprem-searcher
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  replicas: 2
+  serviceName: cloudprem-headless
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudprem
+      app.kubernetes.io/instance: cloudprem
+      app.kubernetes.io/component: searcher
+  updateStrategy:
+    {}
+  template:
+    metadata:
+      annotations:
+        checksum/config: 745d0c0a8683681f3f34359fe9263503abc1753cfc234e94325b82b86cb3010a
+      labels:
+        
+        app.kubernetes.io/name: cloudprem
+        app.kubernetes.io/instance: cloudprem
+        app.kubernetes.io/component: searcher
+    spec:
+      serviceAccountName: cloudprem
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 1005
+      containers:
+        - name: cloudprem
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1005
+          image: "public.ecr.aws/datadog/cloudprem@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          imagePullPolicy: IfNotPresent
+          args: ["run", "--service", "searcher"]
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_COMPONENT
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/component']
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KUBERNETES_LIMITS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.cpu
+            - name: KUBERNETES_LIMITS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: limits.memory
+            - name: KUBERNETES_REQUESTS_CPU
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: QW_NUM_CPUS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.cpu
+            - name: KUBERNETES_REQUESTS_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: cloudprem
+                  resource: requests.memory
+            - name: QW_CONFIG
+              value: /quickwit/node.yaml
+            - name: QW_CLUSTER_ID
+              value: logs-cloudprem
+            - name: QW_NODE_ID
+              value: "$(KUBERNETES_POD_NAME)"
+            - name: QW_AVAILABILITY_ZONE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['topology.kubernetes.io/zone']
+            - name: QW_PEER_SEEDS
+              value: cloudprem-headless
+            - name: QW_ADVERTISE_ADDRESS
+              value: "$(KUBERNETES_POD_IP)"
+            - name: QW_CLUSTER_ENDPOINT
+              value: http://cloudprem-metastore.logs.svc.cluster.local:7280
+            - name: CP_DOGSTATSD_SERVER_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: CP_DOGSTATSD_SERVER_PORT
+              value: "8125"
+            - name: CP_ENABLE_REVERSE_CONNECTION
+              value: "true"
+            - name: CP_MIN_SHARDS
+              value: "12"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER
+              value: "true"
+            - name: BYOC_TELEMETRY_ENABLED
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "cluster_id=logs-cloudprem,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),chart.version=0.5.4"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "delta"
+            - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"
+            - name: OTEL_TRACES_SAMPLER
+              value: "parentbased_traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.2"
+            - name: IMAGE_NAME
+              value: public.ecr.aws/datadog/cloudprem
+            - name: IMAGE_TAG
+              value: 
+            - name: QW_ENABLE_STANDALONE_COMPACTORS
+              value: "true"
+            - name: AWS_REGION
+              value: us-east-1
+            - name: NO_COLOR
+              value: "true"
+            - name: QW_DISABLE_INGEST_V1
+              value: "true"
+            - name: QW_DISABLE_TELEMETRY
+              value: "true"
+            - name: QW_LOG_FORMAT
+              value: DDG
+            - name: QW_RANDOM_SPLIT_PREFIX
+              value: "true"
+            - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+              value: "true"
+            - name: QW_DISABLE_LOAD_ESTIMATION
+              value: "true"
+          ports:
+            - name: rest
+              containerPort: 7280
+              protocol: TCP
+            - name: grpc
+              containerPort: 7281
+              protocol: TCP
+            - name: discovery
+              containerPort: 7282
+              protocol: UDP
+            - name: cloudprem
+              containerPort: 7283
+              protocol: TCP
+            - name: health
+              containerPort: 7284
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /health/readyz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: health
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /quickwit/node.yaml
+              subPath: node.yaml
+            - name: data
+              mountPath: /quickwit/qwdata
+          resources:
+              limits:
+                memory: 13100Mi
+              requests:
+                cpu: 3600m
+                memory: 13100Mi
+      volumes:
+        - name: config
+          configMap:
+            name: cloudprem
+            items:
+              - key: node.yaml
+                path: node.yaml
+        - name: data
+          emptyDir: {}
+      tolerations:
+        []
+
+---
+# Source: cloudprem/templates/ingress/internal.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloudprem-internal
+  labels:
+    helm.sh/chart: cloudprem-0.5.4
+    app.kubernetes.io/name: cloudprem
+    app.kubernetes.io/instance: cloudprem
+    app.kubernetes.io/version: "v0.1.34"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health/readyz
+    alb.ingress.kubernetes.io/healthcheck-port: "7284"
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          # Ingest (Quickwit, ES, Datadog) endpoints to indexers
+          - path: /api/v1/*/ingest
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: cloudprem-indexer
+                port:
+                  name: rest
+          - path: /api/v1/_elastic/bulk
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudprem-indexer
+                port:
+                  name: rest
+          - path: /api/v1/_elastic/*/_bulk
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: cloudprem-indexer
+                port:
+                  name: rest
+          - path: /api/v2/logs
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudprem-indexer
+                port:
+                  name: rest
+          # Index management API endpoints to metastores
+          - path: /api/v1/indexes
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudprem-metastore
+                port:
+                  name: rest
+          # Everything else to searchers
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: cloudprem-searcher
+                port:
+                  name: rest

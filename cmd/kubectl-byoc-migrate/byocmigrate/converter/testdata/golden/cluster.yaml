@@ -1,0 +1,172 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogBYOCCluster
+metadata:
+  name: cloudprem
+  namespace: logs
+spec:
+  components:
+    controlPlane:
+      env:
+      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+        value: "true"
+      podDisruptionBudget: {}
+      replicas: 1
+      resources:
+        limits:
+          memory: 4Gi
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+    indexer:
+      env:
+      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+        value: "true"
+      - name: QW_ENABLE_IN_MEMORY_INDEXING
+        value: "true"
+      - name: QW_INDEXING_MAX_WRITE_THROUGHPUT
+        value: 50MiB
+      podDisruptionBudget: {}
+      podManagementPolicy: OrderedReady
+      replicas: 2
+      resources:
+        limits:
+          memory: 13100Mi
+        requests:
+          cpu: 3600m
+          memory: 13100Mi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+      storage:
+        emptyDir: {}
+      terminationGracePeriodSeconds: 300
+    janitor:
+      env:
+      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+        value: "true"
+      podDisruptionBudget: {}
+      replicas: 1
+      resources:
+        limits:
+          memory: 4Gi
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+    metastore:
+      database:
+        uriSecretRef:
+          key: QW_METASTORE_URI
+          name: cloudprem-metastore
+      env:
+      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+        value: "true"
+      envFrom:
+      - secretRef:
+          name: cloudprem-metastore
+      podDisruptionBudget:
+        maxUnavailable: 1
+      replicas: 2
+      resources:
+        limits:
+          memory: 4Gi
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+    pipelines:
+    - name: logs
+      pipelineID: pipeline-id
+      podDisruptionBudget: {}
+      podManagementPolicy: Parallel
+      ports:
+      - name: datadog-agent
+        port: 8282
+        protocol: TCP
+      replicas: 1
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      storage:
+        emptyDir: {}
+      terminationGracePeriodSeconds: 70
+    searcher:
+      env:
+      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
+        value: "true"
+      - name: QW_DISABLE_LOAD_ESTIMATION
+        value: "true"
+      podDisruptionBudget: {}
+      podManagementPolicy: OrderedReady
+      replicas: 2
+      resources:
+        limits:
+          memory: 13100Mi
+        requests:
+          cpu: 3600m
+          memory: 13100Mi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+      storage:
+        emptyDir: {}
+  datadog:
+    apiKeySecretRef:
+      key: api-key
+      name: datadog-secret
+    byocTelemetry: true
+    dogstatsdServer:
+      port: 8125
+    site: datadoghq.com
+  global: {}
+  imageOverrides:
+    byoc:
+      digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      pullPolicy: IfNotPresent
+      repository: public.ecr.aws/datadog/cloudprem
+    observabilityPipelinesWorker:
+      pullPolicy: IfNotPresent
+      repository: gcr.io/datadoghq/observability-pipelines-worker
+      tag: 2.23.0
+  nodeConfigOverrides:
+    gossip_protocol_version: 0
+    indexer:
+      split_store_max_num_bytes: 200G
+    ingest_api:
+      max_queue_disk_usage: 7.2GiB
+      max_queue_memory_usage: 3.6GiB
+    metastore:
+      postgres:
+        max_connections: 50
+        min_connections: 10
+    searcher:
+      fast_field_cache_capacity: 4.875G
+      partial_request_cache_capacity: 187.5M
+      split_footer_cache_capacity: 375M
+  provider:
+    aws:
+      irsaRoleARN: arn:aws:iam::123456789012:role/cloudprem
+      region: us-east-1
