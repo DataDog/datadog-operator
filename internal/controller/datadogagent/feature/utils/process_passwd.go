@@ -40,13 +40,13 @@ func ProcessPasswdMountPath(dda metav1.Object) string {
 	if dda != nil && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
 		return common.PasswdMountPath
 	}
-	// GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
+	// TODO: GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
 	if experimental.IsAutopilotEnabled(dda) {
 		return common.PasswdMountPath
 	}
 	// Unparseable versions, such as digest-only images or custom tags, keep the legacy path.
-	fallback := false
-	if pkgutils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), processHostPasswdMinVersion, &fallback) {
+	unparseableIsSupported := false
+	if pkgutils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), processHostPasswdMinVersion, &unparseableIsSupported) {
 		return common.HostPasswdMountPath
 	}
 	return common.PasswdMountPath
@@ -60,7 +60,10 @@ func ProcessPasswdVolume(mountPath string) (corev1.Volume, corev1.VolumeMount) {
 }
 
 // ProcessPasswdVolumeName returns the volume backing a process passwd mount path.
-// GKE Warden matches volumeMounts by name, so the relocated path needs its own volume.
+// Kubernetes allows mounting one volume at two paths, but GKE Autopilot's Warden
+// matches allowlisted volumeMounts by name, so /host/etc/passwd needs its own
+// host-passwd volume. Other clusters use the same name so each name always maps
+// to one path.
 func ProcessPasswdVolumeName(mountPath string) string {
 	if mountPath == common.HostPasswdMountPath {
 		return common.HostPasswdVolumeName

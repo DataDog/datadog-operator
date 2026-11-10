@@ -118,7 +118,7 @@ const (
 	PasswdHostPath   = "/etc/passwd"
 	PasswdMountPath  = "/etc/passwd"
 
-	// GKE Warden matches volumeMounts by name, so the relocated process passwd mount uses its own volume.
+	// GKE Autopilot's Warden matches allowlisted volumeMounts by name, so the relocated process passwd mount uses its own volume.
 	HostPasswdVolumeName = "host-passwd"
 	HostPasswdMountPath  = "/host/etc/passwd"
 
