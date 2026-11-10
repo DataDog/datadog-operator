@@ -115,6 +115,17 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
 
+// Remote flares (pkg/flare/remoteflare) read what they collect with these
+// permissions. The Operator pod logs are read with the flare-role Role, in the
+// Operator namespace only (config/rbac/flare_role.yaml).
+// +kubebuilder:rbac:groups="",resources=events;pods;configmaps;serviceaccounts;nodes;namespaces,verbs=get;list
+// +kubebuilder:rbac:groups=apps,resources=daemonsets;deployments;replicasets,verbs=get;list
+// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=get;list
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations;validatingwebhookconfigurations,verbs=get;list
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list
+
 // Use CiliumNetworkPolicy
 // +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 

@@ -25,9 +25,10 @@ const (
 	flareTaskTimeout = 5 * time.Minute
 )
 
-// ErrFlareNotImplemented is returned by the default FlareRunner. Fleet
-// Automation sees it as the error of the flare task, so a flare is never
-// reported as sent before the Operator can send one.
+// ErrFlareNotImplemented is returned by the default FlareRunner, used when no
+// FlareRunner is configured. Fleet Automation sees it as the error of the
+// flare task, so a flare is never reported as sent when none can be sent.
+// The Operator configures pkg/flare/remoteflare.Runner.
 var ErrFlareNotImplemented = errors.New("remote flare is not implemented yet in this version of the Datadog Operator")
 
 // FlareTask is a flare request received through a Remote Configuration
@@ -59,8 +60,8 @@ type FlareRunner interface {
 	Run(ctx context.Context, task FlareTask) error
 }
 
-// notImplementedFlareRunner is the default FlareRunner until the Operator can
-// collect and send flares.
+// notImplementedFlareRunner is the default FlareRunner when none is
+// configured.
 type notImplementedFlareRunner struct{}
 
 func (notImplementedFlareRunner) Run(context.Context, FlareTask) error {

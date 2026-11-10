@@ -1,0 +1,13 @@
+# permissions to collect the Operator's own logs in remote flares requested
+# from Fleet Automation. Logs are only read in the Operator namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flare-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get

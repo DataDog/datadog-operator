@@ -74,6 +74,8 @@ const (
 	defaultComponentHealthSnapshotInterval               = 60 * time.Second
 	defaultComponentHealthResolveGracePeriod             = 5 * time.Minute
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
+	healthProbeBindAddress                               = ":8081"
+	leaderElectionID                                     = "datadog-operator-lock"
 )
 
 var (
@@ -444,9 +446,9 @@ func run(opts *options) error {
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
-		HealthProbeBindAddress:     ":8081",
+		HealthProbeBindAddress:     healthProbeBindAddress,
 		LeaderElection:             opts.enableLeaderElection,
-		LeaderElectionID:           "datadog-operator-lock",
+		LeaderElectionID:           leaderElectionID,
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
@@ -501,16 +503,29 @@ func run(opts *options) error {
 	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
+		isLeader := func() bool {
+			select {
+			case <-mgr.Elected():
+				return true
+			default:
+				return false
+			}
+		}
+		// rcUpdater is set below. The flare runner only reads its state
+		// while it runs a flare task, after Remote Configuration started.
+		var rcUpdater *remoteconfig.RemoteConfigUpdater
+		flareRunner, flareErr := newFlareRunner(opts, restConfig, mgr, credsManager, isLeader, func() any {
+			return rcUpdater.FlareState()
+		})
+		if flareErr != nil {
+			setupLog.Error(flareErr, "Unable to set up remote flares; flare requests from Fleet Automation will fail")
+		}
 		rcUpdaterOptions := []remoteconfig.RemoteConfigUpdaterOption{
 			remoteconfig.WithLogLevelSetter(remoteconfig.NewAtomicLogLevel(atomicLogLevel)),
-			remoteconfig.WithLeaderCheck(func() bool {
-				select {
-				case <-mgr.Elected():
-					return true
-				default:
-					return false
-				}
-			}),
+			remoteconfig.WithLeaderCheck(isLeader),
+		}
+		if flareRunner != nil {
+			rcUpdaterOptions = append(rcUpdaterOptions, remoteconfig.WithFlareRunner(flareRunner))
 		}
 		if managedAgentInstallationIdentity.Configured() {
 			identityTags, tagsErr := managedAgentInstallationIdentity.UpdaterTags()
@@ -528,7 +543,7 @@ func run(opts *options) error {
 				)
 			}
 		}
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
+		rcUpdater = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
 		go func() {
 			select {
 			case <-managerCtx.Done():
