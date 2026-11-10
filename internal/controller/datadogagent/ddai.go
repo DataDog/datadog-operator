@@ -123,20 +123,10 @@ func applyFleetManagedInstallNodeAgentToleration(
 	}
 }
 
-// isFleetManagedDatadogAgent reports whether the DatadogAgent is a Fleet
-// managed-install. The label is defined in pkg/constants (shared with
-// pkg/fleet): the controllers must not import pkg/fleet, whose integration
-// tests import them back.
 func isFleetManagedDatadogAgent(dda *v2alpha1.DatadogAgent) bool {
 	return dda != nil && dda.Labels[constants.FleetManagedByLabel] == constants.FleetManagedByValue
 }
 
-// fleetManagedInstallNoScheduleToleration is the default node-Agent toleration
-// for Fleet managed installs: a keyless Exists toleration limited to the
-// NoSchedule effect, so the node Agent is placed on nodes carrying any
-// NoSchedule taint (customers choose the taint key), while NoExecute taints
-// are deliberately not tolerated so operational evictions still drain the
-// Agent.
 func fleetManagedInstallNoScheduleToleration() corev1.Toleration {
 	return corev1.Toleration{
 		Operator: corev1.TolerationOpExists,
