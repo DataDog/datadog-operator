@@ -310,12 +310,201 @@ func Test_generateSpecFromDDA(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "fleet managed install gets default node agent toleration",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+					Labels: map[string]string{
+						"fleet.datadoghq.com/managed-by": "fleet-automation",
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APIKey: ptr.To("key"),
+						},
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APISecret: &v2alpha1.SecretConfig{
+								SecretName: "foo-secret",
+								KeyName:    "api_key",
+							},
+						},
+						ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+							SecretName: "foo-token",
+							KeyName:    "token",
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Tolerations: []corev1.Toleration{
+								{Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "fleet managed install preserves existing node agent tolerations",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+					Labels: map[string]string{
+						"fleet.datadoghq.com/managed-by": "fleet-automation",
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APIKey: ptr.To("key"),
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							NodeSelector: map[string]string{"kubernetes.io/os": "linux"},
+							Tolerations: []corev1.Toleration{
+								{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "gpu", Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APISecret: &v2alpha1.SecretConfig{
+								SecretName: "foo-secret",
+								KeyName:    "api_key",
+							},
+						},
+						ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+							SecretName: "foo-token",
+							KeyName:    "token",
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							NodeSelector: map[string]string{"kubernetes.io/os": "linux"},
+							Tolerations: []corev1.Toleration{
+								{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "gpu", Effect: corev1.TaintEffectNoSchedule},
+								{Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "fleet managed install does not duplicate the toleration",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+					Labels: map[string]string{
+						"fleet.datadoghq.com/managed-by": "fleet-automation",
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APIKey: ptr.To("key"),
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Tolerations: []corev1.Toleration{
+								{Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APISecret: &v2alpha1.SecretConfig{
+								SecretName: "foo-secret",
+								KeyName:    "api_key",
+							},
+						},
+						ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+							SecretName: "foo-token",
+							KeyName:    "token",
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Tolerations: []corev1.Toleration{
+								{Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "non-fleet dda with tolerations is unchanged",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APIKey: ptr.To("key"),
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Tolerations: []corev1.Toleration{
+								{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "gpu", Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APISecret: &v2alpha1.SecretConfig{
+								SecretName: "foo-secret",
+								KeyName:    "api_key",
+							},
+						},
+						ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+							SecretName: "foo-token",
+							KeyName:    "token",
+						},
+					},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Tolerations: []corev1.Toleration{
+								{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "gpu", Effect: corev1.TaintEffectNoSchedule},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ddaBefore := tt.dda.DeepCopy()
 			ddai := &v1alpha1.DatadogAgentInternal{}
 			generateSpecFromDDA(tt.dda, ddai)
 			assert.Equal(t, tt.want, ddai)
+			// The DDA spec must never be modified by the DDAI render: Fleet's
+			// accepted config hash is computed from it.
+			assert.Equal(t, ddaBefore, tt.dda)
 		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -28,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -94,7 +96,40 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 	ddai.Spec = *dda.Spec.DeepCopy()
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
+	applyFleetManagedInstallNodeAgentToleration(dda, &ddai.Spec)
 	return nil
+}
+
+// applyFleetManagedInstallNodeAgentToleration gives Fleet managed-install
+// node Agents a default NoSchedule toleration (FX-1141). Managed installs
+// take the toleration knob away from customers: the bootstrap spec has no
+// tolerations, DatadogAgentProfile overrides cannot set them, and Fleet's
+// operator config schema excludes spec.override — so customer-tainted nodes
+// (commonly GPU node groups tainted nvidia.com/gpu:NoSchedule) silently get
+// no node Agent. The toleration is added to the DDAI at render time only: the
+// DDA spec, and therefore the accepted config hash Fleet replays against,
+// is untouched, and existing installs pick the toleration up on the next
+// render. NoExecute is deliberately not tolerated, so operational eviction
+// taints still drain the Agent. Non-managed installs are unchanged.
+func applyFleetManagedInstallNodeAgentToleration(
+	dda *v2alpha1.DatadogAgent,
+	spec *v2alpha1.DatadogAgentSpec,
+) {
+	if !fleet.IsFleetManagedDatadogAgent(dda) {
+		return
+	}
+	toleration := fleet.ManagedInstallNoScheduleToleration()
+	if spec.Override == nil {
+		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+	nodeAgentOverride, ok := spec.Override[v2alpha1.NodeAgentComponentName]
+	if !ok {
+		nodeAgentOverride = &v2alpha1.DatadogAgentComponentOverride{}
+		spec.Override[v2alpha1.NodeAgentComponentName] = nodeAgentOverride
+	}
+	if !slices.Contains(nodeAgentOverride.Tolerations, toleration) {
+		nodeAgentOverride.Tolerations = append(nodeAgentOverride.Tolerations, toleration)
+	}
 }
 
 // getDDAILabels adds the following labels to the DDAI:
