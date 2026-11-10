@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"slices"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,25 +34,42 @@ func jsonPatch(object client.Object, operations ...map[string]any) (client.Patch
 	return client.RawPatch(types.JSONPatchType, patch), nil
 }
 
-// managedFieldsPatch gives every field of the object to manager, as if manager had applied the whole object, so that
-// the next apply of manager removes the fields that it does not apply, such as the labels of the chart. The entries
-// of subresources are kept, so that status writers and HPAs keep their fields.
+// manifestManagers are the field managers of the tools that apply the manifests: Helm, with a client-side or a
+// server-side apply, and a client-side kubectl apply.
+var manifestManagers = []string{"helm", "kubectl-client-side-apply"}
+
+// givesFields reports whether adopt gives the fields of the managedFields entry of object to manager. It gives every
+// field apart from the subresource entries, so that status writers and HPAs keep their fields. A Service gives only
+// the fields of manager and of the tools that apply the manifests, and keeps the fields of the other managers, such
+// as the load balancer settings, which the cluster cannot express.
+func givesFields(object client.Object, entry metav1.ManagedFieldsEntry, manager string) bool {
+	if entry.Subresource != "" {
+		return false
+	}
+	if _, isService := object.(*corev1.Service); !isService {
+		return true
+	}
+	return entry.Manager == manager || slices.Contains(manifestManagers, entry.Manager)
+}
+
+// managedFieldsPatch gives the fields of the object to manager, as if manager had applied them, so that the next
+// apply of manager removes the fields that it does not apply, such as the labels of the chart.
 func managedFieldsPatch(object client.Object, manager, apiVersion string) (client.Patch, error) {
-	merged, err := mergeManagedFields(object.GetManagedFields(), manager, apiVersion)
+	merged, err := mergeManagedFields(object, manager, apiVersion)
 	if err != nil {
 		return nil, err
 	}
 	return jsonPatch(object, map[string]any{"op": "replace", "path": "/metadata/managedFields", "value": merged})
 }
 
-// mergeManagedFields merges the managedFields entries of every manager, apart from subresource entries, into one
-// Apply entry of manager.
-func mergeManagedFields(entries []metav1.ManagedFieldsEntry, manager, apiVersion string) ([]metav1.ManagedFieldsEntry, error) {
+// mergeManagedFields merges the managedFields entries whose fields the object gives to manager into one Apply entry
+// of manager, and keeps the other entries.
+func mergeManagedFields(object client.Object, manager, apiVersion string) ([]metav1.ManagedFieldsEntry, error) {
 	fields := &fieldpath.Set{}
-	var subresources []metav1.ManagedFieldsEntry
-	for _, entry := range entries {
-		if entry.Subresource != "" {
-			subresources = append(subresources, entry)
+	var kept []metav1.ManagedFieldsEntry
+	for _, entry := range object.GetManagedFields() {
+		if !givesFields(object, entry, manager) {
+			kept = append(kept, entry)
 			continue
 		}
 		if entry.FieldsV1 == nil {
@@ -75,7 +93,7 @@ func mergeManagedFields(entries []metav1.ManagedFieldsEntry, manager, apiVersion
 		FieldsType: "FieldsV1",
 		FieldsV1:   metav1.NewFieldsV1(string(raw)),
 	}
-	return append([]metav1.ManagedFieldsEntry{merged}, subresources...), nil
+	return append([]metav1.ManagedFieldsEntry{merged}, kept...), nil
 }
 
 // controllerReferencePatch adds the cluster as the controller of the object. It does not block the deletion of the
