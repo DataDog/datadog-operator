@@ -253,7 +253,7 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 		{
 			name:      "unsupported desired state",
 			raw:       []byte(strings.Replace(valid, `"desiredState":"installed"`, `"desiredState":"paused"`, 1)),
-			wantError: "unsupported EKS managed Agent installation desired state",
+			wantError: "unsupported managed Agent installation desired state",
 		},
 		{
 			name:      "topology input",
@@ -1284,13 +1284,13 @@ func TestManagedAgentInstallationAcknowledgementValidation(t *testing.T) {
 
 	t.Run("reconcile requires complete acknowledgement", func(t *testing.T) {
 		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
-		require.ErrorContains(t, daemon.reconcileAcknowledgedManagedAgentInstallation(ctx, &current), "acknowledgement state is incomplete")
+		require.ErrorContains(t, daemon.reconcileAcknowledgedManagedAgentInstallation(ctx, &current, managedAgentInstallationIntent{}), "acknowledgement state is incomplete")
 	})
 
 	t.Run("validated acknowledgement propagates target read failure", func(t *testing.T) {
 		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
 		daemon.apiReader = &failManagedAgentInstallationTargetReadClient{Reader: kubeClient}
-		_, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx)
+		_, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx, nil)
 		require.ErrorContains(t, err, "transient managed Agent installation target read failure")
 	})
 
@@ -1298,13 +1298,13 @@ func TestManagedAgentInstallationAcknowledgementValidation(t *testing.T) {
 		dda := managedDDA(t)
 		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
 		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
-		_, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx)
+		_, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx, nil)
 		require.ErrorContains(t, err, "install gate")
 	})
 
 	t.Run("validated acknowledgement requires Windows profile", func(t *testing.T) {
 		daemon, _, _ := testManagedAgentInstallationDaemon(nil, managedDDA(t))
-		_, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx)
+		_, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx, nil)
 		require.ErrorContains(t, err, "Windows DatadogAgentProfile")
 	})
 }
