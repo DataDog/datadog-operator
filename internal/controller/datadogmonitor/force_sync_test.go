@@ -111,7 +111,6 @@ func newForceSyncTestReconciler(t *testing.T) (*Reconciler, *fakeMonitorAPI) {
 		log:           logf.Log.WithName(t.Name()),
 		requeuePeriod: defaultRequeuePeriod,
 	}
-	r.apiReader = r.client
 	return r, api
 }
 
