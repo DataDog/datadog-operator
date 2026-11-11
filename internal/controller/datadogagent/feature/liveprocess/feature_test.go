@@ -113,7 +113,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// check volume mounts
-			wantVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      common.PasswdVolumeName,
 					MountPath: expectedPath,
@@ -122,13 +122,13 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 			// The relocated passwd also brings host os-release under /host/etc.
 			if expectedPath == common.HostPasswdMountPath {
-				wantVolumeMounts = append(wantVolumeMounts, corev1.VolumeMount{
+				expectedVolumeMounts = append(expectedVolumeMounts, corev1.VolumeMount{
 					Name:      common.OSReleaseFileVolumeName,
 					MountPath: common.OSReleaseFileMountPath,
 					ReadOnly:  true,
 				})
 			}
-			wantVolumeMounts = append(wantVolumeMounts,
+			expectedVolumeMounts = append(expectedVolumeMounts,
 				corev1.VolumeMount{
 					Name:      common.CgroupsVolumeName,
 					MountPath: common.CgroupsMountPath,
@@ -142,10 +142,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			)
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(agentMounts, wantVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, wantVolumeMounts))
+			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMounts))
 
 			// check volumes
-			wantVolumes := []corev1.Volume{
+			expectedVolumes := []corev1.Volume{
 				{
 					Name: common.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
@@ -156,7 +156,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 				},
 			}
 			if expectedPath == common.HostPasswdMountPath {
-				wantVolumes = append(wantVolumes, corev1.Volume{
+				expectedVolumes = append(expectedVolumes, corev1.Volume{
 					Name: common.OSReleaseFileVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -165,7 +165,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 					},
 				})
 			}
-			wantVolumes = append(wantVolumes,
+			expectedVolumes = append(expectedVolumes,
 				corev1.Volume{
 					Name: common.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
@@ -185,10 +185,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			)
 
 			volumes := mgr.VolumeMgr.Volumes
-			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolumes))
 
 			// check env vars
-			wantEnvVars := []*corev1.EnvVar{
+			expectedEnvVars := []*corev1.EnvVar{
 				{
 					Name:  common.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
@@ -210,11 +210,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						Value: "true",
 					},
 				}
-				wantEnvVars = append(wantEnvVars, ScrubStripArgsEnvVar...)
+				expectedEnvVars = append(expectedEnvVars, ScrubStripArgsEnvVar...)
 			}
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, wantEnvVars))
+			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, expectedEnvVars))
 		},
 	)
 }

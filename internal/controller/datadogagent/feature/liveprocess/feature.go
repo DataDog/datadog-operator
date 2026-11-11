@@ -33,9 +33,7 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	// The passwd mount path depends on the node Agent version, but ManageNodeAgent
-	// only receives the pod managers. Keep the DatadogAgent from Configure so
-	// ProcessPasswdMountPath can read its node Agent image override.
+	// owner stores the user's DatadogAgent resource, which we keep because the passwd mount path depends on the Agent image version set in it.
 	owner          metav1.Object
 	scrubArgs      *bool
 	stripArgs      *bool
