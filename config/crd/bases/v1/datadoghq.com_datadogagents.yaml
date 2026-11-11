@@ -1945,6 +1945,17 @@ spec:
                     gpu:
                       description: GPU monitoring
                       properties:
+                        amd:
+                          description: AMD configures monitoring of AMD GPUs.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.
+                                (Requires Agent 7.86.0+) Not supported on GKE Autopilot.
+                                Set requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.
+                                Default: false
+                              type: boolean
+                          type: object
                         enabled:
                           description: |-
                             Enabled enables GPU monitoring core check.
@@ -1962,12 +1973,14 @@ spec:
                             probes are disabled; privileged mode is retained for cgroup permission patching.
                             To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
                             core agent and system-probe containers via spec.override.nodeAgent.containers.
+                            Applies to NVIDIA GPUs only.
                             Default: false
                           type: boolean
                         requiredRuntimeClassName:
                           description: |-
                             PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
                             If the value is an empty string, the runtime class is not set.
+                            Set to amd for AMD GPUs.
                             Default: nvidia
                           type: string
                       type: object
@@ -11487,6 +11500,17 @@ spec:
                         gpu:
                           description: GPU monitoring
                           properties:
+                            amd:
+                              description: AMD configures monitoring of AMD GPUs.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.
+                                    (Requires Agent 7.86.0+) Not supported on GKE Autopilot.
+                                    Set requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             enabled:
                               description: |-
                                 Enabled enables GPU monitoring core check.
@@ -11504,12 +11528,14 @@ spec:
                                 probes are disabled; privileged mode is retained for cgroup permission patching.
                                 To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
                                 core agent and system-probe containers via spec.override.nodeAgent.containers.
+                                Applies to NVIDIA GPUs only.
                                 Default: false
                               type: boolean
                             requiredRuntimeClassName:
                               description: |-
                                 PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
                                 If the value is an empty string, the runtime class is not set.
+                                Set to amd for AMD GPUs.
                                 Default: nvidia
                               type: string
                           type: object

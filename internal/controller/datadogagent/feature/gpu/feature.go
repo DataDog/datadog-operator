@@ -3,7 +3,9 @@ package gpu
 import (
 	"errors"
 	"path"
+	"strings"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -13,10 +15,13 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -25,8 +30,14 @@ func init() {
 	}
 }
 
-func buildFeature(*feature.Options) feature.Feature {
-	return &gpuFeature{}
+func buildFeature(options *feature.Options) feature.Feature {
+	gpuFeat := &gpuFeature{}
+
+	if options != nil {
+		gpuFeat.logger = options.Logger
+	}
+
+	return gpuFeat
 }
 
 type gpuFeature struct {
@@ -37,6 +48,9 @@ type gpuFeature struct {
 	podResourcesSocketPath  string
 	isPrivilegedModeEnabled bool
 	patchCgroupPermissions  bool
+	amdEnabled              bool
+
+	logger logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -85,8 +99,23 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	return caps
 }
 
+// nodeAgentVersion returns the node Agent version for the AMD gate. An image override
+// without a tag (e.g. only pullPolicy) keeps the bundled image, so it resolves to that version.
+func nodeAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if override, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && override != nil && override.Image != nil && !imageSetsTag(*override.Image) {
+		return images.AgentLatestVersion
+	}
+	return common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
+}
+
+// imageSetsTag reports whether an image override sets a tag, in the name or in the tag
+// field. A registry port in the name does not count as a tag.
+func imageSetsTag(image v2alpha1.AgentImageConfig) bool {
+	return image.Tag != "" || strings.LastIndex(image.Name, ":") > strings.LastIndex(image.Name, "/")
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
 		return reqComp
 	}
@@ -102,6 +131,18 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 	reqComp.Agent = feature.RequiredComponent{
 		IsRequired: new(true),
 		Containers: requiredContainers,
+	}
+
+	if amd := ddaSpec.Features.GPU.AMD; amd != nil && apiutils.BoolValue(amd.Enabled) {
+		if experimental.IsAutopilotEnabled(dda) {
+			// GKE Autopilot has no AMD GPUs: ignore features.gpu.amd.
+			f.logger.V(1).Info("features.gpu.amd is not supported on GKE Autopilot; ignoring it")
+		} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {
+			// Non-semver (custom) tags are assumed recent enough.
+			f.amdEnabled = true
+		} else {
+			f.logger.V(1).Info("features.gpu.amd.enabled requires Agent >= 7.86.0; not enabling the AMD GPU check", "version", version, "minVersion", amdGPUMinVersion)
+		}
 	}
 
 	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
@@ -308,6 +349,18 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvidiaVisibleDevicesEnvVar)
+
+	if f.amdEnabled {
+		// enable the amd_gpu core check, and ask the AMD container runtime to expose all GPUs
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDEnableAMDGPUEnvVar,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  AMDVisibleDevicesEnvVar,
+			Value: "all",
+		})
+	}
 
 	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
 	// env variable. This is usually configured with the options

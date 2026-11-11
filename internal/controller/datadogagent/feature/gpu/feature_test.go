@@ -23,7 +23,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 const alternativeRuntimeClass = "nvidia-like"
@@ -619,4 +621,225 @@ func Test_GPUMonitoringFeature_EBPFProbesOverride(t *testing.T) {
 	// the override wins, and there is exactly one env var per container
 	assert.Equal(t, []string{"true"}, envVarValues(tmpl, apicommon.CoreAgentContainerName))
 	assert.Equal(t, []string{"true"}, envVarValues(tmpl, apicommon.SystemProbeContainerName))
+}
+
+func Test_GPUMonitoringFeature_AMD(t *testing.T) {
+	newDDA := func(amd *v2alpha1.GPUAMDConfig, runtimeClass *string, agentTag string) *v2alpha1.DatadogAgent {
+		dda := &v2alpha1.DatadogAgent{
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled:             ptr.To(true),
+						PodRuntimeClassName: runtimeClass,
+						AMD:                 amd,
+					},
+				},
+				Global: &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
+			},
+		}
+		if agentTag != "" {
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: agentTag}},
+			}
+		}
+		return dda
+	}
+
+	withNodeAgentImage := func(dda *v2alpha1.DatadogAgent, image *v2alpha1.AgentImageConfig) *v2alpha1.DatadogAgent {
+		dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {Image: image},
+		}
+		return dda
+	}
+	onAutopilot := func(dda *v2alpha1.DatadogAgent) *v2alpha1.DatadogAgent {
+		dda.Annotations = map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}
+		return dda
+	}
+	bundledAgentSupportsAMD := utils.IsAboveMinVersion(images.AgentLatestVersion, amdGPUMinVersion, nil)
+
+	amdOn := &v2alpha1.GPUAMDConfig{Enabled: ptr.To(true)}
+	amdEnvVars := []*corev1.EnvVar{
+		{Name: DDEnableAMDGPUEnvVar, Value: "true"},
+		{Name: AMDVisibleDevicesEnvVar, Value: "all"},
+	}
+	baseEnvVars := []*corev1.EnvVar{
+		{Name: DDEnableNVMLDetectionEnvVar, Value: "true"},
+		{Name: DDEnableGPUMonitoringCheckEnvVar, Value: "true"},
+		{Name: NVIDIAVisibleDevicesEnvVar, Value: "all"},
+	}
+
+	wantFunc := func(wantAMD bool, wantRuntimeClass string) func(testing.TB, feature.PodTemplateManagers) {
+		return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			want := append([]*corev1.EnvVar{}, baseEnvVars...)
+			if wantAMD {
+				want = append(want, amdEnvVars...)
+			}
+			assert.ElementsMatch(t, want, mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName])
+			assert.Empty(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName])
+			if wantRuntimeClass == "" {
+				assert.Nil(t, mgr.PodTemplateSpec().Spec.RuntimeClassName)
+			} else {
+				assert.Equal(t, wantRuntimeClass, *mgr.PodTemplateSpec().Spec.RuntimeClassName)
+			}
+		}
+	}
+
+	tests := test.FeatureTestSuite{
+		{
+			Name:          "amd enabled adds env vars and keeps the nvidia runtime class default",
+			DDA:           newDDA(amdOn, nil, "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled with amd runtime class uses amd",
+			DDA:           newDDA(amdOn, ptr.To("amd"), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
+		},
+		{
+			Name:          "amd enabled with empty runtime class leaves it unset",
+			DDA:           newDDA(amdOn, ptr.To(""), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "")),
+		},
+		{
+			Name:          "amd enabled with custom runtime class uses it",
+			DDA:           newDDA(amdOn, ptr.To("my-amd"), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "my-amd")),
+		},
+		{
+			Name:          "amd disabled with empty runtime class leaves it unset",
+			DDA:           newDDA(&v2alpha1.GPUAMDConfig{Enabled: ptr.To(false)}, ptr.To(""), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "")),
+		},
+		{
+			Name:          "amd disabled keeps requiredRuntimeClassName",
+			DDA:           newDDA(&v2alpha1.GPUAMDConfig{Enabled: ptr.To(false)}, ptr.To(alternativeRuntimeClass), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, alternativeRuntimeClass)),
+		},
+		{
+			Name:          "amd disabled leaves nvidia defaults unchanged",
+			DDA:           newDDA(&v2alpha1.GPUAMDConfig{Enabled: ptr.To(false)}, nil, "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd unset leaves nvidia defaults unchanged",
+			DDA:           newDDA(nil, nil, "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled on agent 7.85.0 skips amd env vars",
+			DDA:           newDDA(amdOn, nil, "7.85.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "explicit runtime class applies below the version gate",
+			DDA:           newDDA(amdOn, ptr.To("amd"), "7.85.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
+		},
+		{
+			Name:          "amd enabled on agent 7.86.0-rc.3 adds amd env vars",
+			DDA:           newDDA(amdOn, ptr.To("amd"), "7.86.0-rc.3"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
+		},
+		{
+			Name:          "amd enabled on custom non-semver tag adds amd env vars",
+			DDA:           newDDA(amdOn, ptr.To("amd"), "dev"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
+		},
+		{
+			// A tagless override (e.g. only pullPolicy) keeps the bundled image, so the gate uses its version.
+			Name:          "amd with a pullPolicy-only image override uses the bundled agent version",
+			DDA:           withNodeAgentImage(newDDA(amdOn, ptr.To("amd"), ""), &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(bundledAgentSupportsAMD, "amd")),
+		},
+		{
+			Name:          "amd with the tag in the image name adds amd env vars",
+			DDA:           withNodeAgentImage(newDDA(amdOn, ptr.To("amd"), ""), &v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/agent:7.86.0"}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
+		},
+		{
+			Name:          "amd enabled on GKE Autopilot is ignored and keeps the nvidia default",
+			DDA:           onAutopilot(newDDA(amdOn, nil, "7.86.0")),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled on GKE Autopilot keeps an explicit runtime class",
+			DDA:           onAutopilot(newDDA(amdOn, ptr.To("amd"), "7.86.0")),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
+		},
+	}
+
+	tests.Run(t, buildFeature)
+}
+
+func Test_GPUMonitoringFeature_AMDRuntimeClassOverrideWins(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				GPU: &v2alpha1.GPUFeatureConfig{
+					Enabled:             ptr.To(true),
+					PodRuntimeClassName: ptr.To("amd"),
+					AMD:                 &v2alpha1.GPUAMDConfig{Enabled: ptr.To(true)},
+				},
+			},
+			Global: &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
+		},
+	}
+	f := buildFeature(&feature.Options{Logger: logr.Discard()})
+	f.Configure(dda, &dda.Spec, nil)
+
+	tmpl := &corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+		Spec: corev1.PodSpec{
+			Containers:     []corev1.Container{{Name: string(apicommon.CoreAgentContainerName)}},
+			InitContainers: []corev1.Container{{Name: string(apicommon.InitConfigContainerName)}},
+		},
+	}
+	mgr := feature.NewPodTemplateManagers(tmpl)
+	assert.NoError(t, f.ManageNodeAgent(mgr))
+	assert.Equal(t, "amd", *tmpl.Spec.RuntimeClassName)
+
+	// spec.override is applied after the features, so it wins.
+	override.PodTemplateSpec(logr.Discard(), mgr, &v2alpha1.DatadogAgentComponentOverride{RuntimeClassName: ptr.To("custom")}, v2alpha1.NodeAgentComponentName, "dda")
+	assert.Equal(t, "custom", *tmpl.Spec.RuntimeClassName)
+}
+
+func Test_GPUMonitoringFeature_AMDOnAutopilotStaysDegraded(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				GPU: &v2alpha1.GPUFeatureConfig{
+					Enabled: ptr.To(true),
+					AMD:     &v2alpha1.GPUAMDConfig{Enabled: ptr.To(true)},
+				},
+			},
+			Global: &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
+		},
+	}
+	f := buildFeature(&feature.Options{Logger: logr.Discard()})
+	f.Configure(dda, &dda.Spec, nil)
+
+	// features.gpu.amd does not change the GPU feature's Autopilot support level.
+	assert.Equal(t, []feature.ProviderSupportResult{
+		{ID: feature.GPUIDType, Level: feature.Degraded},
+	}, feature.EvaluateProviderSupport([]feature.Feature{f}, kubernetes.GKEAutopilotProvider))
 }

@@ -20,3 +20,9 @@ const DDPatchCgroupPermissionsEnvVar = "DD_GPU_MONITORING_CONFIGURE_CGROUP_PERMS
 
 // DDEnableEBPFProbesEnvVar is the name of the system-probe gpu_monitoring module eBPF probes enablement knob
 const DDEnableEBPFProbesEnvVar = "DD_GPU_MONITORING_ENABLE_EBPF_PROBES"
+
+// DDEnableAMDGPUEnvVar is the name of the amd_gpu core-check enablement knob
+const DDEnableAMDGPUEnvVar = "DD_GPU_AMD_ENABLED"
+
+// AMDVisibleDevicesEnvVar tells the AMD container runtime which GPUs to expose in the container
+const AMDVisibleDevicesEnvVar = "AMD_VISIBLE_DEVICES"

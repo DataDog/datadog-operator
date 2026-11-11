@@ -26,4 +26,7 @@ const (
 
 	// defaultGPURuntimeClass default runtime class for GPU pods
 	defaultGPURuntimeClass = "nvidia"
+
+	// amdGPUMinVersion is the first Agent release shipping the amd_gpu core check
+	amdGPUMinVersion = "7.86.0-0"
 )

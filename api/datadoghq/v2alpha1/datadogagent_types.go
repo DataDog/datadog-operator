@@ -992,12 +992,14 @@ type GPUFeatureConfig struct {
 	// probes are disabled; privileged mode is retained for cgroup permission patching.
 	// To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
 	// core agent and system-probe containers via spec.override.nodeAgent.containers.
+	// Applies to NVIDIA GPUs only.
 	// Default: false
 	// +optional
 	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
+	// Set to amd for AMD GPUs.
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
@@ -1007,6 +1009,21 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+
+	// AMD configures monitoring of AMD GPUs.
+	// +optional
+	AMD *GPUAMDConfig `json:"amd,omitempty"`
+}
+
+// GPUAMDConfig contains the AMD GPU monitoring configuration.
+// +k8s:openapi-gen=true
+type GPUAMDConfig struct {
+	// Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.
+	// (Requires Agent 7.86.0+) Not supported on GKE Autopilot.
+	// Set requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
