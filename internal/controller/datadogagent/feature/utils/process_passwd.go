@@ -17,24 +17,21 @@ import (
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-// Keep version selection aligned with Helm's process-passwd-mount-path helper.
-// This covers Process Check/Discovery only; Gohai still uses local user lookup.
 const (
-	// -0 includes 7.86.0+ prereleases (RC/devel), matching other Agent feature minimum versions.
+	// processHostPasswdMinVersion is the first Agent version that reads host passwd
+	// from /host/etc/passwd. -0 includes prereleases (RC/devel), matching other Agent
+	// feature minimum versions.
 	processHostPasswdMinVersion = "7.86.0-0"
 )
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
-// shared security mounts or eligibility. HOST_ETC is initialized by the Agent;
-// do not override an explicitly configured HOST_ETC or ignore_host_etc here.
-//
+// shared security mounts or eligibility.
 // Like other version-gated features, the Agent version comes from the node Agent
 // image override (spec.override.nodeAgent.image), or the Operator's default image.
-// Known gap, shared with those features: experimental per-container image
-// annotations and container renames are not considered, so they can make the
-// mount disagree with the running image. The impact is limited to process
-// usernames: an older Agent given /host/etc/passwd falls back to image-local
-// users, and a 7.86+ Agent given /etc/passwd behaves as before this change.
+// Experimental per-container image annotations and container renames are not considered,
+// so this rare gap can lead to mounting passwd to the existing /etc/passwd instead of the new /host/etc/passwd
+// The impact is limited to process usernames since an older Agent given /host/etc/passwd
+// falls back to image-local users, and a 7.86+ Agent given /etc/passwd behaves as before this change.
 func ProcessPasswdMountPath(dda metav1.Object) string {
 	// Windows does not use the Unix host-passwd resolver.
 	if dda != nil && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
