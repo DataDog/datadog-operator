@@ -270,6 +270,11 @@ type DatadogMonitorStatus struct {
 	// CurrentHash tracks the hash of the current DatadogMonitorSpec to know
 	// if the Spec has changed and needs an update
 	CurrentHash string `json:"currentHash,omitempty"`
+
+	// RemoteDefinitionHash is the hash of the monitor definition returned by Datadog
+	// after the last successful create or update. A force sync skips the update
+	// while the remote monitor still has this hash.
+	RemoteDefinitionHash string `json:"remoteDefinitionHash,omitempty"`
 }
 
 // DatadogMonitorCondition describes the current state of a DatadogMonitor
