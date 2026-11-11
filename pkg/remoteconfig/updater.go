@@ -396,6 +396,10 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	cfg.SetDefault("site", site)
 	cfg.SetDefault("remote_configuration.config_root", configRoot)
 	cfg.SetDefault("remote_configuration.director_root", directorRoot)
+	// The agent config library only serves values once the schema is built:
+	// reads before BuildSchema return zero values, which would make Remote
+	// Config fall back to the prod TUF roots on every site.
+	cfg.BuildSchema()
 	hostname, _ := os.Hostname()
 
 	if endpoint == "" {

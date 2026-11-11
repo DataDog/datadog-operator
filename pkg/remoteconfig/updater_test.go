@@ -13,6 +13,7 @@ import (
 	"time"
 
 	rcclient "github.com/DataDog/datadog-agent/pkg/config/remote/client"
+	"github.com/DataDog/datadog-agent/pkg/config/remote/meta"
 	rcservice "github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -515,4 +516,48 @@ func newFakeClient(t *testing.T, objects ...client.Object) client.Client {
 	assert.NoError(t, corev1.AddToScheme(scheme))
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+}
+
+func TestConfigureServiceBuildsReadableConfig(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	tests := []struct {
+		name string
+		site string
+	}{
+		{name: "staging", site: "datad0g.com"},
+		{name: "gov", site: "ddog-gov.com"},
+		{name: "prod", site: "datadoghq.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &RemoteConfigUpdater{}
+			require.NoError(t, r.configureService("api-key", tt.site, "cluster", "", "", ""))
+
+			cfg := r.serviceConf.cfg
+			assert.Equal(t, tt.site, cfg.GetString("site"))
+			assert.Equal(t, "api-key", cfg.GetString("api_key"))
+
+			// The roots Start passes to the RC service and client must be the site's own.
+			assert.Equal(t,
+				meta.RootsDirector(tt.site, "").Version(),
+				meta.RootsDirector(cfg.GetString("site"), cfg.GetString("remote_configuration.director_root")).Version(),
+			)
+			assert.Equal(t,
+				meta.RootsConfig(tt.site, "").Root(),
+				meta.RootsConfig(cfg.GetString("site"), cfg.GetString("remote_configuration.config_root")).Root(),
+			)
+		})
+	}
+}
+
+func TestConfigureServiceKeepsRootOverrides(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	r := &RemoteConfigUpdater{}
+	require.NoError(t, r.configureService("api-key", "datad0g.com", "cluster", "director-root", "config-root", ""))
+
+	cfg := r.serviceConf.cfg
+	assert.Equal(t, "director-root", cfg.GetString("remote_configuration.director_root"))
+	assert.Equal(t, "config-root", cfg.GetString("remote_configuration.config_root"))
 }
