@@ -119,27 +119,17 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
-			}
-			// The relocated passwd also brings host os-release under /host/etc.
-			if expectedPath == common.HostPasswdMountPath {
-				expectedVolumeMounts = append(expectedVolumeMounts, corev1.VolumeMount{
-					Name:      common.OSReleaseFileVolumeName,
-					MountPath: common.OSReleaseFileMountPath,
-					ReadOnly:  true,
-				})
-			}
-			expectedVolumeMounts = append(expectedVolumeMounts,
-				corev1.VolumeMount{
+				{
 					Name:      common.CgroupsVolumeName,
 					MountPath: common.CgroupsMountPath,
 					ReadOnly:  true,
 				},
-				corev1.VolumeMount{
+				{
 					Name:      common.ProcdirVolumeName,
 					MountPath: common.ProcdirMountPath,
 					ReadOnly:  true,
 				},
-			)
+			}
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMounts))
@@ -154,19 +144,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						},
 					},
 				},
-			}
-			if expectedPath == common.HostPasswdMountPath {
-				expectedVolumes = append(expectedVolumes, corev1.Volume{
-					Name: common.OSReleaseFileVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.OSReleaseFileHostPath,
-						},
-					},
-				})
-			}
-			expectedVolumes = append(expectedVolumes,
-				corev1.Volume{
+				{
 					Name: common.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -174,7 +152,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						},
 					},
 				},
-				corev1.Volume{
+				{
 					Name: common.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -182,7 +160,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 						},
 					},
 				},
-			)
+			}
 
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolumes))

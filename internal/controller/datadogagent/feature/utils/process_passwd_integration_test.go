@@ -257,13 +257,8 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		// Both paths share the passwd volume; host-passwd is only for GKE Autopilot's allowlist.
 		assert.Equal(t, map[string]int{expectedVolume: 1}, passwdVolumes, "both features must share one passwd volume")
 	}
-	// The Agent sets HOST_ETC=/host/etc once that directory exists, so os-release
-	// must follow the relocated passwd mount, and only that mount.
-	if expectedPath == common.HostPasswdMountPath {
-		assert.Equal(t, processMounts, osReleaseMounts, "relocated passwd must bring os-release")
-	} else {
-		assert.Zero(t, osReleaseMounts)
-	}
+	// os-release is mounted by the default node Agent component, not by the process features.
+	assert.Zero(t, osReleaseMounts)
 
 	if securityMounts > 0 {
 		assert.Equal(t, 1, passwdVolumes[common.PasswdVolumeName], "security mounts keep the passwd volume")

@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	// processHostPasswdMinVersion is the first Agent version that reads host passwd
-	// from /host/etc/passwd. -0 includes prereleases (RC/devel), matching other Agent
+	// processHostPasswdMinVersion is the first Agent version that reads the host's
+	// /etc/passwd from /host/etc/passwd. -0 includes prereleases (RC/devel), matching other Agent
 	// feature minimum versions.
 	processHostPasswdMinVersion = "7.86.0-0"
 )
@@ -67,7 +67,7 @@ func nodeAgentVersion(dda metav1.Object, defaultVersion string) string {
 	return defaultVersion
 }
 
-// ProcessPasswdVolume returns the host passwd volume and mount for a process
+// ProcessPasswdVolume returns the volume and mount of the host's /etc/passwd for a process
 // container. Both paths use the passwd volume, matching Helm, except on GKE
 // Autopilot: Warden matches allowlisted volumeMounts by name, so /host/etc/passwd
 // uses the host-passwd volume there.

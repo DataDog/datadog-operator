@@ -87,7 +87,7 @@ metadata:
 
 The value must use the `vX.Y.Z` format. Malformed values are ignored and the default version is used.
 
-With Agent 7.86.0+ and allowlist `v1.0.8` or newer, process collection mounts host passwd read-only at `/host/etc/passwd` from a `host-passwd` volume. An older allowlist pin keeps `/etc/passwd`. See [Process passwd mounts](../configuration.v2alpha1.md#process-passwd-mounts).
+With Agent 7.86.0+ and allowlist `v1.0.8` or newer, process collection mounts the host's `/etc/passwd` read-only at `/host/etc/passwd` from a `host-passwd` volume. An older allowlist pin keeps `/etc/passwd`. See [Process passwd mounts](../configuration.v2alpha1.md#process-passwd-mounts).
 
 ## Customize resources
 

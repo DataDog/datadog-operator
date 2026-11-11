@@ -47,11 +47,11 @@ func (f *liveProcessFeature) ID() feature.IDType {
 
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. Talos has no host user database, so the
-// passwd volumes (plus os-release with the relocated mount) this feature adds are stripped.
+// passwd volumes this feature adds are stripped.
 func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	return providercaps.ProviderCapabilityMap{
 		kubernetes.TalosProvider: {
-			RemoveVolumes: []string{common.PasswdVolumeName, common.HostPasswdVolumeName, common.OSReleaseFileVolumeName},
+			RemoveVolumes: []string{common.PasswdVolumeName, common.HostPasswdVolumeName},
 		},
 	}
 }
@@ -139,14 +139,6 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 	passwdVol, passwdMount := featutils.ProcessPasswdVolume(f.owner, mountPath)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
-
-	// Mounting passwd under /host/etc makes the Agent read host files from there,
-	// so host os-release must be mounted there too.
-	if mountPath == common.HostPasswdMountPath {
-		osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.OSReleaseFileVolumeName, common.OSReleaseFileHostPath, common.OSReleaseFileMountPath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, agentContainerName)
-		managers.Volume().AddVolume(&osReleaseVol)
-	}
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
