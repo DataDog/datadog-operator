@@ -276,18 +276,13 @@ func TestProcessPasswdMountPathAutopilot(t *testing.T) {
 	}
 }
 
-func TestProcessPasswdVolumeName(t *testing.T) {
-	assert.Equal(t, common.PasswdVolumeName, ProcessPasswdVolumeName(common.PasswdMountPath))
-	assert.Equal(t, common.HostPasswdVolumeName, ProcessPasswdVolumeName(common.HostPasswdMountPath))
-}
-
 func TestProcessPasswdVolume(t *testing.T) {
 	_, mount := ProcessPasswdVolume(common.PasswdMountPath)
 	assert.Equal(t, common.PasswdVolumeName, mount.Name)
 	assert.Equal(t, common.PasswdMountPath, mount.MountPath)
 
 	volume, mount := ProcessPasswdVolume(common.HostPasswdMountPath)
-	assert.Equal(t, common.HostPasswdVolumeName, mount.Name)
+	assert.Equal(t, common.PasswdVolumeName, mount.Name)
 	assert.Equal(t, common.HostPasswdMountPath, mount.MountPath)
 	assert.True(t, mount.ReadOnly)
 	assert.Equal(t, common.PasswdHostPath, volume.HostPath.Path)

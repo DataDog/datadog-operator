@@ -22,7 +22,6 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
-	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -197,7 +196,7 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		count := 0
 		for _, mount := range container.VolumeMounts {
 			switch mount.Name {
-			case common.PasswdVolumeName, common.HostPasswdVolumeName:
+			case common.PasswdVolumeName:
 				count++
 				assert.True(t, mount.ReadOnly)
 				if container.Name == string(apicommon.SecurityAgentContainerName) || container.Name == string(apicommon.SystemProbeContainerName) {
@@ -207,8 +206,6 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 				} else {
 					processMounts++
 					assert.Equal(t, expectedPath, mount.MountPath)
-					// GKE Warden matches volumeMounts by name, so each path keeps a distinct volume name.
-					assert.Equal(t, featutils.ProcessPasswdVolumeName(expectedPath), mount.Name)
 				}
 			case common.OSReleaseFileVolumeName:
 				osReleaseMounts++
@@ -226,7 +223,7 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 
 	passwdVolumes := map[string]int{}
 	for _, volume := range pod.Spec.Volumes {
-		if volume.Name == common.PasswdVolumeName || volume.Name == common.HostPasswdVolumeName {
+		if volume.Name == common.PasswdVolumeName || volume.Name == "host-passwd" {
 			passwdVolumes[volume.Name]++
 			require.NotNil(t, volume.HostPath)
 			assert.Equal(t, "/etc/passwd", volume.HostPath.Path, "only the mount destination changes")
@@ -237,7 +234,8 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		assert.Empty(t, passwdVolumes)
 	} else {
 		assert.Equal(t, 1, processMounts, "both features must share one passwd mount")
-		assert.Equal(t, 1, passwdVolumes[featutils.ProcessPasswdVolumeName(expectedPath)], "both features must share one host passwd volume")
+		// Both paths share the passwd volume; host-passwd is only for GKE Autopilot's allowlist.
+		assert.Equal(t, map[string]int{common.PasswdVolumeName: 1}, passwdVolumes, "both features must share one passwd volume")
 	}
 	// The Agent sets HOST_ETC=/host/etc once that directory exists, so os-release
 	// must follow the relocated passwd mount, and only that mount.

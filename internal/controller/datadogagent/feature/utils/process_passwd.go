@@ -33,7 +33,7 @@ const (
 // The impact is limited to process usernames since an older Agent given /host/etc/passwd
 // falls back to image-local users, and a 7.86+ Agent given /etc/passwd behaves as before this change.
 func ProcessPasswdMountPath(dda metav1.Object) string {
-	// Windows does not use the Unix host-passwd resolver.
+	// Windows does not use the Unix host passwd resolver.
 	if dda != nil && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
 		return common.PasswdMountPath
 	}
@@ -50,21 +50,9 @@ func ProcessPasswdMountPath(dda metav1.Object) string {
 }
 
 // ProcessPasswdVolume returns the host passwd volume and mount for a process
-// container. It derives the volume name from the mount path so the two always match
-// (passwd at /etc/passwd, host-passwd at /host/etc/passwd), as Helm and the
-// WorkloadAllowlist expect (host-passwd needs v1.0.8+).
+// container. Both paths use the passwd volume, matching Helm. GKE Autopilot will
+// need a separate host-passwd volume for /host/etc/passwd because Warden matches
+// allowlisted volumeMounts by name.
 func ProcessPasswdVolume(mountPath string) (corev1.Volume, corev1.VolumeMount) {
-	return volume.GetVolumes(ProcessPasswdVolumeName(mountPath), common.PasswdHostPath, mountPath, true)
-}
-
-// ProcessPasswdVolumeName returns the volume backing a process passwd mount path.
-// Kubernetes allows mounting one volume at two paths, but GKE Autopilot's Warden
-// matches allowlisted volumeMounts by name, so /host/etc/passwd needs its own
-// host-passwd volume. Other clusters use the same name so each name always maps
-// to one path.
-func ProcessPasswdVolumeName(mountPath string) string {
-	if mountPath == common.HostPasswdMountPath {
-		return common.HostPasswdVolumeName
-	}
-	return common.PasswdVolumeName
+	return volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, mountPath, true)
 }
