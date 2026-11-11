@@ -176,6 +176,8 @@ serviceAccount:
 				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubelet")
+				// Regression check on the default passwd mounts, valid for any Agent version.
+				assertProcessPasswdMounts(c, pod)
 			}
 
 			metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
@@ -608,6 +610,28 @@ serviceAccount:
 			s.verifyDSDMetrics(c, "e2e.dsd.uds.counter")
 		}, 3*time.Minute, 10*time.Second, "DSD UDS with ADP: metrics not received by fakeintake")
 	})
+}
+
+// assertProcessPasswdMounts checks that each passwd volume name maps to one path
+// (passwd at /etc/passwd, host-passwd at /host/etc/passwd), that a container never
+// mounts both, and that the relocated mount brings host os-release with it.
+func assertProcessPasswdMounts(c *assert.CollectT, pod corev1.Pod) {
+	for _, container := range pod.Spec.Containers {
+		mounts := map[string]string{}
+		for _, mount := range container.VolumeMounts {
+			mounts[mount.MountPath] = mount.Name
+		}
+		legacy, hasLegacy := mounts["/etc/passwd"]
+		relocated, hasRelocated := mounts["/host/etc/passwd"]
+		assert.False(c, hasLegacy && hasRelocated, "%s mounts host passwd at both paths", container.Name)
+		if hasLegacy {
+			assert.Equal(c, "passwd", legacy, "%s volume at /etc/passwd", container.Name)
+		}
+		if hasRelocated {
+			assert.Equal(c, "host-passwd", relocated, "%s volume at /host/etc/passwd", container.Name)
+			assert.Equal(c, "os-release-file", mounts["/host/etc/os-release"], "%s host os-release mount", container.Name)
+		}
+	}
 }
 
 // assertProcessHostPasswd checks a running Agent pod that uses the relocated passwd mount.
