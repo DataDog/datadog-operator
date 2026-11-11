@@ -16,6 +16,6 @@ spec:
   override:
     nodeAgent:
       image:
-        # Agent 7.86.0+ mounts host passwd at /host/etc/passwd.
+        # Agent 7.86.0+ mounts the host's /etc/passwd at /host/etc/passwd.
         # TODO: switch to 7.86.0 once it is released.
         tag: 7.86.0-rc.6

@@ -39,7 +39,7 @@ const (
 	gkeAllowlistSynchronizer  = "datadog-synchronizer"
 	gkeMatchingAllowlistLabel = "cloud.google.com/matching-allowlist"
 	systemProbeContainerName  = "system-probe"
-	// gkeAutopilotHostPasswdAgentTag mounts host passwd at /host/etc/passwd (Agent 7.86.0+).
+	// gkeAutopilotHostPasswdAgentTag mounts the host's /etc/passwd at /host/etc/passwd (Agent 7.86.0+).
 	// TODO: switch to 7.86.0 once it is released.
 	gkeAutopilotHostPasswdAgentTag = "7.86.0-rc.6"
 )

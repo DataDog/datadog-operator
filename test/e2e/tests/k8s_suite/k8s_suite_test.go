@@ -207,7 +207,7 @@ serviceAccount:
 
 	})
 
-	s.T().Run("Process collection mounts host passwd at /host/etc/passwd", func(t *testing.T) {
+	s.T().Run("Process collection mounts the host's /etc/passwd at /host/etc/passwd", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-process-passwd.yaml"))
 		assert.NoError(s.T(), err)
 
