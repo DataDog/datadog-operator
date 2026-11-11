@@ -659,7 +659,14 @@ func (s *k8sSuite) assertProcessHostPasswd(c *assert.CollectT, pod corev1.Pod) {
 	}
 	assert.Contains(c, stdout, "dd-agent:")
 
-	// The Agent reads host os-release from HOST_ETC=/host/etc, so host metadata must still have a platform.
+	// The Agent reads os-release from HOST_ETC=/host/etc, so its platform must be the node's
+	// os-release ID, not the Agent image's.
+	hostID, _, err := client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, []string{
+		"sh", "-c", ". /host/etc/os-release && echo \"$ID\"",
+	})
+	if !assert.NoError(c, err) {
+		return
+	}
 	stdout, _, err = client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("-j"))
 	if !assert.NoError(c, err) {
 		return
@@ -672,7 +679,7 @@ func (s *k8sSuite) assertProcessHostPasswd(c *assert.CollectT, pod corev1.Pod) {
 	if !assert.NoError(c, json.Unmarshal([]byte(stdout), &status)) {
 		return
 	}
-	assert.NotEmpty(c, status.HostInfo.Platform, "host platform from /host/etc/os-release")
+	assert.Equal(c, strings.TrimSpace(hostID), status.HostInfo.Platform, "platform from /host/etc/os-release")
 }
 
 func (s *k8sSuite) verifyDSDMetrics(c *assert.CollectT, metricName string) {

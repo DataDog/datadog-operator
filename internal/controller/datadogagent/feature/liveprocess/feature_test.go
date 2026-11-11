@@ -49,7 +49,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithLiveProcessEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false, common.PasswdMountPath),
 		},
 		{
 			Name: "live process collection enabled with scrub and strip args",
@@ -58,7 +58,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithLiveProcessScrubStrip(true, true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, true, common.PasswdMountPath),
 		},
 		{
 			Name: "live process collection without min version to run in core agent",
@@ -72,7 +72,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, false, common.PasswdMountPath),
 		},
 		{
 			Name: "live process collection enabled on single container",
@@ -81,38 +81,34 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false, common.PasswdMountPath),
 		},
 		{
 			Name: "host passwd on supported core agent",
 			DDA: testutils.NewDatadogAgentBuilder().WithLiveProcessEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false, "/host/etc/passwd"),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false, common.HostPasswdMountPath),
 		},
 		{
 			Name: "host passwd on supported unprivileged single agent",
 			DDA: testutils.NewDatadogAgentBuilder().WithLiveProcessEnabled(true).WithSingleContainerStrategy(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false, "/host/etc/passwd"),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false, common.HostPasswdMountPath),
 		},
 		{
 			Name:          "live process collection on Windows",
 			DDA:           windowsProfile,
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, false, common.PasswdMountPath),
 		},
 	}
 
 	tests.Run(t, buildLiveProcessFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, ScrubStripArgs bool, expectedPasswdPaths ...string) *test.ComponentTest {
-	expectedPath := common.PasswdMountPath
-	if len(expectedPasswdPaths) > 0 {
-		expectedPath = expectedPasswdPaths[0]
-	}
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, ScrubStripArgs bool, expectedPath string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)

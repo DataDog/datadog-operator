@@ -27,9 +27,9 @@ const (
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility.
 // Like other version-gated features, the Agent version comes from the node Agent
-// image override (spec.override.nodeAgent.image), or the Operator's default image.
+// image override (spec.override.nodeAgent.image), or the Operator's default Agent version.
 // Experimental per-container image annotations and container renames are not considered,
-// so this rare gap can lead to mounting passwd to the existing /etc/passwd instead of the new /host/etc/passwd
+// so in rare cases the mount can disagree with the running Agent in either direction.
 // The impact is limited to process usernames since an older Agent given /host/etc/passwd
 // falls back to image-local users, and a 7.86+ Agent given /etc/passwd behaves as before this change.
 func ProcessPasswdMountPath(dda metav1.Object) string {
@@ -50,8 +50,9 @@ func ProcessPasswdMountPath(dda metav1.Object) string {
 }
 
 // ProcessPasswdVolume returns the host passwd volume and mount for a process
-// container. It derives the volume name from the mount path so the two always
-// match the WorkloadAllowlist (passwd at /etc/passwd, host-passwd at /host/etc/passwd).
+// container. It derives the volume name from the mount path so the two always match
+// (passwd at /etc/passwd, host-passwd at /host/etc/passwd), as Helm and the
+// WorkloadAllowlist expect (host-passwd needs v1.0.8+).
 func ProcessPasswdVolume(mountPath string) (corev1.Volume, corev1.VolumeMount) {
 	return volume.GetVolumes(ProcessPasswdVolumeName(mountPath), common.PasswdHostPath, mountPath, true)
 }
