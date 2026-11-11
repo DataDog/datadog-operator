@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -214,6 +215,48 @@ func TestProcessPasswdMountPath(t *testing.T) {
 }
 
 // newPasswdTestDDA returns a DatadogAgent with the given node Agent image override and annotations.
+func TestNodeAgentVersion(t *testing.T) {
+	const defaultVersion = "7.86.0"
+	tests := []struct {
+		name     string
+		image    *v2alpha1.AgentImageConfig
+		expected string
+	}{
+		// An override that sets no name or tag keeps the default image tag.
+		{
+			name:     "pull policy only",
+			image:    &v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
+			expected: defaultVersion,
+		},
+		{
+			name:     "pull secrets only",
+			image:    &v2alpha1.AgentImageConfig{PullSecrets: &[]corev1.LocalObjectReference{{Name: "registry"}}},
+			expected: defaultVersion,
+		},
+		{
+			name:     "JMX only",
+			image:    &v2alpha1.AgentImageConfig{JMXEnabled: true},
+			expected: defaultVersion,
+		},
+		{
+			name:     "tag",
+			image:    &v2alpha1.AgentImageConfig{Tag: "7.85.0"},
+			expected: "7.85.0",
+		},
+		// An untagged custom name stays unknown, so the legacy path is kept.
+		{
+			name:     "untagged name",
+			image:    &v2alpha1.AgentImageConfig{Name: "registry.example/agent"},
+			expected: "latest",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, nodeAgentVersion(newPasswdTestDDA(tt.image, nil), defaultVersion))
+		})
+	}
+}
+
 func newPasswdTestDDA(image *v2alpha1.AgentImageConfig, annotations map[string]string) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{

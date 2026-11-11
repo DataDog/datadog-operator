@@ -39,6 +39,9 @@ const (
 	gkeAllowlistSynchronizer  = "datadog-synchronizer"
 	gkeMatchingAllowlistLabel = "cloud.google.com/matching-allowlist"
 	systemProbeContainerName  = "system-probe"
+	// gkeAutopilotHostPasswdAgentTag mounts host passwd at /host/etc/passwd (Agent 7.86.0+).
+	// TODO: switch to 7.86.0 once it is released.
+	gkeAutopilotHostPasswdAgentTag = "7.86.0-rc.6"
 )
 
 type gkeAutopilotSuite struct {
@@ -237,6 +240,37 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 	if s.T().Failed() {
 		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
+	}
+
+	// The 7-rc tag is not a full version, so the Agent above keeps /etc/passwd anyway. Until a
+	// published WorkloadAllowlist permits /host/etc/passwd, a 7.86+ Agent must also keep it and
+	// be admitted. The check reads the pod spec only: published allowlists do not allow exec.
+	require.NoError(s.T(), s.setDDAField(gkeAutopilotDDAName, gkeAutopilotHostPasswdAgentTag, "spec", "override", "nodeAgent", "image", "tag"))
+	s.Run("Verify Autopilot keeps the /etc/passwd mount", func() {
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			agentPods, err := s.runningAgentPods(gkeAutopilotAgentSelector)
+			if !assert.NoError(c, err) {
+				return
+			}
+			updated := 0
+			for _, pod := range agentPods {
+				agent := findContainer(pod, "agent")
+				if agent == nil || !strings.HasSuffix(agent.Image, ":"+gkeAutopilotHostPasswdAgentTag) {
+					continue
+				}
+				updated++
+				mounts := map[string]string{}
+				for _, mount := range agent.VolumeMounts {
+					mounts[mount.MountPath] = mount.Name
+				}
+				assert.Equal(c, "passwd", mounts["/etc/passwd"], "host passwd mount")
+				assert.NotContains(c, mounts, "/host/etc/passwd", "Autopilot must keep /etc/passwd for now")
+			}
+			assert.Positive(c, updated, "no running Agent pod uses %s yet", gkeAutopilotHostPasswdAgentTag)
+		}, 15*time.Minute, 30*time.Second, "could not validate the GKE Autopilot passwd mount in time")
+	})
+	if s.T().Failed() {
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 	}
 }
 

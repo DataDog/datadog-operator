@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -27,7 +28,8 @@ const (
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility.
 // Like other version-gated features, the Agent version comes from the node Agent
-// image override (spec.override.nodeAgent.image), or the Operator's default Agent version.
+// image override (spec.override.nodeAgent.image), or the Operator's default Agent version
+// when there is no override or the override sets no image name or tag.
 // Experimental per-container image annotations and container renames are not considered,
 // so in rare cases the mount can disagree with the running Agent in either direction.
 // The impact is limited to process usernames since an older Agent given /host/etc/passwd
@@ -43,10 +45,20 @@ func ProcessPasswdMountPath(dda metav1.Object) string {
 	}
 	// Unparseable versions, such as digest-only images or custom tags, keep the legacy path.
 	unparseableIsSupported := false
-	if pkgutils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), processHostPasswdMinVersion, &unparseableIsSupported) {
+	if pkgutils.IsAboveMinVersion(nodeAgentVersion(dda, images.AgentLatestVersion), processHostPasswdMinVersion, &unparseableIsSupported) {
 		return common.HostPasswdMountPath
 	}
 	return common.PasswdMountPath
+}
+
+// nodeAgentVersion returns the node Agent version from the DatadogAgent. An image override
+// without a name or tag (for example only pullSecrets) keeps the default image tag, so it
+// resolves to defaultVersion; it is a parameter so tests can use a 7.86+ default.
+func nodeAgentVersion(dda metav1.Object, defaultVersion string) string {
+	if version := common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName); version != "" {
+		return version
+	}
+	return defaultVersion
 }
 
 // ProcessPasswdVolume returns the host passwd volume and mount for a process
