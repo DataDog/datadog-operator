@@ -127,18 +127,6 @@ func GetVolumeForCgroups() corev1.Volume {
 	}
 }
 
-// GetVolumeForOSRelease returns the volume with the host os-release file
-func GetVolumeForOSRelease() corev1.Volume {
-	return corev1.Volume{
-		Name: OSReleaseFileVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: OSReleaseFileHostPath,
-			},
-		},
-	}
-}
-
 // GetVolumeForDogstatsd returns the volume with the Dogstatsd socket
 func GetVolumeForDogstatsd() corev1.Volume {
 	return corev1.Volume{
@@ -270,16 +258,6 @@ func GetVolumeMountForProc() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      ProcdirVolumeName,
 		MountPath: ProcdirMountPath,
-		ReadOnly:  true,
-	}
-}
-
-// GetVolumeMountForOSRelease returns the VolumeMount for the host os-release file. The Agent
-// sets HOST_ETC=/host/etc whenever that directory exists and reads the host OS from there.
-func GetVolumeMountForOSRelease() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      OSReleaseFileVolumeName,
-		MountPath: OSReleaseFileMountPath,
 		ReadOnly:  true,
 	}
 }

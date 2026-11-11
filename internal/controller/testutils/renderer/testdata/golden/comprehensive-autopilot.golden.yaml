@@ -1436,7 +1436,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 757fb7eec710a7cbb659ac23cf946a45
+    agent.datadoghq.com/agentspechash: b281e2a4060d2d2cb7699bdff2123f93
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1630,9 +1630,6 @@ spec:
           readOnly: true
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
-          readOnly: true
-        - mountPath: /host/etc/os-release
-          name: os-release-file
           readOnly: true
         - mountPath: /opt/datadog-agent/run
           name: datadogrun
@@ -1949,9 +1946,6 @@ spec:
       - hostPath:
           path: /sys/fs/cgroup
         name: cgroups
-      - hostPath:
-          path: /etc/os-release
-        name: os-release-file
       - hostPath:
           path: /var/autopilot/addon/datadog/logs
         name: datadogrun
