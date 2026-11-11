@@ -147,11 +147,13 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 
 			paths, found, err := unstructured.NestedStringSlice(synchronizer.Object, "spec", "allowlistPaths")
 			if !assert.NoError(c, err) || !assert.True(c, found, "AllowlistSynchronizer has no allowlist paths") ||
-				!assert.Len(c, paths, 1, "expected one Agent allowlist path") {
+				!assert.NotEmpty(c, paths, "expected an Agent allowlist path") {
 				return
 			}
 
-			name := strings.TrimSuffix(filepath.Base(paths[0]), filepath.Ext(paths[0]))
+			// The default also syncs the previous allowlist while the new one rolls out; the newest is last.
+			latest := paths[len(paths)-1]
+			name := strings.TrimSuffix(filepath.Base(latest), filepath.Ext(latest))
 			_, err = client.Resource(schema.GroupVersionResource{
 				Group: "auto.gke.io", Version: "v1", Resource: "workloadallowlists",
 			}).Get(context.TODO(), name, metav1.GetOptions{})
@@ -242,11 +244,11 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		return
 	}
 
-	// The 7-rc tag is not a full version, so the Agent above keeps /etc/passwd anyway. Until a
-	// published WorkloadAllowlist permits /host/etc/passwd, a 7.86+ Agent must also keep it and
-	// be admitted. The check reads the pod spec only: published allowlists do not allow exec.
+	// The 7-rc tag is not a full version, so the Agent above keeps /etc/passwd. A 7.86+ tag
+	// moves it to /host/etc/passwd from the host-passwd volume, which needs allowlist v1.0.8.
+	// The check reads the pod spec only: published allowlists do not allow exec on Autopilot.
 	require.NoError(s.T(), s.setDDAField(gkeAutopilotDDAName, gkeAutopilotHostPasswdAgentTag, "spec", "override", "nodeAgent", "image", "tag"))
-	s.Run("Verify Autopilot keeps the /etc/passwd mount", func() {
+	s.Run("Verify Autopilot host passwd mount", func() {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			agentPods, err := s.runningAgentPods(gkeAutopilotAgentSelector)
 			if !assert.NoError(c, err) {
@@ -263,11 +265,12 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 				for _, mount := range agent.VolumeMounts {
 					mounts[mount.MountPath] = mount.Name
 				}
-				assert.Equal(c, "passwd", mounts["/etc/passwd"], "host passwd mount")
-				assert.NotContains(c, mounts, "/host/etc/passwd", "Autopilot must keep /etc/passwd for now")
+				assert.Equal(c, "host-passwd", mounts["/host/etc/passwd"], "host passwd mount")
+				assert.NotContains(c, mounts, "/etc/passwd", "host passwd must not hide the image's /etc/passwd")
+				assert.Equal(c, "os-release-file", mounts["/host/etc/os-release"], "host os-release mount")
 			}
 			assert.Positive(c, updated, "no running Agent pod uses %s yet", gkeAutopilotHostPasswdAgentTag)
-		}, 15*time.Minute, 30*time.Second, "could not validate the GKE Autopilot passwd mount in time")
+		}, 15*time.Minute, 30*time.Second, "could not validate the GKE Autopilot host passwd mount in time")
 	})
 	if s.T().Failed() {
 		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)

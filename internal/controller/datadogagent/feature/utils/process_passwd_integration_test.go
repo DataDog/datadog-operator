@@ -113,23 +113,38 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			tag:   "7.86.0",
 			talos: true,
 		},
-		// GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
+		// GKE Autopilot mounts /host/etc/passwd from host-passwd: Warden matches allowlisted volumeMounts by name.
 		{
 			name:         "Autopilot provider",
 			tag:          "7.86.0",
 			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
-			expectedPath: "/etc/passwd",
+			expectedPath: "/host/etc/passwd",
 		},
 		{
 			name:         "Autopilot experimental opt-in",
 			tag:          "7.86.0",
 			annotations:  map[string]string{experimental.ExperimentalAnnotationPrefix + "/autopilot": "true"},
-			expectedPath: "/etc/passwd",
+			expectedPath: "/host/etc/passwd",
 		},
 		{
 			name:         "Autopilot prerelease Agent",
 			tag:          "7.87.0-rc.1",
 			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/host/etc/passwd",
+		},
+		{
+			name:         "Autopilot old core",
+			tag:          "7.85.0",
+			annotations:  map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			expectedPath: "/etc/passwd",
+		},
+		{
+			name: "Autopilot older allowlist pin",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotAllowlistVersionSubkey: "v1.0.7",
+			},
 			expectedPath: "/etc/passwd",
 		},
 		{
@@ -153,7 +168,11 @@ func TestBothProcessFeaturesPasswdMount(t *testing.T) {
 			}
 			pod := buildProcessFeaturesPod(t, dda, &nodeOverride, tt.single)
 
-			assertProcessPasswdMounts(t, pod, tt.expectedPath, tt.security)
+			expectedVolume := common.PasswdVolumeName
+			if tt.expectedPath == common.HostPasswdMountPath && experimental.IsAutopilotEnabled(dda) {
+				expectedVolume = common.HostPasswdVolumeName
+			}
+			assertProcessPasswdMounts(t, pod, tt.expectedPath, expectedVolume, tt.security)
 			assertHostEtcOverrides(t, pod, nodeOverride.Env)
 		})
 	}
@@ -188,7 +207,7 @@ func buildProcessFeaturesPod(t *testing.T, dda *v2alpha1.DatadogAgent, nodeOverr
 	return pod
 }
 
-func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expectedPath string, security bool) {
+func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expectedPath, expectedVolume string, security bool) {
 	t.Helper()
 
 	processMounts, securityMounts, osReleaseMounts := 0, 0, 0
@@ -196,7 +215,7 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 		count := 0
 		for _, mount := range container.VolumeMounts {
 			switch mount.Name {
-			case common.PasswdVolumeName:
+			case common.PasswdVolumeName, common.HostPasswdVolumeName:
 				count++
 				assert.True(t, mount.ReadOnly)
 				if container.Name == string(apicommon.SecurityAgentContainerName) || container.Name == string(apicommon.SystemProbeContainerName) {
@@ -206,6 +225,7 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 				} else {
 					processMounts++
 					assert.Equal(t, expectedPath, mount.MountPath)
+					assert.Equal(t, expectedVolume, mount.Name)
 				}
 			case common.OSReleaseFileVolumeName:
 				osReleaseMounts++
@@ -223,7 +243,7 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 
 	passwdVolumes := map[string]int{}
 	for _, volume := range pod.Spec.Volumes {
-		if volume.Name == common.PasswdVolumeName || volume.Name == "host-passwd" {
+		if volume.Name == common.PasswdVolumeName || volume.Name == common.HostPasswdVolumeName {
 			passwdVolumes[volume.Name]++
 			require.NotNil(t, volume.HostPath)
 			assert.Equal(t, "/etc/passwd", volume.HostPath.Path, "only the mount destination changes")
@@ -235,7 +255,7 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 	} else {
 		assert.Equal(t, 1, processMounts, "both features must share one passwd mount")
 		// Both paths share the passwd volume; host-passwd is only for GKE Autopilot's allowlist.
-		assert.Equal(t, map[string]int{common.PasswdVolumeName: 1}, passwdVolumes, "both features must share one passwd volume")
+		assert.Equal(t, map[string]int{expectedVolume: 1}, passwdVolumes, "both features must share one passwd volume")
 	}
 	// The Agent sets HOST_ETC=/host/etc once that directory exists, so os-release
 	// must follow the relocated passwd mount, and only that mount.

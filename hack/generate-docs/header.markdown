@@ -38,7 +38,7 @@ They are documented with the features they control.
 
 For eligible containers using Agent version 7.86.0 or later (including 7.86.0+ prereleases such as release candidates), live-process and process-discovery mount host passwd read-only at `/host/etc/passwd`, preserving image-local accounts in `/etc/passwd`. Like other version-gated features, the version comes from the node Agent image override (`spec.override.nodeAgent.image`), or the Operator's default Agent version when there is no override. Older versions, tags without a full version (such as `7`, `latest`, or `7.86`), custom tags, and digest-only images retain `/etc/passwd`. Experimental per-container image annotations and container renames are not considered, so they can make the mount disagree with the running image; the effect is limited to process usernames. The relocated mount still uses the `passwd` volume and also mounts host `/etc/os-release` read-only at `/host/etc/os-release` (volume `os-release-file`), because the Agent sets `HOST_ETC=/host/etc` once that directory exists. Existing Talos exclusions and security mounts are unchanged.
 
-On GKE Autopilot, process collection keeps `/etc/passwd` for now: the new destination needs a published WorkloadAllowlist that permits it.
+On GKE Autopilot, the relocated mount uses a separately named `host-passwd` volume, because Autopilot's Warden matches allowlisted volume mounts by name. It needs WorkloadAllowlist `v1.0.8` or newer (the default); pinning an older allowlist with `experimental.agent.datadoghq.com/autopilot-allowlist-version` keeps `/etc/passwd`.
 
 The Operator does not override `HOST_ETC` or `ignore_host_etc`. If you customize these settings, ensure `HOST_ETC=/host/etc` to resolve users through the new mount.
 

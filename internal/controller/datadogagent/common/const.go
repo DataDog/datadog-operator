@@ -118,8 +118,11 @@ const (
 	PasswdHostPath   = "/etc/passwd"
 	PasswdMountPath  = "/etc/passwd"
 
-	// Agent 7.86.0+ process collection mounts the passwd volume here instead of PasswdMountPath.
+	// Agent 7.86.0+ process collection mounts host passwd here instead of PasswdMountPath.
 	HostPasswdMountPath = "/host/etc/passwd"
+	// GKE Autopilot's Warden matches allowlisted volumeMounts by name, so only Autopilot
+	// mounts HostPasswdMountPath from this separately named volume.
+	HostPasswdVolumeName = "host-passwd"
 
 	// Mounted with the relocated passwd: the Agent sets HOST_ETC=/host/etc whenever that directory exists.
 	// The volume name matches the Helm chart and the GKE Autopilot WorkloadAllowlist.

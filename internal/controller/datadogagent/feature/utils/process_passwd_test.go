@@ -273,13 +273,13 @@ func newPasswdTestDDA(image *v2alpha1.AgentImageConfig, annotations map[string]s
 	return dda
 }
 
-// GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
 func TestProcessPasswdMountPathAutopilot(t *testing.T) {
 	const allowlistAnnotation = experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotAllowlistVersionSubkey
 	tests := []struct {
-		name        string
-		tag         string
-		annotations map[string]string
+		name         string
+		tag          string
+		annotations  map[string]string
+		expectedPath string
 	}{
 		{
 			name: "provider annotation",
@@ -287,6 +287,7 @@ func TestProcessPasswdMountPathAutopilot(t *testing.T) {
 			annotations: map[string]string{
 				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
 			},
+			expectedPath: common.HostPasswdMountPath,
 		},
 		{
 			name: "experimental annotation",
@@ -294,14 +295,7 @@ func TestProcessPasswdMountPathAutopilot(t *testing.T) {
 			annotations: map[string]string{
 				experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey: "TrUe",
 			},
-		},
-		{
-			name: "newer allowlist pin",
-			tag:  "7.86.0",
-			annotations: map[string]string{
-				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
-				allowlistAnnotation:              "v1.0.8",
-			},
+			expectedPath: common.HostPasswdMountPath,
 		},
 		{
 			name: "release candidate",
@@ -309,24 +303,96 @@ func TestProcessPasswdMountPathAutopilot(t *testing.T) {
 			annotations: map[string]string{
 				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
 			},
+			expectedPath: common.HostPasswdMountPath,
+		},
+		{
+			name: "older Agent",
+			tag:  "7.85.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+			},
+			expectedPath: common.PasswdMountPath,
+		},
+		{
+			name: "newer allowlist pin",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "v1.0.9",
+			},
+			expectedPath: common.HostPasswdMountPath,
+		},
+		{
+			name: "older allowlist pin",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "v1.0.7",
+			},
+			expectedPath: common.PasswdMountPath,
+		},
+		{
+			name: "malformed allowlist pin uses the default",
+			tag:  "7.86.0",
+			annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				allowlistAnnotation:              "1.0.7",
+			},
+			expectedPath: common.HostPasswdMountPath,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := newPasswdTestDDA(&v2alpha1.AgentImageConfig{Tag: tt.tag}, tt.annotations)
-			assert.Equal(t, common.PasswdMountPath, ProcessPasswdMountPath(dda))
+			assert.Equal(t, tt.expectedPath, ProcessPasswdMountPath(dda))
 		})
 	}
 }
 
 func TestProcessPasswdVolume(t *testing.T) {
-	_, mount := ProcessPasswdVolume(common.PasswdMountPath)
-	assert.Equal(t, common.PasswdVolumeName, mount.Name)
-	assert.Equal(t, common.PasswdMountPath, mount.MountPath)
-
-	volume, mount := ProcessPasswdVolume(common.HostPasswdMountPath)
-	assert.Equal(t, common.PasswdVolumeName, mount.Name)
-	assert.Equal(t, common.HostPasswdMountPath, mount.MountPath)
-	assert.True(t, mount.ReadOnly)
-	assert.Equal(t, common.PasswdHostPath, volume.HostPath.Path)
+	autopilot := newPasswdTestDDA(nil, map[string]string{
+		kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+	})
+	tests := []struct {
+		name         string
+		dda          *v2alpha1.DatadogAgent
+		mountPath    string
+		expectedName string
+	}{
+		{
+			name:         "legacy path",
+			dda:          newPasswdTestDDA(nil, nil),
+			mountPath:    common.PasswdMountPath,
+			expectedName: common.PasswdVolumeName,
+		},
+		{
+			name:         "relocated path reuses passwd",
+			dda:          newPasswdTestDDA(nil, nil),
+			mountPath:    common.HostPasswdMountPath,
+			expectedName: common.PasswdVolumeName,
+		},
+		{
+			name:         "autopilot legacy path",
+			dda:          autopilot,
+			mountPath:    common.PasswdMountPath,
+			expectedName: common.PasswdVolumeName,
+		},
+		// GKE Autopilot's Warden matches allowlisted volumeMounts by name.
+		{
+			name:         "autopilot relocated path uses host-passwd",
+			dda:          autopilot,
+			mountPath:    common.HostPasswdMountPath,
+			expectedName: common.HostPasswdVolumeName,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			volume, mount := ProcessPasswdVolume(tt.dda, tt.mountPath)
+			assert.Equal(t, tt.expectedName, volume.Name)
+			assert.Equal(t, tt.expectedName, mount.Name)
+			assert.Equal(t, tt.mountPath, mount.MountPath)
+			assert.True(t, mount.ReadOnly)
+			assert.Equal(t, common.PasswdHostPath, volume.HostPath.Path)
+		})
+	}
 }

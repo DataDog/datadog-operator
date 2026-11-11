@@ -6,6 +6,7 @@
 package utils
 
 import (
+	"github.com/Masterminds/semver/v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
@@ -24,6 +26,10 @@ const (
 	// feature minimum versions.
 	processHostPasswdMinVersion = "7.86.0-0"
 )
+
+// processHostPasswdMinAllowlistVersion is the first GKE Autopilot WorkloadAllowlist
+// that permits the host-passwd mount at /host/etc/passwd.
+var processHostPasswdMinAllowlistVersion = semver.MustParse("1.0.8")
 
 // ProcessPasswdMountPath selects a process-specific destination without changing
 // shared security mounts or eligibility.
@@ -39,8 +45,8 @@ func ProcessPasswdMountPath(dda metav1.Object) string {
 	if dda != nil && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
 		return common.PasswdMountPath
 	}
-	// TODO: GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
-	if experimental.IsAutopilotEnabled(dda) {
+	// An older GKE Autopilot allowlist pin permits only /etc/passwd.
+	if experimental.IsAutopilotEnabled(dda) && !autopilotSupportsProcessHostPasswd(dda) {
 		return common.PasswdMountPath
 	}
 	// Unparseable versions, such as digest-only images or custom tags, keep the legacy path.
@@ -62,9 +68,22 @@ func nodeAgentVersion(dda metav1.Object, defaultVersion string) string {
 }
 
 // ProcessPasswdVolume returns the host passwd volume and mount for a process
-// container. Both paths use the passwd volume, matching Helm. GKE Autopilot will
-// need a separate host-passwd volume for /host/etc/passwd because Warden matches
-// allowlisted volumeMounts by name.
-func ProcessPasswdVolume(mountPath string) (corev1.Volume, corev1.VolumeMount) {
-	return volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, mountPath, true)
+// container. Both paths use the passwd volume, matching Helm, except on GKE
+// Autopilot: Warden matches allowlisted volumeMounts by name, so /host/etc/passwd
+// uses the host-passwd volume there.
+func ProcessPasswdVolume(dda metav1.Object, mountPath string) (corev1.Volume, corev1.VolumeMount) {
+	name := common.PasswdVolumeName
+	if mountPath == common.HostPasswdMountPath && experimental.IsAutopilotEnabled(dda) {
+		name = common.HostPasswdVolumeName
+	}
+	return volume.GetVolumes(name, common.PasswdHostPath, mountPath, true)
+}
+
+// autopilotSupportsProcessHostPasswd follows CreateAllowlistSynchronizer's pin
+// handling: a missing or malformed pin uses the default allowlist, and a valid
+// pin older than v1.0.8 keeps /etc/passwd even with a 7.86+ Agent.
+func autopilotSupportsProcessHostPasswd(dda metav1.Object) bool {
+	pin := dda.GetAnnotations()[experimental.ExperimentalAnnotationPrefix+"/"+experimental.ExperimentalAutopilotAllowlistVersionSubkey]
+	allowlistVersion, err := semver.NewVersion(allowlistsynchronizer.ResolveWorkloadAllowlistVersion(pin))
+	return err == nil && !allowlistVersion.LessThan(processHostPasswdMinAllowlistVersion)
 }
