@@ -63,7 +63,7 @@ var (
 		agent_ipc_use_socket: expectedEnvVar{
 			present: true,
 			value:   "true",
-			},
+		},
 		agent_ipc_refresh: expectedEnvVar{
 			present: true,
 			value:   "60",
@@ -85,7 +85,7 @@ var (
 		agent_ipc_use_socket: expectedEnvVar{
 			present: true,
 			value:   "true",
-			},
+		},
 		agent_ipc_refresh: expectedEnvVar{
 			present: true,
 			value:   "60",
@@ -267,7 +267,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					agent_ipc_use_socket: expectedEnvVar{
 						present: true,
 						value:   "true",
-						},
+					},
 					agent_ipc_refresh: expectedEnvVar{
 						present: true,
 						value:   "60",
@@ -309,7 +309,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					agent_ipc_use_socket: expectedEnvVar{
 						present: true,
 						value:   "true",
-						},
+					},
 					agent_ipc_refresh: expectedEnvVar{
 						present: true,
 						value:   "60",
@@ -368,7 +368,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				agent_ipc_use_socket: expectedEnvVar{
 					present: true,
 					value:   "true",
-					},
+				},
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -399,7 +399,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				agent_ipc_use_socket: expectedEnvVar{
 					present: true,
 					value:   "true",
-					},
+				},
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -431,7 +431,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				agent_ipc_use_socket: expectedEnvVar{
 					present: true,
 					value:   "true",
-					},
+				},
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
