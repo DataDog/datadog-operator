@@ -16,7 +16,7 @@ import (
 )
 
 func newAdoptCommand(streams genericiooptions.IOStreams) *cobra.Command {
-	cmd, _ := newMigrationCommand(streams, &cobra.Command{
+	cmd, o := newMigrationCommand(streams, &cobra.Command{
 		Use:   "adopt --cloudprem-manifest <file> --opw-manifest <file>=<pipeline>",
 		Short: "Give the CloudPrem objects to the DatadogBYOCCluster",
 		Long: `Give the objects of the CloudPrem manifest to the DatadogBYOCCluster, which must exist.
@@ -52,5 +52,6 @@ object.`,
 		}
 		return m.Adopt(ctx, plan)
 	})
+	o.addFlags(cmd)
 	return cmd
 }

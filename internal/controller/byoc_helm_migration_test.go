@@ -232,10 +232,9 @@ var _ = Describe("Migration from the CloudPrem and Worker Helm charts", func() {
 	It("writes nothing when the user cannot remove the cluster from the owners of the CloudPrem resources", func() {
 		applyCluster()
 		Expect(adopt()).To(Succeed())
-		Eventually(func(g Gomega) { markTestWorkloadsReady(g, namespace.Name) }, timeout, interval).Should(Succeed())
 		reader := readerMigration(namespace.Name, m.Cluster)
 
-		err := reader.Abort(context.Background(), cloudprem, pipelines)
+		err := reader.Abort(context.Background(), cloudprem)
 
 		Expect(err).To(MatchError(ContainSubstring("cannot remove DatadogBYOCCluster " + namespace.Name + "/cloudprem from the owners of the objects of manifest cloudprem, so nothing was written")))
 		Expect(err).To(MatchError(ContainSubstring("StatefulSet/cloudprem-indexer: no permission to patch statefulsets.apps in namespace " + namespace.Name)))
@@ -310,27 +309,14 @@ var _ = Describe("Migration from the CloudPrem and Worker Helm charts", func() {
 		Expect(err).To(MatchError(ContainSubstring("does not exist; pass the cluster that convert printed with --from-file")))
 	})
 
-	It("reverts a migration once the StatefulSets of the manifests run their Pods again", func() {
+	It("reverts a migration", func() {
 		applyCluster()
 		Expect(adopt()).To(Succeed())
 		expectClusterAvailable(namespace.Name, client.ObjectKeyFromObject(converted))
-		manifestWorker := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "logs-observability-pipelines-worker", Namespace: namespace.Name}}
-		By("scaling the StatefulSet of the manifest to zero, as the user does once the Worker takes the traffic")
-		scaleTestWorkload(manifestWorker, 0)
-		abort := func(ctx context.Context) error { return m.Abort(ctx, cloudprem, pipelines) }
-
-		By("writing nothing while the StatefulSet of the manifest is scaled to zero")
-		Expect(abort(context.Background())).To(MatchError(ContainSubstring("StatefulSet/logs-observability-pipelines-worker of manifest logs is scaled to zero")))
 		cluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "cloudprem", Namespace: namespace.Name}, cluster)).To(Succeed())
-		indexer := &appsv1.StatefulSet{}
-		Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "cloudprem-indexer", Namespace: namespace.Name}, indexer)).To(Succeed())
-		Expect(metav1.IsControlledBy(indexer, cluster)).To(BeTrue())
 
-		By("scaling the StatefulSet of the manifest back, as the user does before abort")
-		scaleTestWorkload(manifestWorker, 2)
-		Eventually(func(g Gomega) { markTestWorkloadsReady(g, namespace.Name) }, timeout, interval).Should(Succeed())
-		Expect(abort(context.Background())).To(Succeed())
+		Expect(m.Abort(context.Background(), cloudprem)).To(Succeed())
 
 		By("removing the cluster from the owners of the CloudPrem resources, and leaving its deletion to the user")
 		expectTestObjectsUnowned(namespace.Name, &appsv1.StatefulSet{}, "cloudprem-indexer")
@@ -357,7 +343,7 @@ var _ = Describe("Migration from the CloudPrem and Worker Helm charts", func() {
 		DeferCleanup(removeBYOCTestFinalizers, cluster, testMigrationFinalizer)
 		Expect(k8sClient.Delete(context.Background(), cluster)).To(Succeed())
 
-		Expect(m.Abort(context.Background(), cloudprem, pipelines)).To(Succeed())
+		Expect(m.Abort(context.Background(), cloudprem)).To(Succeed())
 
 		expectTestObjectsUnowned(namespace.Name, &corev1.Service{}, "cloudprem-indexer")
 		expectTestObjectsUnowned(namespace.Name, &corev1.ConfigMap{}, "cloudprem")
