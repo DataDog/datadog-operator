@@ -40,7 +40,9 @@ func Test_npmFeature_Configure(t *testing.T) {
 	}
 	ddaNPMDisabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Image: &v2alpha1.AgentImageConfig{Tag: "7.81.0"},
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Image: &v2alpha1.AgentImageConfig{Tag: "7.81.0"},
+			},
 		},
 	}
 	ddaNPMEnabled := ddaNPMDisabled.DeepCopy()
@@ -438,7 +440,7 @@ func Test_npmFeature_ProtocolClassificationWorkaround(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{NPM: &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(true)}},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {Image: tt.image},
+						v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: tt.image}},
 					},
 				},
 			}

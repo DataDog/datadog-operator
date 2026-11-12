@@ -129,7 +129,7 @@ func TestPacketCaptureRequiresSupportingAgent(t *testing.T) {
 
 func specWithAgentTag(tag string) *v2alpha1.DatadogAgentSpec {
 	return &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tag}},
+		v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: tag}}},
 	}}
 }
 

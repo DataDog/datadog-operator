@@ -713,7 +713,9 @@ func (builder *DatadogAgentInternalBuilder) WithAPMUDSEnabled(enabled bool, apmS
 
 func (builder *DatadogAgentInternalBuilder) WithClusterAgentTag(tag string) *DatadogAgentInternalBuilder {
 	builder.datadogAgentInternal.Spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
-		Image: &v2alpha1.AgentImageConfig{Tag: tag},
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Image: &v2alpha1.AgentImageConfig{Tag: tag},
+		},
 	}
 	return builder
 }

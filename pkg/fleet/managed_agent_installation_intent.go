@@ -454,8 +454,8 @@ func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationB
 			Site:        &site,
 		},
 		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-			v2alpha1.NodeAgentComponentName:    {NodeSelector: linuxSelector},
-			v2alpha1.ClusterAgentComponentName: {NodeSelector: linuxSelector},
+			v2alpha1.NodeAgentComponentName:    {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{NodeSelector: linuxSelector}},
+			v2alpha1.ClusterAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{NodeSelector: linuxSelector}},
 		},
 	}}
 	encoded, err := json.Marshal(config)

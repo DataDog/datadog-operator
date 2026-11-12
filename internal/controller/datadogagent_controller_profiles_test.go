@@ -121,14 +121,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.CoreAgentContainerName: {
-									Resources: &v1.ResourceRequirements{
-										Limits: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("2"),
-										},
-										Requests: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("1"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										Resources: &v1.ResourceRequirements{
+											Limits: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
 										},
 									},
 								},
@@ -232,26 +234,28 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.CoreAgentContainerName: {
-									Resources: &v1.ResourceRequirements{
-										Limits: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("2"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										Resources: &v1.ResourceRequirements{
+											Limits: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
 										},
-										Requests: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("1"),
-										},
-									},
-									Env: []v1.EnvVar{
-										{
-											Name:  "one",
-											Value: "foo",
-										},
-										{
-											Name: "two",
-											ValueFrom: &v1.EnvVarSource{
-												FieldRef: &v1.ObjectFieldSelector{
-													FieldPath: common.FieldPathStatusPodIP,
+										Env: []v1.EnvVar{
+											{
+												Name:  "one",
+												Value: "foo",
+											},
+											{
+												Name: "two",
+												ValueFrom: &v1.EnvVarSource{
+													FieldRef: &v1.ObjectFieldSelector{
+														FieldPath: common.FieldPathStatusPodIP,
+													},
 												},
 											},
 										},
@@ -376,14 +380,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.CoreAgentContainerName: {
-									Resources: &v1.ResourceRequirements{
-										Limits: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("2"),
-										},
-										Requests: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("1"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										Resources: &v1.ResourceRequirements{
+											Limits: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
 										},
 									},
 								},
@@ -494,14 +500,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-									apicommon.CoreAgentContainerName: {
-										Resources: &v1.ResourceRequirements{
-											Limits: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("2"),
-											},
-											Requests: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("1"),
+								DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+									Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+										apicommon.CoreAgentContainerName: {
+											Resources: &v1.ResourceRequirements{
+												Limits: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("2"),
+												},
+												Requests: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("1"),
+												},
 											},
 										},
 									},
@@ -529,14 +537,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-									apicommon.CoreAgentContainerName: {
-										Resources: &v1.ResourceRequirements{
-											Limits: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("4"),
-											},
-											Requests: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("3"),
+								DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+									Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+										apicommon.CoreAgentContainerName: {
+											Resources: &v1.ResourceRequirements{
+												Limits: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("4"),
+												},
+												Requests: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("3"),
+												},
 											},
 										},
 									},
@@ -694,14 +704,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-									apicommon.CoreAgentContainerName: {
-										Resources: &v1.ResourceRequirements{
-											Limits: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("2"),
-											},
-											Requests: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("1"),
+								DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+									Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+										apicommon.CoreAgentContainerName: {
+											Resources: &v1.ResourceRequirements{
+												Limits: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("2"),
+												},
+												Requests: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("1"),
+												},
 											},
 										},
 									},
@@ -729,14 +741,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-									apicommon.CoreAgentContainerName: {
-										Resources: &v1.ResourceRequirements{
-											Limits: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("4"),
-											},
-											Requests: map[v1.ResourceName]resource.Quantity{
-												v1.ResourceCPU: resource.MustParse("3"),
+								DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+									Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+										apicommon.CoreAgentContainerName: {
+											Resources: &v1.ResourceRequirements{
+												Limits: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("4"),
+												},
+												Requests: map[v1.ResourceName]resource.Quantity{
+													v1.ResourceCPU: resource.MustParse("3"),
+												},
 											},
 										},
 									},
@@ -847,14 +861,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.CoreAgentContainerName: {
-									Resources: &v1.ResourceRequirements{
-										Limits: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("2"),
-										},
-										Requests: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("1"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										Resources: &v1.ResourceRequirements{
+											Limits: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
 										},
 									},
 								},
@@ -868,16 +884,18 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		agent := testutils.NewDatadogAgentWithoutFeatures(namespace, randomKubernetesObjectName())
 		agent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 			v2alpha1.NodeAgentComponentName: {
-				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					apicommon.CoreAgentContainerName: {
-						Resources: &v1.ResourceRequirements{
-							Limits: map[v1.ResourceName]resource.Quantity{
-								v1.ResourceCPU:    resource.MustParse("4"),     // defined also in profile
-								v1.ResourceMemory: resource.MustParse("256Mi"), // not defined in profile
-							},
-							Requests: map[v1.ResourceName]resource.Quantity{
-								v1.ResourceCPU:    resource.MustParse("3"),     // defined also in profile
-								v1.ResourceMemory: resource.MustParse("128Mi"), // not defined in profile
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+						apicommon.CoreAgentContainerName: {
+							Resources: &v1.ResourceRequirements{
+								Limits: map[v1.ResourceName]resource.Quantity{
+									v1.ResourceCPU:    resource.MustParse("4"),     // defined also in profile
+									v1.ResourceMemory: resource.MustParse("256Mi"), // not defined in profile
+								},
+								Requests: map[v1.ResourceName]resource.Quantity{
+									v1.ResourceCPU:    resource.MustParse("3"),     // defined also in profile
+									v1.ResourceMemory: resource.MustParse("128Mi"), // not defined in profile
+								},
 							},
 						},
 					},
@@ -996,14 +1014,16 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.CoreAgentContainerName: {
-									Resources: &v1.ResourceRequirements{
-										Limits: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("2"),
-										},
-										Requests: map[v1.ResourceName]resource.Quantity{
-											v1.ResourceCPU: resource.MustParse("1"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										Resources: &v1.ResourceRequirements{
+											Limits: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
 										},
 									},
 								},

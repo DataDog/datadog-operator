@@ -108,7 +108,9 @@ func TestDaemonSet(t *testing.T) {
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name: ptr.To("new-name"),
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Name: ptr.To("new-name"),
+		},
 	}
 
 	DaemonSet(&daemonSet, &override)
@@ -146,11 +148,13 @@ func makeDaemonSet(strategyType *string, strategyMaxUnavailable *string, strateg
 
 func makeOverride(strategyType *string, strategyMaxUnavailable *string, strategyMaxSurge *string) v2alpha1.DatadogAgentComponentOverride {
 	override := v2alpha1.DatadogAgentComponentOverride{
-		UpdateStrategy: &apicommon.UpdateStrategy{
-			Type: "",
-			RollingUpdate: &apicommon.RollingUpdate{
-				MaxUnavailable: &intstr.IntOrString{},
-				MaxSurge:       &intstr.IntOrString{},
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			UpdateStrategy: &apicommon.UpdateStrategy{
+				Type: "",
+				RollingUpdate: &apicommon.RollingUpdate{
+					MaxUnavailable: &intstr.IntOrString{},
+					MaxSurge:       &intstr.IntOrString{},
+				},
 			},
 		},
 	}

@@ -16,9 +16,11 @@ import (
 func OverrideComponentImage(spec *v2alpha1.DatadogAgentSpec, cmpName v2alpha1.ComponentName, imageName, imageTag string) error {
 	if _, found := spec.Override[cmpName]; !found {
 		spec.Override[cmpName] = &v2alpha1.DatadogAgentComponentOverride{
-			Image: &v2alpha1.AgentImageConfig{
-				Name: imageName,
-				Tag:  imageTag,
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Image: &v2alpha1.AgentImageConfig{
+					Name: imageName,
+					Tag:  imageTag,
+				},
 			},
 		}
 		return nil

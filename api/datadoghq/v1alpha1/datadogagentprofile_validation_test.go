@@ -31,11 +31,13 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 	}
 	basicNodeAgentOverride := map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-				common.CoreAgentContainerName: {
-					Resources: &corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					common.CoreAgentContainerName: {
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+							},
 						},
 					},
 				},
@@ -53,15 +55,17 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-						common.CoreAgentContainerName: {
-							Resources: &corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							common.CoreAgentContainerName: {
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+									},
 								},
 							},
+							common.TraceAgentContainerName: {},
 						},
-						common.TraceAgentContainerName: {},
 					},
 				},
 			},
@@ -72,15 +76,17 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-						common.HostProfiler: {
-							Resources: &corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							common.HostProfiler: {
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{
+										corev1.ResourceMemory: resource.MustParse("512Mi"),
+									},
 								},
+								Env:          []corev1.EnvVar{{Name: "FOO", Value: "bar"}},
+								VolumeMounts: []corev1.VolumeMount{{Name: "foo", MountPath: "/foo"}},
 							},
-							Env:          []corev1.EnvVar{{Name: "FOO", Value: "bar"}},
-							VolumeMounts: []corev1.VolumeMount{{Name: "foo", MountPath: "/foo"}},
 						},
 					},
 				},
@@ -92,18 +98,20 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					NodeSelector: map[string]string{
-						"foo": "bar",
-					},
-					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-						common.CoreAgentContainerName: {
-							Resources: &corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						NodeSelector: map[string]string{
+							"foo": "bar",
+						},
+						Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							common.CoreAgentContainerName: {
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+									},
 								},
 							},
+							common.TraceAgentContainerName: {},
 						},
-						common.TraceAgentContainerName: {},
 					},
 				},
 			},
@@ -114,16 +122,18 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-						common.CoreAgentContainerName: {
-							Resources: &corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							common.CoreAgentContainerName: {
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+									},
 								},
+								Command: []string{"foo", "bar"},
 							},
-							Command: []string{"foo", "bar"},
+							common.TraceAgentContainerName: {},
 						},
-						common.TraceAgentContainerName: {},
 					},
 				},
 			},
@@ -351,12 +361,13 @@ func TestValidateDatadogAgentProfileComponentOverrideAllowlist(t *testing.T) {
 		"Volumes":           {},
 	}
 
-	overrideType := reflect.TypeOf(v2alpha1.DatadogAgentComponentOverride{})
-	for i := 0; i < overrideType.NumField(); i++ {
-		field := overrideType.Field(i)
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(v2alpha1.DatadogAgentComponentOverride{})) {
+		if field.Anonymous {
+			continue
+		}
 		t.Run(field.Name, func(t *testing.T) {
 			override := &v2alpha1.DatadogAgentComponentOverride{}
-			setConfiguredField(t, reflect.ValueOf(override).Elem().FieldByName(field.Name))
+			setConfiguredField(t, reflect.ValueOf(override).Elem().FieldByIndex(field.Index))
 
 			spec := &DatadogAgentProfileSpec{
 				ProfileAffinity: validProfileAffinity(),
@@ -398,8 +409,10 @@ func TestValidateDatadogAgentProfileContainerOverrideAllowlist(t *testing.T) {
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								common.CoreAgentContainerName: containerOverride,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									common.CoreAgentContainerName: containerOverride,
+								},
 							},
 						},
 					},

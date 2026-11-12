@@ -1,0 +1,50 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    clusterAgentToken: <DATADOG_CLUSTER_AGENT_TOKEN>
+  override:
+    # Common Cluster Checks Runner override. It configures the default
+    # deployment and is inherited by every group.
+    clusterChecksRunner:
+      replicas: 2
+      nodeSelector:
+        pool: checks
+      containers:
+        agent:
+          env:
+            - name: DD_LOG_LEVEL
+              value: info
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+      # Each group is an additional Cluster Checks Runner deployment that
+      # applies its own override on top of the common one.
+      groups:
+        clc-core:
+          replicas: 3
+          containers:
+            agent:
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+        clc-db:
+          nodeSelector:
+            pool: db-checks
+          tolerations:
+            - key: dedicated
+              operator: Equal
+              value: db-checks
+              effect: NoSchedule

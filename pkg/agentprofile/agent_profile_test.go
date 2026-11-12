@@ -37,8 +37,10 @@ func TestGetMaxUnavailableFromSpec(t *testing.T) {
 	spec := &v2alpha1.DatadogAgentSpec{
 		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 			v2alpha1.NodeAgentComponentName: {
-				UpdateStrategy: &apicommon.UpdateStrategy{
-					RollingUpdate: &apicommon.RollingUpdate{MaxUnavailable: &overrideValue},
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					UpdateStrategy: &apicommon.UpdateStrategy{
+						RollingUpdate: &apicommon.RollingUpdate{MaxUnavailable: &overrideValue},
+					},
 				},
 			},
 		},
@@ -137,8 +139,10 @@ func exampleFeatureOverrideProfile() v1alpha1.DatadogAgentProfile {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							"foo": "bar",
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Labels: map[string]string{
+								"foo": "bar",
+							},
 						},
 					},
 				},
@@ -153,43 +157,45 @@ func configWithAllOverrides(cpuRequest string) *v2alpha1.DatadogAgentSpec {
 	return &v2alpha1.DatadogAgentSpec{
 		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 			v2alpha1.NodeAgentComponentName: {
-				PriorityClassName: ptr.To("foo"),
-				RuntimeClassName:  ptr.To("bar"),
-				UpdateStrategy: &apicommon.UpdateStrategy{
-					Type: "RollingUpdate",
-					RollingUpdate: &apicommon.RollingUpdate{
-						MaxUnavailable: &intstr.IntOrString{
-							IntVal: 10,
-						},
-					},
-				},
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-				Volumes: []corev1.Volume{
-					{
-						Name: "foo",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
-						},
-					},
-				},
-				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					apicommon.CoreAgentContainerName: {
-						Env: []corev1.EnvVar{
-							{
-								Name:  "foo",
-								Value: "bar",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					PriorityClassName: ptr.To("foo"),
+					RuntimeClassName:  ptr.To("bar"),
+					UpdateStrategy: &apicommon.UpdateStrategy{
+						Type: "RollingUpdate",
+						RollingUpdate: &apicommon.RollingUpdate{
+							MaxUnavailable: &intstr.IntOrString{
+								IntVal: 10,
 							},
 						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "foo",
-								MountPath: "/etc/foo",
-								ReadOnly:  true,
+					},
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "foo",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
-						Resources: cpuRequestResource(cpuRequest),
+					},
+					Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+						apicommon.CoreAgentContainerName: {
+							Env: []corev1.EnvVar{
+								{
+									Name:  "foo",
+									Value: "bar",
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "foo",
+									MountPath: "/etc/foo",
+									ReadOnly:  true,
+								},
+							},
+							Resources: cpuRequestResource(cpuRequest),
+						},
 					},
 				},
 			},
@@ -1178,9 +1184,11 @@ func TestApplyCreateStrategy(t *testing.T) {
 						Config: &v2alpha1.DatadogAgentSpec{
 							Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 								v2alpha1.NodeAgentComponentName: {
-									UpdateStrategy: &apicommon.UpdateStrategy{
-										RollingUpdate: &apicommon.RollingUpdate{
-											MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+									DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+										UpdateStrategy: &apicommon.UpdateStrategy{
+											RollingUpdate: &apicommon.RollingUpdate{
+												MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+											},
 										},
 									},
 								},

@@ -49,7 +49,9 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Replicas: ptr.To[int32](10),
+							DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+								Replicas: ptr.To[int32](10),
+							},
 						},
 					},
 				},
@@ -65,8 +67,10 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Name:     ptr.To("bar"),
-							Replicas: ptr.To[int32](10),
+							DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+								Name:     ptr.To("bar"),
+								Replicas: ptr.To[int32](10),
+							},
 						},
 					},
 				},
@@ -82,8 +86,10 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Name:     ptr.To("bar"),
-							Replicas: ptr.To[int32](10),
+							DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+								Name:     ptr.To("bar"),
+								Replicas: ptr.To[int32](10),
+							},
 						},
 					},
 				},
@@ -217,7 +223,7 @@ func TestReconcileV2AgentFeatureError(t *testing.T) {
 			}}
 			if tt.nameOverride != nil {
 				ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
-					datadoghqv2alpha1.NodeAgentComponentName: {Name: tt.nameOverride},
+					datadoghqv2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{Name: tt.nameOverride}},
 				}
 			}
 			defaults.DefaultDatadogAgentSpec(&ddai.Spec)

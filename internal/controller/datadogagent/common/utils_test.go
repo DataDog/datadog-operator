@@ -33,77 +33,95 @@ func TestGetComponentVersion(t *testing.T) {
 		},
 		{
 			name: "tagged full name takes precedence over tag",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "registry/cluster-agent:7.85.0",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "registry/cluster-agent:7.85.0",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "7.85.0",
 		},
 		{
 			name: "tagged short name takes precedence over tag",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "agent:7.85.0",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "agent:7.85.0",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "7.85.0",
 		},
 		{
 			name: "explicit latest name takes precedence over tag",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "registry/agent:latest",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "registry/agent:latest",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "latest",
 		},
 		{
 			name: "tag with untagged name",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "agent",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "agent",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "7.84.0",
 		},
 		{
 			name: "tag only",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Tag: "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Tag: "7.84.0",
+				}},
+			},
 			want: "7.84.0",
 		},
 		{
 			name: "tagged name with registry port takes precedence over tag",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "registry:5000/agent:7.85.0",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "registry:5000/agent:7.85.0",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "7.85.0",
 		},
 		{
 			name: "registry port is not a tag",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "registry:5000/agent",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "registry:5000/agent",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "7.84.0",
 		},
 		{
 			name: "tagged JMX name takes precedence over tag",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "registry/agent:7.85.0-jmx",
-				Tag:  "7.84.0",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "registry/agent:7.85.0-jmx",
+					Tag:  "7.84.0",
+				}},
+			},
 			want: "7.85.0",
 		},
 		{
 			name: "untagged name only",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
-				Name: "agent",
-			}},
+			override: &v2alpha1.DatadogAgentComponentOverride{
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{
+					Name: "agent",
+				}},
+			},
 			want: "latest",
 		},
 		{
 			name:     "empty image override",
-			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{}},
+			override: &v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{}}},
 			want:     "",
 		},
 	}

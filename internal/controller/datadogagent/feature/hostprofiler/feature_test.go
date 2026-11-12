@@ -613,7 +613,9 @@ func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
 			name:      "node agent image override does not rewrite host-profiler seccomp image",
 			baseImage: "gcr.io/datadoghq/agent:7.80.1",
 			componentOverride: &v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "nightly", PullPolicy: &ifNotPresent},
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "nightly", PullPolicy: &ifNotPresent},
+				},
 			},
 			wantImage: "gcr.io/datadoghq/agent:7.80.1",
 		},
@@ -626,7 +628,9 @@ func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
 			},
 			baseImage: "custom.registry/agent:7.80.1-fips",
 			componentOverride: &v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "nightly", PullPolicy: &ifNotPresent},
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "nightly", PullPolicy: &ifNotPresent},
+				},
 			},
 			wantImage: "custom.registry/host-profiler:v2",
 		},

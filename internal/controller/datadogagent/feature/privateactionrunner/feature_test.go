@@ -173,7 +173,9 @@ func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+					},
 				},
 			},
 		},
@@ -307,7 +309,7 @@ func Test_privateActionRunnerFeature_SplitModeSelection(t *testing.T) {
 			}
 			if tt.tag != "" {
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.tag}},
+					v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: tt.tag}}},
 				}
 			}
 			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
@@ -393,7 +395,7 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {Image: &tt.image},
+						v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &tt.image}},
 					},
 				},
 			}
@@ -764,7 +766,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			}
 			if tt.clusterAgentTag != "" {
 				ddaSpec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.clusterAgentTag}},
+					v2alpha1.ClusterAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: tt.clusterAgentTag}}},
 				}
 			}
 			reqComp := f.Configure(dda, ddaSpec, nil)

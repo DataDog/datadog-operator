@@ -239,19 +239,21 @@ func Test_generateSpecFromDDA(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								"foo": "bar",
-							},
-							PriorityClassName: ptr.To("foo-priority-class"),
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Labels: map[string]string{
+									"foo": "bar",
+								},
+								PriorityClassName: ptr.To("foo-priority-class"),
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "key",
+															Operator: corev1.NodeSelectorOpIn,
+														},
 													},
 												},
 											},
@@ -261,7 +263,9 @@ func Test_generateSpecFromDDA(t *testing.T) {
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							PriorityClassName: ptr.To("bar-priority-class"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								PriorityClassName: ptr.To("bar-priority-class"),
+							},
 						},
 					},
 				},
@@ -282,19 +286,21 @@ func Test_generateSpecFromDDA(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								"foo": "bar",
-							},
-							PriorityClassName: ptr.To("foo-priority-class"),
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Labels: map[string]string{
+									"foo": "bar",
+								},
+								PriorityClassName: ptr.To("foo-priority-class"),
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "key",
+															Operator: corev1.NodeSelectorOpIn,
+														},
 													},
 												},
 											},
@@ -304,7 +310,9 @@ func Test_generateSpecFromDDA(t *testing.T) {
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							PriorityClassName: ptr.To("bar-priority-class"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								PriorityClassName: ptr.To("bar-priority-class"),
+							},
 						},
 					},
 				},

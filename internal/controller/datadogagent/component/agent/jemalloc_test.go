@@ -23,7 +23,7 @@ func TestDefaultPodTemplateJemalloc(t *testing.T) {
 		Name: "datadog", Annotations: map[string]string{component.DisableJemallocAnnotation: "true"},
 	}, Spec: v2alpha1.DatadogAgentSpec{
 		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-			v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+			v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
 		},
 	}}
 	for _, tt := range []struct {

@@ -446,153 +446,155 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 	agent.Spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
 
 	agent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
-		Name:               nil, // Don't override because these tests assume that it's always the default
-		Replicas:           nil, // Does not apply for the node agent
-		CreateRbac:         new(true),
-		ServiceAccountName: new("an-overridden-sa"),
-		Image: &v2alpha1.AgentImageConfig{
-			Name:       "an-overridden-image-name",
-			Tag:        "7",
-			JMXEnabled: true,
-		},
-		Env: []v1.EnvVar{
-			{
-				Name:  "some-env",
-				Value: "some-val",
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Name:               nil, // Don't override because these tests assume that it's always the default
+			Replicas:           nil, // Does not apply for the node agent
+			CreateRbac:         new(true),
+			ServiceAccountName: new("an-overridden-sa"),
+			Image: &v2alpha1.AgentImageConfig{
+				Name:       "an-overridden-image-name",
+				Tag:        "7",
+				JMXEnabled: true,
 			},
-		},
-		CustomConfigurations: nil, // This option requires creating a configmap. Set to nil here to simplify the test
-		ExtraConfd:           nil, // Also requires creating a configmap
-		ExtraChecksd:         nil, // Also requires creating a configmap
-		Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-			apicommon.CoreAgentContainerName: {
-				Name:     new("my-container-name"),
-				LogLevel: new("debug"),
-				Env: []v1.EnvVar{
-					{
-						Name:  "DD_LOG_LEVEL",
-						Value: "debug",
-					},
-				},
-				VolumeMounts: nil, // This option requires creating a configmap. Set to nil here to simplify the test
-				Resources: &v1.ResourceRequirements{
-					Limits: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
-					},
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
-					},
-				},
-				Command:    []string{"test-agent", "start"},
-				Args:       []string{"arg1", "val1"},
-				HealthPort: ptr.To[int32](1234),
-				ReadinessProbe: &v1.Probe{
-					ProbeHandler: v1.ProbeHandler{
-						HTTPGet: &v1.HTTPGetAction{
-							Path: constants.DefaultLivenessProbeHTTPPath,
-							Port: intstr.IntOrString{
-								IntVal: constants.DefaultAgentHealthPort,
-							},
-						},
-					},
-					InitialDelaySeconds: 10,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       30,
-					SuccessThreshold:    1,
-					FailureThreshold:    5,
-				},
-				LivenessProbe: &v1.Probe{
-					ProbeHandler: v1.ProbeHandler{
-						HTTPGet: &v1.HTTPGetAction{
-							Path: constants.DefaultLivenessProbeHTTPPath,
-							Port: intstr.IntOrString{
-								IntVal: constants.DefaultAgentHealthPort,
-							},
-						},
-					},
-					InitialDelaySeconds: 10,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       30,
-					SuccessThreshold:    1,
-					FailureThreshold:    5,
-				},
-				StartupProbe: &v1.Probe{
-					ProbeHandler: v1.ProbeHandler{
-						HTTPGet: &v1.HTTPGetAction{
-							Path: constants.DefaultLivenessProbeHTTPPath,
-							Port: intstr.IntOrString{
-								IntVal: constants.DefaultAgentHealthPort,
-							},
-						},
-					},
-					InitialDelaySeconds: 15,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       15,
-					SuccessThreshold:    1,
-					FailureThreshold:    6,
-				},
-				SecurityContext: &v1.SecurityContext{
-					RunAsUser: ptr.To[int64](12345),
-				},
-				SeccompConfig: &v2alpha1.SeccompConfig{
-					CustomRootPath: new("/some/path"),
-					CustomProfile: &v2alpha1.CustomConfig{
-						ConfigMap: &v2alpha1.ConfigMapConfig{
-							Name: "custom-seccomp-cm",
-						},
-					},
-				},
-				AppArmorProfileName: new("runtime/default"),
-			},
-		},
-		Volumes: []v1.Volume{
-			{
-				Name: "added-volume",
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
+			Env: []v1.EnvVar{
+				{
+					Name:  "some-env",
+					Value: "some-val",
 				},
 			},
-		},
-		SecurityContext: &v1.PodSecurityContext{
-			RunAsUser: ptr.To[int64](1234),
-		},
-		PriorityClassName: new("a-priority-class"),
-		Affinity: &v1.Affinity{
-			PodAntiAffinity: &v1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
-					{
-						Weight: 50,
-						PodAffinityTerm: v1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"some-label": "some-value",
+			CustomConfigurations: nil, // This option requires creating a configmap. Set to nil here to simplify the test
+			ExtraConfd:           nil, // Also requires creating a configmap
+			ExtraChecksd:         nil, // Also requires creating a configmap
+			Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+				apicommon.CoreAgentContainerName: {
+					Name:     new("my-container-name"),
+					LogLevel: new("debug"),
+					Env: []v1.EnvVar{
+						{
+							Name:  "DD_LOG_LEVEL",
+							Value: "debug",
+						},
+					},
+					VolumeMounts: nil, // This option requires creating a configmap. Set to nil here to simplify the test
+					Resources: &v1.ResourceRequirements{
+						Limits: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+						},
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
+						},
+					},
+					Command:    []string{"test-agent", "start"},
+					Args:       []string{"arg1", "val1"},
+					HealthPort: ptr.To[int32](1234),
+					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: constants.DefaultLivenessProbeHTTPPath,
+								Port: intstr.IntOrString{
+									IntVal: constants.DefaultAgentHealthPort,
 								},
 							},
-							TopologyKey: "kubernetes.io/hostname",
+						},
+						InitialDelaySeconds: 10,
+						TimeoutSeconds:      5,
+						PeriodSeconds:       30,
+						SuccessThreshold:    1,
+						FailureThreshold:    5,
+					},
+					LivenessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: constants.DefaultLivenessProbeHTTPPath,
+								Port: intstr.IntOrString{
+									IntVal: constants.DefaultAgentHealthPort,
+								},
+							},
+						},
+						InitialDelaySeconds: 10,
+						TimeoutSeconds:      5,
+						PeriodSeconds:       30,
+						SuccessThreshold:    1,
+						FailureThreshold:    5,
+					},
+					StartupProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Path: constants.DefaultLivenessProbeHTTPPath,
+								Port: intstr.IntOrString{
+									IntVal: constants.DefaultAgentHealthPort,
+								},
+							},
+						},
+						InitialDelaySeconds: 15,
+						TimeoutSeconds:      5,
+						PeriodSeconds:       15,
+						SuccessThreshold:    1,
+						FailureThreshold:    6,
+					},
+					SecurityContext: &v1.SecurityContext{
+						RunAsUser: ptr.To[int64](12345),
+					},
+					SeccompConfig: &v2alpha1.SeccompConfig{
+						CustomRootPath: new("/some/path"),
+						CustomProfile: &v2alpha1.CustomConfig{
+							ConfigMap: &v2alpha1.ConfigMapConfig{
+								Name: "custom-seccomp-cm",
+							},
+						},
+					},
+					AppArmorProfileName: new("runtime/default"),
+				},
+			},
+			Volumes: []v1.Volume{
+				{
+					Name: "added-volume",
+					VolumeSource: v1.VolumeSource{
+						EmptyDir: &v1.EmptyDirVolumeSource{},
+					},
+				},
+			},
+			SecurityContext: &v1.PodSecurityContext{
+				RunAsUser: ptr.To[int64](1234),
+			},
+			PriorityClassName: new("a-priority-class"),
+			Affinity: &v1.Affinity{
+				PodAntiAffinity: &v1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+						{
+							Weight: 50,
+							PodAffinityTerm: v1.PodAffinityTerm{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"some-label": "some-value",
+									},
+								},
+								TopologyKey: "kubernetes.io/hostname",
+							},
 						},
 					},
 				},
 			},
-		},
-		NodeSelector: map[string]string{
-			"key1": "val1",
-		},
-		Tolerations: []v1.Toleration{
-			{
-				Key:      "key1",
-				Operator: "Exists",
-				Effect:   "NoSchedule",
+			NodeSelector: map[string]string{
+				"key1": "val1",
 			},
+			Tolerations: []v1.Toleration{
+				{
+					Key:      "key1",
+					Operator: "Exists",
+					Effect:   "NoSchedule",
+				},
+			},
+			Annotations: map[string]string{
+				"an-annotation": "123",
+			},
+			Labels: map[string]string{
+				"some-label": "456",
+			},
+			HostNetwork: new(false),
+			HostPID:     new(true),
+			Disabled:    new(false),
 		},
-		Annotations: map[string]string{
-			"an-annotation": "123",
-		},
-		Labels: map[string]string{
-			"some-label": "456",
-		},
-		HostNetwork: new(false),
-		HostPID:     new(true),
-		Disabled:    new(false),
 	}
 
 	return agent

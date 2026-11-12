@@ -62,10 +62,12 @@ func Test_computeProfileMerge(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "value",
+									},
 								},
 							},
 						},
@@ -93,42 +95,44 @@ func Test_computeProfileMerge(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/datadogagentprofile",
+															Operator: corev1.NodeSelectorOpDoesNotExist,
+														},
+													},
+												},
+											},
+										},
+									},
+									PodAntiAffinity: &corev1.PodAntiAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpDoesNotExist,
+												LabelSelector: &metav1.LabelSelector{
+													MatchExpressions: []metav1.LabelSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/component",
+															Operator: metav1.LabelSelectorOpIn,
+															Values:   []string{"agent"},
+														},
 													},
 												},
+												TopologyKey: "kubernetes.io/hostname",
 											},
 										},
 									},
 								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
-													},
-												},
-											},
-											TopologyKey: "kubernetes.io/hostname",
-										},
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "value",
 									},
-								},
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
 								},
 							},
 						},
@@ -151,10 +155,12 @@ func Test_computeProfileMerge(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "value",
+									},
 								},
 							},
 						},
@@ -179,10 +185,12 @@ func Test_computeProfileMerge(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								Env: []corev1.EnvVar{
-									{
-										Name:  "EXISTING",
-										Value: "newvalue",
+								DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+									Env: []corev1.EnvVar{
+										{
+											Name:  "EXISTING",
+											Value: "newvalue",
+										},
 									},
 								},
 							},
@@ -206,63 +214,71 @@ func Test_computeProfileMerge(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Name: ptr.To("foo-profile-agent"),
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Name: ptr.To("foo-profile-agent"),
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "test",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"foo"},
+														},
+														{
+															Key:      "agent.datadoghq.com/datadogagentprofile",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"foo-profile"},
+														},
+													},
+												},
+											},
+										},
+									},
+									PodAntiAffinity: &corev1.PodAntiAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "test",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"foo"},
-													},
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"foo-profile"},
+												LabelSelector: &metav1.LabelSelector{
+													MatchExpressions: []metav1.LabelSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/component",
+															Operator: metav1.LabelSelectorOpIn,
+															Values:   []string{"agent"},
+														},
 													},
 												},
+												TopologyKey: "kubernetes.io/hostname",
 											},
 										},
 									},
 								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
-													},
-												},
-											},
-											TopologyKey: "kubernetes.io/hostname",
-										},
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "newvalue",
 									},
 								},
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "newvalue",
+								Labels: map[string]string{
+									constants.ProfileLabelKey: "foo-profile",
 								},
-							},
-							Labels: map[string]string{
-								constants.ProfileLabelKey: "foo-profile",
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							Disabled: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Disabled: ptr.To(true),
+							},
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Disabled: ptr.To(true),
+							},
 						},
 						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Disabled: ptr.To(true),
+							},
 						},
 					},
 				},
@@ -493,16 +509,18 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"value"},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "key",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"value"},
+														},
 													},
 												},
 											},
@@ -527,39 +545,41 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"value"},
-													},
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpDoesNotExist,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "key",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"value"},
+														},
+														{
+															Key:      "agent.datadoghq.com/datadogagentprofile",
+															Operator: corev1.NodeSelectorOpDoesNotExist,
+														},
 													},
 												},
 											},
 										},
 									},
-								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
+									PodAntiAffinity: &corev1.PodAntiAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+											{
+												LabelSelector: &metav1.LabelSelector{
+													MatchExpressions: []metav1.LabelSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/component",
+															Operator: metav1.LabelSelectorOpIn,
+															Values:   []string{"agent"},
+														},
 													},
 												},
+												TopologyKey: "kubernetes.io/hostname",
 											},
-											TopologyKey: "kubernetes.io/hostname",
 										},
 									},
 								},
@@ -579,16 +599,18 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"value"},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "key",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"value"},
+														},
 													},
 												},
 											},
@@ -618,10 +640,12 @@ func Test_setProfileSpec(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								Env: []corev1.EnvVar{
-									{
-										Name:  "foo",
-										Value: "bar",
+								DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+									Env: []corev1.EnvVar{
+										{
+											Name:  "foo",
+											Value: "bar",
+										},
 									},
 								},
 							},
@@ -637,68 +661,76 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Name: ptr.To("foo-profile-agent"),
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Name: ptr.To("foo-profile-agent"),
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "key",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"value"},
+														},
+														{
+															Key:      "test",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"foo"},
+														},
+														{
+															Key:      "agent.datadoghq.com/datadogagentprofile",
+															Operator: corev1.NodeSelectorOpIn,
+															Values:   []string{"foo-profile"},
+														},
+													},
+												},
+											},
+										},
+									},
+									PodAntiAffinity: &corev1.PodAntiAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"value"},
-													},
-													{
-														Key:      "test",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"foo"},
-													},
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"foo-profile"},
+												LabelSelector: &metav1.LabelSelector{
+													MatchExpressions: []metav1.LabelSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/component",
+															Operator: metav1.LabelSelectorOpIn,
+															Values:   []string{"agent"},
+														},
 													},
 												},
+												TopologyKey: "kubernetes.io/hostname",
 											},
 										},
 									},
 								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
-													},
-												},
-											},
-											TopologyKey: "kubernetes.io/hostname",
-										},
+								Env: []corev1.EnvVar{
+									{
+										Name:  "foo",
+										Value: "bar",
 									},
 								},
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "foo",
-									Value: "bar",
+								Labels: map[string]string{
+									constants.ProfileLabelKey: "foo-profile",
 								},
-							},
-							Labels: map[string]string{
-								constants.ProfileLabelKey: "foo-profile",
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							Disabled: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Disabled: ptr.To(true),
+							},
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Disabled: ptr.To(true),
+							},
 						},
 						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Disabled: ptr.To(true),
+							},
 						},
 					},
 				},
@@ -726,34 +758,36 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpDoesNotExist,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Affinity: &corev1.Affinity{
+									NodeAffinity: &corev1.NodeAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchExpressions: []corev1.NodeSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/datadogagentprofile",
+															Operator: corev1.NodeSelectorOpDoesNotExist,
+														},
 													},
 												},
 											},
 										},
 									},
-								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
+									PodAntiAffinity: &corev1.PodAntiAffinity{
+										RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+											{
+												LabelSelector: &metav1.LabelSelector{
+													MatchExpressions: []metav1.LabelSelectorRequirement{
+														{
+															Key:      "agent.datadoghq.com/component",
+															Operator: metav1.LabelSelectorOpIn,
+															Values:   []string{"agent"},
+														},
 													},
 												},
+												TopologyKey: "kubernetes.io/hostname",
 											},
-											TopologyKey: "kubernetes.io/hostname",
 										},
 									},
 								},
@@ -1417,7 +1451,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			description: "Expect the DAP to be rejected because shared SSI config requires the base Cluster Agent.",
 			baseSpec: func() *v2alpha1.DatadogAgentSpec {
 				spec := testAPMMatrixBaseSpec()
-				spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}
+				spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Disabled: ptr.To(true)}}
 				return spec
 			},
 			profiles: []*v1alpha1.DatadogAgentProfile{
@@ -1432,7 +1466,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			description: "Expect the DAP to apply because plain profile APM config stays profile-local and does not need shared SSI Cluster Agent config.",
 			baseSpec: func() *v2alpha1.DatadogAgentSpec {
 				spec := testAPMMatrixBaseSpec()
-				spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}
+				spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Disabled: ptr.To(true)}}
 				return spec
 			},
 			profiles: []*v1alpha1.DatadogAgentProfile{
@@ -1880,7 +1914,9 @@ func testAPMMatrixBaseSpec() *v2alpha1.DatadogAgentSpec {
 func testAPMMatrixBaseSpecWithClusterAgentImage(imageName string) *v2alpha1.DatadogAgentSpec {
 	spec := testAPMMatrixBaseSpec()
 	spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
-		Image: &v2alpha1.AgentImageConfig{Name: imageName},
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Image: &v2alpha1.AgentImageConfig{Name: imageName},
+		},
 	}
 	return spec
 }

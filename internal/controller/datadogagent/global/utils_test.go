@@ -80,12 +80,14 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.CoreAgentContainerName: {
-									SeccompConfig: &v2alpha1.SeccompConfig{
-										CustomProfile: &v2alpha1.CustomConfig{
-											ConfigMap: &v2alpha1.ConfigMapConfig{
-												Name: "foo",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										SeccompConfig: &v2alpha1.SeccompConfig{
+											CustomProfile: &v2alpha1.CustomConfig{
+												ConfigMap: &v2alpha1.ConfigMapConfig{
+													Name: "foo",
+												},
 											},
 										},
 									},
@@ -103,12 +105,14 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.SystemProbeContainerName: {
-									SeccompConfig: &v2alpha1.SeccompConfig{
-										CustomProfile: &v2alpha1.CustomConfig{
-											ConfigMap: &v2alpha1.ConfigMapConfig{
-												Name: "foo",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.SystemProbeContainerName: {
+										SeccompConfig: &v2alpha1.SeccompConfig{
+											CustomProfile: &v2alpha1.CustomConfig{
+												ConfigMap: &v2alpha1.ConfigMapConfig{
+													Name: "foo",
+												},
 											},
 										},
 									},
@@ -126,11 +130,13 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-								apicommon.SystemProbeContainerName: {
-									SeccompConfig: &v2alpha1.SeccompConfig{
-										CustomProfile: &v2alpha1.CustomConfig{
-											ConfigData: ptr.To("foo"),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.SystemProbeContainerName: {
+										SeccompConfig: &v2alpha1.SeccompConfig{
+											CustomProfile: &v2alpha1.CustomConfig{
+												ConfigData: ptr.To("foo"),
+											},
 										},
 									},
 								},

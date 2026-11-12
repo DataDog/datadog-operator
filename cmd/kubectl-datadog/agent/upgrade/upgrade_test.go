@@ -75,7 +75,9 @@ func Test_options_upgradeV2(t *testing.T) {
 				dd := buildV2DatadogAgent("")
 				dd.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 					"nodeAgent": {
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					},
 				}
 				_ = c.Create(context.TODO(), dd)

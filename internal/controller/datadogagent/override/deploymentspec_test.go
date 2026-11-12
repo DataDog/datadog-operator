@@ -109,8 +109,10 @@ func TestDeployment(t *testing.T) {
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name:     ptr.To("new-name"),
-		Replicas: ptr.To[int32](2),
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Name:     ptr.To("new-name"),
+			Replicas: ptr.To[int32](2),
+		},
 	}
 
 	Deployment(&deployment, &override)

@@ -67,10 +67,12 @@ func Test_ssaMergeCRD(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "value",
+									},
 								},
 							},
 						},
@@ -89,10 +91,12 @@ func Test_ssaMergeCRD(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "NEW",
-									Value: "newvalue",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "NEW",
+										Value: "newvalue",
+									},
 								},
 							},
 						},
@@ -112,14 +116,16 @@ func Test_ssaMergeCRD(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
-								},
-								{
-									Name:  "NEW",
-									Value: "newvalue",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "value",
+									},
+									{
+										Name:  "NEW",
+										Value: "newvalue",
+									},
 								},
 							},
 						},
@@ -146,10 +152,12 @@ func Test_ssaMergeCRD(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "value",
+									},
 								},
 							},
 						},
@@ -168,10 +176,12 @@ func Test_ssaMergeCRD(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "newvalue",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "newvalue",
+									},
 								},
 							},
 						},
@@ -191,10 +201,12 @@ func Test_ssaMergeCRD(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "newvalue",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Env: []corev1.EnvVar{
+									{
+										Name:  "EXISTING",
+										Value: "newvalue",
+									},
 								},
 							},
 						},
@@ -282,8 +294,10 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 			},
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Env: []corev1.EnvVar{
-						{Name: "EXISTING", Value: "value"},
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Env: []corev1.EnvVar{
+							{Name: "EXISTING", Value: "value"},
+						},
 					},
 				},
 			},
@@ -302,8 +316,10 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Env: []corev1.EnvVar{
-						{Name: "NEW", Value: "newvalue"},
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Env: []corev1.EnvVar{
+							{Name: "NEW", Value: "newvalue"},
+						},
 					},
 				},
 			},

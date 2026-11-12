@@ -605,12 +605,14 @@ func Test_GPUMonitoringFeature_EBPFProbesOverride(t *testing.T) {
 	assert.Equal(t, []string{"false"}, envVarValues(tmpl, apicommon.SystemProbeContainerName))
 
 	reEnableProbes := &v2alpha1.DatadogAgentComponentOverride{
-		Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-			apicommon.CoreAgentContainerName: {
-				Env: []corev1.EnvVar{{Name: DDEnableEBPFProbesEnvVar, Value: "true"}},
-			},
-			apicommon.SystemProbeContainerName: {
-				Env: []corev1.EnvVar{{Name: DDEnableEBPFProbesEnvVar, Value: "true"}},
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+				apicommon.CoreAgentContainerName: {
+					Env: []corev1.EnvVar{{Name: DDEnableEBPFProbesEnvVar, Value: "true"}},
+				},
+				apicommon.SystemProbeContainerName: {
+					Env: []corev1.EnvVar{{Name: DDEnableEBPFProbesEnvVar, Value: "true"}},
+				},
 			},
 		},
 	}

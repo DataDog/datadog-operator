@@ -159,7 +159,7 @@ func TestReconcileAgentServiceAccount_LeavesClusterAgentAlone(t *testing.T) {
 func TestReconcileAgentServiceAccount_PreservesOtherOverrides(t *testing.T) {
 	spec := &v2alpha1.DatadogAgentSpec{
 		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-			v2alpha1.NodeAgentComponentName: {HostNetwork: ptr.To(true)},
+			v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{HostNetwork: ptr.To(true)}},
 		},
 	}
 	auth := &stubAuthorizer{allowed: true}

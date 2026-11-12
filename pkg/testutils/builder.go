@@ -848,7 +848,9 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 
 func (builder *DatadogAgentBuilder) WithClusterAgentTag(tag string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
-		Image: &v2alpha1.AgentImageConfig{Tag: tag},
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Image: &v2alpha1.AgentImageConfig{Tag: tag},
+		},
 	}
 	return builder
 }
@@ -858,7 +860,9 @@ func (builder *DatadogAgentBuilder) WithNodeAgentTag(tag string) *DatadogAgentBu
 		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
 	}
 	builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
-		Image: &v2alpha1.AgentImageConfig{Tag: tag},
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Image: &v2alpha1.AgentImageConfig{Tag: tag},
+		},
 	}
 	return builder
 }
@@ -1286,7 +1290,9 @@ func (builder *DatadogAgentBuilder) WithClusterAgentImage(image string) *Datadog
 
 func (builder *DatadogAgentBuilder) WithClusterAgentDisabled(disabled bool) *DatadogAgentBuilder {
 	builder.WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-		Disabled: new(disabled),
+		DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+			Disabled: new(disabled),
+		},
 	})
 	return builder
 }

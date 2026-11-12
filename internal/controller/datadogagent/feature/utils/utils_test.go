@@ -28,7 +28,9 @@ func TestShouldRunProcessChecksInCoreAgent(t *testing.T) {
 		return &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: tag},
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: tag},
+					},
 				},
 			},
 		}
@@ -75,7 +77,9 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 		return &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: tag},
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: tag},
+					},
 				},
 			},
 		}
@@ -156,7 +160,7 @@ func kubernetesActionsSpec(enabled bool, communication *v2alpha1.KubernetesActio
 	}
 	if clusterAgentTag != "" {
 		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-			v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: clusterAgentTag}},
+			v2alpha1.ClusterAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: clusterAgentTag}}},
 		}
 	}
 	return spec

@@ -290,7 +290,9 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, nil).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: ptr.To(true),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						HostNetwork: ptr.To(true),
+					},
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -302,7 +304,9 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, nil).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: ptr.To(true),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						HostNetwork: ptr.To(true),
+					},
 				}).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -315,7 +319,9 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, ptr.To[int32](1234)).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: ptr.To(true),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						HostNetwork: ptr.To(true),
+					},
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -327,7 +333,9 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, ptr.To[int32](1234)).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: ptr.To(true),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						HostNetwork: ptr.To(true),
+					},
 				}).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -468,7 +476,9 @@ func TestAPMFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.59.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.59.0"},
+						},
 					},
 				).
 				Build(),
@@ -512,7 +522,9 @@ func TestAPMFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
+						},
 					},
 				).
 				Build(),

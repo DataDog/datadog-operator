@@ -40,7 +40,9 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = ptr.To(true)
 	ddaServiceDiscoveryEnabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+			},
 		},
 	}
 	ddaServiceDiscoveryEnabledUnsupportedVersion := ddaServiceDiscoveryEnabled.DeepCopy()
@@ -93,7 +95,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						},
 					},
 				},
 			},
@@ -105,7 +109,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Name: "docker.io/datadog/agent:7.78.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Name: "docker.io/datadog/agent:7.78.0"},
+						},
 					},
 				},
 			},
@@ -117,7 +123,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						},
 					},
 				},
 			},
@@ -129,7 +137,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)},
+						},
 					},
 				},
 			},
@@ -141,7 +151,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "latest-dev"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "latest-dev"},
+						},
 					},
 				},
 			},
@@ -157,7 +169,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						},
 					},
 				},
 			},
@@ -173,7 +187,9 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						},
 					},
 				},
 			},
@@ -217,8 +233,10 @@ func Test_serviceDiscoveryFeature_resolveEnabled_InheritsDefaultVersionWhenImage
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{
-							PullPolicy: ptr.To(corev1.PullAlways),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{
+								PullPolicy: ptr.To(corev1.PullAlways),
+							},
 						},
 					},
 				},
@@ -230,8 +248,10 @@ func Test_serviceDiscoveryFeature_resolveEnabled_InheritsDefaultVersionWhenImage
 				Features: &v2alpha1.DatadogFeatures{},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{
-							Tag: images.AgentLatestVersion,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{
+								Tag: images.AgentLatestVersion,
+							},
 						},
 					},
 				},

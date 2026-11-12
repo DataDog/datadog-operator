@@ -39,7 +39,9 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 			dda := testutils.NewDatadogAgentBuilder().
 				WithName(tt.ddaName).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Name: &tt.overrideAgentName,
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Name: &tt.overrideAgentName,
+					},
 				}).
 				Build()
 			dsName := GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
@@ -74,7 +76,9 @@ func Test_getDeploymentNameFromDatadogAgent(t *testing.T) {
 			dda := testutils.NewDatadogAgentBuilder().
 				WithName(tt.ddaName).
 				WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Name: &tt.overrideClusterAgentName,
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Name: &tt.overrideClusterAgentName,
+					},
 				}).
 				Build()
 			deployName := GetDeploymentNameFromDatadogAgent(dda, &dda.Spec)

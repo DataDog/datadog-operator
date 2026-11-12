@@ -872,6 +872,183 @@ Use an integer value for `limits.cpu` so the runtime can read it directly. If yo
 `[component].extraConfd`
 : Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 
+`[component].groups`
+: _type_: `map[string]object`
+<br /> Groups defines additional instances of the component, keyed by group name. Each group inherits the common override and applies its own override on top. Only supported for clusterChecksRunner.
+
+`[component].groups.[container].affinity`
+: If specified, the pod's scheduling constraints. See [link](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) for more information.
+
+`[component].groups.[container].annotations`
+: _type_: `map[string]string`
+<br /> Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+
+`[component].groups.[container].celWorkloadExclude`
+: _type_: `[]object`
+<br /> CELWorkloadExclude enables excluding workloads from monitoring using Common Expression Language (CEL). See https://docs.datadoghq.com/containers/guide/container-discovery-management (Requires Agent 7.73+ and Cluster Agent 7.73+)
+
+`[component].groups.[container].containers`
+: _type_: `map[string]object`
+<br /> Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, and `trace-agent`.
+
+`[component].groups.[container].containers.[container].appArmorProfileName`
+: AppArmorProfileName specifies an apparmor profile.
+
+`[component].groups.[container].containers.[container].args`
+: _type_: `[]string`
+<br /> Args allows the specification of extra args to the `Command` parameter
+
+`[component].groups.[container].containers.[container].command`
+: _type_: `[]string`
+<br /> Command allows the specification of a custom entrypoint for container
+
+`[component].groups.[container].containers.[container].env`
+: _type_: `[]object`
+<br /> Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
+
+`[component].groups.[container].containers.[container].healthPort`
+: HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.
+
+`[component].groups.[container].containers.[container].livenessProbe`
+: Configure the Liveness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
+
+`[component].groups.[container].containers.[container].logLevel`
+: LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'
+
+`[component].groups.[container].containers.[container].name`
+: Name of the container that is overridden
+
+`[component].groups.[container].containers.[container].ports`
+: _type_: `[]object`
+<br /> Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
+
+`[component].groups.[container].containers.[container].readinessProbe`
+: Configure the Readiness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
+
+`[component].groups.[container].containers.[container].resources`
+: Specify the Request and Limits of the pods To get guaranteed QoS class, specify requests and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/ See [link](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for more information.
+
+`[component].groups.[container].containers.[container].seccompConfig`
+: Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation, use SecurityContext. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#seccomp) for more information.
+
+`[component].groups.[container].containers.[container].securityContext`
+: Container-level SecurityContext. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) for more information.
+
+`[component].groups.[container].containers.[container].startupProbe`
+: Configure the Startup Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
+
+`[component].groups.[container].containers.[container].volumeMounts`
+: _type_: `[]object`
+<br /> Specify additional volume mounts in the container.
+
+`[component].groups.[container].createPodDisruptionBudget`
+: Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component. Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+
+`[component].groups.[container].createRbac`
+: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
+
+`[component].groups.[container].customConfigurations`
+: _type_: `map[string]object`
+<br /> CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. Each provided file replaces the corresponding default file from the Agent image without merging. Agent settings provided through environment variables take precedence over these files.
+
+`[component].groups.[container].customConfigurations.[container].configData`
+: ConfigData corresponds to the configuration file content.
+
+`[component].groups.[container].customConfigurations.[container].configMap.items`
+: Items maps a ConfigMap data `key` to a file `path` mount.
+
+`[component].groups.[container].customConfigurations.[container].configMap.name`
+: Name is the name of the ConfigMap.
+
+`[component].groups.[container].disabled`
+: Disabled force disables a component.
+
+`[component].groups.[container].dnsConfig`
+: Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy. See [link](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) for more information.
+
+`[component].groups.[container].dnsPolicy`
+: Set DNS policy for the pod. Defaults to "ClusterFirst". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'. See [link](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) for more information.
+
+`[component].groups.[container].env`
+: _type_: `[]object`
+<br /> Specify additional environment variables for all containers in this component Priority is Container > Component. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
+
+`[component].groups.[container].envFrom`
+: _type_: `[]object`
+<br /> EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables. Priority is env > envFrom.
+
+`[component].groups.[container].extraChecksd`
+: Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+
+`[component].groups.[container].extraConfd`
+: Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+
+`[component].groups.[container].hostNetwork`
+: Host networking requested for this pod. Use the host's network namespace.
+
+`[component].groups.[container].hostPID`
+: Use the host's PID namespace.
+
+`[component].groups.[container].image.jmxEnabled`
+: Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string.
+
+`[component].groups.[container].image.name`
+: Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+
+`[component].groups.[container].image.pullPolicy`
+: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
+
+`[component].groups.[container].image.pullSecrets`
+: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+
+`[component].groups.[container].image.tag`
+: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
+
+`[component].groups.[container].labels`
+: _type_: `map[string]string`
+<br /> AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+
+`[component].groups.[container].name`
+: Name overrides the default name for the resource
+
+`[component].groups.[container].nodeSelector`
+: _type_: `map[string]string`
+<br /> A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels. See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+
+`[component].groups.[container].priorityClassName`
+: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default.
+
+`[component].groups.[container].replicas`
+: Number of the replicas. Not applicable for a DaemonSet deployment
+
+`[component].groups.[container].runtimeClassName`
+: If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
+
+`[component].groups.[container].securityContext`
+: Pod-level SecurityContext. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) for more information.
+
+`[component].groups.[container].serviceAccountAnnotations`
+: _type_: `map[string]string`
+<br /> Sets the ServiceAccountAnnotations used by this component.
+
+`[component].groups.[container].serviceAccountName`
+: Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true.
+
+`[component].groups.[container].tolerations`
+: _type_: `[]object`
+<br /> Configure the component tolerations. See [link](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for more information.
+
+`[component].groups.[container].topologySpreadConstraints`
+: _type_: `[]object`
+<br /> TopologySpreadConstraints describes how a group of pods ought to spread across topology domains. Scheduler will schedule pods in a way which abides by the constraints. All topologySpreadConstraints are ANDed. See [link](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#topologyspreadconstraint) for more information.
+
+`[component].groups.[container].updateStrategy`
+: The deployment strategy to use to replace existing pods with new ones. See [link](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#updating-a-deployment https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#updating-a-daemonset) for more information.
+
+`[component].groups.[container].volumes`
+: _type_: `[]object`
+<br /> Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
+
 `[component].hostNetwork`
 : Host networking requested for this pod. Use the host's network namespace.
 

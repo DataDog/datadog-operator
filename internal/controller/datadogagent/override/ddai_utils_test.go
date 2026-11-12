@@ -114,13 +114,17 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Annotations: map[string]string{
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 					v2alpha1.ClusterAgentComponentName: {
-						Annotations: map[string]string{
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 				},
@@ -151,18 +155,24 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Annotations: map[string]string{
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 					v2alpha1.ClusterAgentComponentName: {
-						Annotations: map[string]string{
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Annotations: map[string]string{
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 				},
@@ -204,11 +214,15 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels:      map[string]string{existingLabel: existingValue},
-							Annotations: map[string]string{existingAnnotation: existingValue},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Labels:      map[string]string{existingLabel: existingValue},
+								Annotations: map[string]string{existingAnnotation: existingValue},
+							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							Annotations: map[string]string{existingDCAAnnotation: existingValue},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Annotations: map[string]string{existingDCAAnnotation: existingValue},
+							},
 						},
 					},
 				},
@@ -224,18 +238,22 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							existingLabel: existingValue,
-						},
-						Annotations: map[string]string{
-							existingAnnotation:            existingValue,
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Labels: map[string]string{
+								existingLabel: existingValue,
+							},
+							Annotations: map[string]string{
+								existingAnnotation:            existingValue,
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 					v2alpha1.ClusterAgentComponentName: {
-						Annotations: map[string]string{
-							existingDCAAnnotation:         existingValue,
-							dcaTokenChecksumAnnotationKey: tokenHash,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								existingDCAAnnotation:         existingValue,
+								dcaTokenChecksumAnnotationKey: tokenHash,
+							},
 						},
 					},
 				},
@@ -259,7 +277,9 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{existingLabel: existingValue},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Labels: map[string]string{existingLabel: existingValue},
+							},
 						},
 					},
 				},
@@ -279,8 +299,10 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							existingLabel: existingValue,
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Labels: map[string]string{
+								existingLabel: existingValue,
+							},
 						},
 					},
 				},

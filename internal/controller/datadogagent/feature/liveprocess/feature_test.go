@@ -66,7 +66,9 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
+						},
 					},
 				).
 				Build(),

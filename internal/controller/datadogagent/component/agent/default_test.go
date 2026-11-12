@@ -223,7 +223,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+							},
 						},
 					},
 				},
@@ -237,7 +239,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+							},
 						},
 					},
 				},
@@ -251,7 +255,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{Tag: "7.80.2-jmx"},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{Tag: "7.80.2-jmx"},
+							},
 						},
 					},
 				},
@@ -265,7 +271,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-jmx"},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-jmx"},
+							},
 						},
 					},
 				},
@@ -279,7 +287,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-full"},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-full"},
+							},
 						},
 					},
 				},
@@ -293,7 +303,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-fips-full"},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-fips-full"},
+							},
 						},
 					},
 				},
@@ -307,10 +319,12 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{
-								Name:       "agent:7.80.2",
-								Tag:        "7.80.2-jmx",
-								JMXEnabled: true,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{
+									Name:       "agent:7.80.2",
+									Tag:        "7.80.2-jmx",
+									JMXEnabled: true,
+								},
 							},
 						},
 					},
@@ -325,7 +339,9 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+							},
 						},
 					},
 				},

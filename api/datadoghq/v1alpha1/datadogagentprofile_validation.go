@@ -151,6 +151,13 @@ func validateAllowlistedFields(value any, allowlist map[string]struct{}, unsuppo
 		}
 
 		field := structType.Field(i)
+		// Inline embedded structs share the parent's JSON fields.
+		if field.Anonymous && field.Type.Kind() == reflect.Struct {
+			if err := validateAllowlistedFields(structValue.Field(i).Interface(), allowlist, unsupportedFieldName); err != nil {
+				return err
+			}
+			continue
+		}
 		if _, ok := allowlist[jsonFieldName(field)]; !ok {
 			return unsupportedError(unsupportedFieldName(field))
 		}

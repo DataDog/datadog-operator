@@ -184,7 +184,9 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Replicas: ptr.To[int32](10),
+							DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+								Replicas: ptr.To[int32](10),
+							},
 						},
 					},
 				},
@@ -200,8 +202,10 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Name:     ptr.To("bar"),
-							Replicas: ptr.To[int32](10),
+							DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+								Name:     ptr.To("bar"),
+								Replicas: ptr.To[int32](10),
+							},
 						},
 					},
 				},
@@ -217,8 +221,10 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Name:     ptr.To("bar"),
-							Replicas: ptr.To[int32](10),
+							DatadogAgentComponentOverrideConfig: datadoghqv2alpha1.DatadogAgentComponentOverrideConfig{
+								Name:     ptr.To("bar"),
+								Replicas: ptr.To[int32](10),
+							},
 						},
 					},
 				},

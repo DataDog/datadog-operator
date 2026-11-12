@@ -53,9 +53,11 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							ExtraConfd: &v2alpha1.MultiCustomConfig{
-								ConfigMap: &v2alpha1.ConfigMapConfig{
-									Name: "cmName",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ExtraConfd: &v2alpha1.MultiCustomConfig{
+									ConfigMap: &v2alpha1.ConfigMapConfig{
+										Name: "cmName",
+									},
 								},
 							},
 						},
@@ -70,9 +72,11 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							ExtraConfd: &v2alpha1.MultiCustomConfig{
-								ConfigDataMap: map[string]string{
-									"path_to_file.yaml": "yaml: data",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ExtraConfd: &v2alpha1.MultiCustomConfig{
+									ConfigDataMap: map[string]string{
+										"path_to_file.yaml": "yaml: data",
+									},
 								},
 							},
 						},
@@ -87,9 +91,11 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							ExtraChecksd: &v2alpha1.MultiCustomConfig{
-								ConfigMap: &v2alpha1.ConfigMapConfig{
-									Name: "cmName",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ExtraChecksd: &v2alpha1.MultiCustomConfig{
+									ConfigMap: &v2alpha1.ConfigMapConfig{
+										Name: "cmName",
+									},
 								},
 							},
 						},
@@ -104,9 +110,11 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							ExtraChecksd: &v2alpha1.MultiCustomConfig{
-								ConfigDataMap: map[string]string{
-									"path_to_file.py": "print('hello')",
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ExtraChecksd: &v2alpha1.MultiCustomConfig{
+									ConfigDataMap: map[string]string{
+										"path_to_file.py": "print('hello')",
+									},
 								},
 							},
 						},
@@ -121,11 +129,13 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							ExtraConfd: &v2alpha1.MultiCustomConfig{
-								ConfigDataMap: map[string]string{},
-							},
-							ExtraChecksd: &v2alpha1.MultiCustomConfig{
-								ConfigDataMap: map[string]string{},
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ExtraConfd: &v2alpha1.MultiCustomConfig{
+									ConfigDataMap: map[string]string{},
+								},
+								ExtraChecksd: &v2alpha1.MultiCustomConfig{
+									ConfigDataMap: map[string]string{},
+								},
 							},
 						},
 					},
@@ -139,7 +149,9 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							CreateRbac: ptr.To(false),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								CreateRbac: ptr.To(false),
+							},
 						},
 					},
 				},
@@ -152,7 +164,9 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							CreatePodDisruptionBudget: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								CreatePodDisruptionBudget: ptr.To(true),
+							},
 						},
 					},
 				},
@@ -164,7 +178,9 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							CreatePodDisruptionBudget: ptr.To(true),
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								CreatePodDisruptionBudget: ptr.To(true),
+							},
 						},
 					},
 					Features: &v2alpha1.DatadogFeatures{
@@ -214,14 +230,20 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							ServiceAccountName:        &customServiceAccount,
-							ServiceAccountAnnotations: customServiceAccountAnnotations,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ServiceAccountName:        &customServiceAccount,
+								ServiceAccountAnnotations: customServiceAccountAnnotations,
+							},
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							ServiceAccountAnnotations: customServiceAccountAnnotations,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ServiceAccountAnnotations: customServiceAccountAnnotations,
+							},
 						},
 						v2alpha1.NodeAgentComponentName: {
-							ServiceAccountAnnotations: customServiceAccountAnnotations,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ServiceAccountAnnotations: customServiceAccountAnnotations,
+							},
 						},
 					},
 				},
@@ -250,8 +272,10 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							ServiceAccountName:        &customServiceAccount,
-							ServiceAccountAnnotations: customServiceAccountAnnotations,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ServiceAccountName:        &customServiceAccount,
+								ServiceAccountAnnotations: customServiceAccountAnnotations,
+							},
 						},
 					},
 				},

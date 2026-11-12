@@ -411,7 +411,7 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			dst: func() *v2alpha1.DatadogAgentSpec {
 				spec := testProfileOverlayBaseSpec(false)
 				spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/cluster-agent:7.63.0"}},
+					v2alpha1.ClusterAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/cluster-agent:7.63.0"}}},
 				}
 				return spec
 			}(),
@@ -461,7 +461,7 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			dst: func() *v2alpha1.DatadogAgentSpec {
 				spec := testProfileOverlayBaseSpec(false)
 				spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+					v2alpha1.ClusterAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Disabled: ptr.To(true)}},
 				}
 				return spec
 			}(),
@@ -475,7 +475,7 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			dst: func() *v2alpha1.DatadogAgentSpec {
 				spec := testProfileOverlayBaseSpec(false)
 				spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+					v2alpha1.ClusterAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Disabled: ptr.To(true)}},
 				}
 				return spec
 			}(),

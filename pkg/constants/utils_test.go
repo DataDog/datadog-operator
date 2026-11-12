@@ -30,10 +30,14 @@ func TestServiceAccountNameOverride(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							ServiceAccountName: &customServiceAccount,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ServiceAccountName: &customServiceAccount,
+							},
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							ServiceAccountName: &customServiceAccount,
+							DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+								ServiceAccountName: &customServiceAccount,
+							},
 						},
 					},
 				},

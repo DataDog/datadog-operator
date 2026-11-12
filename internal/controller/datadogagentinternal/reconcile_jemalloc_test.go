@@ -42,7 +42,7 @@ func TestJemallocOptOutRemovalReconcilesDaemonSet(t *testing.T) {
 			}}
 			ddai.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
 			ddai.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+				v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
 			}
 			if tt.override {
 				ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Env = []corev1.EnvVar{

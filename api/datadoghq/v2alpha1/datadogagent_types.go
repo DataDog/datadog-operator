@@ -39,6 +39,9 @@ type DatadogAgentSpec struct {
 
 	// Override the default configurations of the agents
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="!has(self.nodeAgent) || !has(self.nodeAgent.groups)",message="groups is only supported for clusterChecksRunner"
+	// +kubebuilder:validation:XValidation:rule="!has(self.clusterAgent) || !has(self.clusterAgent.groups)",message="groups is only supported for clusterChecksRunner"
+	// +kubebuilder:validation:XValidation:rule="!has(self.otelAgentGateway) || !has(self.otelAgentGateway.groups)",message="groups is only supported for clusterChecksRunner"
 	Override map[ComponentName]*DatadogAgentComponentOverride `json:"override,omitempty"`
 }
 
@@ -2541,6 +2544,18 @@ const (
 
 // DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
 type DatadogAgentComponentOverride struct {
+	DatadogAgentComponentOverrideConfig `json:",inline"`
+
+	// Groups defines additional instances of the component, keyed by group name.
+	// Each group inherits the common override and applies its own override on top.
+	// Only supported for clusterChecksRunner.
+	// +optional
+	// +kubebuilder:validation:MaxProperties=10
+	Groups map[string]*DatadogAgentComponentOverrideConfig `json:"groups,omitempty"`
+}
+
+// DatadogAgentComponentOverrideConfig holds the configuration of a component override or of one of its groups.
+type DatadogAgentComponentOverrideConfig struct {
 	// Name overrides the default name for the resource
 	// +optional
 	Name *string `json:"name,omitempty"`

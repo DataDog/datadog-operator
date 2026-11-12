@@ -40,7 +40,7 @@ func talosSpec(tolerations ...corev1.Toleration) *v2alpha1.DatadogAgentSpec {
 	}
 	if len(tolerations) > 0 {
 		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-			v2alpha1.NodeAgentComponentName: {Tolerations: tolerations},
+			v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Tolerations: tolerations}},
 		}
 	}
 	return spec

@@ -67,7 +67,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfData).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFunc(),
@@ -142,7 +142,7 @@ instances:
 				WithOrchestratorExplorerCustomConfigData(customConfData).
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}}).
 				Build(),
 			WantConfigure:       true,
 			ClusterAgent:        orchestratorExplorerClusterAgentWantFunc(),
@@ -157,7 +157,7 @@ instances:
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfData).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.50.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.50.0"}}}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFunc(),
@@ -168,7 +168,7 @@ instances:
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithAnnotations(map[string]string{"agent.datadoghq.com/network-crds-enabled": "true"}).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWithNetworkCRDsWantFunc(),

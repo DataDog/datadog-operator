@@ -43,8 +43,8 @@ func TestRender_Jemalloc(t *testing.T) {
 			dda, err := LoadDDA(path)
 			require.NoError(t, err)
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
-				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+				v2alpha1.NodeAgentComponentName:           {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
+				v2alpha1.ClusterChecksRunnerComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
 			}
 			if dda.Spec.Features == nil {
 				dda.Spec.Features = &v2alpha1.DatadogFeatures{}
@@ -128,8 +128,8 @@ func TestRender_JemallocVersionGate(t *testing.T) {
 			require.NoError(t, err)
 			dda.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: tt.nodeTag}},
-				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.runnerTag}},
+				v2alpha1.NodeAgentComponentName:           {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: tt.nodeTag}}},
+				v2alpha1.ClusterChecksRunnerComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: tt.runnerTag}}},
 			}
 			objects, _, err := Render(Options{DDA: dda})
 			require.NoError(t, err)
@@ -184,8 +184,8 @@ func TestRender_JemallocAutopilot(t *testing.T) {
 				tt.key:                              tt.value,
 			}
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName:           {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
-				v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+				v2alpha1.NodeAgentComponentName:           {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
+				v2alpha1.ClusterChecksRunnerComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
 			}
 			objects, _, err := Render(Options{DDA: dda})
 			require.NoError(t, err)
@@ -215,7 +215,7 @@ func TestRender_JemallocWindowsProfile(t *testing.T) {
 	require.NoError(t, err)
 	dda.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
 	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+		v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}}},
 	}
 	profiles, err := LoadDAPs([]string{"testdata/linux-profile.yaml"})
 	require.NoError(t, err)
@@ -241,21 +241,23 @@ func TestRender_JemallocOverrides(t *testing.T) {
 	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
 	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"},
-			Env: []corev1.EnvVar{
-				{Name: "LD_PRELOAD", Value: "/custom/profiler.so /opt/datadog-agent/embedded/lib/libjemalloc.so"},
-				{Name: "MALLOC_CONF", Value: "dirty_decay_ms:1000"},
-			},
-			Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-				apicommon.CoreAgentContainerName: {Env: []corev1.EnvVar{
-					{Name: "LD_PRELOAD", Value: ""},
-					{Name: "MALLOC_CONF", ValueFrom: &corev1.EnvVarSource{
-						ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "allocator"},
-							Key:                  "config",
-						},
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"},
+				Env: []corev1.EnvVar{
+					{Name: "LD_PRELOAD", Value: "/custom/profiler.so /opt/datadog-agent/embedded/lib/libjemalloc.so"},
+					{Name: "MALLOC_CONF", Value: "dirty_decay_ms:1000"},
+				},
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					apicommon.CoreAgentContainerName: {Env: []corev1.EnvVar{
+						{Name: "LD_PRELOAD", Value: ""},
+						{Name: "MALLOC_CONF", ValueFrom: &corev1.EnvVarSource{
+							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{Name: "allocator"},
+								Key:                  "config",
+							},
+						}},
 					}},
-				}},
+				},
 			},
 		},
 	}

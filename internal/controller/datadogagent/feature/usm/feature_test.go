@@ -39,7 +39,9 @@ func Test_usmFeature_Configure(t *testing.T) {
 	}
 	ddaUSMDisabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Image: &v2alpha1.AgentImageConfig{Tag: "7.81.0"},
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Image: &v2alpha1.AgentImageConfig{Tag: "7.81.0"},
+			},
 		},
 	}
 	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()

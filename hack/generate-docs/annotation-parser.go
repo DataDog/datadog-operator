@@ -25,6 +25,8 @@ type fieldDef struct {
 	jsonName   string
 	typeName   string
 	annotation FieldAnnotation
+	// inline is set for embedded structs, whose fields are flattened into the parent.
+	inline bool
 }
 
 // ParseDocGenAnnotations parses +doc-gen: annotations from Go source files.
@@ -56,6 +58,7 @@ func ParseDocGenAnnotations(filePath string) (map[string]FieldAnnotation, error)
 
 		for _, field := range structType.Fields.List {
 			if len(field.Names) == 0 {
+				fields = append(fields, fieldDef{typeName: getFieldTypeName(field.Type), inline: true})
 				continue
 			}
 
@@ -105,6 +108,10 @@ func buildPaths(path []string, currentType string, structDefs map[string]*struct
 	}
 
 	for _, field := range structDef.fields {
+		if field.inline {
+			buildPaths(path, field.typeName, structDefs, annotations)
+			continue
+		}
 		fieldPath := append(path, field.jsonName)
 		pathKey := strings.Join(fieldPath, ".")
 

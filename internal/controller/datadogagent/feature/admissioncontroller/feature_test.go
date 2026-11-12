@@ -195,9 +195,11 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Name: "overrideName",
-						Tag:  "overrideTag",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Name: "overrideName",
+							Tag:  "overrideTag",
+						},
 					},
 				}).
 				WithSidecarInjectionImageName("").
@@ -213,9 +215,11 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Name: "overrideName",
-						Tag:  "overrideTag",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Name: "overrideName",
+							Tag:  "overrideTag",
+						},
 					},
 				}).
 				WithSidecarInjectionImageName("sidecarAgent").

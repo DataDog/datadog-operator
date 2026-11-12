@@ -47,7 +47,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ServiceAccountName: ptr.To("new-service-account"),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ServiceAccountName: ptr.To("new-service-account"),
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-service-account", manager.PodTemplateSpec().Spec.ServiceAccountName)
@@ -59,9 +61,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0", nonAgentName: "someregistry.com/datadog/non-agent:1.1.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "custom-agent",
-					Tag:  "latest",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "custom-agent",
+						Tag:  "latest",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -78,10 +82,12 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name:       "custom-agent",
-					Tag:        "latest",
-					JMXEnabled: true,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name:       "custom-agent",
+						Tag:        "latest",
+						JMXEnabled: true,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -98,9 +104,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "custom-agent",
-					Tag:  "latest",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "custom-agent",
+						Tag:  "latest",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -117,8 +125,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Tag: "latest",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Tag: "latest",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -135,10 +145,12 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name:       "agent:9.99.9",
-					Tag:        "latest",
-					JMXEnabled: true,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name:       "agent:9.99.9",
+						Tag:        "latest",
+						JMXEnabled: true,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -155,9 +167,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name:       "custom-agent",
-					JMXEnabled: true,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name:       "custom-agent",
+						JMXEnabled: true,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -174,9 +188,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Tag:        "latest-jmx",
-					JMXEnabled: true,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Tag:        "latest-jmx",
+						JMXEnabled: true,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -193,8 +209,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0-jmx"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					JMXEnabled: false,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						JMXEnabled: false,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -212,8 +230,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "repo/agent:latest",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "repo/agent:latest",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -230,8 +250,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "someregistry.com/agent:latest",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "someregistry.com/agent:latest",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -248,9 +270,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "agent",
-					Tag:  "latest",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "agent",
+						Tag:  "latest",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -267,9 +291,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/a/b/c/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name:       "cluster-agent",
-					JMXEnabled: true,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name:       "cluster-agent",
+						JMXEnabled: true,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -286,8 +312,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:9.99"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "otherregistry.com/agent",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "otherregistry.com/agent",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -306,8 +334,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					PullPolicy: &never,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						PullPolicy: &never,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -330,9 +360,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					PullPolicy:  &ifNotPresent,
-					PullSecrets: &pullSecret,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						PullPolicy:  &ifNotPresent,
+						PullSecrets: &pullSecret,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -361,7 +393,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "new", PullPolicy: &ifNotPresent},
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "new", PullPolicy: &ifNotPresent},
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				for _, c := range manager.PodTemplateSpec().Spec.Containers {
@@ -395,16 +429,18 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Env: []v1.EnvVar{
-					{
-						Name:  "added-env",
-						Value: "456",
-					},
-					{
-						Name: "added-env-valuefrom",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: common.FieldPathStatusPodIP,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Env: []v1.EnvVar{
+						{
+							Name:  "added-env",
+							Value: "456",
+						},
+						{
+							Name: "added-env-valuefrom",
+							ValueFrom: &v1.EnvVarSource{
+								FieldRef: &v1.ObjectFieldSelector{
+									FieldPath: common.FieldPathStatusPodIP,
+								},
 							},
 						},
 					},
@@ -442,10 +478,12 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig{
-					v2alpha1.AgentGeneralConfigFile: {
-						ConfigMap: &v2alpha1.ConfigMapConfig{
-							Name: "custom-config",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig{
+						v2alpha1.AgentGeneralConfigFile: {
+							ConfigMap: &v2alpha1.ConfigMapConfig{
+								Name: "custom-config",
+							},
 						},
 					},
 				},
@@ -467,9 +505,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraConfd: &v2alpha1.MultiCustomConfig{
-					ConfigMap: &v2alpha1.ConfigMapConfig{
-						Name: "extra-confd",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ExtraConfd: &v2alpha1.MultiCustomConfig{
+						ConfigMap: &v2alpha1.ConfigMapConfig{
+							Name: "extra-confd",
+						},
 					},
 				},
 			},
@@ -490,9 +530,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraConfd: &v2alpha1.MultiCustomConfig{
-					ConfigDataMap: map[string]string{
-						"path_to_file.yaml": "yaml: data",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ExtraConfd: &v2alpha1.MultiCustomConfig{
+						ConfigDataMap: map[string]string{
+							"path_to_file.yaml": "yaml: data",
+						},
 					},
 				},
 			},
@@ -513,9 +555,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraChecksd: &v2alpha1.MultiCustomConfig{
-					ConfigMap: &v2alpha1.ConfigMapConfig{
-						Name: "extra-checksd",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ExtraChecksd: &v2alpha1.MultiCustomConfig{
+						ConfigMap: &v2alpha1.ConfigMapConfig{
+							Name: "extra-checksd",
+						},
 					},
 				},
 			},
@@ -536,9 +580,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraChecksd: &v2alpha1.MultiCustomConfig{
-					ConfigDataMap: map[string]string{
-						"path_to_file.py": "print('hello')",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ExtraChecksd: &v2alpha1.MultiCustomConfig{
+						ConfigDataMap: map[string]string{
+							"path_to_file.py": "print('hello')",
+						},
 					},
 				},
 			},
@@ -559,8 +605,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraConfd: &v2alpha1.MultiCustomConfig{
-					ConfigDataMap: map[string]string{},
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ExtraConfd: &v2alpha1.MultiCustomConfig{
+						ConfigDataMap: map[string]string{},
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -575,8 +623,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraChecksd: &v2alpha1.MultiCustomConfig{
-					ConfigDataMap: map[string]string{},
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					ExtraChecksd: &v2alpha1.MultiCustomConfig{
+						ConfigDataMap: map[string]string{},
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -612,9 +662,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					apicommon.ClusterAgentContainerName: {
-						LogLevel: ptr.To("trace"),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+						apicommon.ClusterAgentContainerName: {
+							LogLevel: ptr.To("trace"),
+						},
 					},
 				},
 			},
@@ -643,9 +695,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Volumes: []v1.Volume{
-					{
-						Name: "added-volume",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Volumes: []v1.Volume{
+						{
+							Name: "added-volume",
+						},
 					},
 				},
 			},
@@ -672,8 +726,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				SecurityContext: &v1.PodSecurityContext{
-					RunAsUser: ptr.To[int64](5678),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					SecurityContext: &v1.PodSecurityContext{
+						RunAsUser: ptr.To[int64](5678),
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -688,7 +744,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				PriorityClassName: ptr.To("new-name"),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					PriorityClassName: ptr.To("new-name"),
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", manager.PodTemplateSpec().Spec.PriorityClassName)
@@ -702,7 +760,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				RuntimeClassName: ptr.To("new-name"),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					RuntimeClassName: ptr.To("new-name"),
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", *manager.PodTemplateSpec().Spec.RuntimeClassName)
@@ -755,50 +815,52 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "node-label-2",
-											Operator: v1.NodeSelectorOpExists,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Affinity: &v1.Affinity{
+						NodeAffinity: &v1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+								NodeSelectorTerms: []v1.NodeSelectorTerm{
+									{
+										MatchExpressions: []v1.NodeSelectorRequirement{
+											{
+												Key:      "node-label-2",
+												Operator: v1.NodeSelectorOpExists,
+											},
 										},
 									},
-								},
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "node-label-3",
-											Operator: v1.NodeSelectorOpExists,
+									{
+										MatchExpressions: []v1.NodeSelectorRequirement{
+											{
+												Key:      "node-label-3",
+												Operator: v1.NodeSelectorOpExists,
+											},
 										},
 									},
 								},
 							},
 						},
-					},
-					PodAffinity: &v1.PodAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"pod-label-3": "value-3",
+						PodAffinity: &v1.PodAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											"pod-label-3": "value-3",
+										},
 									},
+									TopologyKey: v1.LabelHostname,
 								},
-								TopologyKey: v1.LabelHostname,
 							},
 						},
-					},
-					PodAntiAffinity: &v1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"pod-label-4": "value-4",
+						PodAntiAffinity: &v1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											"pod-label-4": "value-4",
+										},
 									},
+									TopologyKey: v1.LabelHostname,
 								},
-								TopologyKey: v1.LabelHostname,
 							},
 						},
 					},
@@ -888,7 +950,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				DNSPolicy: newDNSPolicyPointer(v1.DNSClusterFirstWithHostNet),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					DNSPolicy: newDNSPolicyPointer(v1.DNSClusterFirstWithHostNet),
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, v1.DNSClusterFirstWithHostNet, manager.PodTemplateSpec().Spec.DNSPolicy)
@@ -919,21 +983,23 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				DNSConfig: &v1.PodDNSConfig{
-					Nameservers: []string{
-						"10.9.8.7", "10.9.8.4",
-					},
-					Searches: []string{
-						"dns-search-1", "dns-search-2",
-					},
-					Options: []v1.PodDNSConfigOption{
-						{
-							Name:  "DNSResolver1",
-							Value: ptr.To("value-2"),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					DNSConfig: &v1.PodDNSConfig{
+						Nameservers: []string{
+							"10.9.8.7", "10.9.8.4",
 						},
-						{
-							Name:  "DNSResolver2",
-							Value: ptr.To("value-3"),
+						Searches: []string{
+							"dns-search-1", "dns-search-2",
+						},
+						Options: []v1.PodDNSConfigOption{
+							{
+								Name:  "DNSResolver1",
+								Value: ptr.To("value-2"),
+							},
+							{
+								Name:  "DNSResolver2",
+								Value: ptr.To("value-3"),
+							},
 						},
 					},
 				},
@@ -971,9 +1037,11 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Labels: map[string]string{
-					"existing-label": "456",
-					"new-label":      "789",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Labels: map[string]string{
+						"existing-label": "456",
+						"new-label":      "789",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -993,7 +1061,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				HostNetwork: ptr.To(true),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					HostNetwork: ptr.To(true),
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostNetwork)
@@ -1007,7 +1077,9 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				HostPID: ptr.To(true),
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					HostPID: ptr.To(true),
+				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostPID)
@@ -1032,14 +1104,16 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				TopologySpreadConstraints: []v1.TopologySpreadConstraint{
-					{
-						MaxSkew:           2,
-						TopologyKey:       "node",
-						WhenUnsatisfiable: v1.ScheduleAnyway,
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "datadog-agent",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           2,
+							TopologyKey:       "node",
+							WhenUnsatisfiable: v1.ScheduleAnyway,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "datadog-agent",
+								},
 							},
 						},
 					},
@@ -1084,8 +1158,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					JMXEnabled: true,
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Image: &v2alpha1.AgentImageConfig{
+						JMXEnabled: true,
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -1117,8 +1193,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Annotations: map[string]string{
-					fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName): "runtime/default",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Annotations: map[string]string{
+						fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName): "runtime/default",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -1136,8 +1214,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Annotations: map[string]string{
-					fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName): "runtime/default",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Annotations: map[string]string{
+						fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName): "runtime/default",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -1152,8 +1232,10 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Annotations: map[string]string{
-					"some-other-annotation": "value",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					Annotations: map[string]string{
+						"some-other-annotation": "value",
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -1173,15 +1255,17 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				CELWorkloadExclude: []v2alpha1.CelWorkloadExcludeConfig{
-					{
-						Products: []v2alpha1.Product{v2alpha1.ProductMetrics, v2alpha1.ProductLogs},
-						Rules: &v2alpha1.CelWorkloadExcludeRules{
-							Containers: []string{
-								"container.name = 'redis'",
-							},
-							Pods: []string{
-								"pod.name.startsWith('filtered')",
+				DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+					CELWorkloadExclude: []v2alpha1.CelWorkloadExcludeConfig{
+						{
+							Products: []v2alpha1.Product{v2alpha1.ProductMetrics, v2alpha1.ProductLogs},
+							Rules: &v2alpha1.CelWorkloadExcludeRules{
+								Containers: []string{
+									"container.name = 'redis'",
+								},
+								Pods: []string{
+									"pod.name.startsWith('filtered')",
+								},
 							},
 						},
 					},

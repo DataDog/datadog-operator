@@ -58,7 +58,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: ptr.To(true),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						HostNetwork: ptr.To(true),
+					},
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -96,7 +98,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdHostPortConfig(1234).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: ptr.To(true),
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						HostNetwork: ptr.To(true),
+					},
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,

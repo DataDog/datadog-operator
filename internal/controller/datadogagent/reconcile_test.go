@@ -622,7 +622,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -650,7 +652,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -672,8 +676,10 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{
-							PullPolicy: ptr.To(corev1.PullAlways),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{
+								PullPolicy: ptr.To(corev1.PullAlways),
+							},
 						},
 					}).
 					Build()
@@ -699,7 +705,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						},
 					}).
 					Build()
 				dda.Spec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{
@@ -724,7 +732,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+						},
 					}).
 					Build()
 				dda.Spec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{
@@ -784,7 +794,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 						"agent.datadoghq.com/private-action-runner-packet-capture-enabled": "true",
 					}).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"},
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -860,11 +872,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						CreatePodDisruptionBudget: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							CreatePodDisruptionBudget: ptr.To(true),
+						},
 					}).
 					WithClusterChecksUseCLCEnabled(true).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						CreatePodDisruptionBudget: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							CreatePodDisruptionBudget: ptr.To(true),
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -881,7 +897,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -932,7 +950,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					}).
 					WithStatus(v2alpha1.DatadogAgentStatus{
 						ClusterAgent: &v2alpha1.DeploymentStatus{
@@ -1006,7 +1026,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					}).
 					WithClusterChecksEnabled(true).
 					WithClusterChecksUseCLCEnabled(true).
@@ -1113,7 +1135,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithOTelAgentGatewayEnabled(true).
 					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					}).
 					WithStatus(v2alpha1.DatadogAgentStatus{
 						OtelAgentGateway: &v2alpha1.DeploymentStatus{
@@ -1153,7 +1177,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithOTelAgentGatewayEnabled(true).
 					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -1184,11 +1210,13 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					WithClusterChecksEnabled(true).
 					WithClusterChecksUseCLCEnabled(false).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-							apicommon.CoreAgentContainerName: {
-								Resources: &corev1.ResourceRequirements{
-									Requests: corev1.ResourceList{
-										corev1.ResourceMemory: resource.MustParse("256Mi"),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+								apicommon.CoreAgentContainerName: {
+									Resources: &corev1.ResourceRequirements{
+										Requests: corev1.ResourceList{
+											corev1.ResourceMemory: resource.MustParse("256Mi"),
+										},
 									},
 								},
 							},
@@ -1233,7 +1261,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					WithClusterChecksEnabled(true).
 					WithClusterChecksUseCLCEnabled(true).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+						},
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -1292,8 +1322,10 @@ func Test_otelImageTags(t *testing.T) {
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Tag: "7.71.0",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Tag: "7.71.0",
+						},
 					},
 				}).
 				Build(),
@@ -1318,8 +1350,10 @@ func Test_otelImageTags(t *testing.T) {
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Tag: "7.66.0",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Tag: "7.66.0",
+						},
 					},
 				}).
 				Build(),
@@ -1334,8 +1368,10 @@ func Test_otelImageTags(t *testing.T) {
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Tag: "7.72.1-full",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Tag: "7.72.1-full",
+						},
 					},
 				}).
 				Build(),
@@ -1354,9 +1390,11 @@ func Test_otelImageTags(t *testing.T) {
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Name: "testagent",
-						Tag:  "7.65.0-full",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Name: "testagent",
+							Tag:  "7.65.0-full",
+						},
 					},
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
@@ -1380,8 +1418,10 @@ func Test_otelImageTags(t *testing.T) {
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Name: "testagent:7.65.0-full",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Name: "testagent:7.65.0-full",
+						},
 					},
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
@@ -1405,9 +1445,11 @@ func Test_otelImageTags(t *testing.T) {
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Name: "gcr.io/datacat/testagent:latest",
-						Tag:  "7.66.0",
+					DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+						Image: &v2alpha1.AgentImageConfig{
+							Name: "gcr.io/datacat/testagent:latest",
+							Tag:  "7.66.0",
+						},
 					},
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
@@ -2373,8 +2415,10 @@ func Test_DDAI_Reconcile(t *testing.T) {
 			Config: &v2alpha1.DatadogAgentSpec{
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							"foo": "bar",
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Labels: map[string]string{
+								"foo": "bar",
+							},
 						},
 					},
 				},
@@ -2409,8 +2453,10 @@ func Test_DDAI_Reconcile(t *testing.T) {
 					WithDCAToken("abcdefghijklmnopqrstuvwxyz").
 					WithCredentialsFromSecret("custom-secret", "api", "custom-secret2", "app").
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Labels: map[string]string{
-							"custom-label": "custom-value",
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Labels: map[string]string{
+								"custom-label": "custom-value",
+							},
 						},
 					}).
 					WithClusterChecksEnabled(true).
@@ -2441,21 +2487,27 @@ func Test_DDAI_Reconcile(t *testing.T) {
 				}
 				expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							"custom-label": "custom-value",
-						},
-						Annotations: map[string]string{
-							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Labels: map[string]string{
+								"custom-label": "custom-value",
+							},
+							Annotations: map[string]string{
+								"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+							},
 						},
 					},
 					v2alpha1.ClusterAgentComponentName: {
-						Annotations: map[string]string{
-							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+							},
 						},
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Annotations: map[string]string{
-							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Annotations: map[string]string{
+								"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+							},
 						},
 					},
 				}
@@ -2470,7 +2522,9 @@ func Test_DDAI_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				ddaSD := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+						},
 					}).
 					Build()
 				ddaSD.Spec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{
@@ -2529,54 +2583,62 @@ func Test_DDAI_Reconcile(t *testing.T) {
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					},
 					v2alpha1.OtelAgentGatewayComponentName: {
-						Disabled: ptr.To(true),
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Disabled: ptr.To(true),
+						},
 					},
 					v2alpha1.NodeAgentComponentName: {
-						Name: ptr.To("foo-profile-agent"),
-						Labels: map[string]string{
-							"foo":                     "bar",
-							constants.ProfileLabelKey: "foo-profile",
-						},
-						Affinity: &corev1.Affinity{
-							NodeAffinity: &corev1.NodeAffinity{
-								RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-									NodeSelectorTerms: []corev1.NodeSelectorTerm{
-										{
-											MatchExpressions: []corev1.NodeSelectorRequirement{
-												{
-													Key:      "foo",
-													Operator: corev1.NodeSelectorOpIn,
-													Values:   []string{"foo-profile"},
-												},
-												{
-													Key:      constants.ProfileLabelKey,
-													Operator: corev1.NodeSelectorOpIn,
-													Values:   []string{"foo-profile"},
+						DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+							Name: ptr.To("foo-profile-agent"),
+							Labels: map[string]string{
+								"foo":                     "bar",
+								constants.ProfileLabelKey: "foo-profile",
+							},
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "foo",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"foo-profile"},
+													},
+													{
+														Key:      constants.ProfileLabelKey,
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"foo-profile"},
+													},
 												},
 											},
 										},
 									},
 								},
-							},
-							PodAntiAffinity: &corev1.PodAntiAffinity{
-								RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-									{
-										LabelSelector: &metav1.LabelSelector{
-											MatchExpressions: []metav1.LabelSelectorRequirement{
-												{
-													Key:      apicommon.AgentDeploymentComponentLabelKey,
-													Operator: metav1.LabelSelectorOpIn,
-													Values:   []string{string(apicommon.CoreAgentContainerName)},
+								PodAntiAffinity: &corev1.PodAntiAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+										{
+											LabelSelector: &metav1.LabelSelector{
+												MatchExpressions: []metav1.LabelSelectorRequirement{
+													{
+														Key:      apicommon.AgentDeploymentComponentLabelKey,
+														Operator: metav1.LabelSelectorOpIn,
+														Values:   []string{string(apicommon.CoreAgentContainerName)},
+													},
 												},
 											},
+											TopologyKey: "kubernetes.io/hostname",
 										},
-										TopologyKey: "kubernetes.io/hostname",
 									},
 								},
 							},
@@ -2773,34 +2835,36 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Affinity: &corev1.Affinity{
-				NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      constants.ProfileLabelKey,
-										Operator: corev1.NodeSelectorOpDoesNotExist,
+			DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{
+				Affinity: &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      constants.ProfileLabelKey,
+											Operator: corev1.NodeSelectorOpDoesNotExist,
+										},
 									},
 								},
 							},
 						},
 					},
-				},
-				PodAntiAffinity: &corev1.PodAntiAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-						{
-							LabelSelector: &metav1.LabelSelector{
-								MatchExpressions: []metav1.LabelSelectorRequirement{
-									{
-										Key:      apicommon.AgentDeploymentComponentLabelKey,
-										Operator: metav1.LabelSelectorOpIn,
-										Values:   []string{string(apicommon.CoreAgentContainerName)},
+					PodAntiAffinity: &corev1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      apicommon.AgentDeploymentComponentLabelKey,
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{string(apicommon.CoreAgentContainerName)},
+										},
 									},
 								},
+								TopologyKey: "kubernetes.io/hostname",
 							},
-							TopologyKey: "kubernetes.io/hostname",
 						},
 					},
 				},

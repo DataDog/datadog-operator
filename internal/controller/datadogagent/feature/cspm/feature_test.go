@@ -565,7 +565,7 @@ func Test_cspmFeature_RunInSystemProbeDefault(t *testing.T) {
 			}
 			if tt.agentTag != "" {
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
+					v2alpha1.NodeAgentComponentName: {DatadogAgentComponentOverrideConfig: v2alpha1.DatadogAgentComponentOverrideConfig{Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}}},
 				}
 			}
 
