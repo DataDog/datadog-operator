@@ -849,6 +849,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForConfig(),
 		common.GetVolumeForProc(),
 		common.GetVolumeForCgroups(),
+		common.GetVolumeForOSRelease(),
 		common.GetVolumeForDogstatsd(),
 		common.GetVolumeForRuntimeSocket(),
 		common.GetVolumeForRunPath(),
@@ -876,6 +877,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForOSRelease(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForRunPath(),
@@ -905,6 +907,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForOSRelease(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
