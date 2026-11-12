@@ -193,7 +193,10 @@ func awsSpec(objects []client.Object, workload *appsv1.StatefulSet, container co
 	serviceAccount, found := findObject(objects, func(serviceAccount *corev1.ServiceAccount) bool {
 		return serviceAccount.Name == workload.Spec.Template.Spec.ServiceAccountName
 	})
-	if role, annotated := serviceAccount.Annotations[irsaRoleAnnotation]; found && annotated {
+	if !found {
+		return spec
+	}
+	if role, annotated := serviceAccount.Annotations[irsaRoleAnnotation]; annotated {
 		spec.IRSARoleARN = new(role)
 	}
 	return spec
