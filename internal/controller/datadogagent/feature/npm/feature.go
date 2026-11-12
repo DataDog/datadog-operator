@@ -36,10 +36,9 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 }
 
 type npmFeature struct {
-	collectDNSStats               bool
-	enableConntrack               bool
-	directSend                    bool
-	disableProtocolClassification bool
+	collectDNSStats bool
+	enableConntrack bool
+	directSend      bool
 }
 
 // ID returns the ID of the Feature
@@ -50,28 +49,15 @@ func (f *npmFeature) ID() feature.IDType {
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. Talos exposes tracefs as a standalone mount
 // rather than nesting it under the debugfs mount this feature already adds,
-// so it must be mounted explicitly. Autopilot temporarily disables protocol
-// classification to avoid a socket-filter allocation failure.
+// so it must be mounted explicitly.
 func (f *npmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
-	caps := providercaps.ProviderCapabilityMap{
+	return providercaps.ProviderCapabilityMap{
 		kubernetes.TalosProvider: {
 			Volumes: []providercaps.VolumeAndMount{
 				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
 			},
 		},
 	}
-	if f.disableProtocolClassification {
-		// TODO: Remove when https://github.com/DataDog/datadog-agent/issues/59189 is fixed.
-		caps[kubernetes.GKEAutopilotProvider] = providercaps.ProviderCapabilities{
-			EnvVars: []providercaps.EnvVarSet{
-				{
-					EnvVar:     corev1.EnvVar{Name: "DD_ENABLE_PROTOCOL_CLASSIFICATION", Value: "false"},
-					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-				},
-			},
-		}
-	}
-	return caps
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -99,11 +85,6 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			containers = append(containers, apicommon.ProcessAgentContainerName)
 		}
 		f.directSend = directSendEnabled
-
-		// Protocol classification works through 7.84.6; newer versions need the
-		// workaround on Autopilot. Treat the rolling RC tag as affected too.
-		agentVersion := common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
-		f.disableProtocolClassification = agentVersion == "7-rc" || utils.IsAboveMinVersion(agentVersion, "7.84.7-0", new(false))
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
