@@ -54,6 +54,10 @@ type DatadogGenericResourceStatus struct {
 	// CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know
 	// if the JsonSpec has changed and needs an update.
 	CurrentHash string `json:"currentHash,omitempty"`
+	// RemoteDefinitionHash is the hash of the resource definition returned by Datadog
+	// after the last successful create or update, for resource types that support it.
+	// A force sync skips the update while the remote resource still has this hash.
+	RemoteDefinitionHash string `json:"remoteDefinitionHash,omitempty"`
 	// LastForceSyncTime is the last time the API object was last force synced with the custom resource
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
 	// State is the live Datadog-side state of the underlying resource as last
