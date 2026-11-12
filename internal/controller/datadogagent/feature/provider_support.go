@@ -106,6 +106,10 @@ var providerSupport = map[string]providerSupportPolicy{
 func FeatureSupportLevel(provider string, id IDType) SupportLevel {
 	policy, ok := providerSupport[provider]
 	if !ok {
+		// Fall back to the family so an OpenShift policy matches every openshift-<os_id>.
+		policy, ok = providerSupport[kubernetes.ProviderFamily(provider)]
+	}
+	if !ok {
 		return Supported
 	}
 	if level, ok := policy.features[id]; ok {

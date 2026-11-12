@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func sendProfileEnabledMetric(enabled bool) {
@@ -54,7 +55,10 @@ func setProfileCondition(profile *v1alpha1.DatadogAgentProfile, conditionType st
 // - returns a list of profiles that should be applied (including the default profile)
 // - configures node labels based on the profiles that are applied
 // - applies profile status updates in k8s
-func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) ([]*v1alpha1.DatadogAgentProfile, error) {
+func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) (_ []*v1alpha1.DatadogAgentProfile, err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	logger := ctrl.LoggerFrom(ctx)
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
@@ -67,7 +71,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 	// list and sort profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
-	if err := r.client.List(ctx, &profilesList); err != nil {
+	if err = r.client.List(ctx, &profilesList); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to list DatadogAgentProfiles: %w", err)
 	}
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
@@ -137,7 +141,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	// render the default-profile DDAI object.
 	defaultDDAI.Spec = *accumulatedDefaultSpec
 
-	if err := r.enforceCreateStrategy(ctx, appliedProfiles, profilesByNode, csInfo, dsNSName, ddaEDSMaxUnavailable, len(nodeList)); err != nil {
+	if err := r.enforceCreateStrategy(ctx, appliedProfiles, profilesByNode, csInfo, dsNSName, ddaMaxUnavailable, len(nodeList)); err != nil {
 		return appliedProfiles, err
 	}
 
@@ -154,7 +158,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 // enforceCreateStrategy updates create-strategy status for applied profiles and
 // prunes profilesByNode so only nodes allowed by the strategy are labeled.
-func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles []*v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, nodeCount int) error {
+func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles []*v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, nodeCount int) error {
 	if !agentprofile.CreateStrategyEnabled() {
 		return nil
 	}
@@ -171,7 +175,7 @@ func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles 
 		}
 
 		profileCopy := profile.DeepCopy()
-		agentprofile.ApplyCreateStrategy(logger, profilesByNode, csInfo[types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}], profileCopy, ddaEDSMaxUnavailable, nodeCount, &ds.Status)
+		agentprofile.ApplyCreateStrategy(logger, profilesByNode, csInfo[types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}], profileCopy, ddaMaxUnavailable, nodeCount, &ds.Status)
 		if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
 			if err := r.client.Status().Update(ctx, profileCopy); err != nil {
 				logger.Error(err, "unable to update profile status", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
@@ -193,7 +197,7 @@ func (r *Reconciler) syncProfileStatus(ctx context.Context, profile *v1alpha1.Da
 }
 
 func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, dsName types.NamespacedName) (*appsv1.DaemonSet, error) {
-	validDaemonSetNames, _ := r.getValidDaemonSetNames(dsName.Name, map[string]struct{}{}, []v1alpha1.DatadogAgentProfile{*profile}, true)
+	validDaemonSetNames := r.getValidDaemonSetNames(dsName.Name, map[string]struct{}{}, []v1alpha1.DatadogAgentProfile{*profile}, true)
 	if len(validDaemonSetNames) != 1 {
 		return nil, fmt.Errorf("unexpected number of valid daemonset names: %d", len(validDaemonSetNames))
 	}
@@ -208,7 +212,7 @@ func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.
 	return nil, fmt.Errorf("no valid daemonset found")
 }
 
-func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := []*v1alpha1.DatadogAgentInternal{}
 
 	// For all profiles, create DDAI objects
@@ -221,7 +225,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.Dat
 		if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 			sourceDDAI = defaultDDAI
 		}
-		mergedDDAI, err := r.computeProfileMerge(sourceDDAI, profile)
+		mergedDDAI, err := r.computeProfileMerge(ctx, sourceDDAI, profile)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +235,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.Dat
 	return ddais, nil
 }
 
-func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) computeProfileMerge(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
 	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
 	profileDDAI := ddai.DeepCopy()
 	baseDDAI := ddai.DeepCopy()
@@ -246,7 +250,7 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	baseDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
 	profileDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
 	// Server side apply to merge DDAIs
-	obj, err := r.ssaMergeCRD(baseDDAI, profileDDAI)
+	obj, err := r.ssaMergeCRD(ctx, baseDDAI, profileDDAI)
 	if err != nil {
 		return nil, err
 	}
@@ -343,8 +347,7 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 	// Managed fields needs to be nil for server-side apply
 	ddai.ManagedFields = nil
 	// Include the profile label in the DDAI metadata only for non-default profiles.
-	// This is used to determine whether or not the EDS should be created (only for default profile).
-	// This could possibly be used for GC of the profile DDAIs too.
+	// This distinguishes profile-specific DDAIs and can also support their garbage collection.
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		// This should not happen, as we add the DDA label upon creation of the DDAI.
 		if ddai.Labels == nil {
@@ -362,12 +365,12 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		}
 		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
 	}
-	// todo (mackjmr): Remove this once Host Profiler is moved to CRD/ annotation support is removed.
+	// todo (mackjmr): Remove this once Host Profiler annotation support is removed (superseded by spec.features.hostProfiler).
 	// Propagate the host-profiler experimental annotations from the profile onto the DDAI
 	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
 	// of the DDA-level annotation.
 	imageOverrideAnnotationKey := fmt.Sprintf("%s/%s", experimental.ExperimentalAnnotationPrefix, experimental.ExperimentalImageOverrideConfigSubkey)
-	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, featureutils.EnableHostProfilerLoggingSeccompAnnotation, imageOverrideAnnotationKey} {
+	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, featureutils.EnableHostProfilerLoggingSeccompAnnotation, featureutils.EnableHostProfilerNonRootAnnotation, featureutils.HostProfilerSELinuxTypeAnnotation, imageOverrideAnnotationKey} {
 		if v, ok := profile.GetAnnotations()[annotationKey]; ok {
 			if ddai.Annotations == nil {
 				ddai.Annotations = make(map[string]string)
@@ -388,7 +391,7 @@ func (r *Reconciler) addDDAIStatusToProfileStatus(ctx context.Context, profile *
 	ddai := &v1alpha1.DatadogAgentInternal{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiName, Namespace: ddaiNamespace}, ddai); err != nil {
 		if !apierrors.IsNotFound(err) {
-			r.log.Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			ctrl.LoggerFrom(ctx).Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 			return
 		}
 		// Leave a new profile untouched until its DDAI is created, but clear

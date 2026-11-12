@@ -31,6 +31,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{rbac.EventsResource},
 			Verbs: []string{
 				rbac.CreateVerb,
+				rbac.PatchVerb,
 			},
 		},
 		{
@@ -84,6 +85,11 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.DeleteVerb,
 				rbac.CreateVerb,
 			},
+		},
+		{
+			APIGroups: []string{rbac.NetworkingGKEAPIGroup},
+			Resources: []string{rbac.GCPTrafficExtensionsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.CreateVerb, rbac.DeleteVerb},
 		},
 		// Istio resources
 		{

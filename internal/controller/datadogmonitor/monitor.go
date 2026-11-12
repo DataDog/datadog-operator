@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/go-logr/logr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogV1.Monitor, *datadogV1.MonitorUpdateRequest) {
@@ -217,6 +219,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		m.SetMessage(msg)
 		m.SetPriority(priority)
 		m.SetOptions(o)
+		// The API rejects an empty list.
+		if len(restrictedRoles) > 0 {
+			m.SetRestrictedRoles(restrictedRoles)
+		}
 	}
 
 	u := datadogV1.NewMonitorUpdateRequest()
@@ -243,9 +249,12 @@ func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID i
 	optionalParams := datadogV1.GetMonitorOptionalParameters{
 		GroupStates: &groupStates,
 	}
-	m, _, err := client.GetMonitor(auth, int64(monitorID), optionalParams)
+	m, httpResp, err := client.GetMonitor(auth, int64(monitorID), optionalParams)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, "error getting monitor")
+		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error getting monitor")
 	}
 
 	return m, nil
@@ -253,8 +262,12 @@ func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID i
 
 func validateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) error {
 	m, _ := buildMonitor(logger, dm)
-	if _, _, err := client.ValidateMonitor(auth, *m); err != nil {
-		return translateClientError(err, "error validating monitor")
+	_, httpResp, err := client.ValidateMonitor(auth, *m)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
+	if err != nil {
+		return translateClientError(err, httpResp, "error validating monitor")
 	}
 
 	return nil
@@ -262,9 +275,12 @@ func validateMonitor(auth context.Context, logger logr.Logger, client *datadogV1
 
 func createMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) (datadogV1.Monitor, error) {
 	m, _ := buildMonitor(logger, dm)
-	mCreated, _, err := client.CreateMonitor(auth, *m)
+	mCreated, httpResp, err := client.CreateMonitor(auth, *m)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, "error creating monitor")
+		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error creating monitor")
 	}
 
 	return mCreated, nil
@@ -273,9 +289,12 @@ func createMonitor(auth context.Context, logger logr.Logger, client *datadogV1.M
 func updateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) (datadogV1.Monitor, error) {
 	_, u := buildMonitor(logger, dm)
 
-	mUpdated, _, err := client.UpdateMonitor(auth, int64(dm.Status.ID), *u)
+	mUpdated, httpResp, err := client.UpdateMonitor(auth, int64(dm.Status.ID), *u)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, "error updating monitor")
+		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error updating monitor")
 	}
 
 	// TODO additional logic to handle downtimes (and silenced param if needed)
@@ -289,6 +308,9 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorI
 		Force: &force,
 	}
 	_, httpResponse, err := client.DeleteMonitor(auth, int64(monitorID), optionalParams)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	if err != nil {
 		// Deletion is idempotent for finalization: if the monitor was already removed
 		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
@@ -296,26 +318,24 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorI
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, "error deleting monitor")
+		return translateClientError(err, httpResponse, "error deleting monitor")
 	}
 
 	return nil
 }
 
-func translateClientError(err error, msg string) error {
+func translateClientError(err error, httpResp *http.Response, msg string) error {
 	if msg == "" {
 		msg = "an error occurred"
 	}
 
-	var apiErr datadogapi.GenericOpenAPIError
-	var errURL *url.Error
-	if errors.As(err, &apiErr) {
-		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
+	if apiErr, ok := errors.AsType[datadogapi.GenericOpenAPIError](err); ok {
+		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
 	}
 
-	if errors.As(err, &errURL) {
-		return fmt.Errorf(msg+" (url.Error): %s", errURL)
+	if errURL, ok := errors.AsType[*url.Error](err); ok {
+		return ctrutils.NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
 	}
 
-	return fmt.Errorf(msg+": %w", err)
+	return ctrutils.NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
 }

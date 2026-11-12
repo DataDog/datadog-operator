@@ -47,6 +47,9 @@ func (f *gpuFeature) ID() feature.IDType {
 // NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
 // On GKE COS, the NVIDIA driver libraries are not available at the standard path used
 // by the nvidia-container-runtime; mount them from the host location.
+// On Talos, tracefs is a standalone mount rather than nested under the debugfs
+// mount privileged mode adds, so system-probe needs it explicitly.
+// On GKE Autopilot, the CDI hostPath is not in the WorkloadAllowlist, so it is removed.
 func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {
@@ -54,9 +57,9 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	}
 
 	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
-	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+	vol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
 
-	return providercaps.ProviderCapabilityMap{
+	caps := providercaps.ProviderCapabilityMap{
 		kubernetes.GKECosProvider: {
 			Volumes: []providercaps.VolumeAndMount{
 				{
@@ -66,7 +69,20 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 				},
 			},
 		},
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{cdiVolumeName},
+		},
 	}
+
+	if f.isPrivilegedModeEnabled {
+		caps[kubernetes.TalosProvider] = providercaps.ProviderCapabilities{
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		}
+	}
+
+	return caps
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -126,6 +142,24 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 	// add the env var to the core agent as well, to prevent config mismatches in runtime
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, enableSPEnvVar)
+
+	// In privileged mode the eBPF probes are disabled, as GPU monitoring relies on
+	// the privileged host access rather than the eBPF probes.
+	// This runs before spec.override is applied, and env vars merge last-writer-wins by
+	// name, so a user who still needs the probes can re-enable them by setting
+	// DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true via spec.override.nodeAgent.containers.
+	disableEBPFProbesEnvVar := &corev1.EnvVar{
+		Name:  DDEnableEBPFProbesEnvVar,
+		Value: "false",
+	}
+
+	// disable the eBPF probes in system-probe
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, disableEBPFProbesEnvVar)
+
+	// add the env var to the core agent as well, so both containers agree that the
+	// eBPF probes are disabled and the core GPU check does not poll a system-probe
+	// module that has the probes turned off
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, disableEBPFProbesEnvVar)
 
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
@@ -285,6 +319,13 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
 	managers.Volume().AddVolume(&devicesVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.CoreAgentContainerName)
+
+	// Mount the host CDI spec directory so the agent can attribute GPUs allocated
+	// through DRA resource claims. DirectoryOrCreate so a missing dir never blocks pod start.
+	cdiVol, cdiMount := volume.GetVolumes(cdiVolumeName, cdiHostPath, cdiMountPath, true)
+	cdiVol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+	managers.Volume().AddVolume(&cdiVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&cdiMount, apicommon.CoreAgentContainerName)
 
 	// Configure the runtime class for the pod
 	if f.podRuntimeClassName != "" {

@@ -254,7 +254,8 @@ func (o *options) createCRFiles(dir string, cmd *cobra.Command) error {
 	}
 
 	// Get custom resources yaml
-	template, err := yaml.Marshal(ddList.Items)
+	// Kubernetes API types use JSON tags, which this YAML marshaler honors.
+	template, err := yaml.Marshal(ddList.Items) //nolint:musttag
 	if err != nil {
 		return err
 	}
@@ -399,7 +400,7 @@ func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, erro
 		return "", errors.New("empty version")
 	}
 
-	version := strings.Split(decoded.Version, "_")[0]
+	version, _, _ := strings.Cut(decoded.Version, "_")
 	return strings.TrimLeft(version, "v"), nil
 }
 

@@ -82,6 +82,9 @@ spec:
 `features.admissionController.registry`
 : Defines an image registry for the admission controller.
 
+`features.admissionController.registryAllowList`
+: RegistryAllowList restricts which registries can be used for APM library injection. When non-empty, the admission controller only injects libraries from the listed registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed by the operator. An empty list allows all registries. (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+
 `features.admissionController.serviceName`
 : ServiceName corresponds to the webhook service name.
 
@@ -111,6 +114,54 @@ spec:
 
 `features.apm.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
+
+`features.appsec.injector.autoDetect`
+: Controls automatic proxy detection. Default: true
+
+`features.appsec.injector.enabled`
+: Enables the AppSec injector. Default: false
+
+`features.appsec.injector.gke.gatewayClasses`
+: Lists GKE GatewayClasses for AppSec injection. Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it. The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned. After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period. A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone. A Gateway labeled appsec.datadoghq.com/enabled=false is skipped. GKE injection requires cluster-agent version 7.82.0 or later. The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+
+`features.appsec.injector.mode`
+: Selects the AppSec injection mode. When unset, this uses the agent default sidecar.
+
+`features.appsec.injector.nginx.moduleMountPath`
+: Sets the nginx module mount path. Default: /modules_mount
+
+`features.appsec.injector.processor.address`
+: Sets the processor address.
+
+`features.appsec.injector.processor.port`
+: Sets the processor port. Default: 443
+
+`features.appsec.injector.processor.service.name`
+: Sets the processor Service name.
+
+`features.appsec.injector.processor.service.namespace`
+: Sets the processor Service namespace. This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+
+`features.appsec.injector.proxies`
+: Lists proxies for AppSec injection. Default: []
+
+`features.appsec.injector.sidecar.bodyParsingSizeLimit`
+: Sets the sidecar body parsing size limit. Default: 0
+
+`features.appsec.injector.sidecar.healthPort`
+: Sets the sidecar health port. Default: 8081
+
+`features.appsec.injector.sidecar.image`
+: Sets the sidecar image. Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+
+`features.appsec.injector.sidecar.imageTag`
+: Sets the sidecar image tag. When unset, the tag defaults to a value determined by the cluster-agent image in use.
+
+`features.appsec.injector.sidecar.port`
+: Sets the sidecar port. Default: 8080
+
+`features.appsec.injector.sidecar.resources`
+: Configures sidecar resources. Only requests and limits for cpu and memory are honored. See [link](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for more information.
 
 `features.asm.iast.enabled`
 : Enables Interactive Application Security Testing (IAST). Default: false
@@ -148,6 +199,9 @@ spec:
 `features.cspm.customBenchmarks`
 : CustomBenchmarks contains CSPM benchmarks. The content of the ConfigMap will be merged with the benchmarks bundled with the agent. Any benchmarks with the same name as those existing in the agent will take precedence.
 
+`features.cspm.databaseBenchmarks.enabled`
+: Enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: false
+
 `features.cspm.enabled`
 : Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false
 
@@ -155,7 +209,7 @@ spec:
 : Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true
 
 `features.cspm.runInSystemProbe`
-: RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+: RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send payloads directly, without using the security-agent. Requires Agent 7.77.0 or above; on older Agents this defaults to false. Default: true
 
 `features.cws.customPolicies.configData`
 : ConfigData corresponds to the configuration file content.
@@ -167,7 +221,7 @@ spec:
 : Is the name of the ConfigMap.
 
 `features.cws.directSendFromSystemProbe`
-: DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+: DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. Requires Agent 7.63.0 or above; on older Agents this defaults to false. Default: true
 
 `features.cws.enabled`
 : Enables Cloud Workload Security. Default: false
@@ -235,6 +289,9 @@ spec:
 `features.eventCollection.collectedEventTypes`
 : CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ]
 
+`features.eventCollection.collectionMode`
+: CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server. `poll` re-opens a watch on every check run. `watch` streams events through a single persistent reflector-backed watch, which avoids dropping events in high-churn clusters. Requires Cluster Agent 7.81.1+. Default: unset (the Cluster Agent's default is `poll`)
+
 `features.eventCollection.unbundleEvents`
 : UnbundleEvents enables collection of Kubernetes events as individual events. Default: false
 
@@ -248,7 +305,7 @@ spec:
 : PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false
 
 `features.gpu.privilegedMode`
-: PrivilegedMode enables GPU Probe module in System Probe. Default: false
+: PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Default: false
 
 `features.gpu.requiredRuntimeClassName`
 : PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia
@@ -262,6 +319,21 @@ spec:
 `features.helmCheck.valuesAsTags`
 : ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}
 
+`features.hostProfiler.enabled`
+: Enables the Host Profiler. Default: false
+
+`features.hostProfiler.runAsRoot`
+: RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user. Default: true
+
+`features.hostProfiler.seLinuxType`
+: SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t
+
+`features.hostProfiler.seccomp.enabled`
+: Applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node. When disabled, the Host Profiler container runs with an Unconfined seccomp profile. Default: true
+
+`features.hostProfiler.seccomp.loggingEnabled`
+: LoggingEnabled uses the logging seccomp profile instead of the default one. Has no effect when the seccomp profile is disabled. Default: false
+
 `features.kubeStateMetricsCore.collectCrMetrics`
 : `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md
 
@@ -271,8 +343,20 @@ spec:
 `features.kubeStateMetricsCore.enabled`
 : Enables Kube State Metrics Core. Default: true
 
+`features.kubeStateMetricsCore.podCollectionMode`
+: PodCollectionMode controls where the KSM check collects pod metrics.  When set to "node_kubelet" the operator splits the kubernetes_state_core check into two: the cluster-side instance keeps every collector except scheduled pods (only unscheduled pods are kept on that side), and a dedicated pods-only instance is deployed on every node agent to read pods locally from its Kubelet via workloadmeta. In the generated agent check YAML this corresponds to the snake_case check options `pod_collection_mode: cluster_unassigned` on the cluster side and `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the node side; this CRD field itself is the camelCase `podCollectionMode` per Kubernetes API convention.  Useful in large clusters where a single KSM instance is a bottleneck. The cluster-aggregate `.total` metrics (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total) carry a reduced tag set with no host or node, so they cannot be collected correctly by every node agent independently without colliding at ingestion. To avoid this, the operator also enables `cluster_aggregates_enabled` on the cluster-side and node-side instances, which silences those aggregate metrics on both, and schedules a dedicated `cluster_aggregates_only` instance on the cluster-side component to collect them instead. Requires Agent / Cluster Agent 7.82+.  When `features.kubeStateMetricsCore.conf` is also set, the operator deploys the node-side check but does NOT modify the user-supplied cluster-side config. To avoid double pod collection in that case, the user's cluster-side instance must either omit `pods` from its `collectors` list OR set the `pod_collection_mode: cluster_unassigned` check option themselves. Omitting `collectors` entirely falls back to upstream KSM defaults, which include `pods`.  Default behavior is unchanged when this field is unset.
+
+`features.kubeStateMetricsCore.shardingEnabled`
+: `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset.
+
+`features.kubernetesActions.communication.privateActionRunner.enabled`
+: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
+
+`features.kubernetesActions.communication.remoteConfiguration.enabled`
+: Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true
+
 `features.kubernetesActions.enabled`
-: Enables the Kubernetes Actions feature on the Cluster Agent. Default: false
+: Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false
 
 `features.liveContainerCollection.enabled`
 : Enables container collection for the Live Container View. Default: true
@@ -461,13 +545,25 @@ spec:
 : Path to the container runtime socket (if different from Docker).
 
 `global.csi.apm.pullSecrets`
-: PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.
+: PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
 
 `global.csi.autoManage`
 : AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true
 
 `global.csi.enabled`
 : Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false
+
+`global.csi.image.name`
+: Defines the CSI driver image name. You can provide this as: * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`. * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored. * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+
+`global.csi.image.pullPolicy`
+: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
+
+`global.csi.image.pullSecrets`
+: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+
+`global.csi.image.tag`
+: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
 
 `global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`
 : The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
@@ -569,7 +665,7 @@ spec:
 : Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 
 `global.registry`
-: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
+: Is the image registry to use for all Datadog images: the Agent images, the Single Step Instrumentation injection images, and the Datadog CSI driver image. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
 
 `global.secretBackend.args`
 : List of arguments to pass to the command (space-separated strings).
@@ -812,7 +908,7 @@ Use an integer value for `limits.cpu` so the runtime can read it directly. If yo
 : If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default.
 
 `[component].replicas`
-: Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment
+: Number of the replicas. Not applicable for a DaemonSet deployment
 
 `[component].runtimeClassName`
 : If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.

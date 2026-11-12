@@ -81,5 +81,14 @@ spec:
             path: /healthz/
             port: 8081
           periodSeconds: 10
+      # Tolerate the agent-not-ready startup taint applied by the untaint controller
+      # (agent.datadoghq.com/not-ready). The Operator schedules itself and is the only
+      # thing that removes the taint, so it must tolerate it unconditionally to avoid a
+      # cold-start deadlock. Inert on clusters where the taint is never applied.
+      tolerations:
+        - key: agent.datadoghq.com/not-ready
+          operator: Equal
+          value: presence
+          effect: NoSchedule
       terminationGracePeriodSeconds: 10
       serviceAccountName: controller-manager

@@ -70,6 +70,9 @@ type DatadogFeatures struct {
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
+	// Appsec configuration.
+	// +optional
+	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -93,6 +96,9 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// HostProfiler configuration.
+	// +optional
+	HostProfiler *HostProfilerFeatureConfig `json:"hostProfiler,omitempty"`
 	// DataPlane configuration for the Agent Data Plane.
 	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
 	// +optional
@@ -131,7 +137,49 @@ type DatadogFeatures struct {
 // +k8s:openapi-gen=true
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Requires Cluster Agent 7.84.0 or greater.
 	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
+	// At least one channel must be enabled; both can be enabled at the same time.
+	// +optional
+	Communication *KubernetesActionsCommunicationConfig `json:"communication,omitempty"`
+}
+
+// KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.
+// +k8s:openapi-gen=true
+type KubernetesActionsCommunicationConfig struct {
+	// RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+	// +optional
+	RemoteConfiguration *KubernetesActionsRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
+
+	// PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// +optional
+	PrivateActionRunner *KubernetesActionsPrivateActionRunnerConfig `json:"privateActionRunner,omitempty"`
+}
+
+// KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.
+// +k8s:openapi-gen=true
+type KubernetesActionsRemoteConfigurationConfig struct {
+	// Enabled enables delivery of Kubernetes actions through Remote Configuration.
+	// Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent
+// Private Action Runner.
+// +k8s:openapi-gen=true
+type KubernetesActionsPrivateActionRunnerConfig struct {
+	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -174,6 +222,153 @@ type APMFeatureConfig struct {
 	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
 }
 
+// AppsecFeatureConfig contains AppSec proxy injector configuration.
+type AppsecFeatureConfig struct {
+	// Configures the AppSec injector.
+	// Setting this block replaces the deprecated `agent.datadoghq.com/appsec.*` annotations
+	// entirely: while it is present no annotation is read, so port the whole configuration
+	// rather than a single field.
+	// +optional
+	Injector *AppsecInjectorConfig `json:"injector,omitempty"`
+}
+
+// AppsecInjectorConfig contains AppSec proxy injector configuration.
+type AppsecInjectorConfig struct {
+	// Enables the AppSec injector.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls automatic proxy detection.
+	// Default: true
+	// +optional
+	AutoDetect *bool `json:"autoDetect,omitempty"`
+
+	// The items:Enum marker below mirrors allowedProxyValues in
+	// internal/controller/datadogagent/feature/appsec/const.go, which is the source of
+	// truth for accepted proxy names. Keep the two lists in sync. This note sits outside
+	// the field doc comment on purpose, so it stays out of the generated CRD description.
+
+	// Lists proxies for AppSec injection.
+	// Default: []
+	// +kubebuilder:validation:items:Enum=envoy-gateway;istio;istio-gateway;ingress-nginx;gke-gateway
+	// +optional
+	Proxies []string `json:"proxies,omitempty"`
+
+	// Selects the AppSec injection mode.
+	// When unset, this uses the agent default sidecar.
+	// +kubebuilder:validation:Enum=sidecar;external
+	// +optional
+	Mode *string `json:"mode,omitempty"`
+
+	// Configures the external processor.
+	// +optional
+	Processor *AppsecInjectorProcessorConfig `json:"processor,omitempty"`
+
+	// Configures the injected sidecar.
+	// +optional
+	Sidecar *AppsecInjectorSidecarConfig `json:"sidecar,omitempty"`
+
+	// Configures nginx injection.
+	// +optional
+	Nginx *AppsecInjectorNginxConfig `json:"nginx,omitempty"`
+
+	// Configures GKE Gateway injection.
+	// +optional
+	GKE *AppsecInjectorGKEConfig `json:"gke,omitempty"`
+}
+
+// AppsecInjectorProcessorConfig contains AppSec external processor configuration.
+type AppsecInjectorProcessorConfig struct {
+	// Sets the processor address.
+	// +optional
+	Address *string `json:"address,omitempty"`
+
+	// Sets the processor port.
+	// Default: 443
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Configures the processor Service.
+	// +optional
+	Service *AppsecInjectorProcessorServiceConfig `json:"service,omitempty"`
+}
+
+// AppsecInjectorProcessorServiceConfig contains AppSec external processor Service configuration.
+type AppsecInjectorProcessorServiceConfig struct {
+	// Sets the processor Service name.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// Sets the processor Service namespace.
+	// This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// AppsecInjectorSidecarConfig contains AppSec injector sidecar configuration.
+type AppsecInjectorSidecarConfig struct {
+	// Sets the sidecar image.
+	// Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+	// +optional
+	Image *string `json:"image,omitempty"`
+
+	// Sets the sidecar image tag.
+	// When unset, the tag defaults to a value determined by the cluster-agent image in use.
+	// +optional
+	ImageTag *string `json:"imageTag,omitempty"`
+
+	// Sets the sidecar port.
+	// Default: 8080
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Sets the sidecar health port.
+	// Default: 8081
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	HealthPort *int32 `json:"healthPort,omitempty"`
+
+	// Sets the sidecar body parsing size limit.
+	// Default: 0
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	BodyParsingSizeLimit *int64 `json:"bodyParsingSizeLimit,omitempty"`
+
+	// Configures sidecar resources.
+	// Only requests and limits for cpu and memory are honored.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// AppsecInjectorNginxConfig contains AppSec nginx injector configuration.
+type AppsecInjectorNginxConfig struct {
+	// Sets the nginx module mount path.
+	// Default: /modules_mount
+	// +optional
+	ModuleMountPath *string `json:"moduleMountPath,omitempty"`
+}
+
+// AppsecInjectorGKEConfig contains AppSec GKE Gateway injector configuration.
+type AppsecInjectorGKEConfig struct {
+	// Lists GKE GatewayClasses for AppSec injection.
+	// Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.
+	// The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.
+	// After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.
+	// A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.
+	// A Gateway labeled appsec.datadoghq.com/enabled=false is skipped.
+	// GKE injection requires cluster-agent version 7.82.0 or later.
+	// The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+	// +optional
+	GatewayClasses []string `json:"gatewayClasses,omitempty"`
+}
+
 // ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
 // +k8s:openapi-gen=true
 type ErrorTrackingStandalone struct {
@@ -192,7 +387,7 @@ const (
 	InjectionModeAuto InjectionModeType = "auto"
 	// InjectionModeInitContainer uses init containers for library injection.
 	InjectionModeInitContainer InjectionModeType = "init_container"
-	// InjectionModeCSI uses CSI driver for library injection (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
+	// InjectionModeCSI uses CSI driver for library injection (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
 	InjectionModeCSI InjectionModeType = "csi"
 	// InjectionModeImageVolume uses image volumes for library injection (experimental, requires Cluster Agent 7.77.0+).
 	InjectionModeImageVolume InjectionModeType = "image_volume"
@@ -204,6 +399,13 @@ type SingleStepInstrumentation struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// OnDemand keeps the SSI admission webhook available for runtime workload
+	// selection (annotations and Remote Config) when cluster-wide
+	// instrumentation is disabled.
+	// Default: true
+	// +optional
+	OnDemand *bool `json:"onDemand,omitempty"`
 
 	// EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.
 	// +optional
@@ -231,7 +433,7 @@ type SingleStepInstrumentation struct {
 	Injector *InjectorConfig `json:"injector,omitempty"`
 
 	// InjectionMode is the injection mode to use for libraries injection.
-	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
 	// Empty by default so the Cluster Agent can apply its own defaults.
 	// +optional
 	InjectionMode InjectionModeType `json:"injectionMode,omitempty"`
@@ -318,6 +520,14 @@ type CSIConfig struct {
 	// +optional
 	APM *CSIAPMConfig `json:"apm,omitempty"`
 
+	// Image overrides the container image configuration of the managed CSI driver container.
+	// Propagated to the managed DatadogCSIDriver as spec.csiDriverImage. The registry defaults
+	// to `global.registry`. It does not apply to the csi-node-driver-registrar sidecar.
+	// When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
+	// authenticate APM library downloads.
+	// +optional
+	Image *CSIImageConfig `json:"image,omitempty"`
+
 	// Tolerations configure the CSI driver DaemonSet pod tolerations.
 	// +optional
 	// +listType=atomic
@@ -332,13 +542,42 @@ type CSIConfig struct {
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 }
 
+// CSIImageConfig defines the image configuration of the CSI driver container. It deliberately
+// does not reuse AgentImageConfig, whose `jmxEnabled` only applies to the Agent image: there is
+// no `csi-driver:<tag>-jmx`.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type CSIImageConfig struct {
+	// Defines the CSI driver image name. You can provide this as:
+	// * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`.
+	// * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored.
+	// * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Define the image tag to use.
+	// To be used if the `Name` field does not correspond to a full image string.
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// The Kubernetes pull policy:
+	// Use `Always`, `Never`, or `IfNotPresent`.
+	// +optional
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
+
+	// It is possible to specify Docker registry credentials.
+	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+	// +optional
+	// +listType=atomic
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
+}
+
 // CSIAPMConfig configures APM/SSI-related settings for the CSI driver managed by the Operator.
 // +k8s:openapi-gen=true
 type CSIAPMConfig struct {
 	// PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
 	// libraries from private registries. Propagated to the managed DatadogCSIDriver as
 	// spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-	// Not supported on GKE Autopilot.
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
@@ -532,9 +771,14 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
-	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// DatabaseBenchmarks contains configuration for database benchmarks.
+	// +optional
+	DatabaseBenchmarks *CSPMDatabaseBenchmarksConfig `json:"databaseBenchmarks,omitempty"`
+
+	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
+	// payloads directly, without using the security-agent.
+	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
@@ -548,8 +792,18 @@ type CSPMHostBenchmarksConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.
+// +k8s:openapi-gen=true
+type CSPMDatabaseBenchmarksConfig struct {
+	// Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
-// CWS runs in the Security Agent.
+// CWS runs in the System Probe, which also sends the events unless
+// DirectSendFromSystemProbe is disabled, in which case the Security Agent sends them.
 type CWSFeatureConfig struct {
 	// Enabled enables Cloud Workload Security.
 	// Default: false
@@ -562,8 +816,8 @@ type CWSFeatureConfig struct {
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
 	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// Requires Agent 7.63.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
@@ -629,7 +883,7 @@ type SBOMFeatureConfig struct {
 	Enrichment     *SBOMEnrichmentConfig     `json:"enrichment,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMHostConfig contains configuration for host SBOM collection.
 type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -642,7 +896,7 @@ type SBOMHostConfig struct {
 	Analyzers []string `json:"analyzers,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMContainerImageConfig contains configuration for container image SBOM collection.
 type SBOMContainerImageConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -734,7 +988,10 @@ type GPUFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// PrivilegedMode enables GPU Probe module in System Probe.
+	// PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+	// probes are disabled; privileged mode is retained for cgroup permission patching.
+	// To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+	// core agent and system-probe containers via spec.override.nodeAgent.containers.
 	// Default: false
 	// +optional
 	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
@@ -902,6 +1159,15 @@ type EventCollectionFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+
+	// CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.
+	// `poll` re-opens a watch on every check run. `watch` streams events through a single
+	// persistent reflector-backed watch, which avoids dropping events in high-churn clusters.
+	// Requires Cluster Agent 7.81.1+.
+	// Default: unset (the Cluster Agent's default is `poll`)
+	// +optional
+	// +kubebuilder:validation:Enum=poll;watch
+	CollectionMode *string `json:"collectionMode,omitempty"`
 }
 
 // EventTypes defines the kind and reasons of events to collect.
@@ -968,6 +1234,43 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
 
+	// PodCollectionMode controls where the KSM check collects pod metrics.
+	//
+	// When set to "node_kubelet" the operator splits the kubernetes_state_core
+	// check into two: the cluster-side instance keeps every collector except
+	// scheduled pods (only unscheduled pods are kept on that side), and a
+	// dedicated pods-only instance is deployed on every node agent to read pods
+	// locally from its Kubelet via workloadmeta. In the generated agent check
+	// YAML this corresponds to the snake_case check options
+	// `pod_collection_mode: cluster_unassigned` on the cluster side and
+	// `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the
+	// node side; this CRD field itself is the camelCase `podCollectionMode`
+	// per Kubernetes API convention.
+	//
+	// Useful in large clusters where a single KSM instance is a bottleneck.
+	// The cluster-aggregate `.total` metrics
+	// (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total)
+	// carry a reduced tag set with no host or node, so they cannot be collected
+	// correctly by every node agent independently without colliding at
+	// ingestion. To avoid this, the operator also enables
+	// `cluster_aggregates_enabled` on the cluster-side and node-side instances,
+	// which silences those aggregate metrics on both, and schedules a
+	// dedicated `cluster_aggregates_only` instance on the cluster-side
+	// component to collect them instead.
+	// Requires Agent / Cluster Agent 7.82+.
+	//
+	// When `features.kubeStateMetricsCore.conf` is also set, the operator
+	// deploys the node-side check but does NOT modify the user-supplied
+	// cluster-side config. To avoid double pod collection in that case, the
+	// user's cluster-side instance must either omit `pods` from its
+	// `collectors` list OR set the `pod_collection_mode: cluster_unassigned`
+	// check option themselves. Omitting `collectors` entirely falls back to
+	// upstream KSM defaults, which include `pods`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	PodCollectionMode *KSMPodCollectionMode `json:"podCollectionMode,omitempty"`
+
 	// `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
 	//
 	// The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration.
@@ -977,7 +1280,31 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other
+	// resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins
+	// cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,
+	// `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	ShardingEnabled *bool `json:"shardingEnabled,omitempty"`
 }
+
+// KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.
+// +kubebuilder:validation:Enum=default;node_kubelet
+type KSMPodCollectionMode string
+
+const (
+	// KSMPodCollectionModeDefault collects pod metrics centrally from the Kubernetes
+	// API server (today's behavior, equivalent to omitting the field).
+	KSMPodCollectionModeDefault KSMPodCollectionMode = "default"
+
+	// KSMPodCollectionModeNodeKubelet shifts pod metric collection to every node
+	// agent (reading pods locally from its Kubelet) while the cluster-side instance
+	// switches to `pod_collection_mode: cluster_unassigned`.
+	KSMPodCollectionModeNodeKubelet KSMPodCollectionMode = "node_kubelet"
+)
 
 // Resource configures a custom resource for metric generation.
 type Resource struct {
@@ -1050,7 +1377,7 @@ type Metric struct {
 	Info *MetricInfo `json:"info,omitempty" yaml:"info,omitempty"`
 }
 
-// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+// MetricType represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
 type MetricType string
 
 // Supported metric types.
@@ -1074,7 +1401,7 @@ type MetricMeta struct {
 	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
 	// +optional
 	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
-	// Path is the path to to generate metric(s) for.
+	// Path is the path to generate metric(s) for.
 	Path []string `json:"path" yaml:"path"`
 }
 
@@ -1117,6 +1444,45 @@ type MetricStateSet struct {
 	// ValueFrom is the subpath to compare the list to.
 	// +optional
 	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
+}
+
+// HostProfilerFeatureConfig contains the Host Profiler configuration.
+// Host Profiler runs as a dedicated container in the node Agent pod and requires host PID.
+type HostProfilerFeatureConfig struct {
+	// Enabled enables the Host Profiler.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Seccomp configures the seccomp profile applied to the Host Profiler container.
+	// +optional
+	Seccomp *HostProfilerSeccompConfig `json:"seccomp,omitempty"`
+
+	// RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+	// dd-agent user.
+	// Default: true
+	// +optional
+	RunAsRoot *bool `json:"runAsRoot,omitempty"`
+
+	// SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+	// Default: spc_t
+	// +optional
+	SELinuxType *string `json:"seLinuxType,omitempty"`
+}
+
+// HostProfilerSeccompConfig contains the seccomp configuration of the Host Profiler.
+type HostProfilerSeccompConfig struct {
+	// Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+	// When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// LoggingEnabled uses the logging seccomp profile instead of the default one.
+	// Has no effect when the seccomp profile is disabled.
+	// Default: false
+	// +optional
+	LoggingEnabled *bool `json:"loggingEnabled,omitempty"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
@@ -1250,6 +1616,15 @@ type AdmissionControllerFeatureConfig struct {
 	// +optional
 	Registry *string `json:"registry,omitempty"`
 
+	// RegistryAllowList restricts which registries can be used for APM library injection.
+	// When non-empty, the admission controller only injects libraries from the listed
+	// registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
+	// by the operator. An empty list allows all registries.
+	// (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
+
 	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
 	// +optional
 	KubernetesAdmissionEvents *KubernetesAdmissionEventsConfig `json:"kubernetesAdmissionEvents,omitempty"`
@@ -1319,7 +1694,7 @@ type AgentSidecarInjectionConfig struct {
 	ClusterAgentTLSVerification *AdmissionControllerClusterAgentTLSVerificationConfig `json:"clusterAgentTlsVerification,omitempty"`
 }
 
-// Selectors define a pod selector for sidecar injection.
+// Selector defines a pod selector for sidecar injection.
 type Selector struct {
 	// NamespaceSelector specifies the label selector for namespaces.
 	// +optional
@@ -1822,7 +2197,8 @@ type GlobalConfig struct {
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 
-	// Registry is the image registry to use for all Agent images.
+	// Registry is the image registry to use for all Datadog images: the Agent images, the
+	// Single Step Instrumentation injection images, and the Datadog CSI driver image.
 	// Use 'public.ecr.aws/datadog' for AWS ECR.
 	// Use 'datadoghq.azurecr.io' for Azure Container Registry.
 	// Use 'gcr.io/datadoghq' for Google Container Registry.
@@ -2170,7 +2546,7 @@ type DatadogAgentComponentOverride struct {
 	Name *string `json:"name,omitempty"`
 
 	// Number of the replicas.
-	// Not applicable for a DaemonSet/ExtendedDaemonSet deployment
+	// Not applicable for a DaemonSet deployment
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
@@ -2500,6 +2876,42 @@ const (
 	ExperimentSignalPromote = "promote"
 )
 
+// ExperimentTerminationReason distinguishes why a terminal experiment ended.
+// +kubebuilder:validation:Enum=stopped;timed_out;manual_spec_change;baseline_missing;baseline_not_found
+type ExperimentTerminationReason string
+
+const (
+	// ExperimentTerminationReasonStopped means an explicit Fleet rollback completed.
+	ExperimentTerminationReasonStopped ExperimentTerminationReason = "stopped"
+	// ExperimentTerminationReasonTimedOut means an automatic timeout rollback completed.
+	ExperimentTerminationReasonTimedOut ExperimentTerminationReason = "timed_out"
+	// ExperimentTerminationReasonManualSpecChange means the live DDA no longer
+	// matches the experiment checkpoint, so the user edit stands.
+	ExperimentTerminationReasonManualSpecChange ExperimentTerminationReason = "manual_spec_change"
+	// ExperimentTerminationReasonBaselineMissing means no checkpoint was
+	// recorded, usually old in-flight preview state or a malformed start signal.
+	ExperimentTerminationReasonBaselineMissing ExperimentTerminationReason = "baseline_missing"
+	// ExperimentTerminationReasonBaselineNotFound means a checkpoint was
+	// recorded, but the named owned ControllerRevision is absent from the API server.
+	ExperimentTerminationReasonBaselineNotFound ExperimentTerminationReason = "baseline_not_found"
+)
+
+// ExperimentCheckpoint is recorded exactly once when an experiment enters
+// phase=running. Both fields are required when the checkpoint is present, so
+// that "half a checkpoint" is never a valid in-flight state.
+// +k8s:openapi-gen=true
+type ExperimentCheckpoint struct {
+	// RollbackTargetRevision is the pre-experiment baseline ControllerRevision.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	RollbackTargetRevision string `json:"rollbackTargetRevision"`
+
+	// ExpectedSpecHash is sha256 hex over the canonical revision snapshot of
+	// the raw experiment spec plus selected raw Datadog annotations.
+	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
+	ExpectedSpecHash string `json:"expectedSpecHash"`
+}
+
 // ExperimentStatus defines the state of a Fleet Automation experiment.
 // +k8s:openapi-gen=true
 type ExperimentStatus struct {
@@ -2525,10 +2937,14 @@ type ExperimentStatus struct {
 	// experimentConfigVersion.
 	// +optional
 	StartTaskID string `json:"startTaskID,omitempty"`
-	// TerminationReason distinguishes why the experiment was terminated.
-	// Only set when Phase is "terminated".
+	// TerminationReason records why a terminal experiment ended.
+	// Set when Phase is "terminated" or "aborted" and a cause should be reported.
 	// +optional
-	TerminationReason string `json:"terminationReason,omitempty"`
+	TerminationReason ExperimentTerminationReason `json:"terminationReason,omitempty"`
+	// Checkpoint holds the baseline and expected live experiment snapshot.
+	// Required while Phase is "running"; retained on terminal phases for audit.
+	// +optional
+	Checkpoint *ExperimentCheckpoint `json:"checkpoint,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.
@@ -2539,11 +2955,11 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// The actual state of the Agent as a DaemonSet.
 	// +optional
 	// +listType=atomic
 	AgentList []*DaemonSetStatus `json:"agentList,omitempty"`
-	// The combined actual state of all Agents as daemonsets or extended daemonsets.
+	// The combined actual state of all Agents as DaemonSets.
 	// +optional
 	Agent *DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
@@ -2566,6 +2982,21 @@ type DatadogAgentStatus struct {
 	// means no provider was detected or configured.
 	// +optional
 	ClusterProvider string `json:"clusterProvider,omitempty"`
+	// CurrentRevision names the ControllerRevision that snapshots the currently
+	// observed raw DatadogAgent spec plus selected Datadog annotations.
+	// +optional
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	// CurrentRevisionObservedGeneration records the metadata.generation for which
+	// CurrentRevision is valid.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	CurrentRevisionObservedGeneration int64 `json:"currentRevisionObservedGeneration,omitempty"`
+	// CurrentRevisionObservedAnnotationsHash records DatadogAnnotationsHash over
+	// the annotations that participate in the revision snapshot. Generation does
+	// not change for metadata-only updates, so this closes annotation-only races.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
+	CurrentRevisionObservedAnnotationsHash string `json:"currentRevisionObservedAnnotationsHash,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

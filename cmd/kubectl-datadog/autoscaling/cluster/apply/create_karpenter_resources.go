@@ -36,6 +36,6 @@ func (c *CreateKarpenterResources) Set(s string) error {
 }
 
 // Type returns the type name for pflag
-func (_ *CreateKarpenterResources) Type() string {
+func (*CreateKarpenterResources) Type() string {
 	return "CreateKarpenterResources"
 }

@@ -91,7 +91,7 @@ type DatadogPodAutoscalerSpec struct {
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
 }
 
-// DatadogPodAutoscalerOwner defines the source of truth for this object (local or remote)
+// DatadogPodAutoscalerApplyMode defines which recommendations the controller may apply.
 // +kubebuilder:validation:Enum:=All;Manual;None
 type DatadogPodAutoscalerApplyMode string
 
@@ -128,6 +128,7 @@ type DatadogPodAutoscalerPolicy struct {
 	Downscale *common.DatadogPodAutoscalerScalingPolicy `json:"downscale,omitempty"`
 }
 
+// DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API.
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpa
 // +kubebuilder:subresource:status
@@ -143,7 +144,6 @@ type DatadogPodAutoscalerPolicy struct {
 // +kubebuilder:printcolumn:name="Generated",type="date",JSONPath=".status.vertical.target.generatedAt"
 // +kubebuilder:printcolumn:name="Able to Apply",type="string",JSONPath=".status.conditions[?(@.type=='VerticalAbleToApply')].status"
 // +kubebuilder:printcolumn:name="Last Trigger",type="date",JSONPath=".status.vertical.lastAction.time"
-// DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
 type DatadogPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

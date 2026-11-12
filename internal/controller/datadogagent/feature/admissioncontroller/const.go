@@ -11,6 +11,7 @@ const (
 	admissionControllerHostipCommunicationMode = "hostip"
 	admissionControllerCSICommunicationMode    = "csi"
 	datadogCSIDriverName                       = "k8s.csi.datadoghq.com"
+	defaultAgentSidecarSecretName              = "datadog-secret"
 
 	// DefaultAdmissionControllerServicePort default admission controller service port
 	defaultAdmissionControllerServicePort = 443

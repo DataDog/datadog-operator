@@ -15,22 +15,10 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
-
-func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	if ddaSpec == nil {
-		return images.AgentLatestVersion
-	}
-	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-		if clusterAgent.Image != nil {
-			return common.GetAgentVersionFromImage(*clusterAgent.Image)
-		}
-	}
-	return images.AgentLatestVersion
-}
 
 func init() {
 	err := feature.Register(feature.KubernetesActionsIDType, buildKubernetesActionsFeature)
@@ -53,7 +41,12 @@ type kubernetesActionsFeature struct {
 	owner              metav1.Object
 	serviceAccountName string
 	rbacSuffix         string
-	logger             logr.Logger
+	rcEnabled          bool
+	parEnabled         bool
+	// channelToggles is true when the Cluster Agent understands the per-channel
+	// settings (DD_KUBEACTIONS_REMOTE_CONFIG_ENABLED / DD_KUBEACTIONS_PRIVATE_ACTION_RUNNER_ENABLED).
+	channelToggles bool
+	logger         logr.Logger
 }
 
 func (f *kubernetesActionsFeature) ID() feature.IDType {
@@ -67,9 +60,32 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil) {
-		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", ClusterAgentMinVersion)
+	dcaVersion := featureutils.ClusterAgentVersion(ddaSpec)
+	if !utils.IsAboveMinVersion(dcaVersion, featureutils.KubernetesActionsMinVersion, nil) {
+		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", featureutils.KubernetesActionsMinVersion)
 		return reqComp
+	}
+
+	// The Cluster Agent refuses to start with Kubernetes Actions enabled and Remote Configuration
+	// disabled (both delivery channels need it). Keep that behavior, but say why up front.
+	if rc := ddaSpec.Features.RemoteConfiguration; rc != nil && rc.Enabled != nil && !*rc.Enabled {
+		f.logger.Error(nil, "Kubernetes Actions is enabled but features.remoteConfiguration.enabled is false; the Cluster Agent will not start until Remote Configuration is enabled")
+	}
+
+	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
+	// The private action runner feature enables the runner under the same condition.
+	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
+	if !f.rcEnabled && !f.parEnabled {
+		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.remoteConfiguration.enabled and communication.privateActionRunner.enabled are false; the feature will not be configured")
+		return reqComp
+	}
+
+	f.channelToggles = utils.IsAboveMinVersion(dcaVersion, ClusterAgentChannelTogglesMinVersion, nil)
+	if !f.rcEnabled && !f.channelToggles {
+		// Older Cluster Agents always use Remote Configuration; ignore the setting rather than
+		// passing an environment variable they do not understand.
+		f.logger.Error(nil, "Kubernetes Actions communication.remoteConfiguration.enabled=false requires a newer Cluster Agent; Remote Configuration stays enabled", "min", ClusterAgentChannelTogglesMinVersion)
+		f.rcEnabled = true
 	}
 
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
@@ -93,6 +109,20 @@ func (f *kubernetesActionsFeature) ManageClusterAgent(managers feature.PodTempla
 		Name:  DDKubeActionsEnabled,
 		Value: "true",
 	})
+	// Only pass a channel setting when turning that channel off, and only to a Cluster Agent
+	// that understands it: both settings default to true in the agent.
+	if f.channelToggles && !f.rcEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDKubeActionsRemoteConfigEnabled,
+			Value: "false",
+		})
+	}
+	if f.channelToggles && !f.parEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDKubeActionsPAREnabled,
+			Value: "false",
+		})
+	}
 	return nil
 }
 

@@ -10,6 +10,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -685,4 +687,152 @@ func setupTestAuth(apiURL string) context.Context {
 	})
 
 	return testAuth
+}
+
+// Model a reconcile reading an old cache entry before another status write is
+// visible. The fake API server enforces resource versions, so the stale write
+// conflicts and the retry reads the newer status.
+func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		originalID     string
+		latestID       string
+		preserveLatest bool
+	}{
+		{name: "failed stale create preserves newly stored ID", originalID: "", latestID: "old-id", preserveLatest: true},
+		{name: "intentional reset of observed ID is allowed", originalID: "old-id", latestID: "old-id"},
+		{name: "stale reset preserves replacement ID", originalID: "old-id", latestID: "new-id", preserveLatest: true},
+		{name: "ID-less error status can still be updated", originalID: "", latestID: ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build()
+			instance := &datadoghqv1alpha1.DatadogGenericResource{
+				ObjectMeta: metav1.ObjectMeta{Name: "stale-status", Namespace: "default"},
+			}
+			assert.NoError(t, c.Create(ctx, instance))
+			instance.Status.Id = tt.originalID
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			stale := instance.DeepCopy()
+
+			instance.Status.Id = tt.latestID
+			instance.Status.CurrentHash = "latest-successful-hash"
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			latestStatus := instance.Status.DeepCopy()
+			latestVersion := instance.ResourceVersion
+
+			desired := stale.Status.DeepCopy()
+			desired.Id = ""
+			desired.CurrentHash = "stale-attempt-hash"
+			r := &Reconciler{client: c, requeuePeriod: defaultRequeuePeriod}
+			scheduled := ctrl.Result{RequeueAfter: time.Minute}
+			result, err := r.updateStatusIfNeeded(ctx, stale, desired, scheduled)
+			assert.NoError(t, err)
+			assert.Equal(t, scheduled, result)
+			assert.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(instance), instance))
+			if tt.preserveLatest {
+				assert.Equal(t, tt.latestID, instance.Status.Id)
+				assert.True(t, assert.ObjectsAreEqual(*latestStatus, instance.Status), "preserve the entire newer status, including conditions and hash")
+				assert.Equal(t, latestVersion, instance.ResourceVersion, "skipping must not perform a status write")
+			} else {
+				assert.Equal(t, "", instance.Status.Id)
+				assert.Equal(t, desired.CurrentHash, instance.Status.CurrentHash)
+			}
+			assert.True(t, assert.ObjectsAreEqual(instance.Status, stale.Status), "refresh the caller's status too")
+			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
+		})
+	}
+}
+
+// A stale informer object must never create a second remote resource or write
+// its stale status over an ID already persisted in the API server.
+func TestReconcile_PreCreateAPIRead(t *testing.T) {
+	scheme.Scheme.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+	for _, tc := range []struct {
+		name     string
+		oldID    bool
+		readErr  bool
+		missing  bool
+		replaced bool
+		deleting bool
+	}{
+		{name: "stale ID-less cache"},
+		{name: "stale ID during remote 404 recreation", oldID: true},
+		{name: "API read fails", readErr: true},
+		{name: "object disappeared", missing: true},
+		{name: "object replaced", replaced: true},
+		{name: "object deleting", deleting: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetMockHandlerState()
+			mockGetErr = fmt.Errorf("404 Not Found")
+			mockUpdateErr = fmt.Errorf("404 Not Found")
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			ctx := context.Background()
+			stale := mockGenericResource()
+			stale.UID = "original"
+			stale.ResourceVersion = "1"
+			stale.Finalizers = []string{datadogGenericResourceFinalizer}
+			if tc.oldID {
+				stale.Status.Id = "old-id"
+			}
+			statusWrites := 0
+			cachedClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale).
+				WithInterceptorFuncs(interceptor.Funcs{
+					SubResourceUpdate: func(ctx context.Context, c client.Client, subresource string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+						statusWrites++
+						return c.SubResource(subresource).Update(ctx, obj, opts...)
+					},
+				}).Build()
+			live := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(stale.DeepCopy()).Build()
+			latest := stale.DeepCopy()
+			latest.Status.Id = "persisted-id"
+			require.NoError(t, live.Status().Update(ctx, latest))
+			if tc.missing {
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+			}
+			if tc.replaced {
+				latest.UID = "replacement"
+				latest.Status.Id = ""
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).WithObjects(latest).Build()
+			}
+			if tc.deleting {
+				require.NoError(t, live.Delete(ctx, latest))
+			}
+			readErr := fmt.Errorf("API server unavailable")
+			reader := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(ctx context.Context, _ client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if tc.readErr {
+						return readErr
+					}
+					return live.Get(ctx, key, obj, opts...)
+				},
+			}).Build()
+			r := NewReconciler(cachedClient, config.NewCredentialManager(cachedClient), scheme.Scheme,
+				logf.Log, record.NewFakeRecorder(10), ReconcilerOptions{APIReader: reader})
+			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{mockSubresource: &MockHandler{}}
+			result, err := r.Reconcile(ctx, stale)
+			if tc.readErr {
+				require.ErrorIs(t, err, readErr)
+			} else {
+				require.NoError(t, err)
+			}
+			if !tc.readErr && !tc.missing {
+				require.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+			}
+			require.Zero(t, mockCreateCalls)
+			require.Zero(t, statusWrites, "pre-create skip and read-error paths must not write stale status")
+			if !tc.missing {
+				stored := &datadoghqv1alpha1.DatadogGenericResource{}
+				require.NoError(t, live.Get(ctx, client.ObjectKeyFromObject(latest), stored))
+				require.Equal(t, latest.Status.Id, stored.Status.Id)
+			}
+		})
+	}
 }

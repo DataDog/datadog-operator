@@ -84,18 +84,18 @@ func TestStartInitializesStableClient(t *testing.T) {
 	)
 	require.NoError(t, updater.Start("api-key", "datadoghq.com", "test-cluster", "", "", "https://config.datadoghq.com"))
 	require.Same(t, updater, updater.Client())
-	require.Len(t, updater.GetInstallerState(), 1)
-	assert.Equal(t, InstallerStateUnknownConfigVersion, updater.GetInstallerState()[0].GetStableConfigVersion())
+	require.Len(t, updater.GetInstallerPackages(), 1)
+	assert.Equal(t, InstallerStateUnknownConfigVersion, updater.GetInstallerPackages()[0].GetStableConfigVersion())
 
 	wantState := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "stable"}}
-	updater.SetInstallerState(wantState)
-	assert.Equal(t, wantState, updater.GetInstallerState())
+	updater.SetInstallerPackages(wantState)
+	assert.Equal(t, wantState, updater.GetInstallerPackages())
 	updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {})
 	require.Len(t, updater.subscriptions, 3)
 
 	require.NoError(t, updater.Stop())
 	assert.Nil(t, updater.Client())
-	assert.Nil(t, updater.GetInstallerState())
+	assert.Nil(t, updater.GetInstallerPackages())
 }
 
 func TestInitialInstallerConfigVersion(t *testing.T) {
@@ -136,7 +136,7 @@ func TestRemoteConfigUpdaterOptions(t *testing.T) {
 	assert.Equal(t, InstallerStateUnknownConfigVersion, updater.initialInstallerConfigVersion())
 	assert.Nil(t, updater.Client())
 	assert.NotPanics(t, func() {
-		updater.SetInstallerState(nil)
+		updater.SetInstallerPackages(nil)
 		updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {})
 	})
 	require.Len(t, updater.subscriptions, 1)
@@ -158,7 +158,10 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 		Package:             "datadog-operator",
 		StableConfigVersion: acknowledgedOperationID,
 	}}
-	current.SetInstallerState(installerState)
+	current.SetInstallerState(&pbgo.ClientUpdater{
+		Tags:     []string{"updater_type:datadog-operator"},
+		Packages: installerState,
+	})
 
 	updater := &RemoteConfigUpdater{
 		rcClient:              current,
@@ -194,7 +197,8 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 	assert.Equal(t, 1, createdClients)
 	assert.NotSame(t, current, updater.rcClient)
 	assert.Equal(t, "stable-client-id", updater.rcClient.ID)
-	assert.Equal(t, installerState, updater.GetInstallerState())
+	assert.Equal(t, installerState, updater.GetInstallerPackages())
+	assert.Equal(t, []string{"updater_type:datadog-operator"}, updater.rcClient.GetInstallerState().GetTags())
 	assert.Same(t, updater, updater.Client())
 
 	require.NoError(t, updater.RefreshUpdaterTags(context.Background()))

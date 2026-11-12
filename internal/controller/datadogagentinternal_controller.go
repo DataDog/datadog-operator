@@ -8,7 +8,6 @@ package controller
 import (
 	"context"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -26,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -49,16 +47,13 @@ type DatadogAgentInternalReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (ctrl.Result, error) {
-	// Get the logger from context (already has namespace, name, reconcileID from controller-runtime)
-	// Add our controller name and kind - this enriched logger will be available to all downstream functions
-	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogAgentInternal").WithValues("kind", ddai.Kind)
-	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, ddai)
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), agentInternalControllerName)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}).
@@ -76,10 +71,6 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgentInternal)
 	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
 	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
-
-	if r.Options.ExtendedDaemonsetOptions.Enabled {
-		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	}
 
 	if r.Options.SupportCilium {
 		policy := &unstructured.Unstructured{}
@@ -103,7 +94,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	}
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogAgentInternal](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&v1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
 		return err
 	}
 

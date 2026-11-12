@@ -67,7 +67,7 @@ func (f *ForwardersManager) Start(stop <-chan struct{}) error {
 func (f *ForwardersManager) Register(obj client.Object) {
 	f.Lock()
 	defer f.Unlock()
-	id := getObjID(obj) // nolint: ifshort
+	id := getObjID(obj)
 	if _, found := f.metricsForwarders[id]; !found {
 		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.credsManager)
 		f.wg.Add(1)

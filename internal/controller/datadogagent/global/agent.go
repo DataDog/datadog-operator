@@ -91,6 +91,7 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 						apicommon.TraceAgentContainerName,
 						apicommon.SecurityAgentContainerName,
 						apicommon.AgentDataPlaneContainerName,
+						apicommon.AgentCheckRunnerContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&kubeletVol)

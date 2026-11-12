@@ -11,7 +11,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/flightrecorder"
@@ -54,6 +56,28 @@ func TestBuilder(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: true,
+				common.CoreAgentContainerName:               false,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              false,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "Data Plane enabled by feature options with single container strategy, 1 single container",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithSingleContainerStrategy(true).
+				WithNodeAgentImage("agent:7.84.0-rc.5").
+				BuildWithDefaults(),
+			featureOptions: feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: true,
 				common.CoreAgentContainerName:               false,
@@ -144,11 +168,54 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM, CSPM enabled, 4 agents",
+			// CSPM runs its checks in the system-probe by default, so no security-agent.
+			name: "APM, NPM, CSPM enabled, 3 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
 				WithCSPMEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "APM, NPM, CSPM enabled with single container strategy, 3 agents",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithSingleContainerStrategy(true).
+				WithAPMEnabled(true).
+				WithNPMEnabled(true).
+				WithCSPMEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "APM, NPM, CSPM enabled with runInSystemProbe disabled, 4 agents",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithNPMEnabled(true).
+				WithCSPMEnabled(true).
+				WithCSPMRunInSystemProbe(false).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
@@ -164,12 +231,29 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM, CSPM enabled with single container strategy, 4 agents",
+			// CWS sends its events from the system-probe by default, so no security-agent.
+			name: "CWS enabled, 3 agents",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithSingleContainerStrategy(true).
-				WithAPMEnabled(true).
-				WithNPMEnabled(true).
-				WithCSPMEnabled(true).
+				WithCWSEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "CWS enabled with directSendFromSystemProbe disabled, 4 agents",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithCWSEnabled(true).
+				WithCWSDirectSendFromSystemProbe(false).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,

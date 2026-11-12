@@ -9,6 +9,7 @@ const (
 	datadogAgentSubsystem        = "datadogagent"
 	datadogAgentProfileSubsystem = "datadogagentprofile"
 	untaintSubsystem             = "untaint"
+	componentHealthSubsystem     = "componenthealth"
 
 	TrueValue  = 1.0
 	FalseValue = 0.0

@@ -143,8 +143,6 @@ func TestSetErrorActiveConditions(t *testing.T) {
 				assert.Equal(t, test.err.Error(), test.status.Conditions[0].Message)
 			}
 
-			t.Log(test.status)
-
 			if test.wantSecondConditionType != "" {
 				assert.Equal(t, test.wantSecondConditionType, test.status.Conditions[1].Type)
 				assert.Equal(t, test.wantSecondConditionStatus, test.status.Conditions[1].Status)

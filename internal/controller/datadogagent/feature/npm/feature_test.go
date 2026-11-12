@@ -10,7 +10,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -22,6 +24,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func Test_npmFeature_Configure(t *testing.T) {
@@ -359,5 +363,101 @@ func assertHasConfigSyncEnvVars(t testing.TB, envVars []*corev1.EnvVar) {
 func assertNoConfigSyncEnvVars(t testing.TB, envVars []*corev1.EnvVar) {
 	for _, envVar := range configSyncEnvVars() {
 		assert.NotContains(t, envVars, envVar)
+	}
+}
+
+func Test_npmFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.ProcessAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	volumeNames := func(tmpl *corev1.PodTemplateSpec) []string {
+		names := make([]string, 0, len(tmpl.Spec.Volumes))
+		for _, v := range tmpl.Spec.Volumes {
+			names = append(names, v.Name)
+		}
+		return names
+	}
+
+	t.Run("talos adds the tracefs volume", func(t *testing.T) {
+		f := &npmFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		// debugfs must remain: tracefs is an addition, not a replacement.
+		assert.Contains(t, volumeNames(tmpl), common.DebugfsVolumeName)
+	})
+
+	t.Run("default provider adds no tracefs volume", func(t *testing.T) {
+		f := &npmFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		assert.Contains(t, volumeNames(tmpl), common.DebugfsVolumeName)
+	})
+}
+
+func Test_npmFeature_ProtocolClassificationWorkaround(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		image        *v2alpha1.AgentImageConfig
+		wantDisabled bool
+	}{
+		{"affected RC tag", &v2alpha1.AgentImageConfig{Tag: "7.85.0-rc.11"}, true},
+		{"affected RC full image", &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.85.0-rc.11"}, true},
+		{"rolling RC", &v2alpha1.AgentImageConfig{Tag: "7-rc"}, true},
+		{"older stable", &v2alpha1.AgentImageConfig{Tag: "7.84.5"}, false},
+		{"working stable", &v2alpha1.AgentImageConfig{Tag: "7.84.6"}, false},
+		{"next patch RC", &v2alpha1.AgentImageConfig{Tag: "7.84.7-rc.1"}, true},
+		{"next patch stable", &v2alpha1.AgentImageConfig{Tag: "7.84.7"}, true},
+		{"future stable", &v2alpha1.AgentImageConfig{Tag: "7.85.0"}, true},
+		{"future RC", &v2alpha1.AgentImageConfig{Tag: "7.85.0-rc.12"}, true},
+		{"unknown custom image", &v2alpha1.AgentImageConfig{Name: "example.com/agent:custom"}, false},
+		// The default Agent (7.85.0) is above 7.84.6, so the Autopilot workaround applies.
+		{"default image", nil, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{NPM: &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(true)}},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {Image: tt.image},
+					},
+				},
+			}
+			f := &npmFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+			for _, provider := range []string{kubernetes.GKEAutopilotProvider, kubernetes.DefaultProvider} {
+				tmpl := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				}}}
+				mgr := feature.NewPodTemplateManagers(tmpl)
+				providercaps.ApplyProviderCapabilities(mgr, provider, f.NodeAgentProviderCapabilities())
+				want := []corev1.EnvVar(nil)
+				if tt.wantDisabled && provider == kubernetes.GKEAutopilotProvider {
+					want = []corev1.EnvVar{{Name: "DD_ENABLE_PROTOCOL_CLASSIFICATION", Value: "false"}}
+				}
+				assert.Equal(t, want, tmpl.Spec.Containers[1].Env, "provider %s", provider)
+				assert.Empty(t, tmpl.Spec.Containers[0].Env, "core Agent on provider %s", provider)
+			}
+		})
 	}
 }

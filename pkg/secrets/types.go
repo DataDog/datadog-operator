@@ -44,8 +44,7 @@ func NewDecryptorError(err error, retriable bool) *DecryptorError {
 
 // Retriable can be used to evaluate whether an error should be retried
 func Retriable(err error) bool {
-	var decryptorErr *DecryptorError
-	if errors.As(err, &decryptorErr) {
+	if decryptorErr, ok := errors.AsType[*DecryptorError](err); ok {
 		return decryptorErr.IsRetriable()
 	}
 
@@ -63,6 +62,8 @@ type Decryptor interface {
 type SecretBackend struct {
 	cmd              string
 	cmdArgs          []string
+	backendType      string
+	backendConfig    map[string]any
 	cmdOutputMaxSize int
 	cmdTimeout       time.Duration
 }

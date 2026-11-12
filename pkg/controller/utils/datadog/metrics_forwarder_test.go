@@ -14,7 +14,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
+	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -65,6 +68,126 @@ func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey string) error {
 		return errors.New("invalid creds")
 	}
 	return nil
+}
+
+func TestJitteredDelay(t *testing.T) {
+	// Zero/negative durations shouldn't jitter.
+	assert.Equal(t, time.Duration(0), jitteredDelay(0))
+	assert.Equal(t, time.Duration(0), jitteredDelay(-time.Second))
+
+	// Result must always land in [0, d), across many samples (catches off-by-one/negative bugs).
+	const d = 15 * time.Second
+	for i := 0; i < 1000; i++ {
+		got := jitteredDelay(d)
+		assert.GreaterOrEqual(t, got, time.Duration(0))
+		assert.Less(t, got, d)
+	}
+}
+
+func TestJitteredInterval(t *testing.T) {
+	assert.Equal(t, time.Duration(0), jitteredInterval(0))
+	assert.Equal(t, time.Duration(0), jitteredInterval(-time.Second))
+	assert.Equal(t, time.Nanosecond, jitteredInterval(time.Nanosecond))
+
+	const d = 15 * time.Second
+	const spread = d / 10
+	for i := 0; i < 1000; i++ {
+		got := jitteredInterval(d)
+		assert.GreaterOrEqual(t, got, d-spread)
+		assert.Less(t, got, d+spread)
+	}
+}
+
+// TestMetricsForwarder_start_timerFiresAndResets exercises the run loop with a
+// fake clock. The exact elapsed times prove that the timer fires initially and
+// is then reset with the recurring delay after the first send completes.
+func TestMetricsForwarder_start_timerFiresAndResets(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(
+			nil,
+			map[string]string{},
+			map[string]string{},
+		)
+
+		f := &fakeMetricsForwarder{}
+		tickCh := make(chan time.Time, 10)
+		f.On("delegatedValidateCreds", "").Once()
+		f.On("delegatedSendEvent", mock.Anything, mock.Anything)
+		f.On("delegatedSendReconcileMetric", mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) { tickCh <- time.Now() })
+
+		mf := &metricsForwarder{
+			namespacedName:      types.NamespacedName{Namespace: "foo", Name: "bar"},
+			platformInfo:        &platformInfo,
+			retryInterval:       5 * time.Millisecond,
+			sendMetricsInterval: 15 * time.Second,
+			stopChan:            make(chan struct{}),
+			errorChan:           make(chan error, 100),
+			eventChan:           make(chan Event, 10),
+			lastReconcileErr:    errInitValue,
+			logger:              logr.Discard(),
+			delegator:           f,
+		}
+
+		const initialDelay = time.Hour
+		const recurringDelay = 30 * time.Minute
+		fixedInitialDelay := func(time.Duration) time.Duration { return initialDelay }
+		fixedRecurringDelay := func(time.Duration) time.Duration { return recurringDelay }
+
+		start := time.Now()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go mf.startWithDelays(&wg, fixedInitialDelay, fixedRecurringDelay)
+
+		firstTick := <-tickCh
+		secondTick := <-tickCh
+		assert.Equal(t, 2*initialDelay, firstTick.Sub(start))
+		assert.Equal(t, recurringDelay, secondTick.Sub(firstTick))
+
+		// Let the run loop finish resetting the timer and block in its select
+		// before closing stopChan. Wait does not advance the fake clock.
+		synctest.Wait()
+		mf.stop()
+		wg.Wait()
+
+		f.AssertExpectations(t)
+	})
+}
+
+// TestMetricsForwarder_start_stopDuringStartupJitter verifies that closing
+// stopChan while start() is waiting out its jittered startup delay causes it
+// to return immediately, without ever contacting the Datadog API. This
+// covers the fix for the initial connectToDatadogAPI call (and CR-detected
+// event), which previously fired unjittered for every forwarder as soon as a
+// batch of CRs was registered, before the periodic-send jitter ever kicked
+// in.
+func TestMetricsForwarder_start_stopDuringStartupJitter(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := &fakeMetricsForwarder{}
+		mf := &metricsForwarder{
+			sendMetricsInterval: time.Hour,
+			stopChan:            make(chan struct{}),
+			errorChan:           make(chan error, 100),
+			eventChan:           make(chan Event, 10),
+			lastReconcileErr:    errInitValue,
+			logger:              logr.Discard(),
+			delegator:           f,
+		}
+
+		fixedDelay := func(time.Duration) time.Duration { return time.Hour }
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go mf.startWithDelays(&wg, fixedDelay, fixedDelay)
+
+		// Wait until the forwarder is blocked on its startup timer without
+		// advancing the fake clock, then stop it deterministically.
+		synctest.Wait()
+		mf.stop()
+		wg.Wait()
+
+		f.AssertNotCalled(t, "delegatedValidateCreds", mock.Anything)
+		f.AssertNotCalled(t, "delegatedSendEvent", mock.Anything, mock.Anything)
+	})
 }
 
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {

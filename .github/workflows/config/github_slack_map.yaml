@@ -4,6 +4,13 @@
 # Note that the values must be quoted if they contain a '#' symbol, because
 # YAML interprets that as the beginning of a comment. Keys must also be quoted
 # because the '@' symbol is reserved in YAML.
+'@datadog/accelerator-telemetry':
+  notification:
+    name: '#accelerator-telemetry-ops'
+    id: 'C0APTNVCC04'
+  review:
+    name: '#accelerator-telemetry-reviews'
+    id: 'C0B7VF7LKGT'
 '@datadog/action-platform':
   notification:
     name: '#action-platform'

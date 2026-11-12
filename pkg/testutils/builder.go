@@ -6,6 +6,9 @@
 package testutils
 
 import (
+	"encoding/json"
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -48,7 +51,7 @@ func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	}
 }
 
-// NewDefaultDatadogAgentBuilder initialized with name, namespace, creds and metadata
+// NewInitializedDatadogAgentBuilder returns a builder initialized with a name, namespace, credentials, and metadata.
 func NewInitializedDatadogAgentBuilder(ns, name string) *DatadogAgentBuilder {
 	dda := NewDatadogAgent(ns, name, nil)
 	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
@@ -69,18 +72,18 @@ func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
 	return &builder.datadogAgent
 }
 
-// Common
+// WithName sets the DatadogAgent name.
 func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 	builder.datadogAgent.Name = name
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAnnotations(annotations map[string]string) *DatadogAgentBuilder {
-	builder.datadogAgent.ObjectMeta.Annotations = annotations
+	builder.datadogAgent.Annotations = annotations
 	return builder
 }
 
-// Global environment variable
+// WithEnvVars sets the global environment variables.
 func (builder *DatadogAgentBuilder) WithEnvVars(envs []corev1.EnvVar) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Env = envs
 	return builder
@@ -268,6 +271,12 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistryAllowList(registries ...string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.RegistryAllowList = registries
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = new(enabled)
@@ -286,7 +295,7 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeGracePeriod(grac
 	return builder
 }
 
-// sidecar Injection
+// WithSidecarInjectionEnabled enables or disables sidecar injection.
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	// builder.initAdmissionController()
 	builder.initSidecarInjection()
@@ -636,6 +645,13 @@ func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithEventCollectionMode(mode string) *DatadogAgentBuilder {
+	builder.initEventCollection()
+	builder.datadogAgent.Spec.Features.EventCollection.CollectionMode = new(mode)
+
+	return builder
+}
+
 // Remote Config
 func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
@@ -671,6 +687,18 @@ func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *Datado
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMPodCollectionMode(mode v2alpha1.KSMPodCollectionMode) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.PodCollectionMode = &mode
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMShardingEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.ShardingEnabled = new(enabled)
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {
@@ -697,9 +725,9 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerExtraTags(tags []str
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOrchestratorExplorerDDUrl(ddUrl string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerDDUrl(ddURL string) *DatadogAgentBuilder {
 	builder.initOE()
-	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = new(ddUrl)
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = new(ddURL)
 	return builder
 }
 
@@ -867,6 +895,11 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAppsecInjector(cfg *v2alpha1.AppsecInjectorConfig) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.Appsec = &v2alpha1.AppsecFeatureConfig{Injector: cfg}
+	return builder
+}
+
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {
@@ -932,6 +965,12 @@ func (builder *DatadogAgentBuilder) WithCSPMEnabled(enabled bool) *DatadogAgentB
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithCSPMRunInSystemProbe(enabled bool) *DatadogAgentBuilder {
+	builder.initCSPM()
+	builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe = new(enabled)
+	return builder
+}
+
 // CWS
 
 func (builder *DatadogAgentBuilder) initCWS() {
@@ -943,6 +982,12 @@ func (builder *DatadogAgentBuilder) initCWS() {
 func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCWS()
 	builder.datadogAgent.Spec.Features.CWS.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithCWSDirectSendFromSystemProbe(enabled bool) *DatadogAgentBuilder {
+	builder.initCWS()
+	builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe = new(enabled)
 	return builder
 }
 
@@ -1006,6 +1051,36 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+// Kueue
+
+func (builder *DatadogAgentBuilder) withKueueConfigField(key string, value any) *DatadogAgentBuilder {
+	const annotation = "agent.datadoghq.com/kueue-config"
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = make(map[string]string)
+	}
+	config := make(map[string]any)
+	_ = json.Unmarshal([]byte(builder.datadogAgent.Annotations[annotation]), &config)
+	config[key] = value
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	builder.datadogAgent.Annotations[annotation] = string(data)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueEnabled(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = make(map[string]string)
+	}
+	builder.datadogAgent.Annotations["agent.datadoghq.com/kueue-enabled"] = strconv.FormatBool(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueCustomConf(conf *v2alpha1.CustomConfig) *DatadogAgentBuilder {
+	return builder.withKueueConfigField("conf", conf)
+}
+
 func (builder *DatadogAgentBuilder) initKubernetesActions() {
 	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
 		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
@@ -1015,6 +1090,15 @@ func (builder *DatadogAgentBuilder) initKubernetesActions() {
 func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initKubernetesActions()
 	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKubernetesActionsCommunication(rc, par bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Communication = &v2alpha1.KubernetesActionsCommunicationConfig{
+		RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(rc)},
+		PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(par)},
+	}
 	return builder
 }
 
@@ -1090,7 +1174,7 @@ func (builder *DatadogAgentBuilder) WithCredentialsFromSecret(apiSecretName, api
 	return builder
 }
 
-// Global DCA Token
+// WithDCAToken sets the global Cluster Agent token.
 func (builder *DatadogAgentBuilder) WithDCAToken(token string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.ClusterAgentToken = new(token)
 	return builder
@@ -1269,6 +1353,20 @@ func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *Data
 	builder.initGPUMonitoring()
 	builder.datadogAgent.Spec.Features.GPU.Enabled = new(enabled)
 	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = new(enabled)
+	return builder
+}
+
+// HostProfiler
+
+func (builder *DatadogAgentBuilder) initHostProfiler() {
+	if builder.datadogAgent.Spec.Features.HostProfiler == nil {
+		builder.datadogAgent.Spec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHostProfilerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHostProfiler()
+	builder.datadogAgent.Spec.Features.HostProfiler.Enabled = new(enabled)
 	return builder
 }
 

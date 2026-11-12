@@ -73,6 +73,10 @@ const (
 	SBOMIDType = "sbom"
 	// HelmCheckIDType Helm Check feature.
 	HelmCheckIDType = "helm_check"
+	// KueueIDType Kueue feature.
+	KueueIDType = "kueue"
+	// KAISchedulerIDType KAI Scheduler feature.
+	KAISchedulerIDType = "kai_scheduler"
 	// InstrumentationCRDIDType Instrumentation CRD feature.
 	InstrumentationCRDIDType = "instrumentation_crd"
 	// DummyIDType Dummy feature.
@@ -93,4 +97,6 @@ const (
 	KubernetesActionsIDType = "kubernetes_actions"
 	// DynamicInstrumentationIDType Dynamic Instrumentation feature.
 	DynamicInstrumentationIDType = "dynamic_instrumentation"
+	// CheckRunnerIDType Agent Check Runner feature.
+	CheckRunnerIDType = "check_runner"
 )

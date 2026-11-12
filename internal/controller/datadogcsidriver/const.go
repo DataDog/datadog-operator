@@ -55,6 +55,7 @@ const (
 	envAddress               = "ADDRESS"
 	envDriverRegSock         = "DRIVER_REG_SOCK_PATH"
 	envAPMRegistryAuthPrefix = "DD_APM_REGISTRY_AUTH_"
+	envRegistryAllowList     = "DD_REGISTRY_ALLOW_LIST"
 
 	// dockerConfigJSONKey is the data key for kubernetes.io/dockerconfigjson Secrets.
 	dockerConfigJSONKey = ".dockerconfigjson"

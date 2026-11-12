@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,6 +26,12 @@ import (
 )
 
 func TestLiveContainerFeature(t *testing.T) {
+	windowsProfile := testutils.NewDatadogAgentBuilder().
+		WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}).
+		WithLiveContainerCollectionEnabled(true).
+		Build()
+	windowsProfile.Labels = map[string]string{constants.ProfileLabelKey: "windows"}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name: "live container collection enabled",
@@ -53,6 +61,12 @@ func TestLiveContainerFeature(t *testing.T) {
 					},
 				).
 				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+		},
+		{
+			Name:          "live container collection on Windows",
+			DDA:           windowsProfile,
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},

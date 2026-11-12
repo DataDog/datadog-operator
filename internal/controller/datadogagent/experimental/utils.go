@@ -27,7 +27,7 @@ func getExperimentalAnnotation(dda metav1.Object, annotationSubkey string) strin
 	return ""
 }
 
-// ApplyExperimentalOverrides applies any configured experimental overrides for the the given DatadogAgent resource.
+// ApplyExperimentalOverrides applies any configured experimental overrides for the given DatadogAgent resource.
 func ApplyExperimentalOverrides(logger logr.Logger, dda metav1.Object, manager feature.PodTemplateManagers) {
 	elogger := logger.WithName("ExperimentalOverrides")
 	elogger.V(2).Info("Applying experimental overrides")

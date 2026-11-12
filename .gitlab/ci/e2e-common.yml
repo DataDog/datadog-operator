@@ -1,0 +1,97 @@
+# Base configuration for E2E jobs provisioning GCP infrastructure.
+.e2e_gcp_base:
+  tags:
+    - "arch:amd64"
+  variables:
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_CPU_LIMIT: 4
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
+    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
+    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  before_script:
+    # Restore the Go caches and plugins prepared once for this pipeline.
+    - tar xJf e2e_go_cache.tar.xz -C "$CI_PROJECT_DIR"
+    - rm -f e2e_go_cache.tar.xz
+    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
+    - rm -f pulumi_plugins.tar.xz
+    # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
+    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.e2e)
+    # Configure and use the agent-qa AWS profile for SSM secrets, ECR, and the Pulumi S3 backend.
+    - echo "Starting setup for GCP E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+    # SSH key retrieval for GCP fakeintake/VM resources
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH
+    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH
+    # Setup GCP credentials. The service account should match the agent-e2e-tests account used by the shared e2e framework.
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text > ~/gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
+
+.docker_publish_job_definition:
+  image: registry.ddbuild.io/agent-delivery/dd-pkg@sha256:316a4ad7eba06e7db4c2ddc490d7ee61bd10a95c6c89bbf97c41ceec4b003701
+  tags: ["arch:arm64"]
+  variables:
+    IMG_SIGNING: "false"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+      args=(publish-image --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" --poll-interval 30 --signing="${IMG_SIGNING}")
+      if [[ -n "${IMG_REGISTRIES:-}" ]]; then args+=(--registries "${IMG_REGISTRIES}"); fi
+      if [[ -n "${IMG_SOURCES:-}" ]]; then args+=(--sources "${IMG_SOURCES}"); fi
+      if [[ -n "${IMG_DESTINATIONS:-}" ]]; then args+=(--destinations "${IMG_DESTINATIONS}"); fi
+      if [[ -n "${IMG_DESTINATIONS_REGEX:-}" ]]; then args+=(--regex-expression "${IMG_DESTINATIONS_REGEX}"); fi
+      if [[ -n "${IMG_DESTINATIONS_REGEX_REPL:-}" ]]; then args+=(--regex-replacement "${IMG_DESTINATIONS_REGEX_REPL}"); fi
+      if [[ -n "${IMG_TAG_REFERENCE:-}" ]]; then args+=(--tag-reference "${IMG_TAG_REFERENCE}"); fi
+      if [[ -n "${IMG_NEW_TAGS:-}" ]]; then args+=(--new-tags "${IMG_NEW_TAGS}"); fi
+      if [[ -n "${IMG_MERGE_STRATEGY:-}" ]]; then args+=(--merge-strategy "${IMG_MERGE_STRATEGY}"); fi
+      dd-pkg "${args[@]}"
+
+.prepare_e2e_plugins_base:
+  stage: deps_fetch
+  retry: 2
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  tags: ["arch:amd64"]
+  variables:
+    KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_CPU_LIMIT: 16
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  needs: []
+  before_script:
+    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
+  script:
+    - |
+      # Build E2E packages once, independently of core checks and image builds.
+      # Match the consumers' coverage instrumentation and cap parallel linking
+      # to stay within the pod memory limit. No E2E tests are executed here.
+      pushd test/e2e
+      GOWORK=off go mod download
+      GOWORK=off go test -p 2 ./... -count=1 --tags=e2e -cover -run '^$'
+      GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
+      popd
+      tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
+      # Only E2E jobs download this pipeline's module and build caches.
+      tar c --use-compress-program="xz -T${KUBERNETES_CPU_REQUEST}" -f "$CI_PROJECT_DIR/e2e_go_cache.tar.xz" -C "$CI_PROJECT_DIR" .go/pkg/mod .cache/go-build
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
+      - $CI_PROJECT_DIR/e2e_go_cache.tar.xz

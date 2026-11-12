@@ -123,7 +123,7 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 	// env vars
 	enableEnvVar := &corev1.EnvVar{
-		Name:  DDServiceDiscoveryEnabled,
+		Name:  common.DDServiceDiscoveryEnabled,
 		Value: "true",
 	}
 

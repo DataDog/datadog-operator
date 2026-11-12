@@ -6,7 +6,8 @@
 package kubernetesstatecore
 
 const (
-	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
-	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
-	DDIgnoreAutoConf                = "DD_IGNORE_AUTOCONF"
+	DDKubeStateMetricsCoreConfigMap   = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
+	DDKubeStateMetricsCoreEnabled     = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
+	DDKubeStateMetricsShardingEnabled = "DD_CLUSTER_CHECKS_KSM_SHARDING_ENABLED"
+	DDIgnoreAutoConf                  = "DD_IGNORE_AUTOCONF"
 )

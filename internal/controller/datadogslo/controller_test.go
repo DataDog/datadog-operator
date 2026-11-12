@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -103,6 +104,25 @@ func TestReconciler_Reconcile(t *testing.T) {
 			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "invalid data", http.StatusBadRequest)
 			}),
+			// 400 is permanent: back off to the force-sync cadence.
+			expectedResult: ctrl.Result{Requeue: false, RequeueAfter: defaultForceSyncPeriod},
+		},
+		{
+			name: "Return Error and fast Requeue result when creating SLO fails transiently",
+			request: ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: resourceNamespace,
+					Name:      resourceName,
+				},
+			},
+			reconcileCount: 2,
+			mockOn: func(t *testing.T, m *mockedFields) {
+				_ = m.k8sClient.Create(context.TODO(), defaultSLO())
+			},
+			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}),
+			// 5xx is transient: keeps the fast error cadence.
 			expectedResult: ctrl.Result{Requeue: false, RequeueAfter: defaultErrRequeuePeriod},
 		},
 		{
@@ -173,6 +193,68 @@ func TestReconciler_Reconcile(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, res)
 		})
 	}
+}
+
+func TestReconciler_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
+	// A spec fix bumps .metadata.generation, so the watch reconciles
+	// immediately regardless of the previous RequeueAfter.
+	testLogger := zap.New(zap.UseDevMode(true))
+	s := scheme.Scheme
+	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogSLO{})
+
+	var succeed atomic.Bool
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !succeed.Load() {
+			http.Error(w, "invalid data", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(defaultDatadogSLOResponse())
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewServiceLevelObjectivesApi(datadogapi.NewAPIClient(testConfig))
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	kubeClient := fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.DatadogSLO{}).Build()
+	assert.NoError(t, kubeClient.Create(context.TODO(), defaultSLO()))
+
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		recorder:      record.NewFakeRecorder(5),
+		log:           testLogger,
+	}
+
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: resourceNamespace, Name: resourceName}}
+
+	// First reconcile only adds the finalizer; second attempts the create.
+	_, err := r.Reconcile(context.Background(), req)
+	assert.NoError(t, err)
+	result, err := r.Reconcile(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
+
+	got := &v1alpha1.DatadogSLO{}
+	assert.NoError(t, kubeClient.Get(context.TODO(), req.NamespacedName, got))
+	assert.Empty(t, got.Status.ID, "the SLO must not be considered created")
+
+	// Simulate the spec fix + watch-triggered reconcile.
+	got.Spec.Query.Numerator = "sum:my.custom.count.metric{type:good_events,fixed:true}.as_count()"
+	assert.NoError(t, kubeClient.Update(context.TODO(), got))
+	succeed.Store(true)
+
+	result, err = r.Reconcile(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NoError(t, kubeClient.Get(context.TODO(), req.NamespacedName, got))
+	assert.Equal(t, "SLO123", got.Status.ID, "the fixed spec must be created on the very next reconcile")
+	assert.NotEqual(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result, "a successful reconcile must not stay on the error backstop cadence")
 }
 
 func defaultSLO() *v1alpha1.DatadogSLO {

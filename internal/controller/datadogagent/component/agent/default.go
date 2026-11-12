@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,18 +31,11 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 // TODO: remove instanceName once v2 reconcile is removed
-func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil, instanceName)
+func NewDefaultAgentDaemonset(dda metav1.Object, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
+	daemonset := NewDaemonset(dda, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil, instanceName)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
-}
-
-// NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
-	return edsDaemonset
 }
 
 // NewDefaultAgentPodTemplateSpec returns a defaulted node agent PodTemplateSpec with a single multi-process container or multiple single-process containers
@@ -55,6 +47,17 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentSingleContainer(dda)
 	} else {
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
+	}
+	jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
+	for i := range agentContainers {
+		if agentContainers[i].Name != string(apicommon.OtelAgent) {
+			agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
+		}
+	}
+	for i := range agentContainers {
+		if isConfigStreamConsumerContainer(agentContainers[i].Name) {
+			agentContainers[i].Env = append(agentContainers[i].Env, configStreamConsumerEnvVar())
+		}
 	}
 
 	return &corev1.PodTemplateSpec{
@@ -289,16 +292,22 @@ func DefaultSyscallsForSystemProbe() []string {
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
+	hostBenchmarks := ddaSpec.Features.CSPM != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+		ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+		ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+		ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)
 	if (ddaSpec.Features.CWS != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
 		ddaSpec.Features.CWS.Enforcement != nil &&
 		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
-		(ddaSpec.Features.CSPM != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
-			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
-			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
-			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
+		hostBenchmarks {
 		syscalls = append(syscalls, "kill")
+	}
+	if hostBenchmarks {
+		// OpenSCAP enters the host root with chroot and fchdir, and
+		// libgcrypt locks its secure memory with mlock in FIPS mode.
+		syscalls = append(syscalls, "chroot", "fchdir", "mlock", "munlock")
 	}
 	return syscalls
 }
@@ -390,7 +399,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	agentSingleContainer := corev1.Container{
 		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
-		Env:            envVarsForCoreAgent(dda),
+		Env:            envVarsForNodeAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
@@ -431,6 +440,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, agentDataPlaneContainer(dda))
 		case apicommon.FlightRecorderContainerName:
 			containers = append(containers, flightRecorderContainer(dda))
+		case apicommon.AgentCheckRunnerContainerName:
+			containers = append(containers, agentCheckRunnerContainer(dda))
 		}
 	}
 
@@ -442,13 +453,52 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
-		Env:            envVarsForCoreAgent(dda),
+		Env:            envVarsForNodeAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
+func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
+	return append(envVarsForCoreAgent(dda), podNameEnvVar())
+}
+
+// isConfigStreamConsumerContainer reports whether the container reads the config stream consumer
+// switch; the core agent is included so its streamed snapshot reports the same value.
+func isConfigStreamConsumerContainer(name string) bool {
+	switch apicommon.AgentContainerName(name) {
+	case apicommon.CoreAgentContainerName,
+		apicommon.UnprivilegedSingleAgentContainerName,
+		apicommon.TraceAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SecurityAgentContainerName,
+		apicommon.SystemProbeContainerName:
+		return true
+	}
+	return false
+}
+
+// configStreamConsumerEnvVar disables config streaming by default: since Agent 7.85.0 consumers
+// drop their own environment, which loses per-container settings.
+func configStreamConsumerEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name:  DDRemoteAgentConfigStreamConsumerEnabled,
+		Value: "false",
+	}
+}
+
+func podNameEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: DDPodName,
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: common.FieldPathMetaName,
+			},
 		},
 	}
 }
@@ -620,6 +670,24 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
+func agentCheckRunnerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.AgentCheckRunnerContainerName),
+		Image: agentImage(),
+		Command: []string{
+			agentCheckRunnerBinaryPath,
+			"--config",
+			agentCustomConfigVolumePath,
+			"run",
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForAgentCheckRunner(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
 func flightRecorderContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.FlightRecorderContainerName),
@@ -741,13 +809,13 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
 	envs = append(envs,
 		corev1.EnvVar{
-			Name: common.DDAPMInstrumentationInstallId,
+			Name: common.DDAPMInstrumentationInstallID,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: common.APMTelemetryInstallIdKey,
+					Key: common.APMTelemetryInstallIDKey,
 				},
 			},
 		},
@@ -852,6 +920,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -864,6 +933,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -875,6 +945,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -897,6 +968,7 @@ func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
 		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -920,6 +992,7 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 
 func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
@@ -927,6 +1000,26 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForTmp(),
+	}
+}
+
+// volumeMountsForAgentCheckRunner returns the mounts the Check Runner needs, a subset of
+// the Data Plane's. ACR talks to the kubelet over the projected service account token, so
+// it needs neither the runtime socket nor proc/cgroups.
+func volumeMountsForAgentCheckRunner() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		// Source of datadog.yaml.
+		common.GetVolumeMountForConfig(),
+		// Token and cert to authenticate to the Core Agent's IPC endpoint. The auth volume is a
+		// pod-scoped emptyDir, the only way to share them between containers.
+		common.GetVolumeMountForAuth(true),
+		// /opt/datadog-agent/run should always be writable
+		common.GetVolumeMountForRunPath(),
+		common.GetVolumeMountForLogs(),
+		// Python checks allocate temporary files via tempfile and the root filesystem is
+		// read-only; without a writable /tmp the disk check fails with "No usable temporary
+		// directory found".
 		common.GetVolumeMountForTmp(),
 	}
 }
@@ -941,5 +1034,6 @@ func volumeMountsForFlightRecorder() []corev1.VolumeMount {
 			Name:      common.FlightRecorderDataVolumeName,
 			MountPath: common.FlightRecorderDataPath,
 		},
+		common.GetVolumeMountForRunPath(),
 	}
 }

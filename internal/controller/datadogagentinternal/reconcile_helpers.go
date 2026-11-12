@@ -13,7 +13,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
@@ -21,17 +20,19 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
 
 // setupDependencies initializes the store and resource managers.
-func (r *Reconciler) setupDependencies(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal) (*store.Store, feature.ResourceManagers) {
+func (r *Reconciler) setupDependencies(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		PlatformInfo:  r.platformInfo,
@@ -44,7 +45,7 @@ func (r *Reconciler) setupDependencies(ctx context.Context, instance *datadoghqv
 }
 
 // manageGlobalDependencies manages the global dependencies for a component.
-func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Non component specific dependencies
@@ -87,7 +88,7 @@ func (r *Reconciler) manageFeatureDependencies(features []feature.Feature, resou
 }
 
 // overrideDependencies wraps the dependency override logic.
-func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers feature.ResourceManagers, instance *v1alpha1.DatadogAgentInternal) error {
 	errs := override.Dependencies(ctrl.LoggerFrom(ctx), resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -100,7 +101,9 @@ func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers 
 // *************************************
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
-func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) (err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
@@ -140,7 +143,9 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *d
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers.
-func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore *store.Store) error {
+func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, depsStore *store.Store) (err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error
@@ -148,6 +153,16 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore 
 	if len(errs) > 0 {
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
 		return errors.NewAggregate(errs)
+	}
+
+	// Disown the bundle-managed ServiceAccount before cleanup. It is no longer part of
+	// the dependency set, so a store label left by an earlier version would make Cleanup
+	// delete it. Only on OpenShift, where the account is never ours: elsewhere the same
+	// name may be an account the operator legitimately owns.
+	if kubernetes.IsOpenShiftProvider(ddai.GetAnnotations()[kubernetes.ProviderAnnotationKey]) {
+		if err := openshift.DisownBundleServiceAccount(ctx, r.client, ddai.GetNamespace(), ddai.GetUID()); err != nil {
+			return err
+		}
 	}
 
 	// Cleanup unused dependencies, excluding resources managed by the DDA controller.

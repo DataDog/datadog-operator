@@ -24,13 +24,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -68,6 +71,7 @@ const requiredTag = "generated:kubernetes"
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
 	client                 client.Client
+	apiReader              client.Reader
 	datadogClient          *datadogV1.MonitorsApi
 	credsManager           *config.CredentialManager
 	log                    logr.Logger
@@ -75,12 +79,29 @@ type Reconciler struct {
 	recorder               record.EventRecorder
 	operatorMetricsEnabled bool
 	forwarders             pkgutils.MetricsForwardersManager
+	requeuePeriod          time.Duration
+}
+
+type ReconcilerOptions struct {
+	// APIReader bypasses the informer cache for pre-create checks.
+	APIReader     client.Reader
+	RequeuePeriod time.Duration
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) *Reconciler {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager, opts ...ReconcilerOptions) *Reconciler {
+	options := ReconcilerOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
+	if options.APIReader == nil {
+		options.APIReader = client
+	}
+
 	return &Reconciler{
 		client:                 client,
+		apiReader:              options.APIReader,
 		datadogClient:          datadogclient.InitMonitorClient(),
 		credsManager:           credsManager,
 		scheme:                 scheme,
@@ -88,7 +109,16 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		recorder:               recorder,
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
+		requeuePeriod:          requeuePeriod(log, options.RequeuePeriod),
 	}
+}
+
+func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
+	if configured <= 0 {
+		configured = defaultRequeuePeriod
+	}
+	logger.Info("Setting monitor requeue period", "duration", configured.String())
+	return configured
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
@@ -104,7 +134,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.
 
 // Reconcile loop for DatadogMonitor
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogmonitor", pkgutils.GetNamespacedName(instance))
+	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogMonitor")
 
 	auth, credErr := r.credsManager.GetAuth()
@@ -130,7 +160,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.requeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -153,12 +183,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	shouldCreate := false
 	shouldUpdate := false
+	shouldRefreshState := false
+	var m datadogV1.Monitor
 
-	// Check if we need to create the monitor, update the monitor definition, or update monitor state
+	// Decide which remote work is due. Lifecycle and specification work takes
+	// precedence over the eventual-consistency state poll.
 	if instance.Status.ID == 0 {
 		shouldCreate = true
 	} else {
-		var m datadogV1.Monitor
 		if instanceSpecHash != statusSpecHash {
 			// Custom resource manifest has changed; verify the monitor still
 			// exists before updating. If it was deleted out-of-band (e.g. from
@@ -170,38 +202,69 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
+				} else {
+					result.RequeueAfter = defaultErrRequeuePeriod
 				}
 			} else {
 				shouldUpdate = true
 			}
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
-			// Periodically force a sync with the API monitor to ensure parity
-			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			_, err = r.get(auth, instance, newStatus)
-			if err != nil {
-				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
-					shouldCreate = true
-				}
-			} else {
-				shouldUpdate = true
-			}
-		} else if instance.Status.MonitorStateLastUpdateTime == nil || (defaultRequeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
-			// If other conditions aren't met, and we have passed the defaultRequeuePeriod, then update monitor state
-			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
+			// A force sync periodically reapplies the desired monitor definition
+			// to correct out-of-band changes. Check that the remote monitor still
+			// exists first so an out-of-band deletion takes the create path.
 			m, err = r.get(auth, instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
+				} else {
+					result.RequeueAfter = defaultErrRequeuePeriod
 				}
+			} else if hash := remoteDefinitionHash(logger, m); hash != "" && hash == instance.Status.RemoteDefinitionHash {
+				// Nobody edited the monitor since our last write, so reapplying the
+				// definition would be a no-op.
+				logger.V(1).Info("Monitor unchanged since the last update; skipping force-sync update", "Monitor ID", instance.Status.ID)
+				newStatus.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+				newStatus.MonitorLastForceSyncTime = &now
+			} else {
+				shouldUpdate = true
 			}
-			updateMonitorState(m, now, newStatus)
+		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.requeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
+			// Refresh state only when no lifecycle or specification operation is
+			// due and the configured polling period has elapsed.
+			shouldRefreshState = true
 		}
+	}
+
+	if shouldRefreshState {
+		// State polling is eventual-consistency work, so its scheduled follow-up
+		// stays behind lifecycle and specification changes in the work queue.
+		result.Priority = ptr.To(ctrlhandler.LowPriority)
+		m, err = r.get(auth, instance, newStatus)
+		if err != nil {
+			logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
+			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+				shouldCreate = true
+				// A missing remote monitor promotes this reconciliation from state
+				// polling to lifecycle work, which must return at normal priority.
+				result.Priority = nil
+			}
+		}
+		updateMonitorState(m, now, newStatus)
 	}
 
 	// Create and update actions
 	if shouldCreate {
+		// Bypass the cache before creating. Keep recreation after a remote 404
+		// when the persisted ID still matches the one we observed.
+		latest := &datadoghqv1alpha1.DatadogMonitor{}
+		if getErr := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); getErr != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(getErr)
+		}
+		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) {
+			logger.Info("Skipping create because DatadogMonitor changed; requeuing")
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
 		if isSupportedMonitorType(instance.Spec.Type) {
 			logger.V(1).Info("Creating monitor in Datadog")
 			// Make sure required tags are present
@@ -217,10 +280,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			}
 			if err = r.create(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 				logger.Error(err, "error creating monitor")
+				// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+				if ctrutils.IsPermanentAPIError(err) {
+					result.RequeueAfter = forceSyncPeriod
+				} else {
+					result.RequeueAfter = defaultErrRequeuePeriod
+				}
 			}
 		} else {
+			// Unsupported type needs a spec change; don't schedule a retry.
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "error creating monitor")
+			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
 	} else if shouldUpdate {
 		logger.V(1).Info("Updating monitor in Datadog")
@@ -237,6 +308,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 		if err = r.update(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+			if ctrutils.IsPermanentAPIError(err) {
+				result.RequeueAfter = forceSyncPeriod
+			} else {
+				result.RequeueAfter = defaultErrRequeuePeriod
+			}
 			// If the monitor was deleted between our existence check and this
 			// update (TOCTOU), clear status.ID so the next reconcile takes the
 			// create path and recreates the monitor.
@@ -247,13 +324,48 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
-	// If reconcile was successful, requeue with period defaultRequeuePeriod
-	if result.IsZero() {
-		result.RequeueAfter = defaultRequeuePeriod
+	// Delayed polling and force-sync requeues are controller-scheduled maintenance,
+	// not new informer events. Successful work is assigned low priority here;
+	// state polling is assigned low priority before its API call above. Informer
+	// events, including the initial list at startup, retain the controller-runtime
+	// default priority and can overtake this background work. Preserve a delay
+	// already set by an error path so lifecycle failures keep their short retry.
+	if result.RequeueAfter == 0 {
+		result.RequeueAfter = nextRequeueAfter(newStatus, now, r.requeuePeriod, forceSyncPeriod)
+		if err == nil {
+			result.Priority = ptr.To(ctrlhandler.LowPriority)
+		}
 	}
 
 	// Update the status
 	return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+}
+
+func nextRequeueAfter(status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, statePollingPeriod, forceSyncPeriod time.Duration) time.Duration {
+	// State polling and force sync are independent schedules. Use the earlier
+	// deadline so a long polling period cannot postpone reapplying the desired
+	// monitor definition. Creation time anchors the first force-sync deadline.
+	next := statePollingPeriod
+	if status.ID == 0 {
+		return next
+	}
+
+	lastForceSync := status.MonitorLastForceSyncTime
+	if lastForceSync == nil {
+		lastForceSync = status.Created
+	}
+	if lastForceSync == nil {
+		if forceSyncPeriod > 0 && forceSyncPeriod < next {
+			return forceSyncPeriod
+		}
+		return next
+	}
+
+	untilForceSync := forceSyncPeriod - now.Sub(lastForceSync.Time)
+	if untilForceSync > 0 && untilForceSync < next {
+		return untilForceSync
+	}
+	return next
 }
 
 func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, instanceSpecHash string) error {
@@ -279,15 +391,20 @@ func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMon
 	status.Primary = true
 	status.MonitorStateSyncStatus = ""
 	status.CurrentHash = instanceSpecHash
+	status.RemoteDefinitionHash = remoteDefinitionHash(logger, m)
 
 	// Set Created Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeCreated, corev1.ConditionTrue, "DatadogMonitor Created")
-	logger.Info("Created a new DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", m.GetId())
+	logger.Info("Created a new DatadogMonitor", "Monitor ID", m.GetId())
 
 	return nil
 }
 
 func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, instanceSpecHash string) error {
+	// Until an update succeeds, the remote monitor may not match the spec, so
+	// force syncs must not be skipped.
+	status.RemoteDefinitionHash = ""
+
 	// Validate monitor in Datadog
 	if err := validateMonitor(auth, logger, r.datadogClient, datadogMonitor); err != nil {
 		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusValidateError
@@ -295,10 +412,12 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 	}
 
 	// Update monitor in Datadog
-	if _, err := updateMonitor(auth, logger, r.datadogClient, datadogMonitor); err != nil {
+	m, err := updateMonitor(auth, logger, r.datadogClient, datadogMonitor)
+	if err != nil {
 		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusUpdateError
 		return err
 	}
+	status.RemoteDefinitionHash = remoteDefinitionHash(logger, m)
 
 	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, pkgutils.UpdateEvent)
 	r.recordEvent(datadogMonitor, event)
@@ -308,7 +427,7 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 	status.MonitorLastForceSyncTime = &now
 	status.CurrentHash = instanceSpecHash
-	logger.V(1).Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
+	logger.V(1).Info("Updated DatadogMonitor", "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
@@ -323,6 +442,17 @@ func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1
 	return m, nil
 }
 
+// remoteDefinitionHash returns the definition hash of a monitor returned by the
+// API, or "" if it cannot be computed, which keeps force syncs updating.
+func remoteDefinitionHash(logger logr.Logger, m datadogV1.Monitor) string {
+	hash, err := controllerutils.MonitorDefinitionHash(m)
+	if err != nil {
+		logger.Error(err, "unable to hash the monitor definition", "Monitor ID", m.GetId())
+		return ""
+	}
+	return hash
+}
+
 func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
 	convertStateToStatus(m, status, now)
 	status.MonitorStateLastUpdateTime = &now
@@ -334,6 +464,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 	condition.SetErrorActiveConditions(status, now, currentErr)
 
 	if !apiequality.Semantic.DeepEqual(&datadogMonitor.Status, status) {
+		originalID := datadogMonitor.Status.ID
 		desiredStatus := status.DeepCopy()
 		datadogMonitor.Status = *desiredStatus.DeepCopy()
 		err := r.client.Status().Update(context.TODO(), datadogMonitor)
@@ -348,7 +479,12 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 					return getErr
 				}
 
-				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+				// A stale reconcile may have failed to create a resource whose ID
+				// has since been persisted. Keep the entire newer status rather
+				// than replacing it with that stale error. Still allow an intentional
+				// reset of the ID this reconcile observed (e.g. after a remote 404).
+				preserveLatestID := desiredStatus.ID == 0 && latest.Status.ID != 0 && latest.Status.ID != originalID
+				if preserveLatestID || apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
 					datadogMonitor.ResourceVersion = latest.ResourceVersion
 					datadogMonitor.Status = latest.Status
 					return nil
@@ -373,14 +509,16 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 
 			return ctrl.Result{}, err
 		}
-		// This is brittle; typically if a Spec or Status is updated in the API, the result gets requeued without additional action.
-		// However, sometimes apiequality.Semantic.DeepEqual() is false even when the API thinks they are equal (and no update is made).
-		// Thus, the result does not get requeued after entering this `if` block. To safeguard this, we will always requeue the result
-		// here. The danger of this is potentially requeueing twice for every status update. In most circumstances this is
-		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
-		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
-		// of groups stored in Status.TriggeredState should be conservative.
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+		// A status write usually emits an informer event, but the API server may
+		// consider the update a no-op even when Semantic.DeepEqual reported a
+		// difference. Ensure another reconciliation is scheduled in that case.
+		// Preserve any delay and priority selected above: in particular, lifecycle
+		// errors must retain their short retry and background work must remain low
+		// priority. Default to the state-polling period only when no schedule exists.
+		if result.RequeueAfter == 0 {
+			result.RequeueAfter = r.requeuePeriod
+		}
+		return result, nil
 	}
 
 	return result, nil
@@ -406,7 +544,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 
 			return false, err
 		}
-		logger.Info("Added required tags", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
+		logger.Info("Added required tags", "Monitor ID", datadogMonitor.Status.ID)
 
 		return true, nil
 	}

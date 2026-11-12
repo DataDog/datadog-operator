@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config/create"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
@@ -25,6 +26,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,7 +41,7 @@ import (
 const (
 	defaultSite           = "datadoghq.com"
 	pollInterval          = 10 * time.Second
-	remoteConfigUrlPrefix = "https://config."
+	remoteConfigURLPrefix = "https://config."
 	// InstallerStateUnknownConfigVersion prevents Fleet from interpreting
 	// unverified startup state as an authoritative uninstalled state.
 	InstallerStateUnknownConfigVersion = "unknown"
@@ -82,8 +84,8 @@ type RcServiceConfiguration struct {
 // RCClient is the interface for subscribing to RC product updates.
 type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
-	GetInstallerState() []*pbgo.PackageState
-	SetInstallerState(packages []*pbgo.PackageState)
+	GetInstallerPackages() []*pbgo.PackageState
+	SetInstallerPackages(packages []*pbgo.PackageState)
 }
 
 // Client returns a stable proxy for the underlying RC client.
@@ -120,20 +122,22 @@ func (r *RemoteConfigUpdater) wrapRemoteConfigCallback(owner *client.Client, cal
 	}
 }
 
-func (r *RemoteConfigUpdater) GetInstallerState() []*pbgo.PackageState {
+func (r *RemoteConfigUpdater) GetInstallerPackages() []*pbgo.PackageState {
 	r.clientMu.RLock()
 	defer r.clientMu.RUnlock()
 	if r.rcClient == nil {
 		return nil
 	}
-	return r.rcClient.GetInstallerState()
+	return r.rcClient.GetInstallerState().GetPackages()
 }
 
-func (r *RemoteConfigUpdater) SetInstallerState(packages []*pbgo.PackageState) {
+func (r *RemoteConfigUpdater) SetInstallerPackages(packages []*pbgo.PackageState) {
 	r.clientMu.RLock()
 	defer r.clientMu.RUnlock()
 	if r.rcClient != nil {
-		r.rcClient.SetInstallerState(packages)
+		installerStateCopy := proto.Clone(r.rcClient.GetInstallerState()).(*pbgo.ClientUpdater)
+		installerStateCopy.Packages = packages
+		r.rcClient.SetInstallerState(installerStateCopy)
 	}
 }
 
@@ -198,8 +202,12 @@ type agentConfigOrder struct {
 // TODO replace
 type dummyTelemetryReporter struct{}
 
-func (d dummyTelemetryReporter) IncRateLimit() {}
-func (d dummyTelemetryReporter) IncTimeout()   {}
+func (d dummyTelemetryReporter) IncRateLimit()                                 {}
+func (d dummyTelemetryReporter) IncTimeout()                                   {}
+func (d dummyTelemetryReporter) IncConfigSubscriptionsConnectedCounter()       {}
+func (d dummyTelemetryReporter) IncConfigSubscriptionsDisconnectedCounter()    {}
+func (d dummyTelemetryReporter) SetConfigSubscriptionsActive(value int)        {}
+func (d dummyTelemetryReporter) SetConfigSubscriptionClientsTracked(value int) {}
 
 func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	apiKey := creds.APIKey
@@ -263,11 +271,14 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		r.logger.Error(err, "Failed to create Remote Configuration client")
 		return err
 	}
-	rcClient.SetInstallerState([]*pbgo.PackageState{
-		{
-			Package:             "datadog-operator",
-			StableVersion:       version.Version,
-			StableConfigVersion: r.initialInstallerConfigVersion(),
+	rcClient.SetInstallerState(&pbgo.ClientUpdater{
+		Tags: updaterTags,
+		Packages: []*pbgo.PackageState{
+			{
+				Package:             "datadog-operator",
+				StableVersion:       version.Version,
+				StableConfigVersion: r.initialInstallerConfigVersion(),
+			},
 		},
 	})
 	r.clientMu.Lock()
@@ -298,7 +309,7 @@ func (r *RemoteConfigUpdater) initialInstallerConfigVersion() string {
 func (r *RemoteConfigUpdater) newUpdaterClient(configFetcher client.ConfigFetcher, updaterTags []string) (*client.Client, error) {
 	return newRemoteConfigClient(
 		configFetcher,
-		client.WithUpdater(updaterTags...),
+		client.WithUpdater(),
 		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
@@ -316,7 +327,7 @@ func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
 	if r.rcClient == nil || r.rcService == nil {
-		return errors.New("Remote Configuration client is not running")
+		return errors.New("Remote Configuration client is not running") //nolint:staticcheck // Remote Configuration is a product name.
 	}
 	if slices.Equal(r.updaterTags, updaterTags) {
 		return nil
@@ -379,16 +390,16 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context, includeReadine
 
 // configureService fills the configuration needed to start the rc service
 func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint string) error {
-	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	cfg := create.NewConfig("datadog")
 
-	cfg.SetWithoutSource("api_key", apiKey)
-	cfg.SetWithoutSource("site", site)
-	cfg.SetWithoutSource("remote_configuration.config_root", configRoot)
-	cfg.SetWithoutSource("remote_configuration.director_root", directorRoot)
+	cfg.SetDefault("api_key", apiKey)
+	cfg.SetDefault("site", site)
+	cfg.SetDefault("remote_configuration.config_root", configRoot)
+	cfg.SetDefault("remote_configuration.director_root", directorRoot)
 	hostname, _ := os.Hostname()
 
 	if endpoint == "" {
-		endpoint = getEndpoint(remoteConfigUrlPrefix, site)
+		endpoint = getEndpoint(remoteConfigURLPrefix, site)
 	}
 
 	// TODO consider different dir

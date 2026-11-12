@@ -15,19 +15,24 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -42,6 +47,10 @@ const (
 	resourcesName      = "foo"
 	resourcesNamespace = "bar"
 )
+
+func lowPriorityResult(requeueAfter time.Duration) reconcile.Result {
+	return reconcile.Result{RequeueAfter: requeueAfter, Priority: ptr.To(handler.LowPriority)}
+}
 
 type conflictOnceClient struct {
 	client.Client
@@ -129,7 +138,9 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("created-status-conflict"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
+	r.apiReader = r.client
 
 	dm := genericDatadogMonitor(r.client)
 	dm.Finalizers = []string{datadogMonitorFinalizer}
@@ -140,7 +151,7 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 	conflictingClient.remainingConflicts.Store(1)
 	result, err := r.Reconcile(context.TODO(), dm)
 	assert.NoError(t, err)
-	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, lowPriorityResult(defaultRequeuePeriod), result)
 	assert.Equal(t, int32(0), conflictingClient.remainingConflicts.Load(), "the injected status conflict should be consumed")
 
 	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(dm), dm))
@@ -151,6 +162,295 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 	_, err = r.Reconcile(context.TODO(), dm)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(1), createCount.Load(), "a status conflict must not cause a second Datadog create")
+}
+
+func TestRequeuePeriod(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("requeue-period-test")
+
+	assert.Equal(t, defaultRequeuePeriod, requeuePeriod(logger, 0))
+	assert.Equal(t, 2*time.Minute, requeuePeriod(logger, 2*time.Minute))
+}
+
+func TestNextRequeueAfter(t *testing.T) {
+	now := metav1.NewTime(time.Now())
+	lastForceSync := metav1.NewTime(now.Add(-50 * time.Minute))
+	created := metav1.NewTime(now.Add(-30 * time.Minute))
+
+	tests := []struct {
+		name               string
+		status             *datadoghqv1alpha1.DatadogMonitorStatus
+		statePollingPeriod time.Duration
+		forceSyncPeriod    time.Duration
+		want               time.Duration
+	}{
+		{
+			name:               "state polling is sooner",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{ID: 1, MonitorLastForceSyncTime: &now},
+			statePollingPeriod: time.Minute,
+			forceSyncPeriod:    time.Hour,
+			want:               time.Minute,
+		},
+		{
+			name:               "force sync is sooner",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{ID: 1, MonitorLastForceSyncTime: &lastForceSync},
+			statePollingPeriod: time.Hour,
+			forceSyncPeriod:    time.Hour,
+			want:               10 * time.Minute,
+		},
+		{
+			name:               "creation time is force sync fallback",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{ID: 1, Created: &created},
+			statePollingPeriod: time.Hour,
+			forceSyncPeriod:    time.Hour,
+			want:               30 * time.Minute,
+		},
+		{
+			name:               "resource without remote ID uses polling period",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{},
+			statePollingPeriod: 24 * time.Hour,
+			forceSyncPeriod:    time.Hour,
+			want:               24 * time.Hour,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, nextRequeueAfter(tt.status, now, tt.statePollingPeriod, tt.forceSyncPeriod))
+		})
+	}
+}
+
+func TestReconcileDatadogMonitor_CreateErrorUsesErrorRequeuePeriod(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "temporary failure", http.StatusInternalServerError)
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_5m):avg:system.load.1{*} > 100000",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "load test",
+			Tags:    []string{requiredTag},
+		},
+	}
+	kubeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("create-error-requeue"),
+		requeuePeriod: 24 * time.Hour,
+	}
+	r.apiReader = r.client
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, result)
+}
+
+func TestReconcileDatadogMonitor_PermanentCreateErrorUsesForceSyncBackstop(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, `{"errors":["invalid query"]}`, http.StatusBadRequest)
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_5m):avg:system.load.1{*} > 100000",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "load test",
+			Tags:    []string{requiredTag},
+		},
+	}
+	kubeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("permanent-create-error-backstop"),
+		requeuePeriod: 24 * time.Hour,
+	}
+	r.apiReader = r.client
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
+	assert.Equal(t, 0, dm.Status.ID, "the monitor must not be considered created")
+}
+
+func TestReconcileDatadogMonitor_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
+	// A spec fix bumps .metadata.generation, so the watch reconciles
+	// immediately regardless of the previous RequeueAfter.
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	var succeed atomic.Bool
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/validate"):
+			if succeed.Load() {
+				fmt.Fprint(w, `{}`)
+				return
+			}
+			http.Error(w, `{"errors":["invalid query"]}`, http.StatusBadRequest)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor":
+			fmt.Fprint(w, `{"id":5001,"name":"test monitor","query":"q","type":"metric alert","created":"2026-07-21T08:00:00Z","creator":{"email":"test@example.com"}}`)
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "not a valid query",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "load test",
+			Tags:    []string{requiredTag},
+		},
+	}
+	kubeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("spec-fix-after-permanent-error"),
+		requeuePeriod: 24 * time.Hour,
+	}
+	r.apiReader = r.client
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
+	assert.Equal(t, 0, dm.Status.ID, "the monitor must not be considered created while the query is invalid")
+
+	// Simulate the spec fix + watch-triggered reconcile.
+	dm.Spec.Query = "avg(last_5m):avg:system.load.1{*} > 100000"
+	succeed.Store(true)
+
+	result, err = r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, 5001, dm.Status.ID, "the fixed spec must be created on the very next reconcile")
+	assert.NotEqual(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result, "a successful reconcile must not stay on the error backstop cadence")
+}
+
+func TestReconcileDatadogMonitor_StatePollingUsesLowPriority(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor/12345" {
+			fmt.Fprint(w, `{"id":12345,"name":"test monitor","query":"q","type":"metric alert"}`)
+			return
+		}
+		http.Error(w, "unexpected request", http.StatusNotFound)
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+
+	requeuePeriod := 2 * time.Minute
+	now := metav1.Now()
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.cpu.user{*} > 1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong",
+		},
+		Status: datadoghqv1alpha1.DatadogMonitorStatus{
+			ID:                         12345,
+			MonitorLastForceSyncTime:   &now,
+			MonitorStateLastUpdateTime: &metav1.Time{Time: now.Add(-2 * requeuePeriod)},
+		},
+	}
+	dm.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&dm.Spec)
+
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        client,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("state-polling-priority"),
+		requeuePeriod: requeuePeriod,
+	}
+	r.apiReader = r.client
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: requeuePeriod, Priority: ptr.To(handler.LowPriority)}, result)
 }
 
 func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
@@ -206,7 +506,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				loadFunc:            genericDatadogMonitor,
 				firstReconcileCount: 3,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -320,7 +620,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -339,7 +639,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -358,7 +658,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -377,7 +677,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -396,7 +696,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -415,7 +715,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -434,7 +734,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -453,7 +753,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -471,7 +771,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				loadFunc:            testAuditMonitor,
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -489,7 +789,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				loadFunc:            testErrorTrackingMonitor,
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -526,6 +826,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
+			// Unsupported type: no longer retried on the fast error cadence.
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
@@ -568,7 +869,9 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),
+				requeuePeriod: defaultRequeuePeriod,
 			}
+			r.apiReader = r.client
 			_ = testAuth
 
 			// First monitor action
@@ -654,7 +957,9 @@ func TestReconcileDatadogMonitor_CredentialRefresh(t *testing.T) {
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("credential-refresh-test"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
+	r.apiReader = r.client
 
 	dm := genericDatadogMonitor(r.client)
 
@@ -1269,7 +1574,9 @@ func TestReconcileDatadogMonitor_RecreatesOnOutOfBandDelete(t *testing.T) {
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("recreate-on-404"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
+	r.apiReader = r.client
 
 	dm := genericDatadogMonitor(r.client)
 
@@ -1367,7 +1674,9 @@ func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("clears-id-on-update-404"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
+	rec.apiReader = rec.client
 
 	dm := genericDatadogMonitor(rec.client)
 
@@ -1392,4 +1701,157 @@ func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
 	rec.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
 
 	assert.Equal(t, 0, dm.Status.ID, "status.ID should be cleared after update returns 404 so next reconcile recreates")
+}
+
+// Model a reconcile reading an old cache entry before another status write is
+// visible. The fake API server enforces resource versions, so the stale write
+// conflicts and the retry reads the newer status.
+func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		originalID     int
+		latestID       int
+		preserveLatest bool
+	}{
+		{name: "failed stale create preserves newly stored ID", originalID: 0, latestID: 12345, preserveLatest: true},
+		{name: "intentional reset of observed ID is allowed", originalID: 12345, latestID: 12345},
+		{name: "stale reset preserves replacement ID", originalID: 12345, latestID: 67890, preserveLatest: true},
+		{name: "ID-less error status can still be updated", originalID: 0, latestID: 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build()
+			instance := &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{Name: "stale-status", Namespace: "default"},
+			}
+			assert.NoError(t, c.Create(ctx, instance))
+			instance.Status.ID = tt.originalID
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			stale := instance.DeepCopy()
+
+			instance.Status.ID = tt.latestID
+			instance.Status.CurrentHash = "latest-successful-hash"
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			latestStatus := instance.Status.DeepCopy()
+			latestVersion := instance.ResourceVersion
+
+			desired := stale.Status.DeepCopy()
+			desired.ID = 0
+			desired.CurrentHash = "stale-attempt-hash"
+			r := &Reconciler{client: c, requeuePeriod: defaultRequeuePeriod}
+			scheduled := ctrl.Result{RequeueAfter: time.Minute}
+			result, err := r.updateStatusIfNeeded(logf.Log, stale, metav1.Now(), desired, fmt.Errorf("Duplicate of an existing monitor_id"), scheduled)
+			assert.NoError(t, err)
+			assert.Equal(t, scheduled, result)
+			assert.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(instance), instance))
+			if tt.preserveLatest {
+				assert.Equal(t, tt.latestID, instance.Status.ID)
+				assert.True(t, assert.ObjectsAreEqual(*latestStatus, instance.Status), "preserve the entire newer status, including conditions and hash")
+				assert.Equal(t, latestVersion, instance.ResourceVersion, "skipping must not perform a status write")
+			} else {
+				assert.Equal(t, 0, instance.Status.ID)
+				assert.Equal(t, desired.CurrentHash, instance.Status.CurrentHash)
+			}
+			assert.True(t, assert.ObjectsAreEqual(instance.Status, stale.Status), "refresh the caller's status too")
+			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
+		})
+	}
+}
+
+// A stale informer object must never create a second remote resource or write
+// its stale status over an ID already persisted in the API server.
+func TestReconcile_PreCreateAPIRead(t *testing.T) {
+	scheme.Scheme.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	for _, tc := range []struct {
+		name     string
+		oldID    bool
+		readErr  bool
+		missing  bool
+		replaced bool
+		deleting bool
+	}{
+		{name: "stale ID-less cache"},
+		{name: "stale ID during remote 404 recreation", oldID: true},
+		{name: "API read fails", readErr: true},
+		{name: "object disappeared", missing: true},
+		{name: "object replaced", replaced: true},
+		{name: "object deleting", deleting: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var createCalls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method == http.MethodPost {
+					createCalls.Add(1)
+				}
+				http.Error(w, "404 Not Found", http.StatusNotFound)
+			}))
+			defer server.Close()
+			t.Setenv("DD_URL", server.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			ctx := context.Background()
+			stale := genericDatadogMonitor(fake.NewClientBuilder().Build())
+			stale.UID = "original"
+			stale.ResourceVersion = "1"
+			stale.Finalizers = []string{datadogMonitorFinalizer}
+			if tc.oldID {
+				stale.Status.ID = 123
+			}
+			statusWrites := 0
+			cachedClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale).
+				WithInterceptorFuncs(interceptor.Funcs{
+					SubResourceUpdate: func(ctx context.Context, c client.Client, subresource string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+						statusWrites++
+						return c.SubResource(subresource).Update(ctx, obj, opts...)
+					},
+				}).Build()
+			live := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale.DeepCopy()).Build()
+			latest := stale.DeepCopy()
+			latest.Status.ID = 456
+			require.NoError(t, live.Status().Update(ctx, latest))
+			if tc.missing {
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+			}
+			if tc.replaced {
+				latest.UID = "replacement"
+				latest.Status.ID = 0
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(latest).Build()
+			}
+			if tc.deleting {
+				require.NoError(t, live.Delete(ctx, latest))
+			}
+			readErr := fmt.Errorf("API server unavailable")
+			reader := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(ctx context.Context, _ client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if tc.readErr {
+						return readErr
+					}
+					return live.Get(ctx, key, obj, opts...)
+				},
+			}).Build()
+			r := NewReconciler(cachedClient, config.NewCredentialManager(cachedClient), scheme.Scheme,
+				logf.Log, record.NewFakeRecorder(10), false, nil, ReconcilerOptions{APIReader: reader})
+			result, err := r.Reconcile(ctx, stale)
+			if tc.readErr {
+				require.ErrorIs(t, err, readErr)
+			} else {
+				require.NoError(t, err)
+			}
+			if !tc.readErr && !tc.missing {
+				require.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+			}
+			require.Zero(t, createCalls.Load())
+			require.Zero(t, statusWrites, "pre-create skip and read-error paths must not write stale status")
+			if !tc.missing {
+				stored := &datadoghqv1alpha1.DatadogMonitor{}
+				require.NoError(t, live.Get(ctx, client.ObjectKeyFromObject(latest), stored))
+				require.Equal(t, latest.Status.ID, stored.Status.ID)
+			}
+		})
+	}
 }

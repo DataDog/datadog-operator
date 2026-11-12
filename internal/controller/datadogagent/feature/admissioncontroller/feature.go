@@ -8,6 +8,7 @@ package admissioncontroller
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -46,6 +47,7 @@ type admissionControllerFeature struct {
 	localServiceName        string
 	failurePolicy           string
 	registry                string
+	registryAllowList       []string
 	serviceAccountName      string
 	owner                   metav1.Object
 	networkPolicy           v2alpha1.NetworkPolicyFlavor
@@ -56,8 +58,6 @@ type admissionControllerFeature struct {
 	kubernetesAdmissionEvents *KubernetesAdmissionEventConfig
 
 	probeConfig *ProbeConfig
-
-	csiDriverEnabled bool
 }
 
 type ValidationConfig struct {
@@ -92,9 +92,7 @@ type ProbeConfig struct {
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
-	return &admissionControllerFeature{
-		csiDriverEnabled: options.DatadogCSIDriverEnabled,
-	}
+	return &admissionControllerFeature{}
 }
 
 // ID returns the ID of the Feature
@@ -132,6 +130,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		} else if ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
 			f.registry = *ddaSpec.Global.Registry
 		}
+		f.registryAllowList = ac.RegistryAllowList
 		// agent communication mode set by user
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
 			f.agentCommunicationMode = *ac.AgentCommunicationMode
@@ -400,6 +399,13 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerRegistryName,
 			Value: f.registry,
+		})
+	}
+
+	if len(f.registryAllowList) > 0 {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAdmissionControllerRegistryAllowList,
+			Value: strings.Join(f.registryAllowList, ","),
 		})
 	}
 

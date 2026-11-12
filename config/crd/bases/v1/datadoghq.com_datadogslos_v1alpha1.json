@@ -15,6 +15,7 @@
     },
     "spec": {
       "additionalProperties": false,
+      "description": "DatadogSLOSpec defines the desired state of a Datadog service level objective.",
       "properties": {
         "controllerOptions": {
           "additionalProperties": false,

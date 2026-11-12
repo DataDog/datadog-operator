@@ -46,7 +46,7 @@ func defaultCapabilities() []corev1.Capability {
 	}
 }
 
-func buildSeccompSetupInitContainer(image string, loggingSeccomp bool) corev1.Container {
+func buildSeccompSetupInitContainer(image string, loggingSeccomp bool, selinuxType string) corev1.Container {
 	dst := fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image, loggingSeccomp))
 	var command []string
 	if loggingSeccomp {
@@ -63,6 +63,9 @@ func buildSeccompSetupInitContainer(image string, loggingSeccomp bool) corev1.Co
 		Name:    string(apicommon.HostProfilerSeccompSetupContainerName),
 		Image:   image,
 		Command: command,
+		SecurityContext: &corev1.SecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{Type: selinuxType},
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			common.GetVolumeMountForSeccomp(),
 		},

@@ -161,6 +161,28 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				},
 				VolumeMounts: volumeMountsForInitConfig(),
 			},
+			{
+				// Seed the conf.d overlay with the packaged check assets from
+				// the agent image (e.g. SNMP profiles) while dropping default
+				// check configs, so cluster checks that rely on those assets
+				// (such as SNMP profile autodetection) work on the runner. This
+				// container intentionally does not mount the config or
+				// remove-corechecks volumes over /etc/datadog-agent/conf.d so it
+				// can read the image's packaged conf.d.
+				Name:    initCopyCheckAssetsContainerName,
+				Image:   clusterChecksRunnerImage(),
+				Command: []string{"bash", "-c"},
+				Args: []string{
+					copyCheckAssetsCmd,
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					common.GetVolumeMountForRmCorechecksInit(),
+				},
+				SecurityContext: &corev1.SecurityContext{
+					ReadOnlyRootFilesystem:   new(true),
+					AllowPrivilegeEscalation: new(false),
+				},
+			},
 		},
 		Containers: []corev1.Container{
 			{
@@ -238,6 +260,10 @@ func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []cor
 			Value: "false",
 		},
 		{
+			Name:  common.DDServiceDiscoveryEnabled,
+			Value: "false",
+		},
+		{
 			Name:  common.DDProcessCollectionEnabled,
 			Value: "false",
 		},
@@ -274,7 +300,7 @@ func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []cor
 		})
 	}
 
-	return envVars
+	return append(envVars, component.JemallocEnvVars(dda, component.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName))...)
 }
 
 // DefaultAffinity returns the pod anti affinity of the cluster checks runners

@@ -94,6 +94,7 @@ type apmFeature struct {
 
 type instrumentationConfig struct {
 	enabled            bool
+	onDemand           bool
 	enabledNamespaces  []string
 	disabledNamespaces []string
 	libVersions        map[string]string
@@ -157,7 +158,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	f.nodeAPMEnabled = shouldEnableAPM(apm)
-	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 	// Node APM controls trace-agent configuration and node-scoped dependencies.
 	if f.nodeAPMEnabled {
@@ -200,6 +201,11 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if shouldConfigureSSI(apm, ddaSpec) {
 		f.singleStepInstrumentation = &instrumentationConfig{}
 		f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+		// Unset OnDemand matches the Agent/Helm default (true).
+		f.singleStepInstrumentation.onDemand = true
+		if apm.SingleStepInstrumentation.OnDemand != nil {
+			f.singleStepInstrumentation.onDemand = apiutils.BoolValue(apm.SingleStepInstrumentation.OnDemand)
+		}
 		f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 		f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 		f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
@@ -398,6 +404,10 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			Name:  DDAPMInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
 		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAPMInstrumentationOnDemand,
+			Value: apiutils.BoolToString(&f.singleStepInstrumentation.onDemand),
+		})
 
 		if f.shouldSetCustomInjectorImage() {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
@@ -586,7 +596,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		})
 		socketVol, socketVolMount := volume.GetVolumes(apmSocketVolumeName, udsHostFolder, apmSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
-		socketVol.VolumeSource.HostPath.Type = &volType
+		socketVol.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 	}

@@ -71,7 +71,7 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 }
 
 func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
-	apiKey, requestURL, err := sm.getApiKeyAndURL()
+	apiKey, requestURL, err := sm.getAPIKeyAndURL()
 	if err != nil {
 		sm.logger.V(1).Info("Could not get credentials", "error", err)
 		return nil, err
@@ -109,7 +109,7 @@ func (sm *SharedMetadata) GetOrCreateClusterUID(ctx context.Context) (string, er
 
 // getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
 // and sets the cluster name from the operator or DDA in the SharedMetadata struct
-func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
+func (sm *SharedMetadata) getAPIKeyAndURL() (*string, *string, error) {
 	creds, err := sm.credsManager.GetCredsWithDDAFallback(sm.getDatadogAgent)
 	if err != nil {
 		return nil, nil, err
@@ -150,7 +150,7 @@ func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	return &ddaList.Items[0], nil
 }
 
-// GetBaseHeaders returns the common HTTP headers for API requests
+// GetHeaders returns the common HTTP headers for API requests.
 func (sm *SharedMetadata) GetHeaders(apiKey string) http.Header {
 	header := http.Header{}
 	header.Set(apiHTTPHeaderKey, apiKey)

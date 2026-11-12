@@ -8,11 +8,18 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 type objectConfig struct {
@@ -42,6 +49,7 @@ func Test_CacheConfig(t *testing.T) {
 				DatadogAgentProfileEnabled:    true,
 				DatadogDashboardEnabled:       true,
 				DatadogGenericResourceEnabled: true,
+				DatadogBYOCClusterEnabled:     true,
 				DatadogCSIDriverEnabled:       true,
 			},
 
@@ -54,21 +62,79 @@ func Test_CacheConfig(t *testing.T) {
 				dashboardWatchNamespaceEnvVar:       "dashboardNs",
 				genericResourceWatchNamespaceEnvVar: "genericNs",
 				csiDriverWatchNamespaceEnvVar:       "csiDriverNs",
+				byocClusterWatchNamespaceEnvVar:     "byocNs",
 			},
 
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
-				agentObj:           {configured: true, namespaces: []string{"agentNs"}},
-				dashboardObj:       {configured: true, namespaces: []string{"dashboardNs"}},
-				genericResourceObj: {configured: true, namespaces: []string{"genericNs"}},
-				monitorObj:         {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
-				sloObj:             {configured: true, namespaces: []string{"nsWithSpace"}},
-				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
-				podObj:             {configured: true, namespaces: []string{"agentNs"}},
-				nodeObj:            {configured: true, namespaces: nil},
-				csiDriverObj:       {configured: true, namespaces: []string{"csiDriverNs"}},
-				csiDaemonSetObj:    {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
+				agentObj:              {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:        {configured: true, namespaces: []string{"byocNs"}},
+				workerObj:             {configured: true, namespaces: []string{"byocNs"}},
+				dashboardObj:          {configured: true, namespaces: []string{"dashboardNs"}},
+				genericResourceObj:    {configured: true, namespaces: []string{"genericNs"}},
+				monitorObj:            {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
+				sloObj:                {configured: true, namespaces: []string{"nsWithSpace"}},
+				profileObj:            {configured: true, namespaces: []string{"profileNs"}},
+				podObj:                {configured: true, namespaces: []string{"agentNs"}},
+				nodeObj:               {configured: true, namespaces: nil},
+				csiDriverObj:          {configured: true, namespaces: []string{"csiDriverNs"}},
+				csiDaemonSetObj:       {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
+				&appsv1.StatefulSet{}: {configured: true, namespaces: []string{"byocNs", "agentNs"}},
+			},
+		},
+		{
+			name: "BYOCCluster in different namespace than Agent; falls back to WATCH_NAMESPACE and owned resources cached in both",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:       true,
+				DatadogBYOCClusterEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:      "byocNs",
+				AgentWatchNamespaceEnvVar: "agentNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:                                 {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:                           {configured: true, namespaces: []string{"byocNs"}},
+				workerObj:                                {configured: true, namespaces: []string{"byocNs"}},
+				&corev1.ConfigMap{}:                      {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&corev1.ServiceAccount{}:                 {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&corev1.Service{}:                        {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&appsv1.Deployment{}:                     {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&appsv1.StatefulSet{}:                    {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&autoscalingv2.HorizontalPodAutoscaler{}: {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&policyv1.PodDisruptionBudget{}:          {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+			},
+		},
+		{
+			name: "BYOCCluster disabled; BYOC CR entries and owned-type caches are absent for non-BYOC users",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:       true,
+				DatadogBYOCClusterEnabled: false,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:      "byocNs",
+				AgentWatchNamespaceEnvVar: "agentNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:                                 {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:                           {configured: false},
+				workerObj:                                {configured: false},
+				&corev1.ConfigMap{}:                      {configured: false},
+				&corev1.ServiceAccount{}:                 {configured: false},
+				&corev1.Service{}:                        {configured: false},
+				&appsv1.Deployment{}:                     {configured: false},
+				&appsv1.StatefulSet{}:                    {configured: false},
+				&autoscalingv2.HorizontalPodAutoscaler{}: {configured: false},
+				&policyv1.PodDisruptionBudget{}:          {configured: false},
 			},
 		},
 		{
@@ -313,7 +379,13 @@ func TestIncludeWatchNamespacePreservesClusterWideWatch(t *testing.T) {
 }
 
 func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig objectConfig, cacheOptions cache.Options) {
-	byObjectOptions, ok := cacheOptions.ByObject[resource]
+	var byObjectOptions cache.ByObject
+	var ok bool
+	for obj, options := range cacheOptions.ByObject {
+		if reflect.TypeOf(obj) == reflect.TypeOf(resource) {
+			byObjectOptions, ok = options, true
+		}
+	}
 	assert.Equal(t, wantConfig.configured, ok)
 	if wantConfig.configured {
 		if wantConfig.namespaces == nil {
@@ -342,4 +414,97 @@ func TestCacheConfigStripsManagedFields(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Same(t, obj, transformed)
 	assert.Nil(t, obj.ManagedFields)
+}
+
+func TestCacheConfigNodeTransform(t *testing.T) {
+	node := func() *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{"kubernetes.io/os": "linux"}},
+			Spec:       corev1.NodeSpec{ProviderID: "nebius://computeinstance-x"},
+			Status:     corev1.NodeStatus{NodeInfo: corev1.NodeSystemInfo{OSImage: "Talos (v1.13.7)"}},
+		}
+	}
+
+	transformNode := func(t *testing.T, opts WatchOptions) *corev1.Node {
+		t.Helper()
+		byObject, ok := CacheOptions(logf.Log.WithName(t.Name()), opts).ByObject[nodeObj]
+		if !assert.True(t, ok) || !assert.NotNil(t, byObject.Transform) {
+			return nil
+		}
+		transformed, err := byObject.Transform(node())
+		assert.NoError(t, err)
+		return transformed.(*corev1.Node)
+	}
+
+	// Provider detection identifies Talos from osImage alone and Nebius from
+	// providerID alone, and its node-list fallback is wired whenever this cache
+	// exists — for any of the three options below, not just introspection. So every
+	// one of them must keep both fields.
+	for name, opts := range map[string]WatchOptions{
+		"introspection":      {IntrospectionEnabled: true},
+		"profiles":           {DatadogAgentProfileEnabled: true},
+		"untaint controller": {UntaintControllerEnabled: true},
+	} {
+		t.Run(name+" keeps Status.NodeInfo.OSImage", func(t *testing.T) {
+			got := transformNode(t, opts)
+			if got == nil {
+				return
+			}
+			assert.Equal(t, "Talos (v1.13.7)", got.Status.NodeInfo.OSImage)
+			assert.Equal(t, kubernetes.TalosProvider, kubernetes.ClusterProviderFromNode(got))
+		})
+		t.Run(name+" keeps Spec.ProviderID", func(t *testing.T) {
+			got := transformNode(t, opts)
+			if got == nil {
+				return
+			}
+			assert.Equal(t, "nebius://computeinstance-x", got.Spec.ProviderID)
+		})
+	}
+}
+
+// TestCacheConfigPodTransformComponentHealthGating verifies that when the
+// wait-for-CSI branch widens the Pod cache to a merged namespace set and drops
+// the informer-level label selector, the Transform still only retains the
+// memory-heavy status fields (container statuses, phase, etc.) for the managed
+// component pods (DCA/CLC), not for every Pod that now passes through it (e.g.
+// CSI driver node-server pods).
+func TestCacheConfigPodTransformComponentHealthGating(t *testing.T) {
+	opts := WatchOptions{
+		UntaintControllerEnabled:          true,
+		UntaintControllerWaitForCSIDriver: true,
+		ComponentHealthEnabled:            true,
+	}
+	os.Clearenv()
+	os.Setenv(AgentWatchNamespaceEnvVar, "agentNs")
+	os.Setenv(csiDriverWatchNamespaceEnvVar, "csiNs")
+
+	byObject, ok := CacheOptions(logf.Log.WithName(t.Name()), opts).ByObject[podObj]
+	if !assert.True(t, ok) || !assert.NotNil(t, byObject.Transform) {
+		return
+	}
+
+	now := metav1.Now()
+	podWithStatus := func(component string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels:            map[string]string{common.AgentDeploymentComponentLabelKey: component},
+				DeletionTimestamp: &now,
+			},
+			Status: corev1.PodStatus{
+				Phase:             corev1.PodRunning,
+				ContainerStatuses: []corev1.ContainerStatus{{Name: "container"}},
+			},
+		}
+	}
+
+	dca, err := byObject.Transform(podWithStatus(constants.DefaultClusterAgentResourceSuffix))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, dca.(*corev1.Pod).Status.ContainerStatuses, "DCA pod should keep container statuses")
+	assert.NotNil(t, dca.(*corev1.Pod).DeletionTimestamp, "DCA pod should keep DeletionTimestamp so the reconciler can detect terminating pods")
+
+	csi, err := byObject.Transform(podWithStatus("datadog-csi-driver-node-server"))
+	assert.NoError(t, err)
+	assert.Empty(t, csi.(*corev1.Pod).Status.ContainerStatuses, "non-managed-component pod should not keep container statuses")
+	assert.Empty(t, csi.(*corev1.Pod).Status.Phase, "non-managed-component pod should not keep phase")
 }

@@ -7,6 +7,9 @@ package common
 
 // This file tracks constants used in features, component default code
 
+// DDAgentUserID is the UID/GID used by the Datadog Agent containers when running as non-root.
+const DDAgentUserID int64 = 100
+
 // Resource names
 const (
 	DatadogTokenOldResourceName          = "datadogtoken"            // Kept for backward compatibility with agent <7.37.0
@@ -28,7 +31,7 @@ const (
 // APM Telemetry
 const (
 	APMTelemetryConfigMapName  = "datadog-apm-telemetry-kpi"
-	APMTelemetryInstallIdKey   = "install_id"
+	APMTelemetryInstallIDKey   = "install_id"
 	APMTelemetryInstallTimeKey = "install_time"
 	APMTelemetryInstallTypeKey = "install_type"
 )
@@ -61,6 +64,17 @@ const (
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
 	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
+	// OpenShiftSCCConditionType reports whether the node agent's ServiceAccount may use the
+	// SecurityContextConstraints it needs to be admitted on OpenShift. Only set on OpenShift.
+	OpenShiftSCCConditionType = "OpenShiftSCC"
+	// DeprecatedConfigInUseConditionType reports that the DatadogAgent still relies on a
+	// deprecated configuration surface, and names the replacement. It is informational:
+	// the deprecated configuration keeps working until the release that removes it.
+	DeprecatedConfigInUseConditionType = "DeprecatedConfigInUse"
+	// ExperimentConfigStrandedConditionType reports that a running experiment
+	// was aborted because its rollback baseline could not be proven safe
+	// (TerminationReason baseline_missing or baseline_not_found).
+	ExperimentConfigStrandedConditionType = "ExperimentConfigStranded"
 )
 
 const (
@@ -82,6 +96,15 @@ const (
 	ConfigVolumePath  = "/etc/datadog-agent"
 	ChecksdVolumeName = "checksd"
 	ChecksdVolumePath = "/checks.d"
+
+	// RmCorechecksVolumeName is the volume that overlays the agent's conf.d
+	// directory on the cluster checks runner to prevent default core checks
+	// from running there.
+	RmCorechecksVolumeName = "remove-corechecks"
+	// RmCorechecksConfdInitPath is the scratch mount path used by the init
+	// container that seeds the remove-corechecks overlay with the packaged
+	// conf.d assets (e.g. SNMP profiles) from the agent image.
+	RmCorechecksConfdInitPath = "/opt/conf.d-overlay"
 
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"
@@ -113,6 +136,13 @@ const (
 	DebugfsVolumeName = "debugfs"
 	// same path on host and container
 	DebugfsPath = "/sys/kernel/debug"
+
+	TracefsVolumeName = "tracefs"
+	// same path on host and container. Only mounted for providers whose kernel
+	// exposes tracefs as a standalone mount instead of nesting it under
+	// DebugfsPath (a hostPath mount of debugfs does not pull in a sibling
+	// tracefs mount).
+	TracefsPath = "/sys/kernel/tracing"
 
 	ModulesVolumeName = "modules"
 	// same path on host and container

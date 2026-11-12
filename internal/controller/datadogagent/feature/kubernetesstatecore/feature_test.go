@@ -6,16 +6,21 @@
 package kubernetesstatecore
 
 import (
+	"slices"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -143,12 +148,126 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:  ksmClusterAgentApiServerCacheWantFunc(),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=default (explicit) preserves existing behavior",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeDefault).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet, default conf",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFuncWithPodsOnNode),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet, single agent container",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithSingleContainerStrategy(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFuncWithPodsOnNode),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet + user-supplied conf still mounts node-side check",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithKSMCustomConf(customData).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFuncWithPodsOnNode),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet but cluster-agent image < 7.82 -> fall back",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.81.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet but node-agent image < 7.82 -> fall back",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithNodeAgentImage("gcr.io/datadoghq/agent:7.81.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster checks enabled, shardingEnabled=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithKSMShardingEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: ksmClusterAgentWantFunc(
+				&corev1.EnvVar{
+					Name:  DDKubeStateMetricsShardingEnabled,
+					Value: "true",
+				},
+			),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster check runners disabled, shardingEnabled=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, false).
+				WithKSMShardingEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster check runners enabled, cluster agent image < 7.83.0 shardingEnabled=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithKSMShardingEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/agent:7.81.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster check runners enabled, shardingEnabled=false (explicit)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithKSMShardingEnabled(false).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildKSMFeature)
 }
 
-func ksmClusterAgentWantFunc() *test.ComponentTest {
+func ksmClusterAgentWantFunc(envOverrides ...*corev1.EnvVar) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -164,8 +283,10 @@ func ksmClusterAgentWantFunc() *test.ComponentTest {
 					Value: "-kube-state-metrics-core-config",
 				},
 			}
-			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 
+			want = append(want, envOverrides...)
+
+			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.Empty(t, annotations)
 		},
@@ -183,14 +304,22 @@ func ksmClusterAgentApiServerCacheWantFunc() *test.ComponentTest {
 }
 
 func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName, false)
 }
 
 func ksmAgentSingleAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName, false)
 }
 
-func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommon.AgentContainerName) {
+func ksmAgentNodeWantFuncWithPodsOnNode(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName, true)
+}
+
+func ksmAgentSingleAgentWantFuncWithPodsOnNode(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName, true)
+}
+
+func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommon.AgentContainerName, wantPodsOnNodeMount bool) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 
@@ -201,4 +330,153 @@ func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, ag
 		},
 	}
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
+
+	// When PodCollectionMode=node_kubelet is active the operator must mount the
+	// node-side pods-only ConfigMap into this container. When it isn't active
+	// the container must NOT have that volume/mount.
+	gotMount := findVolumeMount(mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName], ksmCorePodsOnNodeVolumeName)
+	gotVolume := findVolume(mgr.VolumeMgr.Volumes, ksmCorePodsOnNodeVolumeName)
+	if wantPodsOnNodeMount {
+		assert.NotNil(t, gotMount, "expected node-side KSM pods-on-node volume mount on container %s", agentContainerName)
+		assert.NotNil(t, gotVolume, "expected node-side KSM pods-on-node volume in pod spec")
+		if gotMount != nil {
+			assert.Equal(t, "/etc/datadog-agent/conf.d/kubernetes_state_core.d", gotMount.MountPath)
+			assert.True(t, gotMount.ReadOnly, "node-side KSM mount should be read-only")
+		}
+	} else {
+		assert.Nil(t, gotMount, "node-side KSM volume mount should NOT be present when podCollectionMode is unset/default")
+		assert.Nil(t, gotVolume, "node-side KSM volume should NOT be present when podCollectionMode is unset/default")
+	}
+}
+
+func findVolumeMount(mounts []*corev1.VolumeMount, name string) *corev1.VolumeMount {
+	for _, m := range mounts {
+		if m.Name == name {
+			return m
+		}
+	}
+	return nil
+}
+
+func findVolume(volumes []*corev1.Volume, name string) *corev1.Volume {
+	for _, v := range volumes {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
+}
+
+func Test_ksmFeature_DRARBAC(t *testing.T) {
+	tests := []struct {
+		name string
+		dda  *v2alpha1.DatadogAgent
+		want bool
+	}{
+		{
+			name: "cluster agent 7.85.0",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
+			want: true,
+		},
+		{
+			name: "cluster agent 7.85.0 release candidate",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0-rc.1").Build(),
+			want: true,
+		},
+		{
+			name: "cluster agent 7.84.3",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.84.3").Build(),
+			want: false,
+		},
+		{
+			name: "cluster agent unparseable tag fails closed",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:dev").Build(),
+			want: false,
+		},
+		{
+			name: "no image override uses bundled version",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+			want: utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+		{
+			name: "custom conf, cluster agent 7.85.0",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithKSMCustomConf(customData).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
+			want: true,
+		},
+		{
+			name: "cluster checks runner 7.85.0 with cluster agent 7.84.3",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.85.0").WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.84.3").Build(),
+			want: true,
+		},
+		{
+			name: "cluster checks runner 7.84.3 with cluster agent 7.85.0",
+			dda:  testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.84.3").WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").Build(),
+			want: false,
+		},
+		{
+			name: "cluster agent override without a tag keeps the bundled version",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)}),
+			want: utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+		{
+			name: "cluster agent override with an untagged name keeps the bundled version",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Name: "cluster-agent"}),
+			want: utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+		{
+			name: "cluster agent tag field 7.84.3",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Tag: "7.84.3"}),
+			want: false,
+		},
+		{
+			name: "cluster agent name with a registry port and tag 7.84.3",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/datadog/cluster-agent:7.84.3"}),
+			want: false,
+		},
+		{
+			name: "cluster agent unparseable tag field fails closed",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).Build(),
+				v2alpha1.ClusterAgentComponentName, v2alpha1.AgentImageConfig{Name: "cluster-agent", Tag: "dev"}),
+			want: false,
+		},
+		{
+			name: "cluster checks runner override without a tag keeps the bundled version",
+			dda: withImageOverride(testutils.NewDatadogAgentBuilder().WithKSMEnabled(true).WithClusterChecks(true, true).WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.84.3").Build(),
+				v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.AgentImageConfig{PullSecrets: &[]corev1.LocalObjectReference{{Name: "registry-secret"}}}),
+			want: utils.IsAboveMinVersion(images.AgentLatestVersion, draCollectorsMinVersion, new(false)),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildKSMFeature(nil).(*ksmFeature)
+			f.Configure(tt.dda, &tt.dda.Spec, nil)
+			assert.Equal(t, tt.want, f.draRBAC)
+
+			hasDRARule := false
+			for _, rule := range getRBACPolicyRules(collectorOptions{enableDRARBAC: f.draRBAC}) {
+				if slices.Contains(rule.APIGroups, rbac.ResourceAPIGroup) {
+					hasDRARule = true
+				}
+			}
+			assert.Equal(t, tt.want, hasDRARule)
+		})
+	}
+}
+
+// withImageOverride sets the image override of a component.
+func withImageOverride(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName, image v2alpha1.AgentImageConfig) *v2alpha1.DatadogAgent {
+	if dda.Spec.Override == nil {
+		dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+	override := dda.Spec.Override[component]
+	if override == nil {
+		override = &v2alpha1.DatadogAgentComponentOverride{}
+		dda.Spec.Override[component] = override
+	}
+	override.Image = &image
+	return dda
 }

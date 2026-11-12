@@ -8,6 +8,7 @@ package common
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -190,7 +191,7 @@ func TestValidateAnnotationsContent(t *testing.T) {
 				},
 				identifier: "ad.datadoghq.com/datadog-operator",
 			},
-			want:  []string{fmt.Sprintf("Annotation ad.datadoghq.com/datadog-operator.instances with value %s is not a valid JSON: invalid character '\\n' in string literal", invalidOpenmetricsInstance)},
+			want:  []string{fmt.Sprintf("Annotation ad.datadoghq.com/datadog-operator.instances with value %s is not a valid JSON: ", invalidOpenmetricsInstance)},
 			want1: true,
 		},
 		{
@@ -216,7 +217,7 @@ func TestValidateAnnotationsContent(t *testing.T) {
 				},
 				identifier: "ad.datadoghq.com/datadog-operator",
 			},
-			want:  []string{`Annotation ad.datadoghq.com/datadog-operator.logs with value [{"source":"operator","service":"datadog}] is not a valid JSON: unexpected end of JSON input`},
+			want:  []string{`Annotation ad.datadoghq.com/datadog-operator.logs with value [{"source":"operator","service":"datadog}] is not a valid JSON: `},
 			want1: true,
 		},
 		{
@@ -227,13 +228,21 @@ func TestValidateAnnotationsContent(t *testing.T) {
 				},
 				identifier: "ad.datadoghq.com/datadog-operator",
 			},
-			want:  []string{`Annotation ad.datadoghq.com/datadog-operator.tags with value [{service:datadog}] is not a valid JSON: invalid character 's' looking for beginning of object key string`},
+			want:  []string{`Annotation ad.datadoghq.com/datadog-operator.tags with value [{service:datadog}] is not a valid JSON: `},
 			want1: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := ValidateAnnotationsContent(tt.args.annotations, tt.args.identifier)
+			// Check our annotation context exactly, but only require a nonempty JSON
+			// diagnostic: encoding/json's error wording can change between Go versions.
+			for i, message := range got {
+				if prefix, diagnostic, found := strings.Cut(message, " is not a valid JSON: "); found {
+					assert.NotEmpty(t, diagnostic, "JSON validation error must include a diagnostic")
+					got[i] = prefix + " is not a valid JSON: "
+				}
+			}
 			assert.ElementsMatch(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
 		})

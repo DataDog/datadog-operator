@@ -7,6 +7,7 @@ package privateactionrunner
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -15,11 +16,14 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -42,8 +46,11 @@ type privateActionRunnerFeature struct {
 	logger                    logr.Logger
 	nodeEnabled               bool
 	nodeConfigData            string
+	splitEnabled              bool
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
+	packetCaptureConfig       packetCaptureConfig
+	packetCaptureConfigErr    error
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
@@ -57,6 +64,21 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
+// runnerAgentVersion returns the Agent version the node runner container runs.
+func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	image := images.GetLatestAgentImage()
+	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+		image = images.OverrideAgentImage(image, override.Image)
+	}
+	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
+	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
+}
+
+// kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
+// because Kubernetes Actions communicates through it. Leave the identity secret name to the
+// Agent so switching between Kubernetes Actions and annotation-based config reuses the identity.
+const kubernetesActionsDefaultConfigData = "private_action_runner:\n    enabled: true\n    self_enroll: true\n"
+
 // Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -65,6 +87,19 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
+		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
+		version := runnerAgentVersion(dda, ddaSpec)
+		// Split mode is the default unless explicitly disabled or the image is known to be too old.
+		f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
+		if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
+			f.splitEnabled = false
+		}
+		// An older Agent does not serve the capture socket, so the runner would
+		// dial a socket that never exists.
+		if f.packetCaptureConfig.enabled && !pkgutils.IsAboveMinVersion(version, packetCaptureMinVersion, new(true)) {
+			f.logger.Info("Agent is too old for Private Action Runner packet capture, not enabling it", "agentVersion", version, "minVersion", packetCaptureMinVersion)
+			f.packetCaptureConfig.enabled = false
+		}
 
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
@@ -73,22 +108,30 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			f.nodeConfigData = defaultConfigData
 		}
 
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.PrivateActionRunnerContainerName,
+		}
+		if f.packetCaptureConfig.enabled {
+			containers = append(containers, apicommon.SystemProbeContainerName)
+		}
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.CoreAgentContainerName,
-				apicommon.PrivateActionRunnerContainerName,
-			},
+			Containers: containers,
 		}
 	}
 
-	// Check for Cluster Agent configuration (annotation-based)
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
+	// Check for Cluster Agent configuration (annotation-based, or implied by Kubernetes Actions
+	// communicating through the Private Action Runner)
+	clusterAnnotationEnabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation)
+	if clusterAnnotationEnabled || featureutils.IsKubernetesActionsPAREnabled(ddaSpec) {
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
 			f.clusterConfigData = configData
-		} else {
+		} else if clusterAnnotationEnabled {
 			f.clusterConfigData = defaultConfigData
+		} else {
+			f.clusterConfigData = kubernetesActionsDefaultConfigData
 		}
 
 		clusterConfig, err := parsePrivateActionRunnerConfig(f.clusterConfigData)
@@ -158,7 +201,10 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		if f.clusterConfig.SelfEnroll {
+		// Provision secret permissions only for Kubernetes-backed self-enrollment.
+		selfEnroll := f.clusterConfig.SelfEnroll == nil || *f.clusterConfig.SelfEnroll
+		useK8sSecret := f.clusterConfig.IdentityUseK8sSecret == nil || *f.clusterConfig.IdentityUseK8sSecret
+		if selfEnroll && useK8sSecret {
 			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),
@@ -250,6 +296,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	if f.systemdConfigErr != nil {
 		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
 	}
+	if f.packetCaptureConfigErr != nil {
+		return fmt.Errorf("invalid Private Action Runner packet capture configuration: %w", f.packetCaptureConfigErr)
+	}
 
 	configMapName := f.getConfigMapName()
 
@@ -268,6 +317,59 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 
+	if f.splitEnabled {
+		runVolume := corev1.Volume{
+			Name: privateActionRunnerRunVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+		managers.Volume().AddVolume(&runVolume)
+		managers.VolumeMount().AddVolumeMountToContainer(&corev1.VolumeMount{
+			Name:      privateActionRunnerRunVolumeName,
+			MountPath: privateActionRunnerRunPath,
+		}, apicommon.PrivateActionRunnerContainerName)
+
+		coreEnvs := []*corev1.EnvVar{
+			{Name: DDPAREnabled, Value: "true"},
+			{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"},
+		}
+		nodeConfig, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
+		if err != nil {
+			return fmt.Errorf("invalid Private Action Runner configuration: %w", err)
+		}
+		if nodeConfig.TaskConcurrency != nil {
+			coreEnvs = append(coreEnvs, &corev1.EnvVar{Name: DDPARTaskConcurrency, Value: strconv.FormatInt(int64(*nodeConfig.TaskConcurrency), 10)})
+		}
+		for _, env := range coreEnvs {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, env)
+		}
+		for _, env := range []*corev1.EnvVar{
+			{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"},
+			{Name: "DD_PRIVATE_ACTION_RUNNER_EXTRA_CONFIG_PATH", Value: PrivateActionRunnerConfigPath},
+			{Name: "DD_PM_SOCKET_PATH", Value: privateActionRunnerSocketPath},
+		} {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, env)
+		}
+
+		podTemplate := managers.PodTemplateSpec()
+		if podTemplate.Spec.TerminationGracePeriodSeconds == nil || *podTemplate.Spec.TerminationGracePeriodSeconds < privateActionRunnerGracePeriod {
+			podTemplate.Spec.TerminationGracePeriodSeconds = new(privateActionRunnerGracePeriod)
+		}
+		for i := range podTemplate.Spec.Containers {
+			if podTemplate.Spec.Containers[i].Name == string(apicommon.PrivateActionRunnerContainerName) {
+				podTemplate.Spec.Containers[i].Command = []string{privateActionRunnerEntrypoint}
+				podTemplate.Spec.Containers[i].Args = nil
+				podTemplate.Spec.Containers[i].ReadinessProbe = &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						Exec: &corev1.ExecAction{Command: []string{privateActionRunnerProbe}},
+					},
+				}
+				break
+			}
+		}
+	}
+
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
 	managers.Volume().AddVolume(&procdirVol)
@@ -284,6 +386,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	f.systemdConfig.addVolumeMounts(managers)
+	f.packetCaptureConfig.addSocket(managers)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(

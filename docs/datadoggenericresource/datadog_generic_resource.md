@@ -55,6 +55,8 @@ A `DatadogGenericResource` object has two fields:
 | `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../../examples/datadoggenericresource/dashboard-sample.yaml)       |
 | `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../../examples/datadoggenericresource/slo-sample.yaml)                   |
 | `monitor_notification_rule` | v1.30.0        | https://docs.datadoghq.com/api/latest/monitors/create-a-monitor-notification-rule/    | [Notification rule manifest](../../examples/datadoggenericresource/notification-rule-sample.yaml) |
+| `slo_correction`          | v1.31.0          | https://docs.datadoghq.com/api/latest/service-level-objective-corrections/#create-an-slo-correction | [SLO correction manifest](../../examples/datadoggenericresource/slo-correction-sample.yaml) |
+| `software_catalog_entity` | v1.32.0          | https://docs.datadoghq.com/api/latest/software-catalog/#create-or-update-entity      | [Software Catalog entity manifest](../../examples/datadoggenericresource/software-catalog-entity-sample.yaml) |
 
 ## Prerequisites
 
@@ -179,7 +181,7 @@ The `DatadogGenericResource` controller exposes several tuning options for large
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. |
+| `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. `monitor` resources are only updated when the monitor in Datadog changed since the Operator last wrote it (tracked in `status.remoteDefinitionHash`). This comparison covers the monitor definition and every top-level `jsonSpec` field, so keep response-only fields such as `state`, `overall_state`, or `matching_downtimes` out of `jsonSpec`: they change without any edit and cause unnecessary updates. Monitors are updated on every check when `jsonSpec` sets `restriction_policy` or a field that Datadog does not return. Other resource types are updated on every check. |
 | `--datadogGenericResourceRequeuePeriod` / `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s` | Scheduled requeue interval for each `DatadogGenericResource` after a successful reconcile. On idle requeues, the controller also polls Datadog-side live state for resource types that expose it, currently `monitor` and `slo`. Accepts Go duration strings such as `30s` or `5m`. |
 | `--datadogGenericResourceMaxConcurrentReconciles` / `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` | Maximum number of `DatadogGenericResource` objects that the controller reconciles at the same time. |
 

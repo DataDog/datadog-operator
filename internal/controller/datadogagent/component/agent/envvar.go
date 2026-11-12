@@ -6,5 +6,7 @@
 package agent
 
 const (
-	DDContainerImageEnabled = "DD_CONTAINER_IMAGE_ENABLED"
+	DDContainerImageEnabled                  = "DD_CONTAINER_IMAGE_ENABLED"
+	DDPodName                                = "DD_POD_NAME"
+	DDRemoteAgentConfigStreamConsumerEnabled = "DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED"
 )

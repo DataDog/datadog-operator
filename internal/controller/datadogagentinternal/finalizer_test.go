@@ -44,6 +44,7 @@ func Test_handleFinalizer(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  "foo",
 			Name:       "bar",
+			Labels:     map[string]string{constants.ProfileLabelKey: "true"},
 			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
 		},
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
@@ -156,6 +157,117 @@ func Test_handleFinalizer(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotContains(t, currentNode.Labels, constants.ProfileLabelKey)
 	}
+}
+
+// Test_profilesCleanup checks which nodes lose the profile label.
+func Test_profilesCleanup(t *testing.T) {
+	tests := []struct {
+		name         string
+		profileName  string
+		wantLabelled map[string]string // node name -> expected profile label value ("" = no label)
+	}{
+		{
+			name:        "profile DDAI only cleans nodes of that profile",
+			profileName: "profile-a",
+			wantLabelled: map[string]string{
+				"node-a":       "",
+				"node-b":       "profile-b",
+				"node-default": "",
+			},
+		},
+		{
+			name:        "profile DDAI with no matching nodes leaves all labels",
+			profileName: "profile-deleted",
+			wantLabelled: map[string]string{
+				"node-a":       "profile-a",
+				"node-b":       "profile-b",
+				"node-default": "",
+			},
+		},
+		{
+			name:        "default DDAI cleans no nodes",
+			profileName: "",
+			wantLabelled: map[string]string{
+				"node-a":       "profile-a",
+				"node-b":       "profile-b",
+				"node-default": "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reconciler := reconcilerForFinalizerTest([]client.Object{
+				testutils.NewNode("node-a", map[string]string{constants.ProfileLabelKey: "profile-a"}),
+				testutils.NewNode("node-b", map[string]string{constants.ProfileLabelKey: "profile-b"}),
+				testutils.NewNode("node-default", nil),
+			})
+
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName))
+
+			for nodeName, want := range tt.wantLabelled {
+				node := &corev1.Node{}
+				assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: nodeName}, node))
+				assert.Equal(t, want, node.Labels[constants.ProfileLabelKey], nodeName)
+			}
+		})
+	}
+}
+
+// Test_profilesCleanup_emptyLabelValue checks that a node whose profile label is empty only loses it for an empty profile name.
+func Test_profilesCleanup_emptyLabelValue(t *testing.T) {
+	tests := []struct {
+		name        string
+		profileName string
+		wantLabel   bool
+	}{
+		{name: "empty profile name removes the empty label", profileName: "", wantLabel: false},
+		{name: "profile name keeps the empty label", profileName: "profile-a", wantLabel: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reconciler := reconcilerForFinalizerTest([]client.Object{
+				testutils.NewNode("node-empty", map[string]string{constants.ProfileLabelKey: ""}),
+			})
+
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName))
+
+			node := &corev1.Node{}
+			assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-empty"}, node))
+			if tt.wantLabel {
+				assert.Contains(t, node.Labels, constants.ProfileLabelKey)
+			} else {
+				assert.NotContains(t, node.Labels, constants.ProfileLabelKey)
+			}
+		})
+	}
+}
+
+// Test_finalizeDDAI_defaultDDAI checks that deleting a DDAI without a profile label leaves node profile labels alone.
+func Test_finalizeDDAI_defaultDDAI(t *testing.T) {
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:  "foo",
+			Name:       "default-ddai",
+			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
+		},
+	}
+	reconciler := reconcilerForFinalizerTest([]client.Object{
+		ddai,
+		testutils.NewNode("node-a", map[string]string{constants.ProfileLabelKey: "profile-a"}),
+		testutils.NewNode("node-default", nil),
+	})
+
+	assert.NoError(t, reconciler.finalizeDDAI(context.Background(), ddai))
+
+	nodeA := &corev1.Node{}
+	assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-a"}, nodeA))
+	assert.Equal(t, "profile-a", nodeA.Labels[constants.ProfileLabelKey])
+
+	nodeDefault := &corev1.Node{}
+	assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-default"}, nodeDefault))
+	assert.NotContains(t, nodeDefault.Labels, constants.ProfileLabelKey)
 }
 
 func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {

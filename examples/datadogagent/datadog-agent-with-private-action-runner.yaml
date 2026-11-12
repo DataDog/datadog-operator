@@ -18,6 +18,8 @@ metadata:
     agent.datadoghq.com/private-action-runner-systemd-journal-storage: "persistent"
     # Allow journal vacuum actions to delete archived journals in the selected directories
     agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled: "true"
+    # Expose system-probe's capture-only socket to PAR for remote packet capture actions
+    agent.datadoghq.com/private-action-runner-packet-capture-enabled: "true"
     # Configure PAR using YAML configuration
     agent.datadoghq.com/private-action-runner-configdata: |
       private_action_runner:

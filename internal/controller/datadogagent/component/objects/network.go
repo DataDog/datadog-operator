@@ -605,7 +605,7 @@ func egressKubeAPIServer(podSelector metav1.LabelSelector) cilium.NetworkPolicyS
 		Egress: []cilium.EgressRule{
 			{
 				ToEntities: []cilium.Entity{
-					cilium.EntityKubeApiServer,
+					cilium.EntityKubeAPIServer,
 				},
 			},
 		},

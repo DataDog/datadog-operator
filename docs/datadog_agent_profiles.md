@@ -34,7 +34,7 @@ The DAP spec has two main sections:
 * `profileAffinity` is used to target a subset of nodes. It accepts a list of [NodeSelectorRequirements](https://pkg.go.dev/k8s.io/api/core/v1#NodeSelectorRequirement).
 * `config` defines the configuration to override in the DDA. It follows the configuration formatting of the Operator's [DatadogAgentSpec](https://github.com/DataDog/datadog-operator/blob/98276c56ad824f81be6f75128d230d2c4eda4c0b/apis/datadoghq/v2alpha1/datadogagent_types.go#L28).
 
-When a DAP is applied, the Operator creates a new DaemonSet for that profile using the same name as the DAP. Even if the Operator is configured to use ExtendedDaemonSets, it will still create DaemonSets for any DAPs. It will also create a DaemonSet (or an ExtendedDaemonSet, if enabled) for a default profile. The default profile uses the same name as the DDA and applies to all nodes that are not targeted by a DAP.
+When a DAP is applied, the Operator creates a new DaemonSet for that profile using the same name as the DAP. It also creates a DaemonSet for the default profile. The default profile uses the same name as the DDA and applies to all nodes that are not targeted by a DAP.
 
 ```console
 $ kubectl get ds
@@ -118,15 +118,18 @@ spec:
 
 ## Supported Settings
 
-| Setting | Operator Version |
-| -------- | :--------------: |
-| override.[nodeAgent].containers.[\*].resources.\* | v1.5.0 |
-| override.[nodeAgent].priorityClassName | v1.6.0 |
-| override.[nodeAgent].containers.[\*].env | v1.8.0 |
-| override.[nodeAgent].labels | v1.8.0 |
-| override.[nodeAgent].updateStrategy | v1.9.0 |
-| override.[nodeAgent].runtimeClassName | v1.12.0 |
-| override.[nodeAgent].volumes | v1.29.0 |
-| override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |
+| Setting | Operator Version | Note |
+| -------- | :--------------: | :--------------: |
+| override.[nodeAgent].containers.[\*].resources.\* | v1.5.0 |  |
+| override.[nodeAgent].priorityClassName | v1.6.0 |  |
+| override.[nodeAgent].containers.[\*].env | v1.8.0 |  |
+| override.[nodeAgent].labels | v1.8.0 |  |
+| override.[nodeAgent].updateStrategy | v1.9.0 |  |
+| override.[nodeAgent].runtimeClassName | v1.12.0 |  |
+| features.gpu.\* | v1.20.0 | See [GPU Monitoring Guide][2] |
+| override.[nodeAgent].volumes | v1.29.0 |  |
+| override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |  |
+| features.apm.\* | v1.29.0 | Cluster Agent and admission controller must be enabled in DatadogAgent resource, if profile enables Single Step Instrumentation. Both are enabled by default. |
 
 [1]: https://docs.datadoghq.com/containers/datadog_operator/providers
+[2]: https://docs.datadoghq.com/gpu_monitoring/setup/?tab=datadogoperator#set-up-gpu-monitoring-on-a-mixed-kubernetes-cluster

@@ -450,7 +450,7 @@ func latestPodStartTime(pods []corev1.Pod) (time.Time, bool) {
 		if st == nil {
 			continue
 		}
-		if !found || st.Time.After(latest) {
+		if !found || st.After(latest) {
 			latest = st.Time
 			found = true
 		}

@@ -136,7 +136,7 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 		TargetPort:  intstr.FromInt(grpcPort),
 		AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 	}
-	otlpHttpPort := &corev1.ServicePort{
+	otlpHTTPPort := &corev1.ServicePort{
 		Name:       "otlphttpport",
 		Port:       int32(httpPort),
 		Protocol:   corev1.ProtocolTCP,
@@ -170,7 +170,7 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 		f.localServiceName,
 		f.owner.GetNamespace(),
 		common.GetOtelAgentGatewayServiceSelector(f.owner),
-		[]corev1.ServicePort{*otlpGrpcPort, *otlpHttpPort},
+		[]corev1.ServicePort{*otlpGrpcPort, *otlpHTTPPort},
 		nil, // No internal traffic policy for a Deployment-based component to allow the service to route traffic cluster-wide
 	); err != nil {
 		return err

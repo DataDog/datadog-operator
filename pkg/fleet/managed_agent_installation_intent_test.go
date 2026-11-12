@@ -68,11 +68,11 @@ type managedAgentInstallationRCClientWithoutRefresh struct {
 func (*managedAgentInstallationRCClientWithoutRefresh) Subscribe(string, func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
 }
 
-func (c *managedAgentInstallationRCClientWithoutRefresh) GetInstallerState() []*pbgo.PackageState {
+func (c *managedAgentInstallationRCClientWithoutRefresh) GetInstallerPackages() []*pbgo.PackageState {
 	return c.state
 }
 
-func (c *managedAgentInstallationRCClientWithoutRefresh) SetInstallerState(installerState []*pbgo.PackageState) {
+func (c *managedAgentInstallationRCClientWithoutRefresh) SetInstallerPackages(installerState []*pbgo.PackageState) {
 	c.state = installerState
 }
 
@@ -139,7 +139,7 @@ func TestDecodeManagedAgentInstallationIntent(t *testing.T) {
 	require.NotNil(t, decoded.Spec)
 	require.NotNil(t, decoded.Spec.Global)
 	assert.Equal(t, "test-cluster", *decoded.Spec.Global.ClusterName)
-	assert.Equal(t, "datadoghq.com", *decoded.Spec.Global.Site)
+	assert.Equal(t, "site.example", *decoded.Spec.Global.Site)
 	assert.Equal(t, map[string]string{corev1.LabelOSStable: string(corev1.Linux)}, decoded.Spec.Override[v2alpha1.NodeAgentComponentName].NodeSelector)
 	assert.Len(t, digest, 64)
 
@@ -221,9 +221,34 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 			wantError: "cluster name is invalid",
 		},
 		{
-			name:      "unsupported site",
-			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"example.com"`, 1)),
-			wantError: "site \"example.com\" is unsupported",
+			name:      "empty site",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":""`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site URL",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"https://site.example"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with port",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"site.example:443"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with path",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"site.example/path"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with whitespace",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":" site.example"`, 1)),
+			wantError: "bootstrap site is invalid",
+		},
+		{
+			name:      "site with oversized label",
+			raw:       []byte(strings.Replace(valid, `"site":"datadoghq.com"`, `"site":"`+strings.Repeat("a", 64)+`.example"`, 1)),
+			wantError: "bootstrap site label exceeds 63 characters",
 		},
 		{
 			name:      "unsupported desired state",
@@ -464,10 +489,18 @@ func TestManagedAgentInstallationTerminalStateIsDurableBeforeRemoteConfigComplet
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
-func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) {
+func TestManagedAgentInstallationIgnoresCustomerCredentialSecretUntilManagedSecretExists(t *testing.T) {
 	ctx := context.Background()
+	customerSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testManagedAgentInstallationNamespace,
+			Name:      "datadog-secret",
+		},
+		Data: map[string][]byte{fleetCredentialAPIKey: []byte("customer-api-key")},
+	}
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		customerSecret,
 	)
 	originalRetryDelays := managedAgentInstallationCredentialRetryDelays
 	managedAgentInstallationCredentialRetryDelays = []time.Duration{0, 0}
@@ -479,7 +512,7 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	snapshot := managedAgentInstallationIntentSnapshot{raw: raw}
 
 	for range len(managedAgentInstallationCredentialRetryDelays) + 1 {
-		require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot), "credential Secret datadog-agent/datadog-secret is not ready")
+		require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot), "credential Secret datadog-agent/datadog-managed-secret is not ready")
 		assert.False(t, daemon.managedAgentInstallationActive)
 		assert.False(t, daemon.managedAgentInstallationTaskReserved)
 	}
@@ -493,10 +526,10 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	assert.False(t, daemon.managedAgentInstallationTaskReserved)
 	require.True(t, apierrors.IsNotFound(kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{})))
 
-	secret := testFleetCredentialSecret()
-	require.NoError(t, kubeClient.Create(ctx, secret))
+	managedSecret := testFleetCredentialSecret()
+	require.NoError(t, kubeClient.Create(ctx, managedSecret))
 	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
-	daemon.forwardManagedAgentInstallationCredential(secret)
+	daemon.forwardManagedAgentInstallationCredential(managedSecret)
 	require.Len(t, daemon.managedAgentInstallationUpdates, 1)
 	assert.Zero(t, daemon.managedAgentInstallationCredentialRetryIndex)
 	assert.False(t, daemon.managedAgentInstallationTaskReserved)
@@ -505,7 +538,19 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	require.NoError(t, err)
 	require.NotNil(t, persisted)
 	assert.Equal(t, pbgo.TaskState_DONE, persisted.TaskState)
-	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{}))
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	require.NotNil(t, dda.Spec.Global)
+	require.NotNil(t, dda.Spec.Global.Credentials)
+	require.NotNil(t, dda.Spec.Global.Credentials.APISecret)
+	assert.Equal(t, "datadog-managed-secret", dda.Spec.Global.Credentials.APISecret.SecretName)
+	assert.Equal(t, fleetCredentialAPIKey, dda.Spec.Global.Credentials.APISecret.KeyName)
+	observedCustomerSecret := &corev1.Secret{}
+	require.NoError(t, kubeClient.Get(ctx, types.NamespacedName{
+		Namespace: testManagedAgentInstallationNamespace,
+		Name:      "datadog-secret",
+	}, observedCustomerSecret))
+	assert.Equal(t, []byte("customer-api-key"), observedCustomerSecret.Data[fleetCredentialAPIKey])
 }
 
 func TestManagedAgentInstallationDefersToFleetTask(t *testing.T) {
@@ -1733,7 +1778,7 @@ func testManagedAgentInstallationIntent(t *testing.T, operationID string, desire
 		DesiredState:   desiredState,
 		Bootstrap: managedAgentInstallationBootstrap{
 			ClusterName: "test-cluster",
-			Site:        "datadoghq.com",
+			Site:        "site.example",
 		},
 	}
 	if len(acknowledgedOperationID) > 0 {

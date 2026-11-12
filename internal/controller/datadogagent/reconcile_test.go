@@ -72,7 +72,6 @@ type testCase struct {
 // for flags shared with the DatadogAgent reconciler (e.g. UntaintControllerEnabled).
 func ddaiReconcilerOptionsFromDDA(opts ReconcilerOptions) datadogagentinternal.ReconcilerOptions {
 	return datadogagentinternal.ReconcilerOptions{
-		ExtendedDaemonsetOptions: opts.ExtendedDaemonsetOptions,
 		SupportCilium:            opts.SupportCilium,
 		OperatorMetricsEnabled:   opts.OperatorMetricsEnabled,
 		UntaintControllerEnabled: opts.UntaintControllerEnabled,
@@ -130,11 +129,9 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -204,11 +201,9 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -338,6 +333,125 @@ func TestReconcileDDA_UntaintController_disabledDoesNotInjectAgentNotReadyTolera
 	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: false})
 }
 
+func TestReconcileDDA_UntaintController_injectsAgentNotReadyTolerationClusterAgent(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dcaName = "foo-cluster-agent"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller enabled injects agent-not-ready toleration on cluster agent deployment",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			deployment := &appsv1.Deployment{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dcaName}, deployment)
+			assert.NoError(t, err)
+			assert.True(t, slices.ContainsFunc(deployment.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "expected injected toleration %+v in %+v", wantTol, deployment.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
+}
+
+func TestReconcileDDA_UntaintController_disabledDoesNotInjectAgentNotReadyTolerationClusterAgent(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dcaName = "foo-cluster-agent"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller disabled does not inject agent-not-ready toleration on cluster agent deployment",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			deployment := &appsv1.Deployment{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dcaName}, deployment)
+			assert.NoError(t, err)
+			assert.False(t, slices.ContainsFunc(deployment.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "did not expect injected toleration %+v in %+v", wantTol, deployment.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: false})
+}
+
+func TestReconcileDDA_UntaintController_injectsAgentNotReadyTolerationClusterChecksRunner(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const clcName = "foo-cluster-checks-runner"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller enabled injects agent-not-ready toleration on cluster checks runner deployment",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithClusterChecks(true, true).
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			deployment := &appsv1.Deployment{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: clcName}, deployment)
+			assert.NoError(t, err)
+			assert.True(t, slices.ContainsFunc(deployment.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "expected injected toleration %+v in %+v", wantTol, deployment.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
+}
+
+func TestReconcileDDA_UntaintController_injectsAgentNotReadyTolerationOtelAgentGateway(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const gatewayName = "foo-otel-agent-gateway"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller enabled injects agent-not-ready toleration on otel agent gateway deployment",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelAgentGatewayEnabled(true).
+				WithOTelAgentGatewayConfig().
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			deployment := &appsv1.Deployment{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: gatewayName}, deployment)
+			assert.NoError(t, err)
+			assert.True(t, slices.ContainsFunc(deployment.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "expected injected toleration %+v in %+v", wantTol, deployment.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
+}
+
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
@@ -433,7 +547,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with APM and CWS enables, create Daemonset with four agents",
+			name: "DatadogAgent with APM and CWS enables, create Daemonset with three agents",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -446,18 +560,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
+				// CWS sends its events from the system-probe by default, so there is no security-agent.
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
-					string(apicommon.SecurityAgentContainerName),
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
-			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with four agents",
+			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with three agents",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -475,7 +589,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
-					string(apicommon.SecurityAgentContainerName),
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
@@ -660,6 +773,35 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				verifySystemdHostMounts(t, c, resourcesNamespace, dsName)
+			},
+		},
+		{
+			name: "DatadogAgent with Private Action Runner packet capture, create DaemonSet with capture socket",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAnnotations(map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":                "true",
+						"agent.datadoghq.com/private-action-runner-packet-capture-enabled": "true",
+					}).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.PrivateActionRunnerContainerName),
+					string(apicommon.SystemProbeContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+				verifyPacketCaptureSocket(t, c, resourcesNamespace, dsName)
 			},
 		},
 		{
@@ -1270,10 +1412,12 @@ func Test_otelImageTags(t *testing.T) {
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantFunc: func(t *testing.T, c client.Client) {
+				// The name's latest tag takes precedence, so service discovery defaults to enabled.
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
+					string(apicommon.SystemProbeContainerName),
 				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
@@ -1281,6 +1425,7 @@ func Test_otelImageTags(t *testing.T) {
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.SystemProbeContainerName].Image)
 
 			},
 		},
@@ -2086,6 +2231,49 @@ func verifySystemdHostMounts(t *testing.T, c client.Client, resourcesNamespace, 
 		assert.True(t, found, "volume mount %s not found", want.name)
 		assert.Equal(t, "/host"+want.hostPath, mount.MountPath)
 		assert.Equal(t, want.readOnly, mount.ReadOnly)
+	}
+}
+
+func verifyPacketCaptureSocket(t *testing.T, c client.Client, resourcesNamespace, dsName string) {
+	ds := &appsv1.DaemonSet{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+	assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
+
+	found := false
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		if volume.Name == "sysprobe-capture-socket-dir" {
+			found = true
+			assert.NotNil(t, volume.EmptyDir, "capture socket volume should be an emptyDir")
+		}
+	}
+	assert.True(t, found, "capture socket volume not found")
+
+	socketEnv := corev1.EnvVar{Name: "DD_PACKET_CAPTURE_SOCKET", Value: "/var/run/sysprobe-capture/capture.sock"}
+	containers := getDsContainers(c, resourcesNamespace, dsName)
+	for name, wantReadOnly := range map[apicommon.AgentContainerName]bool{
+		apicommon.SystemProbeContainerName:         false,
+		apicommon.PrivateActionRunnerContainerName: true,
+	} {
+		container, ok := containers[name]
+		assert.True(t, ok, "%s container not found", name)
+
+		var captureMount *corev1.VolumeMount
+		for i := range container.VolumeMounts {
+			mount := container.VolumeMounts[i]
+			if mount.Name == "sysprobe-capture-socket-dir" {
+				captureMount = &mount
+			}
+			if name == apicommon.PrivateActionRunnerContainerName {
+				assert.NotEqual(t, common.SystemProbeSocketVolumeName, mount.Name, "the full system-probe socket must not be mounted in the runner")
+			}
+		}
+		assert.NotNil(t, captureMount, "capture socket mount not found in %s", name)
+		if captureMount != nil {
+			assert.Equal(t, "/var/run/sysprobe-capture", captureMount.MountPath)
+			assert.Equal(t, wantReadOnly, captureMount.ReadOnly)
+		}
+		assert.Contains(t, container.Env, socketEnv)
 	}
 }
 

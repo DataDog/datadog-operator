@@ -22,7 +22,16 @@ const (
 // DatadogCSIDriverSpec defines the desired state of DatadogCSIDriver
 // +k8s:openapi-gen=true
 type DatadogCSIDriverSpec struct {
+	// Registry is the image registry to use for the Datadog CSI driver image, propagated from
+	// spec.global.registry on the parent DatadogAgent. It does not apply to the
+	// csi-node-driver-registrar sidecar, an upstream Kubernetes image always pulled from
+	// registry.k8s.io/sig-storage. Forced to GCR on GKE Autopilot.
+	// Default: 'registry.datadoghq.com'
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+
 	// CSIDriverImage is the image configuration for the main CSI node driver container.
+	// A full registry/name:tag in `name` takes precedence over spec.registry.
 	// +optional
 	CSIDriverImage *v2alpha1.AgentImageConfig `json:"csiDriverImage,omitempty"`
 
@@ -70,10 +79,18 @@ type DatadogCSIDriverAPMConfig struct {
 	// libraries from private registries. When empty, the CSI driver falls back to
 	// csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored
 	// for APM authentication in that fallback path. Restart the CSI DaemonSet after
-	// rotating these Secrets. Not supported on GKE Autopilot.
+	// rotating these Secrets.
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
+
+	// RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.
+	// An empty list allows all registries. When managed by a DatadogAgent, it is set from
+	// spec.features.admissionController.registryAllowList.
+	// (Requires Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
 }
 
 // DatadogCSIDriverOverride provides override capabilities for the CSI driver DaemonSet.

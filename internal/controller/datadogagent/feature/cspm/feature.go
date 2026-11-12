@@ -17,11 +17,20 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+// runInSystemProbeMinVersion is the first Agent release shipping compliance_config.run_in_system_probe.
+// RunInSystemProbe only defaults to true from this version on: on an older Agent the security-agent
+// would be dropped with nothing taking over the compliance checks.
+const runInSystemProbeMinVersion = "7.77.0-0"
 
 func init() {
 	err := feature.Register(feature.CSPMIDType, buildCSPMFeature)
@@ -41,11 +50,12 @@ func buildCSPMFeature(options *feature.Options) feature.Feature {
 }
 
 type cspmFeature struct {
-	enable                bool
-	serviceAccountName    string
-	checkInterval         string
-	hostBenchmarksEnabled bool
-	runInSystemProbe      bool
+	enable                    bool
+	serviceAccountName        string
+	checkInterval             string
+	hostBenchmarksEnabled     bool
+	databaseBenchmarksEnabled bool
+	runInSystemProbe          bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -57,6 +67,17 @@ type cspmFeature struct {
 // ID returns the ID of the Feature
 func (f *cspmFeature) ID() feature.IDType {
 	return feature.CSPMIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user/group database, so
+// the passwd and group volumes this feature adds are stripped.
+func (f *cspmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName, common.GroupVolumeName},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -85,14 +106,23 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 			f.hostBenchmarksEnabled = true
 		}
 
-		f.runInSystemProbe = apiutils.BoolValue(cspmConfig.RunInSystemProbe)
+		if cspmConfig.DatabaseBenchmarks != nil && apiutils.BoolValue(cspmConfig.DatabaseBenchmarks.Enabled) {
+			f.databaseBenchmarksEnabled = true
+		}
+
+		if cspmConfig.RunInSystemProbe == nil {
+			// Written back to the spec, as the system-probe seccomp profile reads it from there.
+			cspmConfig.RunInSystemProbe = new(agentSupportsRunInSystemProbe(dda))
+		}
+		f.runInSystemProbe = *cspmConfig.RunInSystemProbe
 
 		// Determine which container to use for CSPM on the node
-		var nodeContainer apicommon.AgentContainerName
+		nodeContainers := []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName}
 		if f.runInSystemProbe {
-			nodeContainer = apicommon.SystemProbeContainerName
-		} else {
-			nodeContainer = apicommon.SecurityAgentContainerName
+			nodeContainers = []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}
+		} else if f.databaseBenchmarksEnabled {
+			// The Security Agent fetches the database configurations from the System Probe
+			nodeContainers = append(nodeContainers, apicommon.SystemProbeContainerName)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -102,9 +132,7 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 			},
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
-				Containers: []apicommon.AgentContainerName{
-					nodeContainer,
-				},
+				Containers: nodeContainers,
 			},
 		}
 	}
@@ -128,6 +156,13 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	if ddaRCStatus.Features.CSPM.Enabled != nil {
 		ddaSpec.Features.CSPM.Enabled = ddaRCStatus.Features.CSPM.Enabled
 	}
+}
+
+// agentSupportsRunInSystemProbe reports whether the node Agent is recent enough to run the compliance
+// checks in the system-probe. A version the Operator cannot parse is assumed recent enough.
+func agentSupportsRunInSystemProbe(dda metav1.Object) bool {
+	defaultIfVersionUnknown := true
+	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), runInSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -313,12 +348,17 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	VolMgr.AddVolume(&groupVol)
 
 	// env vars
+	// The compliance settings are added to every container of the pod, not only to the one
+	// actually running the checks. When config streaming is enabled, the consumer container
+	// drops its own env layer and replays the Core Agent's config snapshot; if the Core Agent
+	// doesn't carry these settings, they silently revert to their default values.
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, enabledEnvVar)
 
+	// HOST_ROOT is not a config setting, it only makes sense where the host root volume is mounted.
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  common.DDHostRootEnvVar,
 		Value: common.HostRootMountPath,
@@ -330,22 +370,66 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
-		managers.EnvVar().AddEnvVarToContainer(targetContainer, intervalEnvVar)
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
-	managers.EnvVar().AddEnvVarToContainer(targetContainer, hostBenchmarksEnabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, hostBenchmarksEnabledEnvVar)
 
 	runInSystemProbeEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceConfigRunInSystemProbe,
 		Value: apiutils.BoolToString(&f.runInSystemProbe),
 	}
-	managers.EnvVar().AddEnvVarToContainer(targetContainer, runInSystemProbeEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, runInSystemProbeEnvVar)
+
+	if f.runInSystemProbe {
+		// The system-probe submits the compliance payloads itself and cannot resolve a
+		// secret-backed api_key on its own, so it needs config sync to get the resolved value.
+		featureutils.EnableConfigSyncForDirectSend(managers, f.owner, []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		})
+	}
+
+	if f.databaseBenchmarksEnabled {
+		f.manageDatabaseBenchmarks(managers, targetContainer)
+	}
 
 	return nil
+}
+
+// manageDatabaseBenchmarks configures the node agent for database benchmarks. The System Probe
+// always gets the setting: it enables its compliance module, which loads the database configurations.
+// When CSPM runs in the Security Agent, the Security Agent queries this module through the System Probe socket.
+func (f *cspmFeature) manageDatabaseBenchmarks(managers feature.PodTemplateManagers, targetContainer apicommon.AgentContainerName) {
+	dbBenchmarksEnabledEnvVar := &corev1.EnvVar{
+		Name:  DDComplianceDBBenchmarksEnabled,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, dbBenchmarksEnabledEnvVar)
+
+	if targetContainer != apicommon.SecurityAgentContainerName {
+		return
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, dbBenchmarksEnabledEnvVar)
+
+	// socket volume mount (needs write perms for the system probe container but not the security agent)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
+	managers.Volume().AddVolume(&socketVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
+
+	// Keep an existing mount (e.g. the read-write one added by CWS) rather than replacing it.
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
+	_ = managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMountReadOnly, apicommon.SecurityAgentContainerName, merger.IgnoreNewVolumeMountMergeFunction)
+
+	socketEnvVar := &corev1.EnvVar{
+		Name:  common.DDSystemProbeSocket,
+		Value: common.DefaultSystemProbeSocketPath,
+	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.SecurityAgentContainerName, apicommon.SystemProbeContainerName}, socketEnvVar)
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec

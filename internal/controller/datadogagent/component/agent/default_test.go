@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -138,6 +139,45 @@ func TestCommonEnvVars(t *testing.T) {
 
 			assert.Equal(t, tt.expectedServiceName, clusterAgentServiceName)
 			assert.Equal(t, tt.expectedSecretName, clusterAgentTokenName)
+		})
+	}
+}
+
+func TestNodeAgentPodNameEnvVar(t *testing.T) {
+	dda := &metav1.ObjectMeta{
+		Name:      "foo",
+		Namespace: "default",
+		Labels:    map[string]string{},
+	}
+
+	tests := []struct {
+		name      string
+		container corev1.Container
+	}{
+		{
+			name:      "core agent",
+			container: coreAgentContainer(dda),
+		},
+		{
+			name:      "single container agent",
+			container: agentSingleContainer(dda)[0],
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var podNameEnv *corev1.EnvVar
+			for i := range tt.container.Env {
+				if tt.container.Env[i].Name == DDPodName {
+					podNameEnv = &tt.container.Env[i]
+					break
+				}
+			}
+
+			require.NotNil(t, podNameEnv)
+			require.NotNil(t, podNameEnv.ValueFrom)
+			require.NotNil(t, podNameEnv.ValueFrom.FieldRef)
+			assert.Equal(t, common.FieldPathMetaName, podNameEnv.ValueFrom.FieldRef.FieldPath)
 		})
 	}
 }
@@ -358,6 +398,64 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 				},
 			},
 			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill"),
+		},
+		{
+			name: "cspm host benchmarks in system-probe",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)},
+						RunInSystemProbe: ptr.To(true),
+					},
+				},
+			},
+			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill", "chroot", "fchdir", "mlock", "munlock"),
+		},
+		{
+			name: "cspm host benchmarks in security-agent",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)},
+						RunInSystemProbe: ptr.To(false),
+					},
+				},
+			},
+			expectedSyscalls: DefaultSyscallsForSystemProbe(),
+		},
+		{
+			name: "cspm in system-probe without host benchmarks",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(false)},
+						RunInSystemProbe: ptr.To(true),
+					},
+				},
+			},
+			expectedSyscalls: DefaultSyscallsForSystemProbe(),
+		},
+		{
+			name: "cws enforcement and cspm host benchmarks in system-probe",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: ptr.To(true),
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: ptr.To(true),
+						},
+					},
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled:          ptr.To(true),
+						HostBenchmarks:   &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)},
+						RunInSystemProbe: ptr.To(true),
+					},
+				},
+			},
+			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill", "chroot", "fchdir", "mlock", "munlock"),
 		},
 	}
 
