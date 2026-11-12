@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -33,6 +34,11 @@ import (
 	workerdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/defaults"
 	workerresources "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/resources"
 	workervalidation "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/validation"
+)
+
+const (
+	eventReasonLocalModeDevOnly = "LocalModeDevOnly"
+	localModeDevOnlyMessage     = "spec.pipelineConfig (local mode) is for development and testing only and is not a supported production path; use spec.pipelineID with Remote Config instead"
 )
 
 const (
@@ -56,6 +62,7 @@ type Reconciler struct {
 	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
+	Recorder  record.EventRecorder
 }
 
 // reconcileFailure is the reason and error reported in the Reconciled and Available conditions when reconciliation fails.
@@ -70,6 +77,7 @@ type reconcileFailure struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=configmaps;serviceaccounts;services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
@@ -85,6 +93,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 	}
 
 	worker = workerdefaults.Apply(worker)
+	if worker.Spec.PipelineConfig != nil {
+		// Emitted on every reconcile; the event recorder aggregates repeats into one event with a count.
+		r.Recorder.Event(worker, corev1.EventTypeWarning, eventReasonLocalModeDevOnly, localModeDevOnlyMessage)
+	}
 	available, failure := r.reconcileResources(ctx, worker)
 	if failure != nil && apierrors.IsConflict(failure.err) {
 		// An object changed since the cache read it.

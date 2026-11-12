@@ -310,6 +310,37 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 		}, timeout, interval).Should(Succeed())
 	})
 
+	It("warns that local mode is for development and testing only", func() {
+		localModeEvents := func(g Gomega, name string) []corev1.Event {
+			events := &corev1.EventList{}
+			g.Expect(k8sClient.List(context.Background(), events, client.InNamespace(namespace.Name))).To(Succeed())
+			var matched []corev1.Event
+			for _, event := range events.Items {
+				if event.InvolvedObject.Kind == "DatadogObservabilityPipelinesWorker" && event.InvolvedObject.Name == name &&
+					event.Type == corev1.EventTypeWarning && event.Reason == "LocalModeDevOnly" {
+					matched = append(matched, event)
+				}
+			}
+			return matched
+		}
+
+		local := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
+			ObjectMeta: metav1.ObjectMeta{Name: "local-worker", Namespace: namespace.Name},
+			Spec:       *worker.Spec.DeepCopy(),
+		}
+		local.Spec.PipelineConfig = ptr.To("sources: {}\n")
+		createKubernetesObject(k8sClient, local)
+
+		Eventually(func(g Gomega) {
+			g.Expect(localModeEvents(g, local.Name)).NotTo(BeEmpty())
+		}, timeout, interval).Should(Succeed())
+
+		By("not warning for the Remote Config Worker")
+		Consistently(func(g Gomega) {
+			g.Expect(localModeEvents(g, worker.Name)).To(BeEmpty())
+		}, "2s", interval).Should(Succeed())
+	})
+
 	Context("when an unowned ConfigMap has the pipeline name", func() {
 		var configMap *corev1.ConfigMap
 
