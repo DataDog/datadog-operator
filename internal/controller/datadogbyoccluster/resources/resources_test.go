@@ -264,6 +264,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 		ingestAPI map[string]any
 		searcher  map[string]any
 		cloudprem map[string]any
+		metastore map[string]any
 	}
 	capacity := func(value any) map[string]any {
 		return map[string]any{"capacity": value}
@@ -290,6 +291,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 		"create_dd_sketches_index": false,
 		"create_dd_traces_index":   false,
 	}
+	defaultMetastore := map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 50}}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
 			"version":                 0.8,
@@ -310,7 +312,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			},
 			"indexer":    values.indexer,
 			"ingest_api": values.ingestAPI,
-			"metastore":  map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 50}},
+			"metastore":  values.metastore,
 			"searcher":   values.searcher,
 		}
 		nodeConfig, err := yaml.Marshal(config)
@@ -345,6 +347,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
 				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
@@ -362,6 +365,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(5153960754), "max_queue_memory_usage": "1GiB"},
+				metastore: defaultMetastore,
 				searcher: map[string]any{
 					"aggregation_memory_limit":          "1G",
 					"fast_field_cache_capacity":         "2G",
@@ -387,6 +391,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
 				searcher: map[string]any{
 					"aggregation_memory_limit":          "500M",
 					"fast_field_cache":                  map[string]any{"capacity": "280G", "policy": "s3-fifo"},
@@ -406,6 +411,39 @@ ingest_api:
 				clusterID: "search",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with metastore connections node config override",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`metastore:
+  postgres:
+    max_connections: 30`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 30}},
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with metastore connections node config override under alias",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`metastore:
+  postgres:
+    max_num_connections: 30`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: map[string]any{"postgres": map[string]any{"min_connections": 10, "max_num_connections": 30}},
 				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
@@ -420,6 +458,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 20830591386, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(1717986918), "max_queue_memory_usage": int64(858993459)},
+				metastore: defaultMetastore,
 				searcher: map[string]any{
 					"aggregation_memory_limit":          "500M",
 					"fast_field_cache":                  capacity(int64(2031250000)),
@@ -440,6 +479,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 0, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(46385646796), "max_queue_memory_usage": int64(23192823398)},
+				metastore: defaultMetastore,
 				searcher: map[string]any{
 					"aggregation_memory_limit":          "500M",
 					"fast_field_cache":                  capacity(int64(23156250000)),
@@ -460,6 +500,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 12748283284, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(9800295020), "max_queue_memory_usage": int64(4900147510)},
+				metastore: defaultMetastore,
 				searcher: map[string]any{
 					"aggregation_memory_limit":          "500M",
 					"fast_field_cache":                  capacity(int64(4062500000)),
@@ -480,6 +521,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 21975915998, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(572662306), "max_queue_memory_usage": int64(286331153)},
+				metastore: defaultMetastore,
 				searcher: map[string]any{
 					"aggregation_memory_limit":          "500M",
 					"fast_field_cache":                  capacity(int64(203125000)),
@@ -501,6 +543,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 20830591386, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(1717986918), "max_queue_memory_usage": int64(858993459)},
+				metastore: defaultMetastore,
 				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
@@ -514,6 +557,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 15676630632, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(6871947672), "max_queue_memory_usage": int64(3435973836)},
+				metastore: defaultMetastore,
 				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
@@ -527,6 +571,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
 				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
@@ -540,6 +585,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
 				searcher:  defaultSearcher,
 				cloudprem: map[string]any{
 					"mtls_header":              "X-Amzn-Mtls-Clientcert",
@@ -561,6 +607,7 @@ ingest_api:
 				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
 				searcher:  defaultSearcher,
 				cloudprem: map[string]any{
 					"mtls_header":              "X-Amzn-Mtls-Clientcert",

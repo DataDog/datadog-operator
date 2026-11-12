@@ -157,7 +157,7 @@ func defaultNodeConfig() map[string]any {
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 		},
-		"metastore":                 map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 50}},
+		quickwitMetastoreConfigKey:  map[string]any{quickwitPostgresConfigKey: map[string]any{"min_connections": 10}},
 		quickwitIndexerServiceName:  map[string]any{"split_store_max_num_splits": 10000},
 		quickwitSearcherServiceName: map[string]any{"aggregation_memory_limit": "500M"},
 	}

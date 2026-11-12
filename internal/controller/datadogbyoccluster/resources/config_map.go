@@ -36,6 +36,10 @@ const (
 	quickwitCreateDatadogIndexConfigKey          = "create_datadog_index"
 	quickwitUseReadOnlyMetastoreConfigKey        = "use_metastore_read_replica"
 	quickwitClusterIDConfigKey                   = "cluster_id"
+	quickwitMetastoreConfigKey                   = "metastore"
+	quickwitPostgresConfigKey                    = "postgres"
+	quickwitMaxConnectionsConfigKey              = "max_connections"
+	quickwitMaxNumConnectionsConfigKey           = "max_num_connections"
 )
 
 // newNodeConfig returns the Quickwit node configuration with spec.nodeConfigOverrides merged into the defaults.
@@ -78,6 +82,10 @@ func newNodeConfig(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (map[string]an
 	}
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
+	}
+	if !overrideSets(override, []string{quickwitMetastoreConfigKey, quickwitPostgresConfigKey, quickwitMaxNumConnectionsConfigKey}) {
+		postgres := config[quickwitMetastoreConfigKey].(map[string]any)[quickwitPostgresConfigKey].(map[string]any)
+		postgres[quickwitMaxConnectionsConfigKey] = 50
 	}
 	signal := datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
 	if cluster.Spec.Signal != nil {
