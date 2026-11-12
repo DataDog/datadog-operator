@@ -77,7 +77,8 @@ The plugin adopts and replaces only the objects of the manifests. `diff`
 compares the objects that run in the cluster, not the manifests, with the
 objects after the migration, so it also shows what differs between the
 manifests and the cluster. Objects without a namespace are in the namespace of
-the command. Pass the same manifests to every command.
+the command. Pass the same manifests to every command; `abort` reads only the
+CloudPrem manifest.
 
 ## Requirements
 
@@ -236,16 +237,15 @@ the defaults of the Operator. `diff` shows these changes too:
    their Pods, and move the clients back to them: deleting the cluster deletes
    the Workers, so clients that still send to the Workers lose them. For a
    StatefulSet with a HorizontalPodAutoscaler, scale it to at least the replicas
-   of its Worker, which reflect the current load. `abort` checks that the Pods
-   of the manifests are ready, and that the user of the context may patch the
+   of its Worker, which reflect the current load. `abort` does not check the
+   Pods of the manifests. It checks that the user of the context may patch the
    CloudPrem objects that the cluster owns, and writes nothing otherwise. Then
-   run `abort` with the same flags. It removes the cluster from the owners of
-   the CloudPrem objects, but does not delete the cluster:
+   run `abort` with the CloudPrem manifest. It removes the cluster from the
+   owners of the CloudPrem objects, but does not delete the cluster:
 
    ```console
    kubectl scale statefulset -n <namespace> <statefulset> --replicas=<replicas>
-   kubectl byoc-migrate abort -n <namespace> --cloudprem-manifest cloudprem.yaml \
-     --opw-manifest <file>=<pipeline>
+   kubectl byoc-migrate abort -n <namespace> --cloudprem-manifest cloudprem.yaml
    ```
 
    Once `abort` succeeds, delete the cluster, for example by removing it from

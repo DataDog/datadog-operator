@@ -50,7 +50,7 @@ const example = `
   kubectl byoc-migrate adopt --cloudprem-manifest cloudprem.yaml --opw-manifest logs.yaml=logs
 
   # revert the migration, then delete the cluster, for example from the deployment pipeline
-  kubectl byoc-migrate abort --cloudprem-manifest cloudprem.yaml --opw-manifest logs.yaml=logs
+  kubectl byoc-migrate abort --cloudprem-manifest cloudprem.yaml
   kubectl delete -f cluster.yaml
 `
 
@@ -67,7 +67,7 @@ tool applied them. The cluster takes over the CloudPrem objects in place, and it
 Pipelines Worker objects with new Workers. convert prints the cluster, diff prints what the migration changes, adopt
 gives the objects to the cluster, and abort takes them back from it. The commands do not create, change, or delete the
 cluster: apply and delete it yourself, for example from a deployment pipeline. Pass the same manifests to every
-command. Once the Workers take the traffic, scale the Observability Pipelines Worker StatefulSets to zero, and delete
+command; abort reads only the CloudPrem manifest. Once the Workers take the traffic, scale the Observability Pipelines Worker StatefulSets to zero, and delete
 the objects that diff lists as replaced.`,
 		Example:      example,
 		SilenceUsage: true,
@@ -90,8 +90,13 @@ func newManifestOptions(streams genericiooptions.IOStreams) manifestOptions {
 }
 
 func (o *manifestOptions) addFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&o.cloudpremManifest, "cloudprem-manifest", "", "file with the objects that the CloudPrem chart rendered, as helm template or helm get manifest prints them")
+	o.addCloudPremFlags(cmd)
 	cmd.Flags().StringArrayVar(&o.opwManifests, "opw-manifest", nil, "file with the objects that an Observability Pipelines Worker chart rendered and the pipeline they become, as <file>=<pipeline>; repeat for each file, and omit it when there is none")
+}
+
+// addCloudPremFlags adds the flags of the commands that read only the CloudPrem manifest.
+func (o *manifestOptions) addCloudPremFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&o.cloudpremManifest, "cloudprem-manifest", "", "file with the objects that the CloudPrem chart rendered, as helm template or helm get manifest prints them")
 	_ = cmd.MarkFlagRequired("cloudprem-manifest")
 	o.configFlags.AddFlags(cmd.Flags())
 }
@@ -103,23 +108,28 @@ func (o *manifestOptions) loadManifests() (converter.Manifest, []converter.Pipel
 	if err != nil {
 		return converter.Manifest{}, nil, err
 	}
-	namespace, _, err := o.configFlags.ToRawKubeConfigLoader().Namespace()
-	if err != nil {
-		return converter.Manifest{}, nil, fmt.Errorf("resolve namespace: %w", err)
-	}
-	cloudprem, err := loadManifest(o.cloudpremManifest, namespace)
+	cloudprem, err := o.loadCloudPrem()
 	if err != nil {
 		return converter.Manifest{}, nil, err
 	}
 	pipelines := make([]converter.PipelineManifest, 0, len(pipelineFiles))
 	for _, file := range pipelineFiles {
-		manifest, loadErr := loadManifest(file.path, namespace)
+		manifest, loadErr := loadManifest(file.path, cloudprem.Namespace)
 		if loadErr != nil {
 			return converter.Manifest{}, nil, loadErr
 		}
 		pipelines = append(pipelines, converter.PipelineManifest{Pipeline: file.pipeline, Manifest: manifest})
 	}
 	return cloudprem, pipelines, nil
+}
+
+// loadCloudPrem reads the CloudPrem manifest. Objects without a namespace are in the namespace of the command.
+func (o *manifestOptions) loadCloudPrem() (converter.Manifest, error) {
+	namespace, _, err := o.configFlags.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return converter.Manifest{}, fmt.Errorf("resolve namespace: %w", err)
+	}
+	return loadManifest(o.cloudpremManifest, namespace)
 }
 
 // client returns a client of the Kubernetes context of the command, and the name of the context.
@@ -164,7 +174,8 @@ type migrationOptions struct {
 	yes    bool
 }
 
-// newMigrationCommand completes cmd with the flags shared by the migration commands, and returns its options.
+// newMigrationCommand completes cmd with the flags shared by the migration commands, and returns its options. The
+// caller adds the manifest flags.
 func newMigrationCommand(streams genericiooptions.IOStreams, cmd *cobra.Command, run func(context.Context, *migrationOptions) error) (*cobra.Command, *migrationOptions) {
 	o := &migrationOptions{manifestOptions: newManifestOptions(streams)}
 	cmd.SilenceUsage = true
@@ -176,7 +187,6 @@ func newMigrationCommand(streams genericiooptions.IOStreams, cmd *cobra.Command,
 		}
 		return run(ctx, o)
 	}
-	o.addFlags(cmd)
 	cmd.Flags().BoolVarP(&o.yes, "yes", "y", false, "write without asking for a confirmation")
 	return cmd, o
 }
