@@ -202,6 +202,7 @@ rules:
   - horizontalpodautoscalers
   verbs:
   - list
+  - patch
   - watch
 - apiGroups:
   - autoscaling.k8s.io
@@ -214,8 +215,17 @@ rules:
   - batch
   resources:
   - cronjobs
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - batch
+  resources:
   - jobs
   verbs:
+  - delete
   - get
   - list
   - watch
@@ -320,7 +330,6 @@ rules:
   - datadoghq.com
   resources:
   - datadoginstrumentations
-  - watermarkpodautoscalers
   verbs:
   - get
   - list
@@ -351,6 +360,15 @@ rules:
   - datadogpodautoscalers/status
   verbs:
   - '*'
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - watermarkpodautoscalers
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
 - apiGroups:
   - discovery.k8s.io
   resources:

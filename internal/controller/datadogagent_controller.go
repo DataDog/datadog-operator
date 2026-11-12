@@ -150,7 +150,11 @@ type DatadogAgentReconciler struct {
 
 // Configure Private Action Runner k8s remediation
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch;update
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=delete
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=patch
+// +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=patch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=watermarkpodautoscalers,verbs=get;patch
 // +kubebuilder:rbac:groups="",resources=pods;events;configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
