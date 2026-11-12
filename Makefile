@@ -23,7 +23,7 @@ ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
 FIPS_ENABLED?=false
 # Keep the embedded connector aligned with the default Agent version unless overridden.
-SGC_VERSION?=$(shell awk -F '"' '/^[[:space:]]*AgentLatestVersion =/ {print $$2}' pkg/images/images.go)
+SGC_VERSION?=$(or $(shell awk -F '"' '/^[[:space:]]*AgentLatestVersion =/ {print $$2}' pkg/images/images.go),$(error Cannot determine SGC_VERSION from AgentLatestVersion in pkg/images/images.go; update the extraction or set SGC_VERSION explicitly))
 SGC_TAG_SUFFIX?=$(if $(filter true,$(FIPS_ENABLED)),-fips,)
 
 # Default bundle image tag
