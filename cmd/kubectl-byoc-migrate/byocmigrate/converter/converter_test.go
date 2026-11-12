@@ -84,26 +84,53 @@ func TestConvert(t *testing.T) {
 	tests := []struct {
 		name      string
 		cloudprem string
-		opw       string
+		pipelines []testPipeline
 		want      string
 	}{
 		{
 			name:      "chart defaults",
 			cloudprem: "cloudprem.yaml",
-			opw:       "opw.yaml",
+			pipelines: []testPipeline{{name: "logs", file: "opw.yaml"}},
 			want:      "cluster.yaml",
 		},
 		{
 			name:      "persistent volume, autoscaling, budgets, read-only metastore, and compactor",
 			cloudprem: "cloudprem-full.yaml",
-			opw:       "opw-full.yaml",
+			pipelines: []testPipeline{{name: "logs", file: "opw-full.yaml"}},
 			want:      "cluster-full.yaml",
+		},
+		{
+			name:      "without pipelines",
+			cloudprem: "cloudprem.yaml",
+			want:      "cluster-without-pipelines.yaml",
+		},
+		{
+			name:      "two pipelines",
+			cloudprem: "cloudprem.yaml",
+			pipelines: []testPipeline{{name: "logs", file: "opw.yaml"}, {name: "audit", file: "opw-audit.yaml"}},
+			want:      "cluster-two-pipelines.yaml",
+		},
+		{
+			name:      "labels, annotations, scheduling, init containers, and volumes",
+			cloudprem: "cloudprem-scheduling.yaml",
+			pipelines: []testPipeline{{name: "logs", file: "opw.yaml"}},
+			want:      "cluster-scheduling.yaml",
+		},
+		{
+			name:      "image tag from a private registry and an existing ServiceAccount",
+			cloudprem: "cloudprem-image.yaml",
+			pipelines: []testPipeline{{name: "logs", file: "opw.yaml"}},
+			want:      "cluster-image.yaml",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := Convert(testManifest(t, "cloudprem", tt.cloudprem), []PipelineManifest{{Pipeline: "logs", Manifest: testManifest(t, "logs", tt.opw)}})
+			var pipelines []PipelineManifest
+			for _, pipeline := range tt.pipelines {
+				pipelines = append(pipelines, PipelineManifest{Pipeline: pipeline.name, Manifest: testManifest(t, pipeline.name, pipeline.file)})
+			}
+			result, err := Convert(testManifest(t, "cloudprem", tt.cloudprem), pipelines)
 			if err != nil {
 				t.Fatalf("Convert() unexpected error: %v", err)
 			}
@@ -517,6 +544,12 @@ func TestConvert_Errors(t *testing.T) {
 			}
 		})
 	}
+}
+
+// testPipeline is a pipeline converted from an Observability Pipelines Worker manifest in testdata.
+type testPipeline struct {
+	name string
+	file string
 }
 
 // testManifest loads a manifest rendered with helm template.
