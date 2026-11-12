@@ -46,8 +46,6 @@ const (
 	reasonReconciled           = "Reconciled"
 	reasonAvailable            = "Available"
 	reasonWorkloadUnavailable  = "WorkloadUnavailable"
-
-	datadogObservabilityPipelinesWorkerFieldOwner = "datadog-observability-pipelines-worker-controller"
 )
 
 // Reconciler reconciles a DatadogObservabilityPipelinesWorker object.
@@ -116,7 +114,7 @@ func (r *Reconciler) reconcileResources(ctx context.Context, worker *datadoghqv1
 		return false, &reconcileFailure{reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	for _, object := range resources.Objects() {
-		if err := byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, worker, object, datadogObservabilityPipelinesWorkerFieldOwner); err != nil {
+		if err := byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, worker, object, byocutils.WorkerFieldOwner); err != nil {
 			reason := reasonApplyFailed
 			if errors.Is(err, byocutils.ErrObjectConflict) {
 				reason = reasonConflict

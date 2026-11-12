@@ -37,7 +37,8 @@ import (
 //     fields of the managers other than the tools that apply the manifests (givesFields),
 //   - a resource that the cluster or a Worker creates is created, and compared with the object of a manifest that it
 //     replaces, if any,
-//   - a resource that the cluster already controls, after adopt, is applied as the controller applies it.
+//   - a resource that the cluster or a Worker already controls, after adopt, is applied as its controller applies it,
+//     with the field manager of that controller.
 //
 // Diff writes nothing.
 func (m *Migration) Diff(ctx context.Context, cloudprem converter.Manifest, pipelines []converter.PipelineManifest, file *datadoghqv1alpha1.DatadogBYOCCluster) (string, []converter.Finding, error) {
@@ -107,7 +108,7 @@ func (d *differ) compare(ctx context.Context, manifestObjects []converter.Planne
 	case live == nil && planned.Action == converter.ActionAdopt:
 		d.addFinding(converter.SeverityBlocker, "", d.missingError(d.plan, desired).Error())
 		return nil
-	case live == nil, d.createdByCluster(live):
+	case live == nil, d.controllerFieldOwner(live) != "":
 	case planned.Action != converter.ActionAdopt:
 		d.addFinding(converter.SeverityBlocker, d.name(desired), fmt.Sprintf("it exists, but it is not an object of manifest %s that the cluster adopts, so the controllers do not take it over", d.plan.CloudPrem.Name))
 		return nil
@@ -134,18 +135,22 @@ func (d *differ) refused(desired client.Object, err error) error {
 	return nil
 }
 
-// createdByCluster reports whether the cluster, or one of its Workers, controls the live object, as after adopt.
-func (d *differ) createdByCluster(live client.Object) bool {
-	if d.cluster == nil {
-		return false
+// controllerFieldOwner returns the field manager of the controller that applies the live object when the cluster, or
+// one of its Workers, controls it, as after adopt, or an empty string otherwise.
+func (d *differ) controllerFieldOwner(live client.Object) string {
+	if d.cluster == nil || live == nil {
+		return ""
 	}
 	if metav1.IsControlledBy(live, d.cluster) {
-		return true
+		return byocutils.ClusterFieldOwner
 	}
 	owner := metav1.GetControllerOfNoCopy(live)
-	return owner != nil && owner.Kind == "DatadogObservabilityPipelinesWorker" && slices.ContainsFunc(d.plan.Workers(), func(worker converter.WorkerPlan) bool {
+	if owner != nil && owner.Kind == "DatadogObservabilityPipelinesWorker" && slices.ContainsFunc(d.plan.Workers(), func(worker converter.WorkerPlan) bool {
 		return worker.Worker.Name == owner.Name
-	})
+	}) {
+		return byocutils.WorkerFieldOwner
+	}
+	return ""
 }
 
 // plannedFor returns the object of a manifest that desired adopts or replaces, if any.
@@ -167,11 +172,11 @@ func (d *differ) afterMigration(ctx context.Context, live, desired client.Object
 		return nil, err
 	}
 	after.GetObjectKind().SetGroupVersionKind(gvk)
-	switch {
+	switch fieldOwner := d.controllerFieldOwner(live); {
 	case live == nil:
 		err = d.Client.Create(ctx, after, client.DryRunAll)
-	case d.createdByCluster(live):
-		err = d.Client.Patch(ctx, after, client.Apply, client.ForceOwnership, client.FieldOwner(byocutils.ClusterFieldOwner), client.DryRunAll)
+	case fieldOwner != "":
+		err = d.Client.Patch(ctx, after, client.Apply, client.ForceOwnership, client.FieldOwner(fieldOwner), client.DryRunAll)
 	default:
 		if after, err = d.withKeptFields(live, after, gvk); err != nil {
 			return nil, err
@@ -274,12 +279,16 @@ func (d *differ) writeDiff(before, after client.Object) error {
 }
 
 // normalizedYAML returns the object with its name, labels, annotations, and spec or data, which the migration sets.
+// It leaves out the kind and API version, which the header of the diff names, and which a live object read with a
+// typed client does not set.
 func (d *differ) normalizedYAML(object client.Object) (string, error) {
 	content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 	if err != nil {
 		return "", err
 	}
-	delete(content, "status")
+	for _, field := range []string{"apiVersion", "kind", "status"} {
+		delete(content, field)
+	}
 	metadata, _ := content["metadata"].(map[string]any)
 	kept := map[string]any{"name": object.GetName()}
 	for _, field := range []string{"labels", "annotations"} {
