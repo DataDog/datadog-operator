@@ -100,11 +100,14 @@ var _ = Describe("Migration from the CloudPrem and Worker Helm charts", func() {
 			g.Expect(testManagers(current)).To(ContainElement("hpa/scale"))
 		}, timeout, interval).Should(Succeed())
 
-		By("keeping the fields of the chart on the Services")
-		service := &corev1.Service{}
-		Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "cloudprem-indexer", Namespace: namespace.Name}, service)).To(Succeed())
-		Expect(metav1.IsControlledBy(service, cluster)).To(BeTrue())
-		Expect(service.Labels).To(HaveKeyWithValue("helm.sh/chart", "cloudprem-0.5.4"))
+		By("giving the fields of the chart on the Services to the cluster")
+		Eventually(func(g Gomega) {
+			service := &corev1.Service{}
+			g.Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "cloudprem-indexer", Namespace: namespace.Name}, service)).To(Succeed())
+			g.Expect(metav1.IsControlledBy(service, cluster)).To(BeTrue())
+			g.Expect(service.Labels).NotTo(HaveKey("helm.sh/chart"))
+			g.Expect(testManagers(service)).NotTo(ContainElement(helmFieldManager))
+		}, timeout, interval).Should(Succeed())
 
 		By("creating the read-only metastore next to the one of the chart")
 		Eventually(func(g Gomega) {
