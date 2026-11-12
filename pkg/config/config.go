@@ -317,6 +317,8 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				// not only when introspection is enabled; gating it any narrower makes
 				// that fallback silently resolve to the default provider on Talos.
 				newNode.Status.NodeInfo.OSImage = node.Status.NodeInfo.OSImage
+				// Same reason for Spec.ProviderID: Nebius is identified from it alone.
+				newNode.Spec.ProviderID = node.Spec.ProviderID
 
 				return newNode, nil
 			},

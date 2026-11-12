@@ -27,7 +27,6 @@ const (
 	CoreAPIGroup                  = ""
 	DatadogAPIGroup               = "datadoghq.com"
 	DiscoveryAPIGroup             = "discovery.k8s.io"
-	ExtensionsAPIGroup            = "extensions"
 	ExternalMetricsAPIGroup       = "external.metrics.k8s.io"
 	GatewayAPIGroup               = "gateway.networking.k8s.io"
 	InferenceAPIGroup             = "inference.networking.k8s.io"
@@ -50,6 +49,7 @@ const (
 	DynamoAPIGroup                = "nvidia.com"
 	KServeAPIGroup                = "serving.kserve.io"
 	KueueAPIGroup                 = "kueue.x-k8s.io"
+	KAIAPIGroup                   = "scheduling.run.ai"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -82,7 +82,6 @@ const (
 	CustomResourceDefinitionsResource                 = "customresourcedefinitions"
 	DaemonsetsResource                                = "daemonsets"
 	DatadogAgentsResource                             = "datadogagents"
-	DatadogAgentInternalsResource                     = "datadogagentinternals"
 	DatadogInstrumentationsResource                   = "datadoginstrumentations"
 	DatadogInstrumentationsStatusResource             = "datadoginstrumentations/status"
 	DatadogMetricsResource                            = "datadogmetrics"
@@ -166,6 +165,7 @@ const (
 	KueueLocalQueuesResource                          = "localqueues"
 	KueueResourceFlavorsResource                      = "resourceflavors"
 	KueueWorkloadsResource                            = "workloads"
+	KAIPodGroupsResource                              = "podgroups"
 
 	// GKE resources
 	GCPTrafficExtensionsResource = "gcptrafficextensions"

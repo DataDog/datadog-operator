@@ -18,13 +18,15 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 // podInput contains the cluster-wide inputs shared by every component pod.
 type podInput struct {
-	cluster  *datadoghqv1alpha1.DatadogBYOCCluster
-	image    byocimage.ResolvedImage
-	checksum string
+	cluster   *datadoghqv1alpha1.DatadogBYOCCluster
+	image     byocimage.ResolvedImage
+	checksum  string
+	clusterID string
 }
 
 func newPodTemplate(in podInput, c component) (corev1.PodTemplateSpec, error) {
@@ -107,7 +109,6 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 
 func newEnvironment(in podInput, c component) []corev1.EnvVar {
 	cluster := in.cluster
-	clusterID := cluster.Namespace + "-" + cluster.Name
 	datadog := cluster.Spec.Datadog
 	site := *datadog.Site
 	resourceField := func(resourceName string) *corev1.EnvVarSource {
@@ -133,7 +134,6 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 		{Name: envQuickwitNumCPUs, ValueFrom: resourceField("requests.cpu")},
 		{Name: envKubernetesRequestsMemory, ValueFrom: resourceField("requests.memory")},
 		{Name: envQuickwitConfig, Value: nodeConfigPath},
-		{Name: envQuickwitClusterID, Value: clusterID},
 		{Name: envQuickwitNodeID, Value: "$(KUBERNETES_POD_NAME)"},
 		{Name: envQuickwitAvailabilityZone, ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
 		{Name: envQuickwitPeerSeeds, Value: headlessServiceName(cluster.Name)},
@@ -152,7 +152,7 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 		env = append(env, corev1.EnvVar{Name: envDatadogAPIKey, ValueFrom: &corev1.EnvVarSource{SecretKeyRef: datadog.APIKeySecretRef}})
 	}
 	if *datadog.BYOCTelemetry {
-		env = append(env, telemetryEnvironment(clusterID, site, in.image)...)
+		env = append(env, telemetryEnvironment(in.clusterID, site, in.image)...)
 	}
 	if cluster.Spec.Components.Compactor != nil {
 		env = append(env, corev1.EnvVar{Name: envQuickwitStandaloneCompactors, Value: "true"})
@@ -178,7 +178,8 @@ func telemetryEnvironment(clusterID, site string, image byocimage.ResolvedImage)
 	return []corev1.EnvVar{
 		{Name: envQuickwitOpenTelemetryExporter, Value: "true"},
 		{Name: envBYOCTelemetryEnabled, Value: "true"},
-		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		// The node name is not host.name, which would resolve the telemetry to an unrelated host with the same alias.
+		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: envOTelExporterProtocol, Value: telemetryExporterProtocol},
 		{Name: envOTelExporterLogsEndpoint, Value: intake + "logs"},
 		{Name: envOTelExporterMetricsTemporality, Value: telemetryMetricsTemporality},

@@ -55,6 +55,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr, datadogmonitor.ReconcilerOptions{
+		APIReader:     mgr.GetAPIReader(),
 		RequeuePeriod: r.Options.RequeuePeriod,
 	})
 
