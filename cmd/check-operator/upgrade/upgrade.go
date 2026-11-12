@@ -29,14 +29,17 @@ import (
 type Options struct {
 	genericclioptions.IOStreams
 	common.Options
-	args               []string
-	datadogAgentName   string
-	checkPeriod        time.Duration
-	checkTimeout       time.Duration
-	agentCompletionPct float64
-	agentCompletionMin int32
-	dcaMinUpToDate     int32
-	clcMinUpToDate     int32
+	args                  []string
+	datadogAgentName      string
+	checkPeriod           time.Duration
+	checkTimeout          time.Duration
+	agentCompletionPct    float64
+	agentCompletionMin    int32
+	dcaMinUpToDate        int32
+	clcMinUpToDate        int32
+	collectStartupTimings bool
+	startupExperiment     string
+	startupVariant        string
 }
 
 // NewOptions provides an instance of Options with default values.
@@ -108,6 +111,9 @@ func NewCmdUpgrade(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
+	cmd.Flags().BoolVar(&o.collectStartupTimings, "collect-startup-timings", false, "Log node Agent pod timings without affecting the upgrade result")
+	cmd.Flags().StringVar(&o.startupExperiment, "startup-experiment", "", "Experiment identifier for startup timing logs")
+	cmd.Flags().StringVar(&o.startupVariant, "startup-variant", "", "Variant identifier for startup timing logs")
 
 	return cmd
 }
@@ -179,6 +185,8 @@ func isReconcileError(conditions []metav1.Condition) error {
 
 // Run use to run the command.
 func (o *Options) Run() error {
+	stopStartupCollection := o.startStartupCollection()
+	defer stopStartupCollection()
 	o.printOutf("Start checking rolling-update status")
 	checkFunc := func(ctx context.Context) (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
