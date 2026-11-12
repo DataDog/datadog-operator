@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -816,6 +817,76 @@ func Test_GPUMonitoringFeature_AMDRuntimeClassOverrideWins(t *testing.T) {
 	// spec.override is applied after the features, so it wins.
 	override.PodTemplateSpec(logr.Discard(), mgr, &v2alpha1.DatadogAgentComponentOverride{RuntimeClassName: ptr.To("custom")}, v2alpha1.NodeAgentComponentName, "dda")
 	assert.Equal(t, "custom", *tmpl.Spec.RuntimeClassName)
+}
+
+func Test_GPUMonitoringFeature_AMDUserEnvWins(t *testing.T) {
+	newAgentTemplate := func(env ...corev1.EnvVar) *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			Spec: corev1.PodSpec{
+				Containers:     []corev1.Container{{Name: string(apicommon.CoreAgentContainerName), Env: env}},
+				InitContainers: []corev1.Container{{Name: string(apicommon.InitConfigContainerName)}},
+			},
+		}
+	}
+	userEnv := []corev1.EnvVar{
+		{Name: DDEnableAMDGPUEnvVar, Value: "false"},
+		{Name: AMDVisibleDevicesEnvVar, Value: "1"},
+	}
+
+	tests := []struct {
+		name string
+		// preset is what spec.global.env puts on the container before the features run.
+		preset []corev1.EnvVar
+		// override is applied after the features, like spec.override.nodeAgent.
+		override *v2alpha1.DatadogAgentComponentOverride
+	}{
+		{name: "spec.global.env", preset: userEnv},
+		{name: "spec.override.nodeAgent.env", override: &v2alpha1.DatadogAgentComponentOverride{Env: userEnv}},
+		{name: "spec.override.nodeAgent.containers.agent.env", override: &v2alpha1.DatadogAgentComponentOverride{
+			Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+				apicommon.CoreAgentContainerName: {Env: userEnv},
+			},
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{GPU: &v2alpha1.GPUFeatureConfig{Enabled: ptr.To(true)}},
+					Global:   &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "7.86.0"}},
+					},
+				},
+			}
+			f := buildFeature(&feature.Options{Logger: logr.Discard()})
+			f.Configure(dda, &dda.Spec, nil)
+
+			tmpl := newAgentTemplate(tt.preset...)
+			mgr := feature.NewPodTemplateManagers(tmpl)
+			require.NoError(t, f.ManageNodeAgent(mgr))
+			if tt.override != nil {
+				override.PodTemplateSpec(logr.Discard(), mgr, tt.override, v2alpha1.NodeAgentComponentName, "dda")
+			}
+
+			env := tmpl.Spec.Containers[0].Env
+			assert.Equal(t, []string{"false"}, containerEnvValues(env, DDEnableAMDGPUEnvVar))
+			assert.Equal(t, []string{"1"}, containerEnvValues(env, AMDVisibleDevicesEnvVar))
+		})
+	}
+}
+
+// containerEnvValues returns the value of every env entry named name, to catch duplicates.
+func containerEnvValues(envs []corev1.EnvVar, name string) []string {
+	var values []string
+	for _, env := range envs {
+		if env.Name == name {
+			values = append(values, env.Value)
+		}
+	}
+	return values
 }
 
 func Test_GPUMonitoringFeature_AMDOnAutopilotStaysDegraded(t *testing.T) {

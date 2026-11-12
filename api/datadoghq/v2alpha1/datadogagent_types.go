@@ -984,7 +984,8 @@ type ServiceDiscoveryFeatureConfig struct {
 // GPUFeatureConfig contains the GPU monitoring configuration.
 type GPUFeatureConfig struct {
 	// Enabled enables GPU monitoring core check.
-	// With Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot).
+	// With Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot). To turn only that
+	// off, set DD_GPU_AMD_ENABLED=false on the core agent (spec.override.nodeAgent.containers.agent.env).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

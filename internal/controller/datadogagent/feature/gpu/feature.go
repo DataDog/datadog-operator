@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -345,15 +346,16 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvidiaVisibleDevicesEnvVar)
 
 	if f.amdEnabled {
-		// enable the amd_gpu core check, and ask the AMD container runtime to expose all GPUs
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  DDEnableAMDGPUEnvVar,
-			Value: "true",
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  AMDVisibleDevicesEnvVar,
-			Value: "all",
-		})
+		// Enable the amd_gpu core check and ask the AMD container runtime to expose all GPUs.
+		// These are defaults: a value set earlier (spec.global.env) is kept, and spec.override env replaces them.
+		for _, envVar := range []*corev1.EnvVar{
+			{Name: DDEnableAMDGPUEnvVar, Value: "true"},
+			{Name: AMDVisibleDevicesEnvVar, Value: "all"},
+		} {
+			if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, envVar, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
