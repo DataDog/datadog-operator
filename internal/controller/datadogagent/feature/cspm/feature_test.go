@@ -512,7 +512,7 @@ func Test_cspmFeature_NodeAgentProviderCapabilities(t *testing.T) {
 // to come from the core agent.
 func configSyncEnvVars() []*corev1.EnvVar {
 	return []*corev1.EnvVar{
-		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcUseSocket, Value: "true"},
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
 	}
 }

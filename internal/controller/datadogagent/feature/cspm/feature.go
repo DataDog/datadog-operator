@@ -388,7 +388,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	if f.runInSystemProbe {
 		// The system-probe submits the compliance payloads itself and cannot resolve a
 		// secret-backed api_key on its own, so it needs config sync to get the resolved value.
-		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+		featureutils.EnableConfigSyncForDirectSend(managers, f.owner, []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		})

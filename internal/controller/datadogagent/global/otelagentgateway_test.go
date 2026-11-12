@@ -76,6 +76,10 @@ func Test_applyOtelAgentGatewayResources(t *testing.T) {
 			Value: "0",
 		},
 		{
+			Name:  "DD_AGENT_IPC_USE_SOCKET",
+			Value: "false",
+		},
+		{
 			Name:  "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL",
 			Value: "0",
 		},

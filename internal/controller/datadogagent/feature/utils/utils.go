@@ -26,6 +26,10 @@ const (
 	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
 	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
+	// AgentIPCUnixSocketMinVersion is the minimum Agent version supporting the
+	// agent_ipc unix socket transport; older agents ignore it and would silently
+	// lose config sync, so they keep the TCP port.
+	AgentIPCUnixSocketMinVersion = "7.85.0-0"
 	// DefaultDataPlaneMinAgentVersion is the minimum Agent version that receives the Operator-level Data Plane default.
 	// Explicit Data Plane configuration remains available for older versions.
 	DefaultDataPlaneMinAgentVersion   = "7.84.0-0"
@@ -192,21 +196,33 @@ func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, platformI
 	return common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), forceEnableLocalService)
 }
 
-// EnableConfigSyncForDirectSend sets the agent_ipc env vars that config sync requires, on the
-// given containers. system-probe wires the no-op secrets component, so with direct send it cannot
-// resolve an ENC[...] api_key itself; config sync is what supplies the resolved value from the
-// core agent. Both a refresh interval and an IPC transport are needed, since agent_ipc.port
-// defaults to 0 and is gated independently of agent_ipc.config_refresh_interval.
-//
-// Values match the otelcollector and hostprofiler features, which set the same core agent env
-// vars for the same reason; a mismatch there would leave the port up to feature ordering.
-// User-provided values win.
-func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, containers []apicommon.AgentContainerName) {
-	keepCurrent := func(current, _ *corev1.EnvVar) (*corev1.EnvVar, error) { return current, nil }
-	for _, envVar := range []*corev1.EnvVar{
-		{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
+// AgentIPCConfigSyncEnvVars returns the agent_ipc env vars that config sync
+// requires: the unix socket transport on agents that support it, the TCP port
+// otherwise.
+func AgentIPCConfigSyncEnvVars(agentVersion string) []*corev1.EnvVar {
+	transportEnvVar := &corev1.EnvVar{
+		Name:  common.DDAgentIpcPort,
+		Value: DefaultAgentIpcPort,
+	}
+	if utils.IsAboveMinVersion(agentVersion, AgentIPCUnixSocketMinVersion, nil) {
+		transportEnvVar = &corev1.EnvVar{
+			Name:  common.DDAgentIpcUseSocket,
+			Value: "true",
+		}
+	}
+	return []*corev1.EnvVar{
+		transportEnvVar,
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
-	} {
+	}
+}
+
+// EnableConfigSyncForDirectSend sets the agent_ipc env vars that config sync requires
+// on the given containers: with direct send, system-probe cannot resolve an ENC[...]
+// api_key itself and needs the value resolved by the core agent. Values match the
+// otelcollector and hostprofiler features; user-provided values win.
+func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, dda metav1.Object, containers []apicommon.AgentContainerName) {
+	keepCurrent := func(current, _ *corev1.EnvVar) (*corev1.EnvVar, error) { return current, nil }
+	for _, envVar := range AgentIPCConfigSyncEnvVars(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)) {
 		for _, container := range containers {
 			managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, envVar, keepCurrent)
 		}

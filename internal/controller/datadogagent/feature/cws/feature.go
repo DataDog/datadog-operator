@@ -271,7 +271,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 		// The system-probe submits the events itself and cannot resolve a secret-backed
 		// api_key on its own, so it needs config sync to get the resolved value.
-		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+		featureutils.EnableConfigSyncForDirectSend(managers, f.owner, []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		})
