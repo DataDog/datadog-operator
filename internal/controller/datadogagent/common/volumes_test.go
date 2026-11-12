@@ -13,6 +13,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+func TestGetVolumeForOSRelease(t *testing.T) {
+	vol := GetVolumeForOSRelease()
+
+	assert.Equal(t, OSReleaseFileVolumeName, vol.Name)
+	if assert.NotNil(t, vol.HostPath) {
+		assert.Equal(t, "/etc/os-release", vol.HostPath.Path)
+	}
+}
+
+func TestGetVolumeMountForOSRelease(t *testing.T) {
+	vm := GetVolumeMountForOSRelease()
+
+	// The Agent reads the host OS from HOST_ETC=/host/etc once that directory exists.
+	assert.Equal(t, OSReleaseFileVolumeName, vm.Name)
+	assert.Equal(t, "/host/etc/os-release", vm.MountPath)
+	assert.True(t, vm.ReadOnly)
+}
+
 func TestGetVolumeForRmCorechecks(t *testing.T) {
 	vol := GetVolumeForRmCorechecks()
 
