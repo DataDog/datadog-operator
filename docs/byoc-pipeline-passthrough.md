@@ -13,6 +13,9 @@ has no `required` and no `minItems` (already true on main). Pipelines can be add
 `DatadogObservabilityPipelinesWorker`. The Worker runs that YAML locally, so a pipeline can be
 pre-baked without Remote Config or the Observability Pipelines UI.
 
+Local mode is for development and testing only. It is not a supported production path and may
+be removed in a future version; use `pipelineID` with Remote Config instead.
+
 `pipelineID` is optional when `pipelineConfig` is set: the Worker reports its own UID instead.
 With neither set, the cluster is invalid (`pipelines[i].pipelineID` is required).
 
@@ -50,11 +53,16 @@ The YAML above is illustrative: the exact keys follow the Observability Pipeline
 ## Errors
 
 The cluster does not validate `pipelineConfig` YAML (or reject multi-document YAML). Those errors
-surface only on the child Worker status, not on the cluster.
+surface only on the child Worker status, not on the cluster. The same goes for the Worker's other
+local-mode checks (for example reserved volume and mount names).
+
+The `LocalModeDevOnly` Warning event is also emitted only on the child Worker
+(`kubectl describe` the Worker). The cluster itself shows no dev/test-only signal.
 
 ## Open questions
 
 - Should the cluster validate `pipelineConfig` itself? Blocked today by an import cycle
   (Worker validation imports cluster validation).
 - Is the config snippet above the right minimal shape, and is `${ENV}` the right interpolation?
-- Should a cluster-level condition mirror the Worker's config error?
+- Should the cluster itself warn that local mode is dev/test-only, and mirror the Worker's config
+  error in a condition? Today it does neither.
