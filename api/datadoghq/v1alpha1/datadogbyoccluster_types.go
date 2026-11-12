@@ -310,6 +310,8 @@ type DatadogBYOCClusterPipelineSpec struct {
 	// PipelineConfig is an Observability Pipelines pipeline in YAML, passed through to the worker.
 	// When set, the worker runs it locally instead of fetching pipelineID from Remote Config,
 	// and pipelineID becomes optional. Its YAML is validated by the worker, not the cluster.
+	// Local mode is for development and testing only, is not a supported production path,
+	// and may be removed in a future version. Use pipelineID with Remote Config instead.
 	// +optional
 	PipelineConfig *string `json:"pipelineConfig,omitempty"`
 
