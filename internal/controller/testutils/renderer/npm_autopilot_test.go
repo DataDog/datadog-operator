@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -26,12 +24,11 @@ func TestRender_AutopilotNPMProtocolClassification(t *testing.T) {
 		annotationKey   string
 		annotationValue string
 		npmEnabled      bool
-		wantDisabled    bool
 	}{
-		{"autopilot with NPM", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider, true, true},
-		{"experimental autopilot with NPM", experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey, "true", true, true},
-		{"autopilot without NPM", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider, false, false},
-		{"default provider with NPM", "", "", true, false},
+		{"autopilot with NPM", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider, true},
+		{"experimental autopilot with NPM", experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey, "true", true},
+		{"autopilot without NPM", kubernetes.ProviderAnnotationKey, kubernetes.GKEAutopilotProvider, false},
+		{"default provider with NPM", "", "", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			dda, err := LoadDDA("testdata/minimal-dda.yaml")
@@ -54,18 +51,11 @@ func TestRender_AutopilotNPMProtocolClassification(t *testing.T) {
 					continue
 				}
 				daemonSetFound = true
-				var workaroundFound bool
 				for _, c := range ds.Spec.Template.Spec.Containers {
 					for _, env := range c.Env {
-						if env.Name != "DD_ENABLE_PROTOCOL_CLASSIFICATION" {
-							continue
-						}
-						workaroundFound = true
-						assert.Equal(t, string(apicommon.SystemProbeContainerName), c.Name)
-						assert.Equal(t, corev1.EnvVar{Name: "DD_ENABLE_PROTOCOL_CLASSIFICATION", Value: "false"}, env)
+						assert.NotEqual(t, "DD_ENABLE_PROTOCOL_CLASSIFICATION", env.Name, "container %s", c.Name)
 					}
 				}
-				assert.Equal(t, tt.wantDisabled, workaroundFound)
 			}
 			require.True(t, daemonSetFound)
 		})
