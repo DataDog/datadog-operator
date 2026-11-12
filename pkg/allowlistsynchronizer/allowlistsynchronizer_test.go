@@ -27,13 +27,14 @@ func TestResolveWorkloadAllowlistVersion(t *testing.T) {
 	}{
 		{name: "empty falls back to default", input: "", expected: DefaultWorkloadAllowlistVersion},
 		{name: "well-formed override is preserved", input: "v2.5.0", expected: "v2.5.0"},
+		{name: "older explicit pin is preserved", input: "v1.0.7", expected: "v1.0.7"},
 		{name: "malformed falls back to default (no v prefix)", input: "1.0.5", expected: DefaultWorkloadAllowlistVersion},
 		{name: "malformed falls back to default (extra suffix)", input: "v1.0.5-alpha", expected: DefaultWorkloadAllowlistVersion},
 		{name: "malformed falls back to default (random)", input: "garbage", expected: DefaultWorkloadAllowlistVersion},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, resolveWorkloadAllowlistVersion(tt.input))
+			assert.Equal(t, tt.expected, ResolveWorkloadAllowlistVersion(tt.input))
 		})
 	}
 }
@@ -57,7 +58,7 @@ func TestResolveCSIWorkloadAllowlistVersion(t *testing.T) {
 
 func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
-	assert.Equal(t, "v1.0.7", DefaultWorkloadAllowlistVersion)
+	assert.Equal(t, "v1.0.8", DefaultWorkloadAllowlistVersion)
 }
 
 func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
@@ -69,32 +70,53 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
 
+	defaultPaths := []string{
+		"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
+		"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.8.yaml",
+	}
 	tests := []struct {
-		name       string
-		version    string
-		expectPath string
+		name          string
+		version       string
+		expectedPaths []string
 	}{
 		{
-			name:       "default version",
-			version:    DefaultWorkloadAllowlistVersion,
-			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
+			name:          "default version retains previous version",
+			version:       DefaultWorkloadAllowlistVersion,
+			expectedPaths: defaultPaths,
 		},
 		{
-			name:       "user override",
-			version:    "v2.5.0",
-			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v2.5.0.yaml",
+			name:    "user override",
+			version: "v2.5.0",
+			expectedPaths: []string{
+				"Datadog/datadog/datadog-datadog-daemonset-exemption-v2.5.0.yaml",
+			},
+		},
+		{
+			name:    "older explicit pin is not duplicated",
+			version: "v1.0.7",
+			expectedPaths: []string{
+				"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.7.yaml",
+			},
+		},
+		{
+			name:          "unset version",
+			expectedPaths: defaultPaths,
+		},
+		{
+			name:          "malformed pin falls back to default",
+			version:       "v1.0.7-rc.1",
+			expectedPaths: defaultPaths,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fake.NewClientBuilder().WithScheme(scheme).Build()
-			require.NoError(t, applyAllowlistSynchronizerResource(c, tt.version, "default-foo", nil))
+			require.NoError(t, applyAllowlistSynchronizerResource(c, ResolveWorkloadAllowlistVersion(tt.version), "default-foo", nil))
 
 			got := &AllowlistSynchronizer{}
 			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
-			require.Len(t, got.Spec.AllowlistPaths, 1)
-			assert.Equal(t, tt.expectPath, got.Spec.AllowlistPaths[0])
+			assert.Equal(t, tt.expectedPaths, got.Spec.AllowlistPaths)
 			assert.Empty(t, got.Annotations)
 			assert.Equal(t, "datadog-operator", got.Labels["app.kubernetes.io/created-by"])
 			assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])

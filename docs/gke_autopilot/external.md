@@ -76,7 +76,7 @@ declared with this annotation.
 
 When Autopilot mode is enabled, the Operator applies a GKE `AllowlistSynchronizer` named `datadog-synchronizer` that points GKE to the Datadog WorkloadAllowlist.
 
-By default, the Operator uses the built-in default allowlist version. To pin another allowlist version, set:
+By default, the Operator selects allowlist version `v1.0.8`, which must be published before deploying this configuration, and also keeps `v1.0.7` synchronized while `v1.0.8` rolls out across GKE versions. To pin another allowlist version, set:
 
 ```yaml
 metadata:
@@ -87,7 +87,7 @@ metadata:
 
 The value must use the `vX.Y.Z` format. Malformed values are ignored and the default version is used.
 
-On Autopilot, process collection keeps mounting the host's `/etc/passwd` at `/etc/passwd`. The `/host/etc/passwd` destination used by Agent 7.86.0+ elsewhere needs a newer WorkloadAllowlist and is not enabled on Autopilot yet. See [Process passwd mounts](../configuration.v2alpha1.md#process-passwd-mounts).
+With Agent 7.86.0+ and allowlist `v1.0.8` or newer, process collection mounts the host's `/etc/passwd` read-only at `/host/etc/passwd` from a `host-passwd` volume. An older allowlist pin keeps `/etc/passwd`. See [Process passwd mounts](../configuration.v2alpha1.md#process-passwd-mounts).
 
 ## Customize resources
 
