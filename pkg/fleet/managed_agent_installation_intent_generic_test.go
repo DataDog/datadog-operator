@@ -210,7 +210,7 @@ func TestDecodeGenericManagedAgentInstallationIntentErrors(t *testing.T) {
 			raw: func(t *testing.T) []byte {
 				return genericIntentJSONWith(t, map[string]any{"desiredState": "pending"})
 			},
-			wantErr: "unsupported generic managed Agent installation desired state",
+			wantErr: "unsupported managed Agent installation desired state",
 		},
 	}
 	for _, test := range tests {
