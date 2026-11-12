@@ -64,7 +64,7 @@ func TestBuildResources_Affinity(t *testing.T) {
 			cluster.Spec.Global.Affinity = tt.global
 			cluster.Spec.Components.Indexer.Affinity = tt.component
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}

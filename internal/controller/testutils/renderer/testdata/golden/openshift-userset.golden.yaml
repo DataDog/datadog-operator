@@ -1362,7 +1362,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7909f0fa107e4bf33a147414f16ce30f
+    agent.datadoghq.com/agentspechash: 2d1a6ee8ee45672cd32d8f66f4b9c41c
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1430,6 +1430,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1606,6 +1608,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1697,6 +1701,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE

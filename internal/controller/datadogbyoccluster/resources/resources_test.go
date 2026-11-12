@@ -27,6 +27,8 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func TestResources_Objects(t *testing.T) {
@@ -92,7 +94,7 @@ func TestResources_Objects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -243,7 +245,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -256,6 +258,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 
 func TestBuildResources_ConfigMap(t *testing.T) {
 	type nodeConfigValues struct {
+		clusterID string
 		indexer   map[string]any
 		ingestAPI map[string]any
 		searcher  map[string]any
@@ -288,14 +291,16 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 	}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
-			"version":               0.8,
-			"listen_address":        "0.0.0.0",
-			"gossip_listen_port":    7282,
-			"cloudprem_listen_port": 7283,
-			"data_dir":              "/quickwit/qwdata",
-			"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-			"health":                map[string]any{"listen_port": 7284},
-			"cloudprem":             values.cloudprem,
+			"version":                 0.8,
+			"cluster_id":              values.clusterID,
+			"listen_address":          "0.0.0.0",
+			"gossip_listen_port":      7282,
+			"gossip_protocol_version": 1,
+			"cloudprem_listen_port":   7283,
+			"data_dir":                "/quickwit/qwdata",
+			"grpc":                    map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+			"health":                  map[string]any{"listen_port": 7284},
+			"cloudprem":               values.cloudprem,
 			"docs_clustering": []any{
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
@@ -335,6 +340,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			name:        "default",
 			clusterFunc: func(*datadoghqv1alpha1.DatadogBYOCCluster) {},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -351,6 +357,7 @@ ingest_api:
   max_queue_memory_usage: 1GiB`)}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(10307921510), "max_queue_memory_usage": "1GiB"},
 				searcher: map[string]any{
@@ -375,6 +382,7 @@ ingest_api:
     policy: s3-fifo`)}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher: map[string]any{
@@ -384,6 +392,19 @@ ingest_api:
 					"partial_request_cache":             "40G",
 					"split_footer_cache":                map[string]any{"capacity": int64(536870912), "policy": "s3-fifo"},
 				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with cluster ID node config override",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "search",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				searcher:  defaultSearcher,
 				cloudprem: defaultCloudPrem,
 			},
 		},
@@ -398,6 +419,7 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 17394617549, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(5153960755), "max_queue_memory_usage": int64(2576980377)},
 				searcher: map[string]any{
@@ -421,6 +443,7 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   map[string]any{"split_store_max_num_bytes": 15784004813, "split_store_max_num_splits": 10000},
 				ingestAPI: map[string]any{"max_queue_disk_usage": int64(6764573491), "max_queue_memory_usage": int64(3382286745)},
 				searcher: map[string]any{
@@ -439,6 +462,7 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs)
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -451,6 +475,7 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -471,6 +496,7 @@ ingest_api:
   create_datadog_index: true`)}
 			},
 			want: nodeConfigValues{
+				clusterID: "testing-byoc",
 				indexer:   defaultIndexer,
 				ingestAPI: defaultIngestAPI,
 				searcher:  defaultSearcher,
@@ -489,7 +515,7 @@ ingest_api:
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
 			tt.clusterFunc(cluster)
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -532,7 +558,7 @@ func TestBuildResources_HeadlessService(t *testing.T) {
 		},
 	}
 
-	resources, err := buildResources(cluster, testRelease())
+	resources, err := buildResources(cluster, testImages())
 	if err != nil {
 		t.Fatalf("BuildResources() unexpected error: %v", err)
 	}
@@ -581,7 +607,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			cluster.Spec.Identity = tt.identity
 			cluster.Spec.Provider = tt.provider
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -654,6 +680,13 @@ func TestBuildResources_Environment(t *testing.T) {
 				{Name: "COMPONENT_SETTING", Value: "component"},
 			},
 		},
+		{
+			name: "cluster ID of the node configuration",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
+			},
+			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -661,7 +694,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			cluster := testCluster()
 			tt.input(cluster)
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -813,7 +846,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Indexer = tt.indexer
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -935,7 +968,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Searcher = tt.searcher
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -999,7 +1032,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Metastore = tt.metastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1036,7 +1069,7 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ControlPlane = tt.controlPlane
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1073,7 +1106,7 @@ func TestBuildResources_Janitor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Janitor = tt.janitor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1141,7 +1174,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1222,7 +1255,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Compactor = tt.compactor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1264,7 +1297,7 @@ func buildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 	return BuildResources(byocdefaults.Apply(cluster), images)
 }
 
-func testRelease() *byocimage.ResolvedImages {
+func testImages() *byocimage.ResolvedImages {
 	return &byocimage.ResolvedImages{
 		Pomsky: byocimage.ResolvedImage{
 			Repository: "registry.example.com/cloudprem",
@@ -1382,6 +1415,8 @@ type wantWorkload struct {
 	template corev1.PodTemplateSpec
 }
 
+// wantDefaultEnvironment returns the default environment with additional replacing the variables of the same name
+// and adding the others.
 func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 	field := func(fieldPath string) *corev1.EnvVarSource {
 		return &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: fieldPath}}
@@ -1401,7 +1436,6 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "QW_NUM_CPUS", ValueFrom: resourceField("requests.cpu")},
 		{Name: "KUBERNETES_REQUESTS_MEMORY", ValueFrom: resourceField("requests.memory")},
 		{Name: "QW_CONFIG", Value: "/quickwit/node.yaml"},
-		{Name: "QW_CLUSTER_ID", Value: "testing-byoc"},
 		{Name: "QW_NODE_ID", Value: "$(KUBERNETES_POD_NAME)"},
 		{Name: "QW_AVAILABILITY_ZONE", ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
 		{Name: "QW_PEER_SEEDS", Value: "byoc-headless"},
@@ -1414,7 +1448,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "DD_SITE", Value: "datadoghq.com"},
 		{Name: "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER", Value: "true"},
 		{Name: "BYOC_TELEMETRY_ENABLED", Value: "true"},
-		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "http/protobuf"},
 		{Name: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"},
 		{Name: "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", Value: "delta"},
@@ -1425,7 +1459,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "IMAGE_NAME", Value: "registry.example.com/cloudprem"},
 		{Name: "IMAGE_TAG", Value: "v1.2.3"},
 	}
-	env = append(env, additional...)
+	env = controllerutils.MergeEnv(env, additional)
 	return append(env,
 		corev1.EnvVar{Name: "NO_COLOR", Value: "true"},
 		corev1.EnvVar{Name: "QW_DISABLE_INGEST_V1", Value: "true"},

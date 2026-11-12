@@ -2,6 +2,7 @@ package datadoggenericresource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -41,8 +42,14 @@ const (
 	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
 )
 
+var (
+	errCreateSkipped = errors.New("resource changed before create")
+	errPreCreateRead = errors.New("checking DatadogGenericResource before create")
+)
+
 type Reconciler struct {
 	client          client.Client
+	apiReader       client.Reader
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
 	requeuePeriod   time.Duration
@@ -53,6 +60,8 @@ type Reconciler struct {
 }
 
 type ReconcilerOptions struct {
+	// APIReader bypasses the informer cache for pre-create checks.
+	APIReader     client.Reader
 	RequeuePeriod time.Duration
 }
 
@@ -62,8 +71,13 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		options = opts[0]
 	}
 
+	if options.APIReader == nil {
+		options.APIReader = client
+	}
+
 	return &Reconciler{
 		client:          client,
+		apiReader:       options.APIReader,
 		credsManager:    credsManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
 		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
@@ -152,7 +166,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = handler.getResource(auth, instance)
+			remoteHash := ""
+			if hasher, ok := handler.(remoteDefinitionHasher); ok {
+				remoteHash, err = hasher.getRemoteDefinitionHash(auth, instance)
+			} else {
+				err = handler.getResource(auth, instance)
+			}
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -162,6 +181,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
 				// create()/update() advance it themselves once the sync actually succeeds.
+			} else if remoteHash != "" && remoteHash == instance.Status.RemoteDefinitionHash {
+				// Nobody edited the resource since our last write, so reapplying the
+				// spec would be a no-op.
+				logger.V(1).Info("Remote resource unchanged since the last update; skipping force-sync update", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
+				status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+				status.LastForceSyncTime = &now
 			} else {
 				shouldUpdate = true
 			}
@@ -178,6 +204,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			err = r.create(ctx, auth, handler, instance, status, now, instanceSpecHash)
 		} else if shouldUpdate {
 			err = r.update(ctx, auth, handler, instance, status, now, instanceSpecHash)
+		}
+
+		if errors.Is(err, errCreateSkipped) {
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
+		if errors.Is(err, errPreCreateRead) {
+			// Surface infrastructure failures without writing status from a stale CR.
+			return ctrl.Result{}, err
 		}
 
 		if err != nil {
@@ -217,8 +251,17 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	logger := ctrl.LoggerFrom(ctx)
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
+	// Until an update succeeds, the remote resource may not match the spec, so
+	// force syncs must not be skipped.
+	status.RemoteDefinitionHash = ""
 
-	err := handler.updateResource(auth, instance)
+	var remoteHash string
+	var err error
+	if hasher, ok := handler.(remoteDefinitionHasher); ok {
+		remoteHash, err = hasher.updateResourceWithHash(auth, instance)
+	} else {
+		err = handler.updateResource(auth, instance)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 			// If the remote resource was deleted out-of-band after we stored its ID,
@@ -241,6 +284,7 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.LastForceSyncTime = &now
+	status.RemoteDefinitionHash = remoteHash
 
 	logger.Info("Updated DatadogGenericResource", "Generic Resource Id", instance.Status.Id)
 	return nil
@@ -248,6 +292,19 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 
 func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
+	// Check the API server immediately before creating, including recreation after
+	// a remote 404. A different persisted ID means this reconcile is stale.
+	latest := &v1alpha1.DatadogGenericResource{}
+	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); err != nil {
+		if apierrors.IsNotFound(err) {
+			return errCreateSkipped
+		}
+		return fmt.Errorf("%w: %w", errPreCreateRead, err)
+	}
+	if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.Id != "" && latest.Status.Id != instance.Status.Id) {
+		logger.Info("Skipping create because DatadogGenericResource changed; requeuing")
+		return errCreateSkipped
+	}
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
 	result, err := handler.createResource(auth, instance)
@@ -266,6 +323,7 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	status.Creator = result.Creator
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
+	status.RemoteDefinitionHash = result.RemoteDefinitionHash
 
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
 	r.recordEvent(instance, event)

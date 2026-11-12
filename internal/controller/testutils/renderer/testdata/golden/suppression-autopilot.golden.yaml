@@ -1306,7 +1306,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: b704525857dae782b168801a6def88c4
+    agent.datadoghq.com/agentspechash: 484692b868093ea8e57824f98b60ece6
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1377,6 +1377,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1567,6 +1569,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1647,6 +1651,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE

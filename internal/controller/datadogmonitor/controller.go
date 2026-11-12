@@ -33,6 +33,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -70,6 +71,7 @@ const requiredTag = "generated:kubernetes"
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
 	client                 client.Client
+	apiReader              client.Reader
 	datadogClient          *datadogV1.MonitorsApi
 	credsManager           *config.CredentialManager
 	log                    logr.Logger
@@ -81,6 +83,8 @@ type Reconciler struct {
 }
 
 type ReconcilerOptions struct {
+	// APIReader bypasses the informer cache for pre-create checks.
+	APIReader     client.Reader
 	RequeuePeriod time.Duration
 }
 
@@ -91,8 +95,13 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		options = opts[0]
 	}
 
+	if options.APIReader == nil {
+		options.APIReader = client
+	}
+
 	return &Reconciler{
 		client:                 client,
+		apiReader:              options.APIReader,
 		datadogClient:          datadogclient.InitMonitorClient(),
 		credsManager:           credsManager,
 		scheme:                 scheme,
@@ -203,7 +212,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			// A force sync periodically reapplies the desired monitor definition
 			// to correct out-of-band changes. Check that the remote monitor still
 			// exists first so an out-of-band deletion takes the create path.
-			_, err = r.get(auth, instance, newStatus)
+			m, err = r.get(auth, instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -211,6 +220,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				} else {
 					result.RequeueAfter = defaultErrRequeuePeriod
 				}
+			} else if hash := remoteDefinitionHash(logger, m); hash != "" && hash == instance.Status.RemoteDefinitionHash {
+				// Nobody edited the monitor since our last write, so reapplying the
+				// definition would be a no-op.
+				logger.V(1).Info("Monitor unchanged since the last update; skipping force-sync update", "Monitor ID", instance.Status.ID)
+				newStatus.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+				newStatus.MonitorLastForceSyncTime = &now
 			} else {
 				shouldUpdate = true
 			}
@@ -240,6 +255,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	// Create and update actions
 	if shouldCreate {
+		// Bypass the cache before creating. Keep recreation after a remote 404
+		// when the persisted ID still matches the one we observed.
+		latest := &datadoghqv1alpha1.DatadogMonitor{}
+		if getErr := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); getErr != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(getErr)
+		}
+		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) {
+			logger.Info("Skipping create because DatadogMonitor changed; requeuing")
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
 		if isSupportedMonitorType(instance.Spec.Type) {
 			logger.V(1).Info("Creating monitor in Datadog")
 			// Make sure required tags are present
@@ -366,6 +391,7 @@ func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMon
 	status.Primary = true
 	status.MonitorStateSyncStatus = ""
 	status.CurrentHash = instanceSpecHash
+	status.RemoteDefinitionHash = remoteDefinitionHash(logger, m)
 
 	// Set Created Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeCreated, corev1.ConditionTrue, "DatadogMonitor Created")
@@ -375,6 +401,10 @@ func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMon
 }
 
 func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, instanceSpecHash string) error {
+	// Until an update succeeds, the remote monitor may not match the spec, so
+	// force syncs must not be skipped.
+	status.RemoteDefinitionHash = ""
+
 	// Validate monitor in Datadog
 	if err := validateMonitor(auth, logger, r.datadogClient, datadogMonitor); err != nil {
 		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusValidateError
@@ -382,10 +412,12 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 	}
 
 	// Update monitor in Datadog
-	if _, err := updateMonitor(auth, logger, r.datadogClient, datadogMonitor); err != nil {
+	m, err := updateMonitor(auth, logger, r.datadogClient, datadogMonitor)
+	if err != nil {
 		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusUpdateError
 		return err
 	}
+	status.RemoteDefinitionHash = remoteDefinitionHash(logger, m)
 
 	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, pkgutils.UpdateEvent)
 	r.recordEvent(datadogMonitor, event)
@@ -408,6 +440,17 @@ func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1
 		return m, err
 	}
 	return m, nil
+}
+
+// remoteDefinitionHash returns the definition hash of a monitor returned by the
+// API, or "" if it cannot be computed, which keeps force syncs updating.
+func remoteDefinitionHash(logger logr.Logger, m datadogV1.Monitor) string {
+	hash, err := controllerutils.MonitorDefinitionHash(m)
+	if err != nil {
+		logger.Error(err, "unable to hash the monitor definition", "Monitor ID", m.GetId())
+		return ""
+	}
+	return hash
 }
 
 func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {

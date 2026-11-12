@@ -47,12 +47,16 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentSingleContainer(dda)
 	} else {
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
-		jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
-		for i := range agentContainers {
-			switch apicommon.AgentContainerName(agentContainers[i].Name) {
-			case apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName, apicommon.TraceAgentContainerName:
-				agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
-			}
+	}
+	jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
+	for i := range agentContainers {
+		if agentContainers[i].Name != string(apicommon.OtelAgent) {
+			agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
+		}
+	}
+	for i := range agentContainers {
+		if isConfigStreamConsumerContainer(agentContainers[i].Name) {
+			agentContainers[i].Env = append(agentContainers[i].Env, configStreamConsumerEnvVar())
 		}
 	}
 
@@ -462,6 +466,30 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 
 func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envVarsForCoreAgent(dda), podNameEnvVar())
+}
+
+// isConfigStreamConsumerContainer reports whether the container reads the config stream consumer
+// switch; the core agent is included so its streamed snapshot reports the same value.
+func isConfigStreamConsumerContainer(name string) bool {
+	switch apicommon.AgentContainerName(name) {
+	case apicommon.CoreAgentContainerName,
+		apicommon.UnprivilegedSingleAgentContainerName,
+		apicommon.TraceAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SecurityAgentContainerName,
+		apicommon.SystemProbeContainerName:
+		return true
+	}
+	return false
+}
+
+// configStreamConsumerEnvVar disables config streaming by default: since Agent 7.85.0 consumers
+// drop their own environment, which loses per-container settings.
+func configStreamConsumerEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name:  DDRemoteAgentConfigStreamConsumerEnabled,
+		Value: "false",
+	}
 }
 
 func podNameEnvVar() corev1.EnvVar {
