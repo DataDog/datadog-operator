@@ -21,23 +21,17 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// managedAgentInstallationMaxAgentProfiles bounds the number of
-// DatadogAgentProfile resources a single managed Agent installation intent can
-// request.
+// managedAgentInstallationMaxAgentProfiles bounds the number of DatadogAgentProfile resources a single managed Agent installation intent can request.
 const managedAgentInstallationMaxAgentProfiles = 8
 
-// managedAgentInstallationAgentProfile is a DatadogAgentProfile requested by a
-// managed Agent installation intent. The Fleet Daemon creates one
-// DatadogAgentProfile CR per entry, owned by the Fleet-managed DatadogAgent.
+// managedAgentInstallationAgentProfile is a DatadogAgentProfile requested by a managed Agent installation intent.
 type managedAgentInstallationAgentProfile struct {
 	Name            string                    `json:"name"`
 	ProfileAffinity *v1alpha1.ProfileAffinity `json:"profileAffinity"`
 	Config          json.RawMessage           `json:"config,omitempty"`
 }
 
-// decodedManagedAgentInstallationAgentProfile is the validated, decoded form
-// used to build the DatadogAgentProfile CR. Its JSON form is the canonical
-// serialization used for intent digests.
+// decodedManagedAgentInstallationAgentProfile is the validated, decoded form used to build the DatadogAgentProfile CR.
 type decodedManagedAgentInstallationAgentProfile struct {
 	Name            string                     `json:"name"`
 	ProfileAffinity *v1alpha1.ProfileAffinity  `json:"profileAffinity"`
@@ -105,10 +99,7 @@ func decodeManagedAgentInstallationAgentProfiles(raw json.RawMessage) ([]decoded
 	return decoded, nil
 }
 
-// mergeManagedAgentInstallationAgentConfig merges the intent-provided
-// DatadogAgentSpec fragment over the bootstrap spec. The bootstrap cluster
-// name, site, and linux node selectors remain authoritative: they are bound to
-// the Fleet-delivered credentials and the managed installation identity.
+// mergeManagedAgentInstallationAgentConfig merges the intent-provided DatadogAgentSpec fragment over the bootstrap spec, which stays authoritative for cluster name, site, and linux node selectors.
 func mergeManagedAgentInstallationAgentConfig(bootstrap *v2alpha1.DatadogAgentSpec, agentConfig *datadogAgentManagedAgentInstallationConfig) (*v2alpha1.DatadogAgentSpec, error) {
 	if agentConfig == nil || agentConfig.Spec == nil {
 		return bootstrap, nil
@@ -150,11 +141,7 @@ func canonicalManagedAgentInstallationJSON(value any) (json.RawMessage, error) {
 	return encoded, nil
 }
 
-// finalizeManagedAgentInstallationIntent is the provider-neutral tail shared by
-// every provider intent decoder: it decodes and validates the agent settings
-// (agentConfig and agentProfiles), merges the agent config over the bootstrap
-// spec, and returns the internal intent, the normalized DatadogAgent config
-// JSON, and the canonical intent digest.
+// finalizeManagedAgentInstallationIntent decodes the agent settings, merges the agent config over the bootstrap spec, and returns the normalized config and digest.
 func finalizeManagedAgentInstallationIntent(
 	provider ManagedAgentInstallationProvider,
 	version string,

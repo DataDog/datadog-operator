@@ -158,9 +158,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		Spec: *spec,
 	}
 	if len(command.Intent.AgentProfiles) != 0 {
-		// Agent Profiles ride the DatadogAgentInternal mode, whose DaemonSet
-		// selector change Operator 1.21+ applies automatically; the annotation
-		// applies it ahead of time on older Operators.
+		// Agent Profiles need the DatadogAgentInternal mode selector update, applied here for Operators older than 1.21.
 		dda.Annotations[apicommon.UpdateMetadataAnnotationKey] = "true"
 	}
 	if createErr := d.client.Create(ctx, dda, client.FieldOwner("fleet-daemon")); createErr != nil {

@@ -49,9 +49,7 @@ func testAgentProfileJSON(t *testing.T, name string) json.RawMessage {
 	return raw
 }
 
-// testGenericManagedAgentInstallationDaemon builds the standard test daemon
-// with the generic managed Agent installation identity, so it decodes generic
-// provider intents.
+// testGenericManagedAgentInstallationDaemon builds the standard test daemon with the generic managed Agent installation identity, so it decodes generic provider intents.
 func testGenericManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ...client.Object) (*Daemon, client.Client, *mockRCClient) {
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(rcState, objects...)
 	daemon.managedAgentInstallationIdentity = validGenericManagedAgentInstallationIdentity
@@ -92,8 +90,7 @@ func TestDecodeManagedAgentInstallationIntentWithAgentConfig(t *testing.T) {
 	assert.Equal(t, linuxSelector, decoded.Spec.Override[v2alpha1.ClusterAgentComponentName].NodeSelector)
 	assert.Len(t, digest, 64)
 
-	// The same content decodes to the same digest, and a changed agentConfig
-	// changes the digest (replay protection covers the settings).
+	// The same content decodes to the same digest, and a changed agentConfig changes the digest (replay protection covers the settings).
 	_, _, repeatedDigest, err := decodeManagedAgentInstallationIntent([]byte(rawWithConfig), validGenericManagedAgentInstallationIdentity)
 	require.NoError(t, err)
 	assert.Equal(t, digest, repeatedDigest)

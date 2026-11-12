@@ -472,9 +472,7 @@ func managedAgentInstallationBootstrapSpec(bootstrap managedAgentInstallationBoo
 	}
 }
 
-// managedAgentInstallationBootstrapConfig encodes the bootstrap spec as the
-// normalized DatadogAgent config. Providers that do not decode agent settings
-// (EKS) use it directly.
+// managedAgentInstallationBootstrapConfig encodes the bootstrap spec as the normalized DatadogAgent config for providers that do not decode agent settings.
 func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationBootstrap) (json.RawMessage, error) {
 	config := datadogAgentManagedAgentInstallationConfig{Spec: managedAgentInstallationBootstrapSpec(bootstrap)}
 	encoded, err := json.Marshal(config)
