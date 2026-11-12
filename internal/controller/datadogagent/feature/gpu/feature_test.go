@@ -656,6 +656,10 @@ func Test_GPUMonitoringFeature_AMD(t *testing.T) {
 		return dda
 	}
 	bundledAgentSupportsAMD := utils.IsAboveMinVersion(images.AgentLatestVersion, amdGPUMinVersion, nil)
+	withImageOverrideAnnotation := func(dda *v2alpha1.DatadogAgent, config string) *v2alpha1.DatadogAgent {
+		dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/image-override-config": config}
+		return dda
+	}
 
 	amdOn := &v2alpha1.GPUAMDConfig{Enabled: ptr.To(true)}
 	amdEnvVars := []*corev1.EnvVar{
@@ -770,6 +774,18 @@ func Test_GPUMonitoringFeature_AMD(t *testing.T) {
 			DDA:           withNodeAgentImage(newDDA(amdOn, ptr.To("amd"), ""), &v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/agent:7.86.0"}),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
+		},
+		{
+			Name:          "amd with an experimental image override upgrading the bundled agent adds amd env vars",
+			DDA:           withImageOverrideAnnotation(newDDA(amdOn, ptr.To("amd"), ""), `{"agent":{"tag":"7.86.0"}}`),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
+		},
+		{
+			Name:          "amd with an experimental image override downgrading the agent skips amd env vars",
+			DDA:           withImageOverrideAnnotation(newDDA(amdOn, ptr.To("amd"), "7.86.0"), `{"agent":{"tag":"7.85.0"}}`),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
 		},
 		{
 			Name:          "amd enabled on GKE Autopilot is ignored and keeps the nvidia default",

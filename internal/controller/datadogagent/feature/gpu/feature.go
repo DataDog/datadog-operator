@@ -3,7 +3,6 @@ package gpu
 import (
 	"errors"
 	"path"
-	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -99,19 +98,15 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	return caps
 }
 
-// nodeAgentVersion returns the node Agent version for the AMD gate. An image override
-// without a tag (e.g. only pullPolicy) keeps the bundled image, so it resolves to that version.
+// nodeAgentVersion returns the core Agent version for the AMD gate, from the image the operator
+// will run: the bundled image with the component and experimental image overrides applied.
 func nodeAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	if override, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && override != nil && override.Image != nil && !imageSetsTag(*override.Image) {
-		return images.AgentLatestVersion
+	image := images.GetLatestAgentImage()
+	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+		image = images.OverrideAgentImage(image, override.Image)
 	}
-	return common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
-}
-
-// imageSetsTag reports whether an image override sets a tag, in the name or in the tag
-// field. A registry port in the name does not count as a tag.
-func imageSetsTag(image v2alpha1.AgentImageConfig) bool {
-	return image.Tag != "" || strings.LastIndex(image.Name, ":") > strings.LastIndex(image.Name, "/")
+	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.CoreAgentContainerName), image)
+	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
