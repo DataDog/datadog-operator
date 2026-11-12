@@ -113,10 +113,6 @@ core,github.com/cloudflare/circl,BSD-3-Clause
 core,github.com/cyphar/filepath-securejoin,BSD-3-Clause
 core,github.com/cyphar/filepath-securejoin,MPL-2.0
 core,github.com/davecgh/go-spew/spew,ISC
-core,github.com/dsnet/compress,BSD-3-Clause
-core,github.com/distribution/reference,Apache-2.0
-core,github.com/docker/cli/cli/config,Apache-2.0
-core,github.com/docker/docker-credential-helpers,MIT
 core,github.com/dustin/go-humanize,MIT
 core,github.com/dylibso/observe-sdk/go,Apache-2.0
 core,github.com/ebitengine/purego,Apache-2.0
