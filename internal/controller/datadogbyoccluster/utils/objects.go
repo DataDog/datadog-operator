@@ -25,6 +25,10 @@ import (
 // resources migrated from Helm to this manager, so the controller must keep applying with it.
 const ClusterFieldOwner = "datadog-byoccluster-controller"
 
+// WorkerFieldOwner is the field manager of the DatadogObservabilityPipelinesWorker controller. kubectl-byoc-migrate
+// predicts the resources of a Worker as this manager applies them.
+const WorkerFieldOwner = "datadog-observability-pipelines-worker-controller"
+
 // ErrObjectConflict reports an existing object with a managed name that the owner does not control.
 var ErrObjectConflict = errors.New("exists and is not controlled by")
 

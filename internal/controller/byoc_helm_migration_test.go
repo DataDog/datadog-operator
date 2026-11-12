@@ -11,6 +11,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
@@ -32,6 +33,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-byoc-migrate/byocmigrate/converter"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-byoc-migrate/byocmigrate/migration"
+	byocutils "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/utils"
 )
 
 const (
@@ -268,6 +270,30 @@ var _ = Describe("Migration from the CloudPrem and Worker Helm charts", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(diff).To(ContainSubstring("--- Deployment/cloudprem-control-plane (live)\n+++ Deployment/cloudprem-control-plane (after the migration)"))
 		Expect(diff).To(MatchRegexp(`(?m)^\+\s+replicas: 5$`))
+	})
+
+	It("compares a resource that a Worker controls with the resource that the Worker controller applies", func() {
+		plan, err := converter.NewPlan(converted, cloudprem, pipelines)
+		Expect(err).NotTo(HaveOccurred())
+		worker := plan.Workers()[0]
+		By("applying the Service of the Worker with a label that the Worker controller no longer sets")
+		service := worker.WorkerResources.Service.DeepCopy()
+		service.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
+		labels := map[string]string{"stale": "true"}
+		maps.Copy(labels, service.Labels)
+		service.Labels = labels
+		// Another UID than the one of the live Worker keeps the Worker controller from applying the Service.
+		service.OwnerReferences = []metav1.OwnerReference{{APIVersion: datadoghqv1alpha1.GroupVersion.String(), Kind: "DatadogObservabilityPipelinesWorker", Name: worker.Worker.Name, UID: "previous-worker-uid", Controller: ptr.To(true)}}
+		Expect(k8sClient.Patch(context.Background(), service, client.Apply, client.ForceOwnership, client.FieldOwner(byocutils.WorkerFieldOwner))).To(Succeed())
+		applyCluster()
+
+		diff, _, err := m.Diff(context.Background(), cloudprem, pipelines, nil)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(diff).To(ContainSubstring("--- Service/" + service.Name + " (live)\n+++ Service/" + service.Name + " (after the migration)"))
+		Expect(diff).To(MatchRegexp(`(?m)^-\s+stale: "true"$`))
+		By("not showing the kind and API version, which only the applied object sets")
+		Expect(diff).NotTo(MatchRegexp(`(?m)^[-+](apiVersion|kind):`))
 	})
 
 	It("fails to compare a file once the cluster is applied", func() {
