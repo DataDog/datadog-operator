@@ -30,6 +30,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	apimversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
+	kubeclientset "k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -51,6 +52,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/flare/remoteflare"
 	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/introspection"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -61,8 +63,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	//nolint:gci // Keep the scaffold marker in its own import section.
-	// +kubebuilder:scaffold:imports
 )
 
 const (
@@ -74,6 +74,8 @@ const (
 	defaultComponentHealthSnapshotInterval               = 60 * time.Second
 	defaultComponentHealthResolveGracePeriod             = 5 * time.Minute
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
+	healthProbeBindAddress                               = ":8081"
+	leaderElectionID                                     = "datadog-operator-lock"
 )
 
 var (
@@ -339,8 +341,9 @@ func main() {
 // do not use `os.Exit()` in this function
 func run(opts *options) error {
 	// Logging setup
-	if err := customSetupLogging(*opts.logLevel, opts.logEncoder); err != nil {
-		return setupErrorf(setupLog, err, "Unable to setup the logger")
+	atomicLogLevel, logErr := customSetupLogging(*opts.logLevel, opts.logEncoder)
+	if logErr != nil {
+		return setupErrorf(setupLog, logErr, "Unable to setup the logger")
 	}
 
 	// Print version information
@@ -443,9 +446,9 @@ func run(opts *options) error {
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
-		HealthProbeBindAddress:     ":8081",
+		HealthProbeBindAddress:     healthProbeBindAddress,
 		LeaderElection:             opts.enableLeaderElection,
-		LeaderElectionID:           "datadog-operator-lock",
+		LeaderElectionID:           leaderElectionID,
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
@@ -500,7 +503,30 @@ func run(opts *options) error {
 	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
+		isLeader := func() bool {
+			select {
+			case <-mgr.Elected():
+				return true
+			default:
+				return false
+			}
+		}
+		// rcUpdater is set below. The flare runner only reads its state
+		// while it runs a flare task, after Remote Configuration started.
+		var rcUpdater *remoteconfig.RemoteConfigUpdater
+		flareRunner, flareErr := newFlareRunner(opts, restConfig, mgr.GetAPIReader(), credsManager, isLeader, func() any {
+			return rcUpdater.FlareState()
+		})
+		if flareErr != nil {
+			setupLog.Error(flareErr, "Unable to set up remote flares; flare requests from Fleet Automation will fail")
+		}
+		rcUpdaterOptions := []remoteconfig.RemoteConfigUpdaterOption{
+			remoteconfig.WithLogLevelSetter(remoteconfig.NewAtomicLogLevel(atomicLogLevel)),
+			remoteconfig.WithLeaderCheck(isLeader),
+		}
+		if flareRunner != nil {
+			rcUpdaterOptions = append(rcUpdaterOptions, remoteconfig.WithFlareRunner(flareRunner))
+		}
 		if managedAgentInstallationIdentity.Configured() {
 			identityTags, tagsErr := managedAgentInstallationIdentity.UpdaterTags()
 			if tagsErr != nil {
@@ -517,7 +543,7 @@ func run(opts *options) error {
 				)
 			}
 		}
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
+		rcUpdater = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
 		go func() {
 			select {
 			case <-managerCtx.Done():
@@ -724,7 +750,9 @@ func (f *filteringEncoder) Clone() zapcore.Encoder {
 	}
 }
 
-func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
+// customSetupLogging sets up the controller-runtime logger. It returns the
+// logger's level, which can be changed at runtime.
+func customSetupLogging(logLevel zapcore.Level, logEncoder string) (zap.AtomicLevel, error) {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -736,7 +764,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	case "json":
 		baseEncoder = zapcore.NewJSONEncoder(encoderConfig)
 	default:
-		return fmt.Errorf("unknown log encoder: %s", logEncoder)
+		return zap.AtomicLevel{}, fmt.Errorf("unknown log encoder: %s", logEncoder)
 	}
 
 	// Wrap the encoder to filter out certain controller-runtime fields
@@ -749,15 +777,17 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
-	zapOpts.Level = zap.NewAtomicLevelAt(logLevel)
+	atomicLevel := zap.NewAtomicLevelAt(logLevel)
+	zapOpts.Level = atomicLevel
 
 	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		stdoutLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return (level == zapcore.InfoLevel || level == zapcore.DebugLevel) && zapOpts.Level.Enabled(level)
+			// Debug and lower levels include logr V(2) and higher messages.
+			return level <= zapcore.InfoLevel && zapOpts.Level.Enabled(level)
 		})
 
 		stderrLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return (level != zapcore.InfoLevel && level != zapcore.DebugLevel) && zapOpts.Level.Enabled(level)
+			return level > zapcore.InfoLevel && zapOpts.Level.Enabled(level)
 		})
 
 		stdoutSyncer := zapcore.Lock(os.Stdout)
@@ -774,7 +804,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	zapOpts.ZapOpts = append(zapOpts.ZapOpts, core)
 	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseFlagOptions(&zapOpts)))
 
-	return nil
+	return atomicLevel, nil
 }
 
 func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGoroutines *int) {
@@ -895,4 +925,59 @@ func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, node
 		return nil, err
 	}
 	return detector, nil
+}
+
+// newFlareRunner returns the runner of the flares Fleet Automation requests
+// through Remote Configuration. Pass the manager's API reader, so a flare
+// doesn't start informers.
+func newFlareRunner(opts *options, restConfig *rest.Config, reader client.Reader, creds remoteflare.CredentialsGetter, isLeader func() bool, rcState func() any) (*remoteflare.Runner, error) {
+	clientset, err := kubeclientset.NewForConfig(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create the Kubernetes clientset for flares: %w", err)
+	}
+	return remoteflare.NewRunner(remoteflare.Config{
+		Reader:                reader,
+		Clientset:             clientset,
+		Credentials:           creds,
+		MetricsAddr:           opts.metricsAddr,
+		SecureMetrics:         opts.secureMetrics,
+		HealthProbeAddr:       healthProbeBindAddress,
+		Features:              opts.flareFeatures(),
+		LeaderElectionEnabled: opts.enableLeaderElection,
+		LeaderElectionID:      leaderElectionID,
+		IsLeader:              isLeader,
+		RemoteConfigState:     rcState,
+	}, ctrl.Log.WithName("flare")), nil
+}
+
+// flareFeatures returns the controllers and features of the Operator and
+// whether they are enabled.
+func (opts *options) flareFeatures() map[string]bool {
+	return map[string]bool{
+		"datadogAgent":              opts.datadogAgentEnabled,
+		"datadogAgentProfile":       opts.datadogAgentProfileEnabled,
+		"datadogMonitor":            opts.datadogMonitorEnabled,
+		"datadogSLO":                opts.datadogSLOEnabled,
+		"datadogDashboard":          opts.datadogDashboardEnabled,
+		"datadogGenericResource":    opts.datadogGenericResourceEnabled,
+		"datadogBYOCCluster":        opts.datadogBYOCClusterEnabled,
+		"datadogCSIDriver":          opts.datadogCSIDriverEnabled,
+		"untaintController":         opts.untaintControllerEnabled,
+		"componentHealth":           opts.componentHealthEnabled,
+		"componentHealthIntake":     opts.componentHealthIntakeEnabled,
+		"introspection":             opts.introspectionEnabled,
+		"remoteConfig":              opts.remoteConfigEnabled,
+		"remoteUpdates":             opts.remoteUpdatesEnabled,
+		"managedAgentInstallation":  opts.managedAgentInstallationEnabled,
+		"operatorMetrics":           opts.operatorMetricsEnabled,
+		"supportCilium":             opts.supportCilium,
+		"createControllerRevisions": opts.createControllerRevisions,
+		"rolloutOnConfigMapChange":  opts.rolloutOnConfigMapChangeEnabled,
+		"defaultDataPlaneLinux":     opts.defaultDataPlaneLinuxEnabled,
+		"leaderElection":            opts.enableLeaderElection,
+		"secureMetrics":             opts.secureMetrics,
+		"profiling":                 opts.profilingEnabled,
+		"tracing":                   opts.tracingEnabled,
+		"pprof":                     opts.pprofActive,
+	}
 }

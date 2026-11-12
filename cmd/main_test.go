@@ -14,13 +14,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/fleet"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
@@ -283,4 +285,28 @@ func TestGoroutinesNumberHealthzCheck_ConcurrentCallsLogSingleFailure(t *testing
 	wg.Wait()
 
 	require.Len(t, logs.FilterMessage("healthz check entering failing state").All(), 1)
+}
+
+func TestCustomSetupLoggingLevelChangesAtRuntime(t *testing.T) {
+	// customSetupLogging binds its flags on flag.CommandLine.
+	originalCommandLine := flag.CommandLine
+	flag.CommandLine = flag.NewFlagSet(t.Name(), flag.ContinueOnError)
+	t.Cleanup(func() { flag.CommandLine = originalCommandLine })
+
+	level, err := customSetupLogging(zapcore.InfoLevel, "json")
+	require.NoError(t, err)
+
+	logger := ctrl.Log.WithName("test")
+	require.True(t, logger.V(0).Enabled())
+	require.False(t, logger.V(1).Enabled())
+
+	level.SetLevel(zapcore.DebugLevel)
+	require.True(t, logger.V(1).Enabled())
+	require.False(t, logger.V(2).Enabled())
+
+	level.SetLevel(zapcore.DebugLevel - 1)
+	require.True(t, logger.V(2).Enabled())
+
+	level.SetLevel(zapcore.InfoLevel)
+	require.False(t, logger.V(1).Enabled())
 }
