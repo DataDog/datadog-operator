@@ -10,12 +10,6 @@
 {{- with .acknowledgedOperationID }}
 {{- $_ := set $intent "acknowledgedOperationID" . -}}
 {{- end }}
-{{- with .agentConfig }}
-{{- $_ := set $intent "agentConfig" . -}}
-{{- end }}
-{{- with .agentProfiles }}
-{{- $_ := set $intent "agentProfiles" . -}}
-{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

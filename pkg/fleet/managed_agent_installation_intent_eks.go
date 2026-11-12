@@ -7,6 +7,8 @@ package fleet
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,8 +22,6 @@ type eksManagedAgentInstallationIntent struct {
 	DesiredState            managedAgentInstallationDesiredState `json:"desiredState"`
 	AcknowledgedOperationID string                               `json:"acknowledgedOperationID,omitempty"`
 	Bootstrap               managedAgentInstallationBootstrap    `json:"bootstrap"`
-	AgentConfig             json.RawMessage                      `json:"agentConfig,omitempty"`
-	AgentProfiles           json.RawMessage                      `json:"agentProfiles,omitempty"`
 }
 
 func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
@@ -70,16 +70,43 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentIn
 		return managedAgentInstallationIntent{}, nil, "", err
 	}
 
-	return finalizeManagedAgentInstallationIntent(
-		ManagedAgentInstallationProviderEKS,
-		eksIntent.Version,
-		eksIntent.InstallationID,
-		targetID,
-		eksIntent.OperationID,
-		eksIntent.AcknowledgedOperationID,
-		eksIntent.DesiredState,
-		eksIntent.Bootstrap,
-		eksIntent.AgentConfig,
-		eksIntent.AgentProfiles,
-	)
+	var normalizedConfig json.RawMessage
+	switch eksIntent.DesiredState {
+	case managedAgentInstallationDesiredStateInstalled:
+		config, configErr := managedAgentInstallationBootstrapConfig(eksIntent.Bootstrap)
+		if configErr != nil {
+			return managedAgentInstallationIntent{}, nil, "", configErr
+		}
+		normalizedConfig = config
+	case managedAgentInstallationDesiredStateAbsent:
+		normalizedConfig = json.RawMessage(`{}`)
+	default:
+		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported EKS managed Agent installation desired state %q", eksIntent.DesiredState)
+	}
+
+	intent := managedAgentInstallationIntent{
+		Version:                 eksIntent.Version,
+		Provider:                ManagedAgentInstallationProviderEKS,
+		InstallationID:          eksIntent.InstallationID,
+		TargetID:                targetID,
+		OperationID:             eksIntent.OperationID,
+		DesiredState:            eksIntent.DesiredState,
+		AcknowledgedOperationID: eksIntent.AcknowledgedOperationID,
+		Bootstrap:               eksIntent.Bootstrap,
+	}
+	normalized := normalizedManagedAgentInstallationIntent{
+		Version:        intent.Version,
+		Provider:       intent.Provider,
+		InstallationID: intent.InstallationID,
+		TargetID:       intent.TargetID,
+		OperationID:    intent.OperationID,
+		DesiredState:   intent.DesiredState,
+		Bootstrap:      intent.Bootstrap,
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("encode normalized EKS managed Agent installation intent: %w", err)
+	}
+	digest := sha256.Sum256(encoded)
+	return intent, normalizedConfig, hex.EncodeToString(digest[:]), nil
 }

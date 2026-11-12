@@ -253,7 +253,7 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 		{
 			name:      "unsupported desired state",
 			raw:       []byte(strings.Replace(valid, `"desiredState":"installed"`, `"desiredState":"paused"`, 1)),
-			wantError: "unsupported managed Agent installation desired state",
+			wantError: "unsupported EKS managed Agent installation desired state",
 		},
 		{
 			name:      "topology input",

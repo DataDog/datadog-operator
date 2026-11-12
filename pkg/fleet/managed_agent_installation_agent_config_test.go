@@ -26,16 +26,6 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-func testAgentConfigJSON(t *testing.T, spec map[string]any) json.RawMessage {
-	t.Helper()
-	if spec == nil {
-		return nil
-	}
-	raw, err := json.Marshal(map[string]any{"spec": spec})
-	require.NoError(t, err)
-	return raw
-}
-
 func testAgentProfileJSON(t *testing.T, name string) json.RawMessage {
 	t.Helper()
 	raw, err := json.Marshal([]map[string]any{{
@@ -59,45 +49,29 @@ func testAgentProfileJSON(t *testing.T, name string) json.RawMessage {
 	return raw
 }
 
-func eksInstallIntentJSONWithAgentSettings(t *testing.T, settings map[string]any) []byte {
-	t.Helper()
-	intent := eksManagedAgentInstallationIntent{
-		Version:        managedAgentInstallationVersion,
-		InstallationID: testManagedAgentInstallationIdentity.InstallationID(),
-		EKSARNSHA256:   testManagedAgentInstallationTargetHash,
-		OperationID:    testAddonInstallOperationID,
-		DesiredState:   managedAgentInstallationDesiredStateInstalled,
-		Bootstrap:      managedAgentInstallationBootstrap{ClusterName: "test-cluster", Site: "site.example"},
-	}
-	base, err := json.Marshal(intent)
-	require.NoError(t, err)
-	if settings == nil {
-		return base
-	}
-	var raw map[string]any
-	require.NoError(t, json.Unmarshal(base, &raw))
-	for key, value := range settings {
-		raw[key] = value
-	}
-	encoded, err := json.Marshal(raw)
-	require.NoError(t, err)
-	return encoded
+// testGenericManagedAgentInstallationDaemon builds the standard test daemon
+// with the generic managed Agent installation identity, so it decodes generic
+// provider intents.
+func testGenericManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ...client.Object) (*Daemon, client.Client, *mockRCClient) {
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(rcState, objects...)
+	daemon.managedAgentInstallationIdentity = validGenericManagedAgentInstallationIdentity
+	return daemon, kubeClient, rcClient
 }
 
 func TestDecodeManagedAgentInstallationIntentWithAgentConfig(t *testing.T) {
-	base := eksInstallIntentJSONWithAgentSettings(t, nil)
+	base := genericIntentJSONWith(t, nil)
 	agentConfig := map[string]any{"spec": map[string]any{
-		"features": map[string]any{"apm": map[string]any{"instrumentation": map[string]any{"enabled": true}}},
+		"features": map[string]any{"logCollection": map[string]any{"enabled": true}},
 		"override": map[string]any{"nodeAgent": map[string]any{"nodeSelector": map[string]any{"gpu": "true"}}},
 	}}
-	rawWithConfig := eksInstallIntentJSONWithAgentSettings(t, map[string]any{"agentConfig": agentConfig})
+	rawWithConfig := genericIntentJSONWith(t, map[string]any{"agentConfig": agentConfig})
 	require.NotEqual(t, string(base), string(rawWithConfig))
 
-	intent, config, digest, err := decodeManagedAgentInstallationIntent(rawWithConfig, testManagedAgentInstallationIdentity)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(rawWithConfig, validGenericManagedAgentInstallationIdentity)
 	require.NoError(t, err)
 	require.NotNil(t, intent.AgentConfig)
 	require.NotNil(t, intent.AgentConfig.Spec.Features)
-	require.NotNil(t, intent.AgentConfig.Spec.Features.APM)
+	require.NotNil(t, intent.AgentConfig.Spec.Features.LogCollection)
 
 	var decoded datadogAgentManagedAgentInstallationConfig
 	require.NoError(t, json.Unmarshal(config, &decoded))
@@ -105,11 +79,10 @@ func TestDecodeManagedAgentInstallationIntentWithAgentConfig(t *testing.T) {
 	require.NotNil(t, decoded.Spec.Global)
 	// The bootstrap identity fields stay authoritative over the fragment.
 	assert.Equal(t, "test-cluster", *decoded.Spec.Global.ClusterName)
-	assert.Equal(t, "site.example", *decoded.Spec.Global.Site)
-	require.NotNil(t, decoded.Spec.Features.APM)
-	require.NotNil(t, decoded.Spec.Features.APM.SingleStepInstrumentation)
-	require.NotNil(t, decoded.Spec.Features.APM.SingleStepInstrumentation.Enabled)
-	assert.True(t, *decoded.Spec.Features.APM.SingleStepInstrumentation.Enabled)
+	assert.Equal(t, "datadoghq.com", *decoded.Spec.Global.Site)
+	require.NotNil(t, decoded.Spec.Features.LogCollection)
+	require.NotNil(t, decoded.Spec.Features.LogCollection.Enabled)
+	assert.True(t, *decoded.Spec.Features.LogCollection.Enabled)
 	// Fragment selectors merge with, not replace, the bootstrap linux selector.
 	linuxSelector := map[string]string{corev1.LabelOSStable: string(corev1.Linux)}
 	assert.Equal(t, map[string]string{
@@ -121,24 +94,24 @@ func TestDecodeManagedAgentInstallationIntentWithAgentConfig(t *testing.T) {
 
 	// The same content decodes to the same digest, and a changed agentConfig
 	// changes the digest (replay protection covers the settings).
-	_, _, repeatedDigest, err := decodeManagedAgentInstallationIntent([]byte(rawWithConfig), testManagedAgentInstallationIdentity)
+	_, _, repeatedDigest, err := decodeManagedAgentInstallationIntent([]byte(rawWithConfig), validGenericManagedAgentInstallationIdentity)
 	require.NoError(t, err)
 	assert.Equal(t, digest, repeatedDigest)
 
-	_, _, baseDigest, err := decodeManagedAgentInstallationIntent(base, testManagedAgentInstallationIdentity)
+	_, _, baseDigest, err := decodeManagedAgentInstallationIntent(base, validGenericManagedAgentInstallationIdentity)
 	require.NoError(t, err)
 	assert.NotEqual(t, digest, baseDigest)
 
 	// Reformatted-but-equivalent agentConfig JSON keeps the digest stable.
 	reformatted := strings.Replace(string(rawWithConfig), `"enabled":true`, `"enabled" :  true`, 1)
 	require.NotEqual(t, string(rawWithConfig), reformatted)
-	_, _, reformattedDigest, err := decodeManagedAgentInstallationIntent([]byte(reformatted), testManagedAgentInstallationIdentity)
+	_, _, reformattedDigest, err := decodeManagedAgentInstallationIntent([]byte(reformatted), validGenericManagedAgentInstallationIdentity)
 	require.NoError(t, err)
 	assert.Equal(t, digest, reformattedDigest)
 }
 
 func TestDecodeManagedAgentInstallationIntentRejectsUnsafeAgentSettings(t *testing.T) {
-	base := string(testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled))
+	base := string(genericIntentJSONWith(t, nil))
 	settingsAt := func(desiredState, settings string) []byte {
 		raw := strings.Replace(base, `"desiredState":"installed"`, `"desiredState":"`+desiredState+`"`+settings, 1)
 		require.NotEqual(t, base, raw)
@@ -207,7 +180,7 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeAgentSettings(t *testi
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, _, _, err := decodeManagedAgentInstallationIntent(test.raw, testManagedAgentInstallationIdentity)
+			_, _, _, err := decodeManagedAgentInstallationIntent(test.raw, validGenericManagedAgentInstallationIdentity)
 			require.ErrorContains(t, err, test.wantError)
 		})
 	}
@@ -317,11 +290,11 @@ func testGPUAgentProfile(name string) decodedManagedAgentInstallationAgentProfil
 }
 
 func TestDecodeManagedAgentInstallationIntentWithAgentProfiles(t *testing.T) {
-	rawWithProfiles := eksInstallIntentJSONWithAgentSettings(t, map[string]any{
+	rawWithProfiles := genericIntentJSONWith(t, map[string]any{
 		"agentProfiles": json.RawMessage(testAgentProfileJSON(t, "gpu-nodes")),
 	})
 
-	intent, config, digest, err := decodeManagedAgentInstallationIntent(rawWithProfiles, testManagedAgentInstallationIdentity)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(rawWithProfiles, validGenericManagedAgentInstallationIdentity)
 	if err != nil {
 		t.Fatalf("expected the intent to decode, got %v", err)
 	}
@@ -353,7 +326,7 @@ func TestDecodeManagedAgentInstallationIntentWithAgentProfiles(t *testing.T) {
 		t.Errorf("expected a sha256 digest, got %q", digest)
 	}
 
-	_, _, repeatedDigest, err := decodeManagedAgentInstallationIntent(rawWithProfiles, testManagedAgentInstallationIdentity)
+	_, _, repeatedDigest, err := decodeManagedAgentInstallationIntent(rawWithProfiles, validGenericManagedAgentInstallationIdentity)
 	if err != nil {
 		t.Fatalf("expected the intent to decode twice, got %v", err)
 	}
@@ -363,7 +336,7 @@ func TestDecodeManagedAgentInstallationIntentWithAgentProfiles(t *testing.T) {
 }
 
 func TestDecodeManagedAgentInstallationAgentProfilesRejectsEdgeCases(t *testing.T) {
-	base := string(testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled))
+	base := string(genericIntentJSONWith(t, nil))
 	settingsAt := func(settings string) []byte {
 		t.Helper()
 		raw := strings.Replace(base, `"desiredState":"installed"`, `"desiredState":"installed"`+settings, 1)
@@ -407,7 +380,7 @@ func TestDecodeManagedAgentInstallationAgentProfilesRejectsEdgeCases(t *testing.
 			if test.direct {
 				_, err = decodeManagedAgentInstallationAgentProfiles(test.raw)
 			} else {
-				_, _, _, err = decodeManagedAgentInstallationIntent(test.raw, testManagedAgentInstallationIdentity)
+				_, _, _, err = decodeManagedAgentInstallationIntent(test.raw, validGenericManagedAgentInstallationIdentity)
 			}
 			assertInstallErrorContains(t, err, test.wantError)
 		})
@@ -415,13 +388,13 @@ func TestDecodeManagedAgentInstallationAgentProfilesRejectsEdgeCases(t *testing.
 }
 
 func TestDecodeManagedAgentInstallationIntentMergesFragmentWithoutOverride(t *testing.T) {
-	raw := eksInstallIntentJSONWithAgentSettings(t, map[string]any{
+	raw := genericIntentJSONWith(t, map[string]any{
 		"agentConfig": map[string]any{"spec": map[string]any{
-			"features": map[string]any{"apm": map[string]any{"instrumentation": map[string]any{"enabled": true}}},
+			"features": map[string]any{"logCollection": map[string]any{"enabled": true}},
 		}},
 	})
 
-	intent, config, _, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	intent, config, _, err := decodeManagedAgentInstallationIntent(raw, validGenericManagedAgentInstallationIdentity)
 	if err != nil {
 		t.Fatalf("expected the intent to decode, got %v", err)
 	}
@@ -591,11 +564,11 @@ func TestManagedAgentInstallationInstallAgentProfilesFailureModes(t *testing.T) 
 
 func TestManagedAgentInstallationAcknowledgeValidatesAgentProfiles(t *testing.T) {
 	ctx := context.Background()
-	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+	daemon, kubeClient, _ := testGenericManagedAgentInstallationDaemon(
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
-	installRaw := eksInstallIntentJSONWithAgentSettings(t, map[string]any{
+	installRaw := genericIntentJSONWith(t, map[string]any{
 		"agentProfiles": json.RawMessage(testAgentProfileJSON(t, "gpu-nodes")),
 	})
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, installRaw)
@@ -629,7 +602,7 @@ func TestManagedAgentInstallationAcknowledgeValidatesAgentProfiles(t *testing.T)
 		"differs from the pinned",
 	)
 
-	intent, _, _, err := decodeManagedAgentInstallationIntent(acknowledgeRaw, testManagedAgentInstallationIdentity)
+	intent, _, _, err := decodeManagedAgentInstallationIntent(acknowledgeRaw, validGenericManagedAgentInstallationIdentity)
 	if err != nil {
 		t.Fatalf("expected the acknowledge intent to decode, got %v", err)
 	}

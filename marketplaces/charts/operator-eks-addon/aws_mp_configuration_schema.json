@@ -260,24 +260,6 @@
             "site"
           ],
           "additionalProperties": false
-        },
-        "agentConfig": {
-          "type": [
-            "object",
-            "null"
-          ],
-          "description": "Optional DatadogAgent spec fragment (config.spec) merged over the managed bootstrap config at install time. Rejected fields: spec.global.credentials and cluster Agent tokens."
-        },
-        "agentProfiles": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "description": "Optional DatadogAgentProfile entries created with the managed DatadogAgent (name, profileAffinity, config.spec).",
-          "items": {
-            "type": "object"
-          },
-          "maxItems": 8
         }
       },
       "required": [
