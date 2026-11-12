@@ -1,6 +1,7 @@
 #
 ARG FIPS_ENABLED=false
-ARG SGC_VERSION=7.85.2
+# Set by Makefile from AgentLatestVersion; required as a build arg for direct Docker builds.
+ARG SGC_VERSION
 ARG SGC_TAG_SUFFIX
 
 FROM datadog/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
