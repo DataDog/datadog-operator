@@ -129,8 +129,11 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		Containers: requiredContainers,
 	}
 
-	// The AMD GPU check is enabled with GPU monitoring, like NVIDIA; its env vars are harmless on NVIDIA nodes.
-	if experimental.IsAutopilotEnabled(dda) {
+	// The AMD GPU check is enabled only with the amd RuntimeClass. spec.override.nodeAgent.runtimeClassName
+	// is applied after features, so only requiredRuntimeClassName is considered.
+	if rc := ddaSpec.Features.GPU.PodRuntimeClassName; rc == nil || *rc != amdGPURuntimeClass {
+		f.logger.V(1).Info("Not enabling the AMD GPU check: requiredRuntimeClassName is not amd")
+	} else if experimental.IsAutopilotEnabled(dda) {
 		// GKE Autopilot has no AMD GPUs.
 		f.logger.V(1).Info("Not enabling the AMD GPU check on GKE Autopilot")
 	} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {

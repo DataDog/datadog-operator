@@ -984,8 +984,7 @@ type ServiceDiscoveryFeatureConfig struct {
 // GPUFeatureConfig contains the GPU monitoring configuration.
 type GPUFeatureConfig struct {
 	// Enabled enables GPU monitoring core check.
-	// With Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot). To turn only that
-	// off, set DD_GPU_AMD_ENABLED=false on the core agent (spec.override.nodeAgent.containers.agent.env).
+	// With Agent 7.86.0+ and requiredRuntimeClassName amd, it also enables the AMD GPU check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1001,7 +1000,7 @@ type GPUFeatureConfig struct {
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Set to amd for AMD GPUs.
+	// Set to amd for AMD GPUs; this also enables the AMD GPU check.
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
