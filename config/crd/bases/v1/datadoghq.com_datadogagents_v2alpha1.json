@@ -1941,19 +1941,8 @@
               "additionalProperties": false,
               "description": "GPU monitoring",
               "properties": {
-                "amd": {
-                  "additionalProperties": false,
-                  "description": "AMD configures monitoring of AMD GPUs.",
-                  "properties": {
-                    "enabled": {
-                      "description": "Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.\n(Requires Agent 7.86.0+) Not supported on GKE Autopilot.\nSet requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.\nDefault: false",
-                      "type": "boolean"
-                    }
-                  },
-                  "type": "object"
-                },
                 "enabled": {
-                  "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                  "description": "Enabled enables GPU monitoring core check.\nWith Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot).\nDefault: false",
                   "type": "boolean"
                 },
                 "patchCgroupPermissions": {
@@ -11087,19 +11076,8 @@
                   "additionalProperties": false,
                   "description": "GPU monitoring",
                   "properties": {
-                    "amd": {
-                      "additionalProperties": false,
-                      "description": "AMD configures monitoring of AMD GPUs.",
-                      "properties": {
-                        "enabled": {
-                          "description": "Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.\n(Requires Agent 7.86.0+) Not supported on GKE Autopilot.\nSet requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.\nDefault: false",
-                          "type": "boolean"
-                        }
-                      },
-                      "type": "object"
-                    },
                     "enabled": {
-                      "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                      "description": "Enabled enables GPU monitoring core check.\nWith Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot).\nDefault: false",
                       "type": "boolean"
                     },
                     "patchCgroupPermissions": {

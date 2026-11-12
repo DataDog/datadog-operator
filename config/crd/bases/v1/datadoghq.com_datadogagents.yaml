@@ -1945,20 +1945,10 @@ spec:
                     gpu:
                       description: GPU monitoring
                       properties:
-                        amd:
-                          description: AMD configures monitoring of AMD GPUs.
-                          properties:
-                            enabled:
-                              description: |-
-                                Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.
-                                (Requires Agent 7.86.0+) Not supported on GKE Autopilot.
-                                Set requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.
-                                Default: false
-                              type: boolean
-                          type: object
                         enabled:
                           description: |-
                             Enabled enables GPU monitoring core check.
+                            With Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot).
                             Default: false
                           type: boolean
                         patchCgroupPermissions:
@@ -11500,20 +11490,10 @@ spec:
                         gpu:
                           description: GPU monitoring
                           properties:
-                            amd:
-                              description: AMD configures monitoring of AMD GPUs.
-                              properties:
-                                enabled:
-                                  description: |-
-                                    Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`.
-                                    (Requires Agent 7.86.0+) Not supported on GKE Autopilot.
-                                    Set requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes.
-                                    Default: false
-                                  type: boolean
-                              type: object
                             enabled:
                               description: |-
                                 Enabled enables GPU monitoring core check.
+                                With Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot).
                                 Default: false
                               type: boolean
                             patchCgroupPermissions:

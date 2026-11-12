@@ -128,16 +128,15 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		Containers: requiredContainers,
 	}
 
-	if amd := ddaSpec.Features.GPU.AMD; amd != nil && apiutils.BoolValue(amd.Enabled) {
-		if experimental.IsAutopilotEnabled(dda) {
-			// GKE Autopilot has no AMD GPUs: ignore features.gpu.amd.
-			f.logger.V(1).Info("features.gpu.amd is not supported on GKE Autopilot; ignoring it")
-		} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {
-			// Non-semver (custom) tags are assumed recent enough.
-			f.amdEnabled = true
-		} else {
-			f.logger.V(1).Info("features.gpu.amd.enabled requires Agent >= 7.86.0; not enabling the AMD GPU check", "version", version, "minVersion", amdGPUMinVersion)
-		}
+	// The AMD GPU check is enabled with GPU monitoring, like NVIDIA; its env vars are harmless on NVIDIA nodes.
+	if experimental.IsAutopilotEnabled(dda) {
+		// GKE Autopilot has no AMD GPUs.
+		f.logger.V(1).Info("Not enabling the AMD GPU check on GKE Autopilot")
+	} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {
+		// Non-semver (custom) tags are assumed recent enough.
+		f.amdEnabled = true
+	} else {
+		f.logger.V(1).Info("Not enabling the AMD GPU check: it requires Agent >= 7.86.0", "version", version, "minVersion", amdGPUMinVersion)
 	}
 
 	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {

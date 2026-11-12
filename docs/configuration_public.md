@@ -298,11 +298,8 @@ spec:
 `features.externalMetricsServer`
 : ExternalMetricsServer configuration. See [link](https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md) for more information.
 
-`features.gpu.amd.enabled`
-: Enables the AMD GPU core check. Requires `features.gpu.enabled` to be `true`. (Requires Agent 7.86.0+) Not supported on GKE Autopilot. Set requiredRuntimeClassName to amd (or the AMD RuntimeClass) on AMD nodes. Default: false
-
 `features.gpu.enabled`
-: Enables GPU monitoring core check. Default: false
+: Enables GPU monitoring core check. With Agent 7.86.0+, it also enables the AMD GPU check (not on GKE Autopilot). Default: false
 
 `features.gpu.patchCgroupPermissions`
 : PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false
