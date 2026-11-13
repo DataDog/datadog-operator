@@ -47,7 +47,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" 
 
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS certs
 
-FROM registry.access.redhat.com/ubi10/ubi-micro:latest
+FROM registry.access.redhat.com/ubi10/ubi-micro:10.3-1794483856@sha256:2ad0f98cb13160c4773c945ef93f88b25831c7f27cd3780d72a7e78b210ea72b
 
 LABEL name="datadog/operator"
 LABEL vendor="Datadog Inc."

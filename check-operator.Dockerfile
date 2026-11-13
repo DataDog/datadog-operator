@@ -25,7 +25,7 @@ ARG LDFLAGS
 ARG GOARCH
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o check-operator cmd/check-operator/main.go
 
-FROM registry.access.redhat.com/ubi10/ubi-micro:latest
+FROM registry.access.redhat.com/ubi10/ubi-micro:10.3-1794483856@sha256:2ad0f98cb13160c4773c945ef93f88b25831c7f27cd3780d72a7e78b210ea72b
 WORKDIR /
 COPY --from=builder /workspace/check-operator .
 USER 1001
