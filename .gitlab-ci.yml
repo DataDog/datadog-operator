@@ -1,7 +1,7 @@
 include:
   - local: .gitlab/ci/e2e-common.yml
 
-image: registry.ddbuild.io/images/mirror/library/golang:1.26.10
+image: registry.ddbuild.io/images/mirror/library/golang:1.26.11
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
