@@ -144,9 +144,8 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 	}
 
-	// The RuntimeClass default follows amd.enabled, not the version gate, so it doesn't flip with the Agent version.
-	// Autopilot ignores amd.enabled (no AMD GPUs), so it keeps the nvidia default.
-	amdForRuntimeClass := amdRequested && !onAutopilot
+	// When amd.enabled is ignored (Autopilot, Agent < 7.86), the RuntimeClass keeps the nvidia default.
+	amdForRuntimeClass := f.amdEnabled
 	switch {
 	case gpu.PodRuntimeClassName != nil:
 		f.podRuntimeClassName = *gpu.PodRuntimeClassName // "" = leave unset
