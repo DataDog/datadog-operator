@@ -2,6 +2,7 @@ package datadogagent
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"k8s.io/klog/v2"
@@ -803,6 +804,56 @@ func Test_fleetManagedInstallNoScheduleToleration(t *testing.T) {
 	// Any NoSchedule taint must be tolerated.
 	noScheduleTaint := corev1.Taint{Key: "nvidia.com/gpu", Value: "true", Effect: corev1.TaintEffectNoSchedule}
 	assert.True(t, toleration.ToleratesTaint(klog.TODO(), &noScheduleTaint, false))
+}
+
+func Test_applyFleetManagedInstallNodeAgentToleration(t *testing.T) {
+	fleetManagedDDA := func() *v2alpha1.DatadogAgent {
+		return &v2alpha1.DatadogAgent{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "foo",
+				Labels: map[string]string{constants.FleetManagedByLabel: constants.FleetManagedByValue},
+			},
+		}
+	}
+	wantToleration := fleetManagedInstallNoScheduleToleration()
+
+	t.Run("nil override map is created with the node agent toleration", func(t *testing.T) {
+		spec := &v2alpha1.DatadogAgentSpec{}
+		applyFleetManagedInstallNodeAgentToleration(fleetManagedDDA(), spec)
+
+		if spec.Override == nil {
+			t.Fatal("expected Override to be created")
+		}
+		got := spec.Override[v2alpha1.NodeAgentComponentName]
+		if got == nil {
+			t.Fatal("expected a node agent override to be created")
+		}
+		wantTolerations := []corev1.Toleration{wantToleration}
+		if !reflect.DeepEqual(got.Tolerations, wantTolerations) {
+			t.Errorf("got tolerations %v, want %v", got.Tolerations, wantTolerations)
+		}
+	})
+
+	t.Run("override without a node agent entry gains one", func(t *testing.T) {
+		spec := &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.ClusterAgentComponentName: {},
+			},
+		}
+		applyFleetManagedInstallNodeAgentToleration(fleetManagedDDA(), spec)
+
+		if spec.Override[v2alpha1.ClusterAgentComponentName] == nil {
+			t.Error("existing cluster agent override was dropped")
+		}
+		got := spec.Override[v2alpha1.NodeAgentComponentName]
+		if got == nil {
+			t.Fatal("expected a node agent override to be created")
+		}
+		wantTolerations := []corev1.Toleration{wantToleration}
+		if !reflect.DeepEqual(got.Tolerations, wantTolerations) {
+			t.Errorf("got tolerations %v, want %v", got.Tolerations, wantTolerations)
+		}
+	})
 }
 
 func Test_isFleetManagedDatadogAgent(t *testing.T) {
