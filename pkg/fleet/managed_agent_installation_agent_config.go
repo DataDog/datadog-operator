@@ -15,10 +15,12 @@ import (
 	"maps"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 )
 
 // managedAgentInstallationMaxAgentProfiles bounds the number of DatadogAgentProfile resources a single managed Agent installation intent can request.
@@ -87,7 +89,13 @@ func decodeManagedAgentInstallationAgentProfiles(raw json.RawMessage) ([]decoded
 			ProfileAffinity: profile.ProfileAffinity,
 			Config:          config,
 		}
-		if err := v1alpha1.ValidateDatadogAgentProfileSpec(&spec); err != nil {
+		// Match the profile controller's validation so the intent is rejected here rather than the
+		// controller silently skipping a profile that would never be applied.
+		profileResource := &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{Name: profile.Name},
+			Spec:       spec,
+		}
+		if _, err := agentprofile.ValidateProfileAndReturnRequirements(profileResource); err != nil {
 			return nil, fmt.Errorf("managed Agent installation agent profile %q is invalid: %w", profile.Name, err)
 		}
 		decoded = append(decoded, decodedManagedAgentInstallationAgentProfile{

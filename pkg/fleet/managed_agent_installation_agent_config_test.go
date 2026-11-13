@@ -370,6 +370,18 @@ func TestDecodeManagedAgentInstallationAgentProfilesRejectsEdgeCases(t *testing.
 			raw:       settingsAt(`,"agentProfiles":[{"name":"gpu-nodes","profileAffinity":{"profileNodeAffinity":[{"key":"k","operator":"In","values":["v"]}]},"config":{}}]`),
 			wantError: "config must contain spec",
 		},
+		{
+			// DNS-valid as a subdomain (each label is <= 63 characters), but the profile name is
+			// used as a label value, so the profile controller rejects it.
+			name:      "profile name longer than the label value limit",
+			raw:       settingsAt(`,"agentProfiles":[{"name":"` + strings.Repeat("a", 32) + "." + strings.Repeat("b", 32) + `","profileAffinity":{"profileNodeAffinity":[{"key":"k","operator":"In","values":["v"]}]},"config":{"spec":{}}}]`),
+			wantError: "no more than 63 characters",
+		},
+		{
+			name:      "profile affinity requirement without values",
+			raw:       settingsAt(`,"agentProfiles":[{"name":"gpu-nodes","profileAffinity":{"profileNodeAffinity":[{"key":"k","operator":"In"}]},"config":{"spec":{}}}]`),
+			wantError: "values set can't be empty",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
