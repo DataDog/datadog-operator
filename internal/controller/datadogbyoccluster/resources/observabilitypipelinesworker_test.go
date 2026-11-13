@@ -98,6 +98,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		pipeline            *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
 		identity            *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
 		pipelineDatadog     *datadoghqv1alpha1.DatadogBYOCClusterPipelineDatadogSpec
+		pipelineConfig      *string
 		image               byocimage.ResolvedImage
 		want                *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 		wantErr             string
@@ -143,6 +144,18 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:    defaultImage,
 			want:     wantDefaultWorker(),
+		},
+		{
+			name:           "pipelineConfig passes through without pipelineID",
+			pipeline:       &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{Ports: testPipelinePorts()},
+			pipelineConfig: ptr.To("sources: {}"),
+			image:          defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.PipelineID = nil
+				want.Spec.PipelineConfig = ptr.To("sources: {}")
+				return want
+			}(),
 		},
 		{
 			name:     "pipeline identity",
@@ -458,6 +471,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							Name:                                    "logs",
 							Identity:                                tt.identity,
 							Datadog:                                 tt.pipelineDatadog,
+							PipelineConfig:                          tt.pipelineConfig,
 							DatadogBYOCClusterPipelineComponentSpec: *tt.pipeline,
 						}},
 						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},

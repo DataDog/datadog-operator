@@ -294,10 +294,10 @@ func TestValidateClusterSpec(t *testing.T) {
 				"spec.components.searcher.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.pipelines[0].podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.pipelines[0].storage: exactly one storage type must be specified",
-				"spec.components.pipelines[0].pipelineID: pipelineID must be specified",
+				"spec.components.pipelines[0].pipelineID: pipelineID must be specified unless pipelineConfig is set",
 				"spec.components.pipelines[1].podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.pipelines[1].storage: exactly one storage type must be specified",
-				"spec.components.pipelines[1].pipelineID: pipelineID must be specified",
+				"spec.components.pipelines[1].pipelineID: pipelineID must be specified unless pipelineConfig is set",
 				"spec.components.metastore.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.metastore.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.readOnlyMetastore.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
@@ -312,6 +312,26 @@ func TestValidateClusterSpec(t *testing.T) {
 			},
 		},
 
+		{
+			name: "pipelineConfig without pipelineID is valid",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{}},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", PipelineConfig: ptr.To("sources: {}")}},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "neither pipelineID nor pipelineConfig",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{}},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
+				},
+			},
+			want: []string{"spec.components.pipelines[0].pipelineID: pipelineID must be specified unless pipelineConfig is set"},
+		},
 		{
 			name: "additional volumes and mounts",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{

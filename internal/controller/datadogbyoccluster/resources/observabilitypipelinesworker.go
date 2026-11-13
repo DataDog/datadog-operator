@@ -72,8 +72,9 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 				Site:            new(site),
 				APIKeySecretRef: apiKeySecretRef.DeepCopy(),
 			},
-			Image:    &resolvedImage,
-			Identity: pipeline.Identity.DeepCopy(),
+			Image:          &resolvedImage,
+			Identity:       pipeline.Identity.DeepCopy(),
+			PipelineConfig: pipeline.PipelineConfig,
 		},
 	}, nil
 }
