@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.83.2 // indirect
