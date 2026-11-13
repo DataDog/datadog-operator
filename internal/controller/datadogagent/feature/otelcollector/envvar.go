@@ -10,6 +10,7 @@ const (
 	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"
 	DDOtelCollectorCoreConfigExtensionTimeout = "DD_OTELCOLLECTOR_EXTENSION_TIMEOUT"
 	DDOtelCollectorConverterFeatures          = "DD_OTELCOLLECTOR_CONVERTER_FEATURES"
+	DDOtelCollectorGatewayDaemonSet           = "DD_OTELCOLLECTOR_GATEWAY_DAEMONSET"
 	DDOtelCollectorInstallationMethod         = "DD_OTELCOLLECTOR_INSTALLATION_METHOD"
 	DDOtelStandalone                          = "DD_OTEL_STANDALONE"
 )
