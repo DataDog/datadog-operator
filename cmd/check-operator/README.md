@@ -27,16 +27,21 @@ not be treated as successful or zero-duration starts.
 
 JSON records are written to stderr, separately from the existing progress output:
 
-- `agent_startup_snapshot`: pod identity, owner, node, creation/start times,
+- `agent_startup_snapshot`: pod identity, DaemonSet, node, creation/start times,
   conditions, and current/previous init and regular container states. Container
   statuses include images, image IDs, readiness, and restart counts. Pod specs,
-  environment variables, and configuration contents are not logged.
+  environment variables, configuration contents, mounts, resources, user/group
+  details, container IDs, and full owner references are not logged. Conditions
+  include only type, status, and last transition time.
 - `agent_startup_measurement` with `phase:init_execution`: one retained completed init attempt, with source
   timestamps, `duration_seconds`, `restart_count`, exit code, and termination reason.
   `phase:init_execution` means `finishedAt - startedAt`; it does not include image
   pulls or waits before the container starts. Failed completed attempts are included.
 - `agent_startup_measurement` with `phase:creation_to_scheduled`: scheduled time
   minus pod creation time.
+- `agent_startup_measurement` with `phase:creation_to_initialized`: the current
+  `Initialized=True` transition minus pod creation time, including preparation
+  and waits before/between init containers.
 - `agent_startup_measurement` with `phase:creation_to_latest_ready`: the current
   `Ready=True` transition time minus pod creation time. A later return to readiness
   produces a new sample; this is not guaranteed first readiness.
@@ -47,7 +52,8 @@ invocation. Different invocations can observe the same pod again; use a separate
 experiment identifier or deduplicate by pod UID, container, restart count, and
 start/finish timestamps when comparing runs. A snapshot cannot recover all retries
 or prove that the current readiness transition is the first. Missing or reversed
-init timestamps produce no duration. Actual zero-second durations are retained.
+init timestamps produce no duration. Zero-second timestamp differences are retained; Kubernetes status timestamps
+have second resolution, so zero does not mean no execution time.
 
 The service account needs its existing DatadogAgent/DatadogAgentInternal permissions,
 plus `get` on `apps/daemonsets` and `list` on core `pods` in the target namespace.
@@ -82,8 +88,23 @@ it in an internal cluster are separate deployment steps.
 | Proposed metric | `phase` filter | Measure |
 | --- | --- | --- |
 | `contp.agent_startup.creation_to_scheduled` | `creation_to_scheduled` | `@duration_seconds` |
+| `contp.agent_startup.creation_to_initialized` | `creation_to_initialized` | `@duration_seconds` |
 | `contp.agent_startup.creation_to_latest_ready` | `creation_to_latest_ready` | `@duration_seconds` |
 
-Both filters also require `@event:agent_startup_measurement`. Latest-readiness
+All filters also require `@event:agent_startup_measurement`. Latest-readiness
 samples can include recoveries, so they cannot establish exact time to first
 readiness. These log-based metrics still need to be created in Datadog.
+
+Create these distributions in Logs > Configuration > Generate Metrics using
+`source:datadog-check-operator kube_cluster_name:porygon @event:agent_startup_measurement`
+plus the appropriate `@phase` filter. Select `@duration_seconds`, enable
+percentiles, and group by `@experiment_id`, `@variant`, `@daemonset`, and
+`kube_cluster_name`. Add `@container_name` for init execution. Do not include
+an index filter: these rules run on ingestion, not stored logs. Create the rules
+before the measurement run; they do not backfill existing logs.
+
+Repeated checker jobs can measure the same startup again. Separate experiment
+IDs make runs distinguishable but do not deduplicate them. For comparisons,
+collect each cohort once and use disjoint pod creation windows, or deduplicate
+the retained logs before computing statistics. The collector does not currently
+enforce a creation window or deduplicate across jobs.

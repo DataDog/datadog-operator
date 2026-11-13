@@ -235,11 +235,14 @@ func TestStartupDerivedPodDurations(t *testing.T) {
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{UID: "pod", CreationTimestamp: metav1.NewTime(time.Unix(100, 0))}, Status: corev1.PodStatus{Conditions: []corev1.PodCondition{
 		{Type: corev1.PodScheduled, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(102, 0))},
 		{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(110, 0))},
+		{Type: corev1.PodInitialized, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(106, 0))},
 	}}}
 	require.NoError(t, c.collectPod(pod, "agent"))
 	require.NoError(t, c.collectPod(pod, "agent"))
 	records := readStartupRecords(t, output)
-	require.Len(t, records, 3)
+	require.Len(t, records, 4)
+	assert.Equal(t, "creation_to_initialized", records[3].Phase)
+	assert.Equal(t, 6.0, *records[3].DurationSeconds)
 	assert.Equal(t, "creation_to_scheduled", records[1].Phase)
 	assert.Equal(t, 2.0, *records[1].DurationSeconds)
 	assert.Equal(t, "creation_to_latest_ready", records[2].Phase)
@@ -256,4 +259,34 @@ func TestStartupDerivedPodDurations(t *testing.T) {
 	require.Len(t, records, 2)
 	assert.Equal(t, "creation_to_latest_ready", records[1].Phase)
 	assert.Equal(t, 20.0, *records[1].DurationSeconds)
+}
+
+func TestStartupSnapshotOmitsUnrelatedFields(t *testing.T) {
+	c, output := testCollector(t)
+	status := corev1.ContainerStatus{
+		Name: "init-config", Image: "agent:test", ImageID: "sha256:image", ContainerID: "containerd://current", Ready: true, RestartCount: 1,
+		State:                corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(time.Unix(110, 0))}},
+		LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ContainerID: "containerd://previous", Message: "verbose message", ExitCode: 1, Reason: "Error", StartedAt: metav1.NewTime(time.Unix(100, 0)), FinishedAt: metav1.NewTime(time.Unix(105, 0))}},
+	}
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{UID: "pod", OwnerReferences: []metav1.OwnerReference{{Name: "owner"}}}, Status: corev1.PodStatus{InitContainerStatuses: []corev1.ContainerStatus{status}, ContainerStatuses: []corev1.ContainerStatus{status}}}
+	require.NoError(t, c.collectPod(pod, "agent"))
+	encoded := output.String()
+	for _, field := range []string{"containerID", "volumeMounts", "allocatedResources", "resources", "user", "owners", "verbose message"} {
+		assert.NotContains(t, encoded, field)
+	}
+	records := readStartupRecords(t, output)
+	require.Len(t, records, 1)
+	for _, container := range []startupContainer{records[0].InitContainers[0], records[0].Containers[0]} {
+		assert.Equal(t, status.ImageID, container.ImageID)
+		assert.Equal(t, status.State.Running.StartedAt, container.State.Running.StartedAt)
+		assert.Equal(t, int32(1), container.LastState.Terminated.ExitCode)
+		assert.Equal(t, "Error", container.LastState.Terminated.Reason)
+		assert.Equal(t, status.LastTerminationState.Terminated.FinishedAt, container.LastState.Terminated.FinishedAt)
+	}
+	assert.Equal(t, "containerd://previous", pod.Status.InitContainerStatuses[0].LastTerminationState.Terminated.ContainerID)
+	// Changes unrelated to startup must not emit a duplicate snapshot.
+	pod.Status.InitContainerStatuses[0].ContainerID = "changed"
+	pod.Status.InitContainerStatuses[0].LastTerminationState.Terminated.Message = "changed"
+	require.NoError(t, c.collectPod(pod, "agent"))
+	assert.Empty(t, output.String())
 }

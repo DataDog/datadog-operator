@@ -37,34 +37,75 @@ type startupCollector struct {
 }
 
 type startupRecord struct {
-	Image             string                   `json:"image,omitempty"`
-	ImageID           string                   `json:"image_id,omitempty"`
-	Event             string                   `json:"event"`
-	ObservedAt        time.Time                `json:"observed_at"`
-	Namespace         string                   `json:"namespace"`
-	DatadogAgent      string                   `json:"datadogagent"`
-	Experiment        string                   `json:"experiment_id,omitempty"`
-	Variant           string                   `json:"variant,omitempty"`
-	PodName           string                   `json:"pod_name,omitempty"`
-	PodUID            types.UID                `json:"pod_uid,omitempty"`
-	NodeName          string                   `json:"node_name,omitempty"`
-	DaemonSet         string                   `json:"daemonset,omitempty"`
-	CreationTimestamp *metav1.Time             `json:"creation_timestamp,omitempty"`
-	StartTime         *metav1.Time             `json:"start_time,omitempty"`
-	Owners            []metav1.OwnerReference  `json:"owners,omitempty"`
-	PodPhase          corev1.PodPhase          `json:"pod_phase,omitempty"`
-	Conditions        []corev1.PodCondition    `json:"conditions,omitempty"`
-	InitContainers    []corev1.ContainerStatus `json:"init_container_statuses,omitempty"`
-	Containers        []corev1.ContainerStatus `json:"container_statuses,omitempty"`
-	Phase             string                   `json:"phase,omitempty"`
-	ContainerName     string                   `json:"container_name,omitempty"`
-	StartedAt         *metav1.Time             `json:"started_at,omitempty"`
-	FinishedAt        *metav1.Time             `json:"finished_at,omitempty"`
-	DurationSeconds   *float64                 `json:"duration_seconds,omitempty"`
-	RestartCount      int32                    `json:"restart_count"`
-	ExitCode          *int32                   `json:"exit_code,omitempty"`
-	Reason            string                   `json:"reason,omitempty"`
-	Error             string                   `json:"error,omitempty"`
+	Image             string             `json:"image,omitempty"`
+	ImageID           string             `json:"image_id,omitempty"`
+	Event             string             `json:"event"`
+	ObservedAt        time.Time          `json:"observed_at"`
+	Namespace         string             `json:"namespace"`
+	DatadogAgent      string             `json:"datadogagent"`
+	Experiment        string             `json:"experiment_id,omitempty"`
+	Variant           string             `json:"variant,omitempty"`
+	PodName           string             `json:"pod_name,omitempty"`
+	PodUID            types.UID          `json:"pod_uid,omitempty"`
+	NodeName          string             `json:"node_name,omitempty"`
+	DaemonSet         string             `json:"daemonset,omitempty"`
+	CreationTimestamp *metav1.Time       `json:"creation_timestamp,omitempty"`
+	StartTime         *metav1.Time       `json:"start_time,omitempty"`
+	PodPhase          corev1.PodPhase    `json:"pod_phase,omitempty"`
+	Conditions        []startupCondition `json:"conditions,omitempty"`
+	InitContainers    []startupContainer `json:"init_container_statuses,omitempty"`
+	Containers        []startupContainer `json:"container_statuses,omitempty"`
+	Phase             string             `json:"phase,omitempty"`
+	ContainerName     string             `json:"container_name,omitempty"`
+	StartedAt         *metav1.Time       `json:"started_at,omitempty"`
+	FinishedAt        *metav1.Time       `json:"finished_at,omitempty"`
+	DurationSeconds   *float64           `json:"duration_seconds,omitempty"`
+	RestartCount      int32              `json:"restart_count"`
+	ExitCode          *int32             `json:"exit_code,omitempty"`
+	Reason            string             `json:"reason,omitempty"`
+	Error             string             `json:"error,omitempty"`
+}
+
+// Keep only fields needed to interpret startup timing and retries.
+type startupCondition struct {
+	Type               corev1.PodConditionType `json:"type"`
+	Status             corev1.ConditionStatus  `json:"status"`
+	LastTransitionTime metav1.Time             `json:"lastTransitionTime"`
+}
+
+type startupContainer struct {
+	Name         string                `json:"name"`
+	Image        string                `json:"image"`
+	ImageID      string                `json:"imageID"`
+	State        corev1.ContainerState `json:"state"`
+	LastState    corev1.ContainerState `json:"lastState"`
+	Ready        bool                  `json:"ready"`
+	Started      *bool                 `json:"started,omitempty"`
+	RestartCount int32                 `json:"restartCount"`
+}
+
+func startupState(state corev1.ContainerState) corev1.ContainerState {
+	result := *state.DeepCopy()
+	if result.Terminated != nil {
+		result.Terminated.ContainerID = ""
+		result.Terminated.Message = ""
+	}
+	if result.Waiting != nil {
+		result.Waiting.Message = ""
+	}
+	return result
+}
+
+func startupContainers(statuses []corev1.ContainerStatus) []startupContainer {
+	result := make([]startupContainer, 0, len(statuses))
+	for _, status := range statuses {
+		result = append(result, startupContainer{
+			Name: status.Name, Image: status.Image, ImageID: status.ImageID,
+			State: startupState(status.State), LastState: startupState(status.LastTerminationState),
+			Ready: status.Ready, Started: status.Started, RestartCount: status.RestartCount,
+		})
+	}
+	return result
 }
 
 func (c *startupCollector) record(event string) startupRecord {
@@ -200,9 +241,12 @@ func (c *startupCollector) collect(ctx context.Context) error {
 func (c *startupCollector) collectPod(pod *corev1.Pod, daemonset string) error {
 	record := c.record("agent_startup_snapshot")
 	record.PodName, record.PodUID, record.NodeName, record.DaemonSet = pod.Name, pod.UID, pod.Spec.NodeName, daemonset
-	record.CreationTimestamp, record.StartTime, record.Owners = &pod.CreationTimestamp, pod.Status.StartTime, pod.OwnerReferences
-	record.PodPhase, record.Conditions = pod.Status.Phase, pod.Status.Conditions
-	record.InitContainers, record.Containers = pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses
+	record.CreationTimestamp, record.StartTime = &pod.CreationTimestamp, pod.Status.StartTime
+	record.PodPhase = pod.Status.Phase
+	for _, condition := range pod.Status.Conditions {
+		record.Conditions = append(record.Conditions, startupCondition{Type: condition.Type, Status: condition.Status, LastTransitionTime: condition.LastTransitionTime})
+	}
+	record.InitContainers, record.Containers = startupContainers(pod.Status.InitContainerStatuses), startupContainers(pod.Status.ContainerStatuses)
 	// Ignore observation time when deduplicating unchanged snapshots. Avoid
 	// serializing pod specs, environment variables, or configuration contents.
 	observed := record.ObservedAt
@@ -253,6 +297,8 @@ func (c *startupCollector) collectPod(pod *corev1.Pod, daemonset string) error {
 		switch condition.Type {
 		case corev1.PodScheduled:
 			phase = "creation_to_scheduled"
+		case corev1.PodInitialized:
+			phase = "creation_to_initialized"
 		case corev1.PodReady:
 			phase = "creation_to_latest_ready"
 		}
