@@ -63,6 +63,8 @@ type managedAgentInstallationIntent struct {
 	DesiredState            managedAgentInstallationDesiredState
 	AcknowledgedOperationID string
 	Bootstrap               managedAgentInstallationBootstrap
+	AgentConfig             *datadogAgentManagedAgentInstallationConfig
+	AgentProfiles           []decodedManagedAgentInstallationAgentProfile
 }
 
 type normalizedManagedAgentInstallationIntent struct {
@@ -73,6 +75,8 @@ type normalizedManagedAgentInstallationIntent struct {
 	OperationID    string                               `json:"operationID"`
 	DesiredState   managedAgentInstallationDesiredState `json:"desiredState"`
 	Bootstrap      managedAgentInstallationBootstrap    `json:"bootstrap"`
+	AgentConfig    json.RawMessage                      `json:"agentConfig,omitempty"`
+	AgentProfiles  json.RawMessage                      `json:"agentProfiles,omitempty"`
 }
 
 type managedAgentInstallationIntentSnapshot struct {
@@ -251,7 +255,7 @@ func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snaps
 	}
 	if intent.DesiredState == managedAgentInstallationDesiredStateInstalled && intent.AcknowledgedOperationID != "" {
 		if current != nil && current.AcknowledgedOperationID == intent.AcknowledgedOperationID {
-			return d.reconcileAcknowledgedManagedAgentInstallation(ctx, current)
+			return d.reconcileAcknowledgedManagedAgentInstallation(ctx, current, intent)
 		}
 		return d.acknowledgeManagedAgentInstallationInstall(ctx, current, intent)
 	}
@@ -330,20 +334,23 @@ func (d *Daemon) acknowledgeManagedAgentInstallationInstall(ctx context.Context,
 	if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, dda); err != nil {
 		return err
 	}
+	if err := d.validateManagedAgentInstallationAgentProfilesExist(ctx, dda, intent.AgentProfiles); err != nil {
+		return err
+	}
 	current.AcknowledgedOperationID = intent.OperationID
 	if err := d.writeManagedAgentInstallationState(ctx, *current); err != nil {
 		return fmt.Errorf("persist managed Agent installation acknowledgement: %w", err)
 	}
-	return d.reconcileAcknowledgedManagedAgentInstallation(ctx, current)
+	return d.reconcileAcknowledgedManagedAgentInstallation(ctx, current, intent)
 }
 
-func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Context, current *managedAgentInstallationPersistedState) error {
+func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Context, current *managedAgentInstallationPersistedState, intent managedAgentInstallationIntent) error {
 	if current == nil || current.DesiredState != managedAgentInstallationDesiredStateInstalled ||
 		current.TaskState != pbgo.TaskState_DONE || current.AcknowledgedOperationID != current.OperationID {
 		return fmt.Errorf("managed Agent installation acknowledgement state is incomplete")
 	}
 
-	dda, err := d.validateAcknowledgedManagedAgentInstallation(ctx)
+	dda, err := d.validateAcknowledgedManagedAgentInstallation(ctx, intent.AgentProfiles)
 	if err != nil {
 		return err
 	}
@@ -362,7 +369,7 @@ func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Conte
 	return d.refreshManagedAgentInstallationUpdaterTags(ctx)
 }
 
-func (d *Daemon) validateAcknowledgedManagedAgentInstallation(ctx context.Context) (*v2alpha1.DatadogAgent, error) {
+func (d *Daemon) validateAcknowledgedManagedAgentInstallation(ctx context.Context, profiles []decodedManagedAgentInstallationAgentProfile) (*v2alpha1.DatadogAgent, error) {
 	dda, err := d.validateManagedAgentInstallationTarget(ctx, d.managedAgentInstallationTarget())
 	if err != nil {
 		return nil, err
@@ -374,6 +381,9 @@ func (d *Daemon) validateAcknowledgedManagedAgentInstallation(ctx context.Contex
 		return nil, readyErr
 	}
 	if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, dda); err != nil {
+		return nil, err
+	}
+	if err := d.validateManagedAgentInstallationAgentProfilesExist(ctx, dda, profiles); err != nil {
 		return nil, err
 	}
 	return dda, nil
@@ -446,11 +456,11 @@ func validateManagedAgentInstallationBootstrap(bootstrap managedAgentInstallatio
 	return nil
 }
 
-func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationBootstrap) (json.RawMessage, error) {
+func managedAgentInstallationBootstrapSpec(bootstrap managedAgentInstallationBootstrap) *v2alpha1.DatadogAgentSpec {
 	clusterName := bootstrap.ClusterName
 	site := bootstrap.Site
 	linuxSelector := map[string]string{corev1.LabelOSStable: string(corev1.Linux)}
-	config := datadogAgentManagedAgentInstallationConfig{Spec: &v2alpha1.DatadogAgentSpec{
+	return &v2alpha1.DatadogAgentSpec{
 		Global: &v2alpha1.GlobalConfig{
 			ClusterName: &clusterName,
 			Site:        &site,
@@ -459,7 +469,12 @@ func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationB
 			v2alpha1.NodeAgentComponentName:    {NodeSelector: linuxSelector},
 			v2alpha1.ClusterAgentComponentName: {NodeSelector: linuxSelector},
 		},
-	}}
+	}
+}
+
+// managedAgentInstallationBootstrapConfig encodes the bootstrap spec as the normalized DatadogAgent config for providers that do not decode agent settings.
+func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationBootstrap) (json.RawMessage, error) {
+	config := datadogAgentManagedAgentInstallationConfig{Spec: managedAgentInstallationBootstrapSpec(bootstrap)}
 	encoded, err := json.Marshal(config)
 	if err != nil {
 		return nil, fmt.Errorf("encode managed Agent installation bootstrap config: %w", err)

@@ -7,8 +7,6 @@ package fleet
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +20,8 @@ type genericManagedAgentInstallationIntent struct {
 	DesiredState            managedAgentInstallationDesiredState `json:"desiredState"`
 	AcknowledgedOperationID string                               `json:"acknowledgedOperationID,omitempty"`
 	Bootstrap               managedAgentInstallationBootstrap    `json:"bootstrap"`
+	AgentConfig             json.RawMessage                      `json:"agentConfig,omitempty"`
+	AgentProfiles           json.RawMessage                      `json:"agentProfiles,omitempty"`
 }
 
 func decodeGenericManagedAgentInstallationIntent(raw []byte, identity ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
@@ -70,43 +70,16 @@ func decodeGenericManagedAgentInstallationIntent(raw []byte, identity ManagedAge
 		return managedAgentInstallationIntent{}, nil, "", err
 	}
 
-	var normalizedConfig json.RawMessage
-	switch genericIntent.DesiredState {
-	case managedAgentInstallationDesiredStateInstalled:
-		config, configErr := managedAgentInstallationBootstrapConfig(genericIntent.Bootstrap)
-		if configErr != nil {
-			return managedAgentInstallationIntent{}, nil, "", configErr
-		}
-		normalizedConfig = config
-	case managedAgentInstallationDesiredStateAbsent:
-		normalizedConfig = json.RawMessage(`{}`)
-	default:
-		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported generic managed Agent installation desired state %q", genericIntent.DesiredState)
-	}
-
-	intent := managedAgentInstallationIntent{
-		Version:                 genericIntent.Version,
-		Provider:                ManagedAgentInstallationProviderGeneric,
-		InstallationID:          genericIntent.InstallationID,
-		TargetID:                targetID,
-		OperationID:             genericIntent.OperationID,
-		DesiredState:            genericIntent.DesiredState,
-		AcknowledgedOperationID: genericIntent.AcknowledgedOperationID,
-		Bootstrap:               genericIntent.Bootstrap,
-	}
-	normalized := normalizedManagedAgentInstallationIntent{
-		Version:        intent.Version,
-		Provider:       intent.Provider,
-		InstallationID: intent.InstallationID,
-		TargetID:       intent.TargetID,
-		OperationID:    intent.OperationID,
-		DesiredState:   intent.DesiredState,
-		Bootstrap:      intent.Bootstrap,
-	}
-	encoded, err := json.Marshal(normalized)
-	if err != nil {
-		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("encode normalized generic managed Agent installation intent: %w", err)
-	}
-	digest := sha256.Sum256(encoded)
-	return intent, normalizedConfig, hex.EncodeToString(digest[:]), nil
+	return finalizeManagedAgentInstallationIntent(
+		ManagedAgentInstallationProviderGeneric,
+		genericIntent.Version,
+		genericIntent.InstallationID,
+		targetID,
+		genericIntent.OperationID,
+		genericIntent.AcknowledgedOperationID,
+		genericIntent.DesiredState,
+		genericIntent.Bootstrap,
+		genericIntent.AgentConfig,
+		genericIntent.AgentProfiles,
+	)
 }
