@@ -17,7 +17,7 @@ const (
 	defaultBYOCRepository                         = "public.ecr.aws/datadog/cloudprem"
 	defaultBYOCTag                                = "v0.1.36"
 	defaultObservabilityPipelinesWorkerRepository = "public.ecr.aws/datadog/observability-pipelines-worker"
-	defaultObservabilityPipelinesWorkerTag        = "2.25.1"
+	defaultObservabilityPipelinesWorkerTag        = "2.25.2"
 )
 
 // ResolvedImages contains the effective workload images after applying overrides.
