@@ -1461,7 +1461,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_GPUAMDConfig(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables the AMD GPU check (Agent 7.86.0+). Set the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` / `runtimeClassName`); otherwise leave it empty (`\"\"`). Not supported on GKE Autopilot. Default: false",
+							Description: "Enabled enables the AMD GPU check (Agent 7.86.0+). When enabled, `requiredRuntimeClassName` defaults to no RuntimeClass instead of `nvidia`. If the cluster defines an AMD RuntimeClass, set it with `requiredRuntimeClassName` (or `spec.override.nodeAgent.runtimeClassName`). Not supported on GKE Autopilot. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

@@ -129,10 +129,11 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		Containers: requiredContainers,
 	}
 
-	// The AMD GPU check is opt-in and never depends on the RuntimeClass.
-	amdRequested := ddaSpec.Features.GPU.AMD != nil && apiutils.BoolValue(ddaSpec.Features.GPU.AMD.Enabled)
+	gpu := ddaSpec.Features.GPU
+	amdRequested := gpu.AMD != nil && apiutils.BoolValue(gpu.AMD.Enabled)
+	onAutopilot := experimental.IsAutopilotEnabled(dda)
 	if amdRequested {
-		if experimental.IsAutopilotEnabled(dda) {
+		if onAutopilot {
 			// GKE Autopilot has no AMD GPUs.
 			f.logger.V(1).Info("features.gpu.amd is not supported on GKE Autopilot; ignoring it")
 		} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {
@@ -143,13 +144,20 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 	}
 
-	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
-		// Configuration option not set, so revert to the default
+	// The RuntimeClass default follows amd.enabled, not the version gate, so it doesn't flip with the Agent version.
+	// Autopilot ignores amd.enabled (no AMD GPUs), so it keeps the nvidia default.
+	amdForRuntimeClass := amdRequested && !onAutopilot
+	switch {
+	case gpu.PodRuntimeClassName != nil:
+		f.podRuntimeClassName = *gpu.PodRuntimeClassName // "" = leave unset
+		if amdForRuntimeClass && f.podRuntimeClassName == defaultGPURuntimeClass {
+			f.logger.Info("Warning: features.gpu.amd.enabled is set with requiredRuntimeClassName nvidia, which usually doesn't exist on AMD nodes; set it to the cluster's AMD RuntimeClass or \"\"")
+		}
+	case amdForRuntimeClass:
+		f.podRuntimeClassName = "" // no RuntimeClass: AMD tooling doesn't define a standard one
+		f.logger.Info("Warning: features.gpu.amd.enabled is set without requiredRuntimeClassName, so the node agent uses no RuntimeClass (the node's default runtime); set it to the cluster's AMD RuntimeClass if it defines one")
+	default:
 		f.podRuntimeClassName = defaultGPURuntimeClass
-	} else {
-		// Configuration option set, use the value. Note that here the value might be an empty
-		// string, which tells us to not change the runtime class.
-		f.podRuntimeClassName = *ddaSpec.Features.GPU.PodRuntimeClassName
 	}
 
 	f.podResourcesSocketPath = ddaSpec.Global.Kubelet.PodResourcesSocketPath

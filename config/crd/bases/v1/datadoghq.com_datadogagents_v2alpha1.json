@@ -1946,7 +1946,7 @@
                   "description": "AMD configures monitoring of AMD GPUs.",
                   "properties": {
                     "enabled": {
-                      "description": "Enables the AMD GPU check (Agent 7.86.0+).\nSet the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /\n`runtimeClassName`); otherwise leave it empty (`\"\"`).\nNot supported on GKE Autopilot.\nDefault: false",
+                      "description": "Enabled enables the AMD GPU check (Agent 7.86.0+).\nWhen enabled, `requiredRuntimeClassName` defaults to no RuntimeClass instead of `nvidia`. If the cluster\ndefines an AMD RuntimeClass, set it with `requiredRuntimeClassName` (or `spec.override.nodeAgent.runtimeClassName`).\nNot supported on GKE Autopilot.\nDefault: false",
                       "type": "boolean"
                     }
                   },
@@ -1965,7 +1965,7 @@
                   "type": "boolean"
                 },
                 "requiredRuntimeClassName": {
-                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
+                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or no RuntimeClass when amd.enabled is true.",
                   "type": "string"
                 }
               },
@@ -11092,7 +11092,7 @@
                       "description": "AMD configures monitoring of AMD GPUs.",
                       "properties": {
                         "enabled": {
-                          "description": "Enables the AMD GPU check (Agent 7.86.0+).\nSet the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /\n`runtimeClassName`); otherwise leave it empty (`\"\"`).\nNot supported on GKE Autopilot.\nDefault: false",
+                          "description": "Enabled enables the AMD GPU check (Agent 7.86.0+).\nWhen enabled, `requiredRuntimeClassName` defaults to no RuntimeClass instead of `nvidia`. If the cluster\ndefines an AMD RuntimeClass, set it with `requiredRuntimeClassName` (or `spec.override.nodeAgent.runtimeClassName`).\nNot supported on GKE Autopilot.\nDefault: false",
                           "type": "boolean"
                         }
                       },
@@ -11111,7 +11111,7 @@
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {
-                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or no RuntimeClass when amd.enabled is true.",
                       "type": "string"
                     }
                   },

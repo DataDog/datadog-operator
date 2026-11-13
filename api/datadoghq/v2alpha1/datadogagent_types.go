@@ -999,7 +999,7 @@ type GPUFeatureConfig struct {
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Default: nvidia
+	// Default: nvidia, or no RuntimeClass when amd.enabled is true.
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
@@ -1017,9 +1017,9 @@ type GPUFeatureConfig struct {
 // GPUAMDConfig contains the AMD GPU monitoring configuration.
 // +k8s:openapi-gen=true
 type GPUAMDConfig struct {
-	// Enables the AMD GPU check (Agent 7.86.0+).
-	// Set the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /
-	// `runtimeClassName`); otherwise leave it empty (`""`).
+	// Enabled enables the AMD GPU check (Agent 7.86.0+).
+	// When enabled, `requiredRuntimeClassName` defaults to no RuntimeClass instead of `nvidia`. If the cluster
+	// defines an AMD RuntimeClass, set it with `requiredRuntimeClassName` (or `spec.override.nodeAgent.runtimeClassName`).
 	// Not supported on GKE Autopilot.
 	// Default: false
 	// +optional
