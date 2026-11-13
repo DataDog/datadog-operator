@@ -55,6 +55,7 @@ const (
 
 	// Resources
 	defaultStatefulCPURequest   = "4"
+	defaultIndexerCPULimit      = "4"
 	defaultStatefulMemory       = "16Gi"
 	defaultDeploymentCPURequest = "2"
 	defaultDeploymentMemory     = "4Gi"
@@ -118,7 +119,7 @@ func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelin
 }
 
 func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
-	applyPomskyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, defaultIndexerReplicas, statefulResources())
+	applyPomskyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, defaultIndexerReplicas, indexerResources())
 	if indexer.TerminationGracePeriodSeconds == nil {
 		indexer.TerminationGracePeriodSeconds = new(defaultIndexerTerminationGracePeriodSeconds)
 	}
@@ -252,6 +253,12 @@ func statefulResources() *corev1.ResourceRequirements {
 			corev1.ResourceMemory: resource.MustParse(defaultStatefulMemory),
 		},
 	}
+}
+
+func indexerResources() *corev1.ResourceRequirements {
+	resources := statefulResources()
+	resources.Limits[corev1.ResourceCPU] = resource.MustParse(defaultIndexerCPULimit)
+	return resources
 }
 
 func deploymentResources() *corev1.ResourceRequirements {

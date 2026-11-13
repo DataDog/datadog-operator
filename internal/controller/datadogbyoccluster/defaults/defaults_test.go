@@ -92,6 +92,7 @@ func TestApply(t *testing.T) {
 						Replicas: ptr.To[int32](2),
 						Resources: &corev1.ResourceRequirements{
 							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("4"),
 								corev1.ResourceMemory: resource.MustParse("16Gi"),
 							},
 							Requests: corev1.ResourceList{
@@ -267,6 +268,7 @@ func TestApply(t *testing.T) {
 						Replicas: ptr.To[int32](2),
 						Resources: &corev1.ResourceRequirements{
 							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("4"),
 								corev1.ResourceMemory: resource.MustParse("16Gi"),
 							},
 							Requests: corev1.ResourceList{
@@ -465,6 +467,7 @@ func TestApplyIndexerDefaults(t *testing.T) {
 					Replicas: ptr.To[int32](2),
 					Resources: &corev1.ResourceRequirements{
 						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
 							corev1.ResourceMemory: resource.MustParse("16Gi"),
 						},
 						Requests: corev1.ResourceList{
@@ -554,6 +557,7 @@ func TestApplyIndexerDefaults(t *testing.T) {
 					Replicas: ptr.To[int32](2),
 					Resources: &corev1.ResourceRequirements{
 						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("4"),
 							corev1.ResourceMemory: resource.MustParse("16Gi"),
 						},
 						Requests: corev1.ResourceList{
