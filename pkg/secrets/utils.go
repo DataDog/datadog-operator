@@ -26,18 +26,27 @@ func extractHandles(encData []string) ([]string, error) {
 	return handles, nil
 }
 
-// IsEnc returns true if a string respects the ENC[<handle>] format, ignoring
+// parseEnc returns the handle of an ENC[<handle>] reference, ignoring
 // leading/trailing spaces and tabs (matches the Agent's behavior)
-func IsEnc(str string) bool {
+func parseEnc(str string) (string, bool) {
 	str = strings.Trim(str, " \t")
-	return strings.HasPrefix(str, "ENC[") && strings.HasSuffix(str, "]")
+	if strings.HasPrefix(str, "ENC[") && strings.HasSuffix(str, "]") {
+		return str[4 : len(str)-1], true
+	}
+
+	return "", false
+}
+
+// IsEnc returns true if a string respects the ENC[<handle>] format
+func IsEnc(str string) bool {
+	_, ok := parseEnc(str)
+	return ok
 }
 
 // extractHandle returns the handle of a secret
 func extractHandle(str string) (string, error) {
-	if IsEnc(str) {
-		str = strings.Trim(str, " \t")
-		return str[4 : len(str)-1], nil
+	if handle, ok := parseEnc(str); ok {
+		return handle, nil
 	}
 
 	return "", fmt.Errorf("wrong format, want ENC[<handle>], got: %s", str)

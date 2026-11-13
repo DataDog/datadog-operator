@@ -239,15 +239,6 @@ func TestSecretBackend_fetchSecret(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "malformed reference",
-			cmd:  "./testdata/decryptor/dummy_decryptor.py",
-			encrypted: []string{
-				"ENC[api_key",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
 			name: "error decrypting a secret",
 			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{

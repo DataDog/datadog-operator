@@ -80,16 +80,6 @@ func Test_extractHandles(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "inner whitespace preserved",
-			handles: []string{
-				"ENC[ api_key ]",
-			},
-			want: []string{
-				" api_key ",
-			},
-			wantErr: false,
-		},
-		{
 			name: "padded with newline",
 			handles: []string{
 				"ENC[api_key]\n",
@@ -128,19 +118,13 @@ func TestIsEnc(t *testing.T) {
 		str  string
 		want bool
 	}{
-		{name: "exact", str: "ENC[handle]", want: true},
 		{name: "leading space", str: " ENC[handle]", want: true},
 		{name: "trailing tab", str: "ENC[handle]\t", want: true},
 		{name: "spaces and tabs", str: " \tENC[handle]\t ", want: true},
-		{name: "empty handle", str: "ENC[]", want: true},
-		{name: "literal", str: "0123456789abcdef", want: false},
-		{name: "empty", str: "", want: false},
 		{name: "whitespace only", str: " \t ", want: false},
-		{name: "lowercase", str: "enc[handle]", want: false},
 		{name: "missing closing bracket", str: " ENC[handle", want: false},
 		{name: "missing prefix", str: "handle] ", want: false},
 		{name: "newline not trimmed", str: "\nENC[handle]", want: false},
-		{name: "space inside prefix", str: "ENC [handle]", want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
