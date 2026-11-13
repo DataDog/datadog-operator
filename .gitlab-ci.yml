@@ -154,7 +154,9 @@ build_operator_image_amd64:
     # audits sources in registry.ddbuild.io. Each step fails the job on error.
     - CANONICAL_TARGET=${TARGET_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}
     - docker buildx imagetools create $TARGET_IMAGE --tag $CANONICAL_TARGET ${CI_COMMIT_TAG:+--tag ${RELEASE_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}}
-    - DIGEST=$(docker buildx imagetools inspect $CANONICAL_TARGET --format '{{.Manifest.Digest}}')
+    # buildx v0.11 has no reliable digest template: hash the raw manifest bytes.
+    - docker buildx imagetools inspect $CANONICAL_TARGET --raw > canonical-manifest.json
+    - DIGEST=sha256:$(sha256sum canonical-manifest.json | cut -d' ' -f1)
     - ddsign sign ${CANONICAL_TARGET}@${DIGEST}
 
 build_operator_image_fips_amd64:
@@ -192,7 +194,9 @@ build_operator_image_arm64:
     # audits sources in registry.ddbuild.io. Each step fails the job on error.
     - CANONICAL_TARGET=${TARGET_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}
     - docker buildx imagetools create $TARGET_IMAGE --tag $CANONICAL_TARGET ${CI_COMMIT_TAG:+--tag ${RELEASE_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}}
-    - DIGEST=$(docker buildx imagetools inspect $CANONICAL_TARGET --format '{{.Manifest.Digest}}')
+    # buildx v0.11 has no reliable digest template: hash the raw manifest bytes.
+    - docker buildx imagetools inspect $CANONICAL_TARGET --raw > canonical-manifest.json
+    - DIGEST=sha256:$(sha256sum canonical-manifest.json | cut -d' ' -f1)
     - ddsign sign ${CANONICAL_TARGET}@${DIGEST}
 
 build_operator_image_fips_arm64:
