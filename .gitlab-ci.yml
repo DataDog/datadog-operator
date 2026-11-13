@@ -9,8 +9,8 @@ variables:
   IMAGE_VERSION: "tmpl-v5"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
-  JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
-  OCTO_JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v73151907-c38dce1-v1.22.1"
+  JOB_DOCKER_IMAGE: "registry.ddbuild.io/images/ci-containers-project:v152571942-0a4d1a8-remote-code-buildx-0382@sha256:02932a8ab13a9477e928a26bf9448840a13943a2b35d43d97a692493443268ea"
+  OCTO_JOB_DOCKER_IMAGE: "registry.ddbuild.io/images/ci-containers-project:v152575250-37c9356-operator-octo-buildx-0382@sha256:7364e7cab9854924f8dde5b3b32c486818e2ad357d6a3a77a1dd5247b65b82a9"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
