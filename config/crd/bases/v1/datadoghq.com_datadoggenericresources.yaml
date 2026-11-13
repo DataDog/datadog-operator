@@ -70,6 +70,8 @@ spec:
                     - monitor
                     - monitor_notification_rule
                     - notebook
+                    - on_call_escalation_policy
+                    - on_call_schedule
                     - slo
                     - slo_correction
                     - software_catalog_entity
