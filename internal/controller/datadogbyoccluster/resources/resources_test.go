@@ -828,6 +828,10 @@ func TestBuildResources_Indexer(t *testing.T) {
 				{Name: "QW_ENABLE_IN_MEMORY_INDEXING", Value: "true"},
 				{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "50MiB"},
 			},
+			resources: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
+			},
 			terminationGracePeriodSeconds: ptr.To[int64](300),
 		})
 		want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
@@ -1041,6 +1045,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 				MountPath: "/quickwit/node.yaml",
 				SubPath:   "node.yaml",
 			},
+			resources: *testPomskyResources("4", "16Gi"),
 		})
 	}
 
@@ -1502,21 +1507,19 @@ type wantStatefulSetOptions struct {
 	additionalServicePorts        []corev1.ServicePort
 	configVolumeMount             corev1.VolumeMount
 	additionalEnv                 []corev1.EnvVar
+	resources                     corev1.ResourceRequirements
 	terminationGracePeriodSeconds *int64
 }
 
 func wantDefaultStatefulSet(options wantStatefulSetOptions) *ComponentResources {
 	workload := wantDefaultWorkload(wantWorkloadOptions{
-		component:              options.component,
-		service:                options.component,
-		replicas:               2,
-		additionalServicePorts: options.additionalServicePorts,
-		configVolumeMount:      options.configVolumeMount,
-		additionalEnv:          options.additionalEnv,
-		resources: corev1.ResourceRequirements{
-			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("16Gi")},
-			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
-		},
+		component:                     options.component,
+		service:                       options.component,
+		replicas:                      2,
+		additionalServicePorts:        options.additionalServicePorts,
+		configVolumeMount:             options.configVolumeMount,
+		additionalEnv:                 options.additionalEnv,
+		resources:                     options.resources,
 		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 	})
 
