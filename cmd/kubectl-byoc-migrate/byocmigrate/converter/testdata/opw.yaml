@@ -1,0 +1,168 @@
+# Rendered from the observability-pipelines-worker chart 2.23.0 (helm-charts/charts/observability-pipelines-worker) with:
+# helm template logs <chart> --namespace logs --set datadog.pipelineId=pipeline-id --set datadog.apiKeyExistingSecret=datadog-secret --set service.ports[0].name=datadog-agent --set service.ports[0].port=8282 --set service.ports[0].protocol=TCP --set service.ports[0].targetPort=8282 --set containerPorts[0].name=datadog-agent --set containerPorts[0].containerPort=8282 --set containerPorts[0].protocol=TCP
+---
+# Source: observability-pipelines-worker/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logs-observability-pipelines-worker
+  namespace: logs
+  labels: 
+    helm.sh/chart: observability-pipelines-worker-2.23.0
+    app.kubernetes.io/name: observability-pipelines-worker
+    app.kubernetes.io/instance: logs
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.23.0"
+---
+# Source: observability-pipelines-worker/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: logs-observability-pipelines-worker-headless
+  namespace: logs
+  labels: 
+    helm.sh/chart: observability-pipelines-worker-2.23.0
+    app.kubernetes.io/name: observability-pipelines-worker
+    app.kubernetes.io/instance: logs
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.23.0"
+spec:
+  clusterIP: None
+  ports:
+    - name: datadog-agent
+      port: 8282
+      protocol: TCP
+      targetPort: 8282
+    
+    - name: api
+      port: 8686
+      protocol: TCP
+      targetPort: 8686
+  selector: 
+    app.kubernetes.io/name: observability-pipelines-worker
+    app.kubernetes.io/instance: logs
+    app.kubernetes.io/managed-by: Helm
+  type: ClusterIP
+---
+# Source: observability-pipelines-worker/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: logs-observability-pipelines-worker
+  namespace: logs
+  labels: 
+    helm.sh/chart: observability-pipelines-worker-2.23.0
+    app.kubernetes.io/name: observability-pipelines-worker
+    app.kubernetes.io/instance: logs
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.23.0"
+spec:
+  ports:
+    - name: datadog-agent
+      port: 8282
+      protocol: TCP
+      targetPort: 8282
+    
+    - name: api
+      port: 8686
+      protocol: TCP
+      targetPort: 8686
+  selector: 
+    app.kubernetes.io/name: observability-pipelines-worker
+    app.kubernetes.io/instance: logs
+    app.kubernetes.io/managed-by: Helm
+  type: ClusterIP
+---
+# Source: observability-pipelines-worker/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: logs-observability-pipelines-worker
+  namespace: logs
+  labels: 
+    helm.sh/chart: observability-pipelines-worker-2.23.0
+    app.kubernetes.io/name: observability-pipelines-worker
+    app.kubernetes.io/instance: logs
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.23.0"
+spec:
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: observability-pipelines-worker
+      app.kubernetes.io/instance: logs
+      app.kubernetes.io/managed-by: Helm
+  serviceName: logs-observability-pipelines-worker-headless
+  template:
+    metadata:
+      labels: 
+        app.kubernetes.io/name: observability-pipelines-worker
+        app.kubernetes.io/instance: logs
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/bootstrap: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/secret-file-backend: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+    spec: 
+      serviceAccountName: logs-observability-pipelines-worker
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: worker
+          image: "gcr.io/datadoghq/observability-pipelines-worker:2.23.0"
+          imagePullPolicy: IfNotPresent
+          args: 
+            - run
+          env:
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "datadog-secret"
+                  key: api-key
+            - name: DD_OP_PIPELINE_ID
+              value: "pipeline-id"
+            - name: DD_SITE
+              value: "datadoghq.com"
+            - name: DD_OP_DATA_DIR
+              value: "/var/lib/observability-pipelines-worker"
+            - name: DD_OP_API_ENABLED
+              value: "true"
+            - name: DD_OP_API_ADDRESS
+              value: "0.0.0.0:8686"
+            - name: DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS
+              value: "60"
+          ports:
+            - containerPort: 8282
+              name: datadog-agent
+              protocol: TCP
+            
+            - name: api
+              containerPort: 8686
+              protocol: TCP
+          livenessProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8686
+            timeoutSeconds: 15
+          readinessProbe: 
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8686
+            timeoutSeconds: 15
+          resources: 
+            requests:
+              cpu: 2
+              memory: 4Gi
+          volumeMounts:
+            - name: data
+              mountPath: "/var/lib/observability-pipelines-worker"
+      terminationGracePeriodSeconds: 70
+      volumes:
+        - name: data
+          emptyDir: {}
+  volumeClaimTemplates:
