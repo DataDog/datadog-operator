@@ -174,7 +174,7 @@ func Test_updateStatusIfNeeded_ReconcileErrorCondition(t *testing.T) {
 				newStatus.Conditions = append(newStatus.Conditions, *tt.existingCondition)
 			}
 
-			_, err := r.updateStatusIfNeeded(context.Background(), currentDDAI, newStatus, reconcile.Result{}, tt.currentError, now)
+			_, err := r.updateStatusIfNeeded(context.Background(), currentDDAI, newStatus, reconcile.Result{}, tt.currentError, now, nil, nil)
 			assert.Equal(t, tt.currentError, err)
 
 			cond := condition.GetDDAICondition(newStatus, common.DatadogAgentReconcileErrorConditionType)

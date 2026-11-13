@@ -9,6 +9,7 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -53,6 +54,21 @@ func UpdateDatadogAgentInternalStatusConditions(status *v1alpha1.DatadogAgentInt
 		// Only add if the condition is True
 		status.Conditions = append(status.Conditions, newDatadogAgentStatusCondition(t, conditionStatus, now, reason, message))
 	}
+}
+
+// AppendDatadogAgentInternalStatusConditions replaces the previous reconciliation's
+// message on the first write, then appends distinct messages with the same status
+// and reason. Pass a fresh messages map each reconciliation. Do not mix appends
+// and direct updates for the same type without clearing its entry in messages.
+func AppendDatadogAgentInternalStatusConditions(status *v1alpha1.DatadogAgentInternalStatus, messages map[string][]string, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string, writeFalseIfNotExist bool) {
+	current := GetDDAICondition(status, t)
+	if current == nil || current.Status != conditionStatus || current.Reason != reason {
+		delete(messages, t)
+	}
+	if !slices.Contains(messages[t], message) {
+		messages[t] = append(messages[t], message)
+	}
+	UpdateDatadogAgentInternalStatusConditions(status, now, t, conditionStatus, reason, strings.Join(messages[t], "; "), writeFalseIfNotExist)
 }
 
 // updateDatadogAgentStatusCondition used to update a specific string
