@@ -131,7 +131,7 @@ const (
 	telemetryMetricsTemporality = "delta"
 	telemetryTracesSampler      = "parentbased_traceidratio"
 	telemetryTracesSamplerRatio = "0.2"
-	// The CloudPrem Helm chart sizing map caps the indexer write throughput at 12.5MiB per core.
+	// The CloudPrem Helm chart sizing map caps the indexer write throughput at 12.5MiB/s per core.
 	indexingMaxWriteThroughputMiBPerCore = 12.5
 )
 
