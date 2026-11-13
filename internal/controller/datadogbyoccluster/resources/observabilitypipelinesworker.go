@@ -97,7 +97,10 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 		destinationEnv = envPipelineDestinationTracesEndpoint
 		endpoint += byocTracesPath
 	}
-	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{{Name: destinationEnv, Value: endpoint}})
+	// A variable set by the user keeps its position, so that it can reference the variables defined before it.
+	if !slices.ContainsFunc(component.Env, func(env corev1.EnvVar) bool { return env.Name == destinationEnv }) {
+		component.Env = append(component.Env, corev1.EnvVar{Name: destinationEnv, Value: endpoint})
+	}
 	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
 	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
 	component.VolumeMounts = controllerutils.MergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)

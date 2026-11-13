@@ -177,9 +177,6 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
 			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:               defaultImage,
-			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
-				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "http://global-override:7280"}},
-			},
 			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 				want := wantDefaultWorker()
 				want.Spec.Env[0].Value = "https://byoc-indexer:7280"
@@ -223,6 +220,57 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 				want.Spec.Env = []corev1.EnvVar{
 					{Name: envPipelineDestinationEndpoint, Value: "http://user-set:7280"},
 					{Name: envPipelineDestinationTracesEndpoint, Value: "http://byoc-indexer:7280/api/datadog/v1/byoc/traces"},
+				}
+				return want
+			}(),
+		},
+		{
+			name:   "traces signal: user-set traces endpoint overrides the indexer Service",
+			signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces),
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationTracesEndpoint, Value: "http://user-set:7280/custom"}},
+			},
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{{Name: envPipelineDestinationTracesEndpoint, Value: "http://user-set:7280/custom"}}
+				return want
+			}(),
+		},
+		{
+			name:     "global destination endpoint overrides the indexer Service",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "https://byoc-indexer.testing.svc.cluster.local:7280"}},
+			},
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env[0].Value = "https://byoc-indexer.testing.svc.cluster.local:7280"
+				return want
+			}(),
+		},
+		{
+			name: "destination endpoint keeps its position after the variables it references",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("existing-pipeline"),
+				Ports:      testPipelinePorts(),
+				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Env: []corev1.EnvVar{
+							{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
+							{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
+						},
+					},
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{
+					{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
+					{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
 				}
 				return want
 			}(),
@@ -369,7 +417,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 								Env: []corev1.EnvVar{
 									{Name: "SHARED_SETTING", Value: "pipeline"},
 									{Name: "GLOBAL_SETTING", Value: "global"},
-									{Name: envPipelineDestinationEndpoint, Value: "http://byoc-indexer:7280"},
+									{Name: envPipelineDestinationEndpoint, Value: "replaced"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
 								},
