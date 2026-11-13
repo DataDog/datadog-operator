@@ -8,6 +8,9 @@ variables:
   PROJECTNAME_CHECK: "datadog-operator-check"
   IMAGE_VERSION: "tmpl-v5"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
+  # Published images are copied here, signed, and published from here.
+  # The ECR copies stay for the internal image templates.
+  CANONICAL_REGISTRY: "registry.ddbuild.io/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
   OCTO_JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v73151907-c38dce1-v1.22.1"
@@ -133,6 +136,9 @@ build_operator_image_amd64:
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
   variables:
     <<: *resource_variables
     GOARCH: amd64
@@ -144,6 +150,12 @@ build_operator_image_amd64:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+    # Copy the image to the canonical registry and sign it there: artifact-gateway
+    # audits sources in registry.ddbuild.io. Each step fails the job on error.
+    - CANONICAL_TARGET=${TARGET_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}
+    - docker buildx imagetools create $TARGET_IMAGE --tag $CANONICAL_TARGET ${CI_COMMIT_TAG:+--tag ${RELEASE_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}}
+    - DIGEST=$(docker buildx imagetools inspect $CANONICAL_TARGET --format '{{.Manifest.Digest}}')
+    - ddsign sign ${CANONICAL_TARGET}@${DIGEST}
 
 build_operator_image_fips_amd64:
   extends: build_operator_image_amd64
@@ -162,6 +174,9 @@ build_operator_image_arm64:
   tags:
     - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
   variables:
     <<: *resource_variables
     GOARCH: arm64
@@ -173,6 +188,12 @@ build_operator_image_arm64:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+    # Copy the image to the canonical registry and sign it there: artifact-gateway
+    # audits sources in registry.ddbuild.io. Each step fails the job on error.
+    - CANONICAL_TARGET=${TARGET_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}
+    - docker buildx imagetools create $TARGET_IMAGE --tag $CANONICAL_TARGET ${CI_COMMIT_TAG:+--tag ${RELEASE_IMAGE/#$BUILD_DOCKER_REGISTRY/$CANONICAL_REGISTRY}}
+    - DIGEST=$(docker buildx imagetools inspect $CANONICAL_TARGET --format '{{.Manifest.Digest}}')
+    - ddsign sign ${CANONICAL_TARGET}@${DIGEST}
 
 build_operator_image_fips_arm64:
   extends: build_operator_image_arm64
@@ -654,7 +675,7 @@ publish_public_main:
     - when: never
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     IMG_DESTINATIONS: operator:main
     IMG_REGISTRIES: public
     IMG_SIGNING: "false"
@@ -663,7 +684,7 @@ publish_public_main:
 publish_public_main_fips:
   extends: publish_public_main
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
     IMG_DESTINATIONS: operator:main-fips
 
 publish_public_tag:
@@ -676,7 +697,7 @@ publish_public_tag:
     - when: never
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
     IMG_DESTINATIONS_REGEX: ":v"
     IMG_DESTINATIONS_REGEX_REPL: ":"
@@ -687,7 +708,7 @@ publish_public_tag:
 publish_public_tag_fips:
   extends: publish_public_tag
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:$CI_COMMIT_TAG-fips
 
 publish_redhat_public_tag:
@@ -700,7 +721,7 @@ publish_redhat_public_tag:
     - when: never
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
     IMG_DESTINATIONS_REGEX: ":v"
     IMG_DESTINATIONS_REGEX_REPL: ":"
@@ -725,7 +746,7 @@ publish_public_latest:
     - when: never
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
     IMG_REGISTRIES: public
     IMG_SIGNING: "false"
@@ -736,7 +757,7 @@ publish_public_latest_fips:
   needs:
     - publish_public_tag_fips
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:latest-fips
 
 publish_public_rc_latest:
@@ -749,7 +770,7 @@ publish_public_rc_latest:
     - when: never
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:rc-latest
     IMG_REGISTRIES: public
     IMG_SIGNING: "false"
@@ -760,7 +781,7 @@ publish_public_rc_latest_fips:
   needs:
     - publish_public_tag_fips
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:rc-latest-fips
 
 publish_redhat_public_latest:
@@ -780,7 +801,7 @@ publish_redhat_public_latest:
     - when: never
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$CANONICAL_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
     IMG_REGISTRIES: redhat
     IMG_SIGNING: "false"
