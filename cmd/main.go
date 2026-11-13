@@ -486,10 +486,6 @@ func run(opts *options) error {
 	// If RBAC restricts list and watch permissions, the informer will log errors and may cause crash loops.
 	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
-	creds, err := credsManager.GetCredentials()
-	if err != nil {
-		setupLog.Error(err, "Unable to get credentials")
-	}
 
 	secretBackendConfigured := opts.secretBackendCommand != "" || opts.secretBackendType != ""
 	if opts.secretRefreshInterval > 0 && !secretBackendConfigured {
@@ -528,7 +524,7 @@ func run(opts *options) error {
 				return
 			case <-mgr.Elected():
 			}
-			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
+			if rcErr := rcUpdater.SetupWithCredentials(credsManager); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
