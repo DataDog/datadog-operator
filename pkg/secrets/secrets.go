@@ -143,7 +143,7 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 	}
 
 	decrypted := map[string]string{}
-	for _, handle := range handles {
+	for i, handle := range handles {
 		secretHandle, found := secrets[handle]
 		if !found {
 			return nil, NewDecryptorError(fmt.Errorf("secret handle '%s' was not decrypted by the secret_backend_command", handle), false)
@@ -155,7 +155,8 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 			return nil, NewDecryptorError(fmt.Errorf("decrypted secret for '%s' is empty", handle), false)
 		}
 
-		decrypted[encFormat(handle)] = secretHandle.Value
+		// Key by the original input so callers can look up padded references as-is
+		decrypted[encrypted[i]] = secretHandle.Value
 	}
 
 	return decrypted, nil
