@@ -255,8 +255,6 @@ func statefulResources() *corev1.ResourceRequirements {
 	}
 }
 
-// indexerResources returns the stateful resources with a CPU limit, as the CloudPrem Helm chart limits the
-// indexer CPU to its request rounded up to a whole core. Searchers keep no CPU limit.
 func indexerResources() *corev1.ResourceRequirements {
 	resources := statefulResources()
 	resources.Limits[corev1.ResourceCPU] = resource.MustParse(defaultIndexerCPULimit)
