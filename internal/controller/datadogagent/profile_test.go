@@ -2,6 +2,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -1261,7 +1263,7 @@ func Test_reconcileProfiles(t *testing.T) {
 			}
 			maxUnavailable := intstr.FromInt(1)
 			defaultDDAI := &v1alpha1.DatadogAgentInternal{}
-			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
+			appliedProfiles, _, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))
@@ -1314,7 +1316,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
+	type overlayTest struct {
 		name                string
 		description         string
 		baseSpec            func() *v2alpha1.DatadogAgentSpec
@@ -1324,7 +1326,8 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		wantProfileMessages map[string]string
 		assertAPM           func(*testing.T, *v2alpha1.APMFeatureConfig)
 		assertSSI           func(*testing.T, *v2alpha1.SingleStepInstrumentation)
-	}{
+	}
+	tests := []overlayTest{
 		{
 			name:        "base APM off admission on DAP SSI on",
 			description: "Expect the DAP to apply and enable SSI on the default DDAI even though base APM is disabled.",
@@ -1368,7 +1371,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		},
 		{
 			name:        "DAP apm enabled false with SSI enabled",
-			description: "Expect the DAP to be rejected because it explicitly disables APM while enabling SSI.",
+			description: "APM and SSI are independent, so the profile may disable APM and enable SSI.",
 			profiles: []*v1alpha1.DatadogAgentProfile{
 				testAPMMatrixProfile(namespace, "dap-case-apm-disabled", baseTime, noMatchProfileRequirement("dap-case-apm-disabled"), &v2alpha1.APMFeatureConfig{
 					Enabled: ptr.To(false),
@@ -1377,9 +1380,9 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 					},
 				}),
 			},
-			wantProfileApplied:  map[string]metav1.ConditionStatus{"dap-case-apm-disabled": metav1.ConditionFalse},
-			wantProfileMessages: map[string]string{"dap-case-apm-disabled": "features.apm.enabled must be true or unset"},
-			assertSSI:           assertSSIEnabled(false),
+			wantProfileApplied: map[string]metav1.ConditionStatus{"dap-case-apm-disabled": metav1.ConditionTrue},
+			assertSSI:          assertSSIEnabled(true),
+			assertAPM:          func(t *testing.T, apm *v2alpha1.APMFeatureConfig) { assert.False(t, *apm.Enabled) },
 		},
 		{
 			name:        "base admission controller disabled with profile SSI enabled",
@@ -1444,8 +1447,8 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			assertSSI:          assertSSIEnabled(false),
 		},
 		{
-			name:        "enabledNamespaces on base conflicts with disabledNamespaces on DAP",
-			description: "Expect the DAP to be rejected and the base enabledNamespaces config to remain unchanged.",
+			name:        "profile disabledNamespaces overrides base enabledNamespaces",
+			description: "The first profile namespace selection overrides the base selection.",
 			baseSpec: func() *v2alpha1.DatadogAgentSpec {
 				spec := testAPMMatrixBaseSpec()
 				spec.Features.APM.SingleStepInstrumentation.Enabled = ptr.To(true)
@@ -1460,13 +1463,12 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 					},
 				}),
 			},
-			wantProfileApplied:  map[string]metav1.ConditionStatus{"dap-case-ns-conflict": metav1.ConditionFalse},
-			wantProfileMessages: map[string]string{"dap-case-ns-conflict": "enabledNamespaces and features.apm.instrumentation.disabledNamespaces cannot both be set"},
+			wantProfileApplied: map[string]metav1.ConditionStatus{"dap-case-ns-conflict": metav1.ConditionTrue},
 			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
 				require.NotNil(t, ssi)
 				assert.True(t, ptr.Deref(ssi.Enabled, false))
-				assert.Equal(t, []string{"default"}, ssi.EnabledNamespaces)
-				assert.Empty(t, ssi.DisabledNamespaces)
+				assert.Empty(t, ssi.EnabledNamespaces)
+				assert.Equal(t, []string{"kube-system"}, ssi.DisabledNamespaces)
 			},
 		},
 		{
@@ -1618,8 +1620,8 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			},
 		},
 		{
-			name:        "instrumentation enabled false with enabledNamespaces is skipped",
-			description: "Expect the DAP to apply but skip shared SSI overlay because instrumentation is explicitly disabled.",
+			name:        "instrumentation enabled false with enabledNamespaces applies",
+			description: "Expect the DAP to apply explicit namespaces even when instrumentation is disabled.",
 			profiles: []*v1alpha1.DatadogAgentProfile{
 				testAPMMatrixProfile(namespace, "dap-case-enabled-false-ns", baseTime, noMatchProfileRequirement("dap-case-enabled-false-ns"), &v2alpha1.APMFeatureConfig{
 					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
@@ -1629,7 +1631,10 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				}),
 			},
 			wantProfileApplied: map[string]metav1.ConditionStatus{"dap-case-enabled-false-ns": metav1.ConditionTrue},
-			assertSSI:          assertSSIEnabled(false),
+			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
+				assert.False(t, *ssi.Enabled)
+				assert.Equal(t, []string{"payments"}, ssi.EnabledNamespaces)
+			},
 		},
 		{
 			name:        "two profiles match the same real node and second does not contribute overlay",
@@ -1656,7 +1661,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			profiles: []*v1alpha1.DatadogAgentProfile{
 				testAPMMatrixProfile(namespace, "dap-case-rollback-a", baseTime, workerProfileRequirement(), &v2alpha1.APMFeatureConfig{
 					Enabled:                   ptr.To(false),
-					SingleStepInstrumentation: testAPMMatrixLibVersionConfig("java", "1.43.0").SingleStepInstrumentation,
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true), EnabledNamespaces: []string{"payments"}, DisabledNamespaces: []string{"payments"}, LibVersions: map[string]string{"java": "1.43.0"}},
 				}),
 				testAPMMatrixProfile(namespace, "dap-case-rollback-b", metav1.NewTime(baseTime.Add(time.Second)), workerProfileRequirement(), testAPMMatrixLibVersionConfig("python", "2.14.0")),
 			},
@@ -1664,7 +1669,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				"dap-case-rollback-a": metav1.ConditionFalse,
 				"dap-case-rollback-b": metav1.ConditionTrue,
 			},
-			wantProfileMessages: map[string]string{"dap-case-rollback-a": "features.apm.enabled must be true or unset"},
+			wantProfileMessages: map[string]string{"dap-case-rollback-a": "enabledNamespaces and features.apm.instrumentation.disabledNamespaces cannot both be set"},
 			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
 				require.NotNil(t, ssi)
 				assert.Equal(t, map[string]string{"python": "2.14.0"}, ssi.LibVersions)
@@ -1676,7 +1681,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			profiles: []*v1alpha1.DatadogAgentProfile{
 				testAPMMatrixProfile(namespace, "dap-case-disjoint-fail", baseTime, noMatchProfileRequirement("dap-case-disjoint-fail"), &v2alpha1.APMFeatureConfig{
 					Enabled:                   ptr.To(false),
-					SingleStepInstrumentation: testAPMMatrixLibVersionConfig("java", "1.43.0").SingleStepInstrumentation,
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true), EnabledNamespaces: []string{"payments"}, DisabledNamespaces: []string{"payments"}, LibVersions: map[string]string{"java": "1.43.0"}},
 				}),
 				testAPMMatrixProfile(namespace, "dap-case-disjoint-ok", metav1.NewTime(baseTime.Add(time.Second)), noMatchProfileRequirement("dap-case-disjoint-ok"), testAPMMatrixLibVersionConfig("python", "2.14.0")),
 			},
@@ -1684,7 +1689,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				"dap-case-disjoint-fail": metav1.ConditionFalse,
 				"dap-case-disjoint-ok":   metav1.ConditionTrue,
 			},
-			wantProfileMessages: map[string]string{"dap-case-disjoint-fail": "features.apm.enabled must be true or unset"},
+			wantProfileMessages: map[string]string{"dap-case-disjoint-fail": "enabledNamespaces and features.apm.instrumentation.disabledNamespaces cannot both be set"},
 			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
 				require.NotNil(t, ssi)
 				assert.Equal(t, map[string]string{"python": "2.14.0"}, ssi.LibVersions)
@@ -1795,6 +1800,47 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		},
 	}
 
+	for _, baseEnabled := range []bool{false, true} {
+		tests = append(tests, overlayTest{
+			name:        fmt.Sprintf("defaulted language detection with base SSI enabled=%t", baseEnabled),
+			description: "An omitted language detection setting does not conflict; a rejected profile does not contribute its language detection value.",
+			baseSpec: func() *v2alpha1.DatadogAgentSpec {
+				spec := testAPMMatrixBaseSpec()
+				spec.Features.APM.SingleStepInstrumentation.Enabled = ptr.To(baseEnabled)
+				spec.Features.APM.SingleStepInstrumentation.LanguageDetection = nil
+				return spec
+			},
+			profiles: []*v1alpha1.DatadogAgentProfile{
+				testAPMMatrixProfile(namespace, "omitted", baseTime, noMatchProfileRequirement("omitted"), testAPMMatrixLibVersionConfig("java", "1.43.0")),
+				testAPMMatrixProfile(namespace, "rejected", metav1.NewTime(baseTime.Add(time.Second)), noMatchProfileRequirement("rejected"), &v2alpha1.APMFeatureConfig{
+					Enabled:        ptr.To(true),
+					HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)},
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:           ptr.To(true),
+						LibVersions:       map[string]string{"java": "1.44.0"},
+						LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+					},
+				}),
+				testAPMMatrixProfile(namespace, "explicit", metav1.NewTime(baseTime.Add(2*time.Second)), noMatchProfileRequirement("explicit"), testAPMMatrixLanguageDetectionConfig(false)),
+			},
+			wantProfileApplied: map[string]metav1.ConditionStatus{
+				"omitted":  metav1.ConditionTrue,
+				"rejected": metav1.ConditionFalse,
+				"explicit": metav1.ConditionTrue,
+			},
+			wantProfileMessages: map[string]string{"rejected": `libVersions["java"] has conflicting values`},
+			assertAPM: func(t *testing.T, apm *v2alpha1.APMFeatureConfig) {
+				assert.Nil(t, apm.HostPortConfig, "omitted ports and rejected profiles must not contribute a host port")
+			},
+			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
+				require.NotNil(t, ssi)
+				require.NotNil(t, ssi.LanguageDetection)
+				assert.Equal(t, ptr.To(false), ssi.LanguageDetection.Enabled)
+				assert.Equal(t, map[string]string{"java": "1.43.0"}, ssi.LibVersions)
+			},
+		})
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Log(tt.description)
@@ -1825,9 +1871,13 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			if tt.baseSpec != nil {
 				baseSpec = tt.baseSpec()
 			}
-			defaultDDAI := &v1alpha1.DatadogAgentInternal{Spec: *baseSpec}
-			appliedProfiles, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: namespace, Name: "datadog-agent"}, intstr.FromInt(1), defaultDDAI)
+			defaultDDAI := &v1alpha1.DatadogAgentInternal{Spec: *baseSpec.DeepCopy()}
+			defaults.DefaultDatadogAgentSpec(&defaultDDAI.Spec)
+			originalDefaultSpec := defaultDDAI.Spec.DeepCopy()
+			appliedProfiles, _, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: namespace, Name: "datadog-agent"}, intstr.FromInt(1), defaultDDAI)
 			require.NoError(t, err)
+			assert.Equal(t, originalDefaultSpec.Global, defaultDDAI.Spec.Global, "preserve generated global settings")
+			assert.Equal(t, originalDefaultSpec.Override, defaultDDAI.Spec.Override, "preserve generated overrides")
 
 			wantAppliedCount := 1
 			for _, status := range tt.wantProfileApplied {

@@ -12,6 +12,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -528,7 +529,7 @@ func TestApplyOTelCollectorDDASharedDependencies(t *testing.T) {
 			})
 			managers := feature.NewResourceManagers(depsStore)
 
-			err := applyOTelCollectorDDASharedDependencies(tt.dda, &tt.dda.Spec, tt.dda, &tt.dda.Spec, managers)
+			err := applyOTelCollectorDDASharedDependencies(t.Context(), tt.dda, &tt.dda.Spec, []*v1alpha1.DatadogAgentInternal{{ObjectMeta: tt.dda.ObjectMeta, Spec: tt.dda.Spec}}, nil, managers)
 			assert.NoError(t, err)
 
 			serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
