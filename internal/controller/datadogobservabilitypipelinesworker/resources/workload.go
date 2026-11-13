@@ -7,6 +7,8 @@ package resources
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"maps"
 	"strconv"
 
@@ -20,10 +22,16 @@ import (
 )
 
 func newPodTemplate(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, image workerImage) corev1.PodTemplateSpec {
+	annotations := maps.Clone(worker.Spec.Annotations)
+	if config := worker.Spec.PipelineConfig; config != nil {
+		// OPW does not reload the pipeline file, so a changed pipeline must roll the pods.
+		checksum := sha256.Sum256([]byte(*config))
+		annotations = controllerutils.MergeStringMaps(annotations, map[string]string{pipelineChecksumAnnotation: hex.EncodeToString(checksum[:])})
+	}
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      podLabels(worker),
-			Annotations: maps.Clone(worker.Spec.Annotations),
+			Annotations: annotations,
 		},
 		Spec: newPodSpec(worker, image),
 	}
@@ -39,7 +47,7 @@ func newPodSpec(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, i
 		ImagePullSecrets:              image.pullSecrets,
 		InitContainers:                spec.InitContainers,
 		Containers:                    []corev1.Container{newWorkerContainer(worker, image)},
-		Volumes:                       dataVolumes(spec.Storage, spec.Volumes),
+		Volumes:                       workerVolumes(worker),
 		NodeSelector:                  spec.NodeSelector,
 		Affinity:                      spec.Affinity,
 		Tolerations:                   spec.Tolerations,
@@ -54,12 +62,12 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		Name:            ContainerName,
 		Image:           image.reference,
 		ImagePullPolicy: image.pullPolicy,
-		Args:            []string{"run"},
+		Args:            workerArgs(worker),
 		Env:             newEnvironment(worker),
 		EnvFrom:         spec.EnvFrom,
 		Ports:           containerPorts(spec.Ports),
 		Resources:       ptr.Deref(spec.Resources, corev1.ResourceRequirements{}),
-		VolumeMounts:    controllerutils.MergeVolumeMounts(spec.VolumeMounts, []corev1.VolumeMount{{Name: DataVolumeName, MountPath: DataDirectory}}),
+		VolumeMounts:    controllerutils.MergeVolumeMounts(spec.VolumeMounts, workerVolumeMounts(worker)),
 		StartupProbe:    spec.StartupProbe,
 		LivenessProbe:   cmp.Or(spec.LivenessProbe, workerProbe(livenessProbeFailureThreshold)),
 		ReadinessProbe:  cmp.Or(spec.ReadinessProbe, workerProbe(readinessProbeFailureThreshold)),
@@ -78,7 +86,7 @@ func newEnvironment(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	}
 	required := []corev1.EnvVar{
 		{Name: envDatadogAPIKey, ValueFrom: &corev1.EnvVarSource{SecretKeyRef: spec.Datadog.APIKeySecretRef}},
-		{Name: envPipelineID, Value: *spec.PipelineID},
+		{Name: envPipelineID, Value: pipelineID(worker)},
 		{Name: envDatadogSite, Value: *spec.Datadog.Site},
 		{Name: envDataDirectory, Value: DataDirectory},
 		{Name: envAPIEnabled, Value: "true"},
@@ -86,6 +94,43 @@ func newEnvironment(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		{Name: envGracefulShutdownLimitSeconds, Value: strconv.FormatInt(max(minGracefulShutdownLimitSeconds, *spec.TerminationGracePeriodSeconds-gracefulShutdownMarginSeconds), 10)},
 	}
 	return controllerutils.MergeEnv(controllerutils.MergeEnv(sources, spec.Env), required)
+}
+
+func workerArgs(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) []string {
+	if worker.Spec.PipelineConfig == nil {
+		return []string{"run"}
+	}
+	// --skip-key-validation stops startup from checking the pipeline ID against Remote Config.
+	return []string{"run", "--pipeline-config=" + PipelineConfigDirectory + "/" + pipelineConfigFileName, "--skip-key-validation"}
+}
+
+// pipelineID falls back to the Worker UID in local mode, which is a UUID unique to the Worker.
+func pipelineID(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) string {
+	if worker.Spec.PipelineID != nil {
+		return *worker.Spec.PipelineID
+	}
+	return string(worker.UID)
+}
+
+func workerVolumes(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) []corev1.Volume {
+	volumes := dataVolumes(worker.Spec.Storage, worker.Spec.Volumes)
+	if worker.Spec.PipelineConfig == nil {
+		return volumes
+	}
+	return controllerutils.MergeVolumes(volumes, []corev1.Volume{{
+		Name: PipelineConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{Name: pipelineConfigMapName(worker)},
+		}},
+	}})
+}
+
+func workerVolumeMounts(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{{Name: DataVolumeName, MountPath: DataDirectory}}
+	if worker.Spec.PipelineConfig != nil {
+		mounts = append(mounts, corev1.VolumeMount{Name: PipelineConfigVolumeName, MountPath: PipelineConfigDirectory, ReadOnly: true})
+	}
+	return mounts
 }
 
 func containerPorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) []corev1.ContainerPort {

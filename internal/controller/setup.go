@@ -239,6 +239,7 @@ func startDatadogObservabilityPipelinesWorker(logger logr.Logger, mgr manager.Ma
 		Client:    mgr.GetClient(),
 		APIReader: mgr.GetAPIReader(),
 		Scheme:    mgr.GetScheme(),
+		Recorder:  mgr.GetEventRecorderFor(workerControllerName),
 	}).SetupWithManager(mgr)
 }
 

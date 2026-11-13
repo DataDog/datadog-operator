@@ -12,6 +12,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -19,6 +20,7 @@ import (
 
 // Resources is the complete set of Kubernetes resources rendered for a Worker.
 type Resources struct {
+	ConfigMap           *corev1.ConfigMap
 	Service             *corev1.Service
 	ServiceAccount      *corev1.ServiceAccount
 	StatefulSet         *appsv1.StatefulSet
@@ -33,7 +35,11 @@ func (r *Resources) Objects() []client.Object {
 	if r.ServiceAccount != nil {
 		objects = append(objects, r.ServiceAccount)
 	}
-	objects = append(objects, r.Service, r.StatefulSet)
+	objects = append(objects, r.Service)
+	if r.ConfigMap != nil {
+		objects = append(objects, r.ConfigMap)
+	}
+	objects = append(objects, r.StatefulSet)
 	if r.HPA != nil {
 		objects = append(objects, r.HPA)
 	}
@@ -65,6 +71,9 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		Service:             newService(objectMeta(worker), selectorLabels(worker), servicePorts(worker.Spec.Ports), serviceType(worker)),
 		PodDisruptionBudget: podDisruptionBudget,
 	}
+	if worker.Spec.PipelineConfig != nil {
+		r.ConfigMap = newPipelineConfigMap(worker)
+	}
 	if autoscaling := worker.Spec.Autoscaling; autoscaling != nil {
 		r.HPA = newHPA(objectMeta(worker), autoscaling)
 	}
@@ -82,6 +91,9 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	}
 	if r.PodDisruptionBudget == nil {
 		r.obsoleteObjects = append(r.obsoleteObjects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
+	}
+	if r.ConfigMap == nil {
+		r.obsoleteObjects = append(r.obsoleteObjects, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: pipelineConfigMapName(worker), Namespace: worker.Namespace}})
 	}
 	return r, nil
 }

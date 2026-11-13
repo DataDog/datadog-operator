@@ -14,8 +14,12 @@ package validation
 
 import (
 	"cmp"
+	"errors"
+	"io"
 	"path"
+	"strings"
 
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
@@ -31,6 +35,7 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 	errs := byocvalidation.ValidateStatefulComponent(&spec.DatadogBYOCClusterStatefulComponentSpec, path)
 	errs = append(errs, validatePorts(spec.Ports, path.Child("ports"))...)
 	errs = append(errs, validateReservedNames(spec, path)...)
+	errs = append(errs, validatePipeline(spec, path)...)
 	if spec.Datadog != nil && spec.Datadog.APIKeySecretRef != nil && spec.Datadog.APIKeySecretRef.Name == "" {
 		errs = append(errs, field.Required(path.Child("datadog", "apiKeySecretRef", "name"), "name must be specified"))
 	}
@@ -47,6 +52,30 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 		errs = append(errs, field.Required(imagePath.Child("digest"), "digest must be non-empty"))
 	}
 	return errs
+}
+
+// validatePipeline requires a pipeline source and checks that a local pipeline is a single YAML mapping.
+func validatePipeline(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec, fieldPath *field.Path) field.ErrorList {
+	if spec.PipelineConfig == nil {
+		if spec.PipelineID == nil {
+			return field.ErrorList{field.Required(fieldPath.Child("pipelineID"), "pipelineID or pipelineConfig must be specified")}
+		}
+		return nil
+	}
+	configPath := fieldPath.Child("pipelineConfig")
+	decoder := yaml.NewDecoder(strings.NewReader(*spec.PipelineConfig))
+	var pipeline map[string]any
+	if err := decoder.Decode(&pipeline); err != nil && !errors.Is(err, io.EOF) {
+		return field.ErrorList{field.Invalid(configPath, nil, "must be a YAML mapping: "+err.Error())}
+	}
+	if len(pipeline) == 0 {
+		return field.ErrorList{field.Invalid(configPath, nil, "must be a non-empty YAML mapping")}
+	}
+	// OPW reads a single document; a later one would be silently dropped.
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return field.ErrorList{field.Invalid(configPath, nil, "must contain a single YAML document")}
+	}
+	return nil
 }
 
 // validatePorts rejects ports that collide with the Worker API port or with each other.
@@ -82,15 +111,26 @@ func validateReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelines
 			errs = append(errs, field.Invalid(fieldPath.Child("initContainers").Index(i).Child("name"), container.Name, "is reserved for the Worker container"))
 		}
 	}
+	// Only local mode reserves the pipeline names, so existing Remote Config Workers that use them keep working.
+	local := spec.PipelineConfig != nil
 	for i, volume := range spec.Volumes {
-		if volume.Name == workerresources.DataVolumeName {
+		if volume.Name == workerresources.DataVolumeName || local && volume.Name == workerresources.PipelineConfigVolumeName {
 			errs = append(errs, field.Invalid(fieldPath.Child("volumes").Index(i).Child("name"), volume.Name, "is reserved for a built-in volume"))
 		}
 	}
 	for i, volumeMount := range spec.VolumeMounts {
-		if path.Clean(volumeMount.MountPath) == workerresources.DataDirectory {
+		mountPath := path.Clean(volumeMount.MountPath)
+		if mountPath == workerresources.DataDirectory || local && pathsOverlap(mountPath, workerresources.PipelineConfigDirectory) {
 			errs = append(errs, field.Invalid(fieldPath.Child("volumeMounts").Index(i).Child("mountPath"), volumeMount.MountPath, "is reserved for a built-in volume mount"))
 		}
 	}
 	return errs
+}
+
+// pathsOverlap reports whether one clean absolute path equals or contains the other, so mounting either would hide the other.
+func pathsOverlap(a, b string) bool {
+	within := func(child, parent string) bool {
+		return child == parent || strings.HasPrefix(child, strings.TrimSuffix(parent, "/")+"/")
+	}
+	return within(a, b) || within(b, a)
 }

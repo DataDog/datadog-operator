@@ -15,6 +15,14 @@ import (
 type DatadogObservabilityPipelinesWorkerSpec struct {
 	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
 
+	// PipelineConfig is an Observability Pipelines pipeline in YAML. When set, the
+	// worker runs it locally instead of fetching pipelineID from Remote Config.
+	// Local mode is for development and testing only, is not a supported production path,
+	// and may be removed in a future version. Use pipelineID with Remote Config instead.
+	// If pipelineID is also set, the worker reports that ID; otherwise it reports the Worker UID.
+	// +optional
+	PipelineConfig *string `json:"pipelineConfig,omitempty"`
+
 	// Datadog configures the connection used by the Observability Pipelines Worker.
 	// +kubebuilder:validation:Required
 	Datadog *DatadogObservabilityPipelinesWorkerDatadogSpec `json:"datadog,omitempty"`
