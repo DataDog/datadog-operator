@@ -25,7 +25,7 @@ import (
 )
 
 func mergeAnnotationsLabels(ctx context.Context, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
-	var globFilter glob.Glob
+	var globFilter *glob.Pattern
 	var err error
 	if filter != "" {
 		globFilter, err = glob.Compile(filter)

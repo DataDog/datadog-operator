@@ -46,7 +46,7 @@ For cluster-scope providers, the Operator inspects the node the Operator pod
 runs on and applies the matching configuration automatically. No annotation is
 required. Most providers are identified by node labels; `talos` is identified
 from the node's `osImage` instead, because Talos Linux exposes no default stable
-node label.
+node label, and `nebius` from the node's `providerID`.
 
 
 | Provider                       | Detected since | Detected from                                          |
@@ -54,6 +54,7 @@ node label.
 | `default`                      | v1.29.0+       | fallback when no row below matches                     |
 | `aks`                          | v1.29.0+       | any `kubernetes.azure.com/*` label                     |
 | `eks`                          | v1.29.0+       | any `eks.amazonaws.com/*` or `alpha.eksctl.io/*` label |
+| `nebius`                       | v1.33.0+       | `spec.providerID` starting with `nebius://`            |
 | `openshift` (`openshift-<os>`) | v1.29.0+       | `node.openshift.io/os_id` label                        |
 | `talos`                        | v1.31.0+       | `status.nodeInfo.osImage` starting with `Talos (`      |
 
@@ -63,7 +64,9 @@ none of the other rows match. That is the normal outcome for an on-premises or
 unrecognized cluster, not an error or an "undetected" state. The rows are listed
 alphabetically after `default`, not in precedence order; the signals are mutually
 exclusive in practice, but if a node did match more than one, `talos` wins over any
-label, and among labels the order is `openshift`, then `eks`, then `aks`.
+label, among labels the order is `openshift`, then `eks`, then `aks`, and `nebius`
+applies only when nothing else matches (it identifies the infrastructure, not the
+distribution).
 
 The detected provider is recorded in `status.clusterProvider` on the
 `DatadogAgent` (see [Effective provider resolution](#effective-provider-resolution)).
@@ -168,6 +171,7 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 | `aks`                            | v1.29.0+     | Cluster (DDA)               | Detection or annotation | Sets the mandatory `DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS=true` environment variable on the Cluster Agent                                                                                                                                                                                                                  | `providers.aks.enabled`                      |
 | `gke-autopilot`                  | v1.29.0+     | Cluster (DDA)               | Annotation only         | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot][3]                                                                                                                                                                                   | `providers.gke.autopilot`                    |
 | `windows`                        | v1.30.0+     | Node (DAP)                  | Annotation only         | Builds a Windows-compatible node Agent DaemonSet on the targeted Windows nodes: Linux-only containers, mounts, and security context are stripped, and a Windows base image and init config are applied                                                                                                                         | None                                         |
+| `nebius`                         | v1.33.0+     | Cluster (DDA)               | Detection or annotation | Defaults `kubelet.tlsVerify` to `false` when unset: the Nebius Managed Kubernetes kubelet serving certificate is not signed by a CA the Agent trusts                                                                                                                         | None                                         |
 | `talos`                          | v1.31.0+     | Cluster (DDA)[^talos-scope] | Detection or annotation | Lets the Agent run on Talos Linux: drops host paths Talos does not have[^talos-volumes] and mounts tracefs so eBPF features can attach probes[^talos-tracefs]. Operator v1.32.0+ also enables [control plane monitoring][7]: API Server, Controller Manager, Scheduler, and etcd[^talos-cpm]                                    | `providers.talos.enabled`                    |
 
 

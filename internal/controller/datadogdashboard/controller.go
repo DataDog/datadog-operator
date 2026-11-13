@@ -65,7 +65,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogdashboard", req.NamespacedName)
+	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling Datadog Dashboard")
 
 	auth, credErr := r.credsManager.GetAuth()

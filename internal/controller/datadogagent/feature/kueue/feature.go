@@ -6,17 +6,22 @@
 package kueue
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -58,6 +63,70 @@ type kueueFeature struct {
 	logger logr.Logger
 }
 
+// kueueConfig is experimental and deliberately absent from the DatadogAgent CRD.
+// The annotation can be changed without committing to a stable API shape.
+type kueueConfig struct {
+	CollectWorkloadEvents *bool                  `json:"collectWorkloadEvents,omitempty"`
+	MetricsService        *kueueMetricsService   `json:"metricsService,omitempty"`
+	Conf                  *v2alpha1.CustomConfig `json:"conf,omitempty"`
+}
+
+type kueueMetricsService struct {
+	Name      *string `json:"name,omitempty"`
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+func (svc *kueueMetricsService) validate() error {
+	if svc == nil {
+		return nil
+	}
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "name", value: svc.Name},
+		{name: "namespace", value: svc.Namespace},
+	} {
+		if field.value == nil {
+			continue
+		}
+		if errs := validation.IsDNS1123Label(*field.value); len(errs) != 0 {
+			return fmt.Errorf("invalid metricsService.%s %q: %s", field.name, *field.value, strings.Join(errs, ", "))
+		}
+	}
+	return nil
+}
+
+func (config *kueueConfig) validate() error {
+	if err := config.MetricsService.validate(); err != nil {
+		return err
+	}
+	if config.Conf == nil || config.Conf.ConfigMap == nil {
+		return nil
+	}
+	for i, item := range config.Conf.ConfigMap.Items {
+		if item.Key == "" || item.Path == "" {
+			return fmt.Errorf("conf.configMap.items[%d] requires both key and path", i)
+		}
+	}
+	return nil
+}
+
+func decodeKueueConfig(raw string, config *kueueConfig) error {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(config); err != nil {
+		return err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("multiple JSON values in Kueue configuration")
+		}
+		return err
+	}
+	return nil
+}
+
 // ID returns the ID of the Feature
 func (f *kueueFeature) ID() feature.IDType {
 	return feature.KueueIDType
@@ -67,10 +136,20 @@ func (f *kueueFeature) ID() feature.IDType {
 func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if ddaSpec.Features == nil || ddaSpec.Features.Kueue == nil || !apiutils.BoolValue(ddaSpec.Features.Kueue.Enabled) {
+	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKueueAnnotation) {
 		return reqComp
 	}
-	kueue := ddaSpec.Features.Kueue
+	var kueue kueueConfig
+	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KueueConfigAnnotation); ok {
+		if err := decodeKueueConfig(raw, &kueue); err != nil {
+			f.logger.Error(err, "invalid Kueue configuration annotation")
+			return reqComp
+		}
+	}
+	if err := kueue.validate(); err != nil {
+		f.logger.Error(err, "invalid Kueue configuration annotation")
+		return reqComp
+	}
 
 	if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {
 		f.logger.Info("Kueue feature requires Cluster Agent >= 7.82.0; not enabling it")

@@ -105,6 +105,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
+// KAI Scheduler
+// +kubebuilder:rbac:groups=scheduling.run.ai,resources=podgroups,verbs=list;watch
+
 // Kueue
 // +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=clusterqueues;localqueues;resourceflavors;workloads,verbs=get;list;watch
 
@@ -262,6 +265,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceclaims;resourceslices;devicetaintrules,verbs=list;watch
 
 // Profiles
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
@@ -274,19 +278,7 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.Da
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
-		// Keep controller metadata and one flat DDA identity, without the default
-		// constructor's additional nested copy.
-		WithLogConstructor(func(req *reconcile.Request) logr.Logger {
-			logger := mgr.GetLogger().WithName("controllers").WithName("DatadogAgent").WithValues(
-				"controller", "datadogagent",
-				"controllerGroup", v2alpha1.GroupVersion.Group,
-				"controllerKind", "DatadogAgent",
-			)
-			if req != nil {
-				logger = logger.WithValues("namespace", req.Namespace, "name", req.Name)
-			}
-			return logger
-		}).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), agentControllerName)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}).

@@ -11,6 +11,8 @@ kubectl krew install datadog
 
 This uses the [Krew plugin manager](https://krew.sigs.k8s.io/).
 
+Run `kubectl datadog --version` to print the installed plugin's version, Git commit, and build time.
+
 ```console
 $ kubectl krew install datadog
 Installing plugin: datadog

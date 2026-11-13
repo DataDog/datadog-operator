@@ -16,13 +16,19 @@ import (
 )
 
 func TestJemallocEnvVarsAnnotation(t *testing.T) {
+	image := &v2alpha1.AgentImageConfig{Tag: "7.87.0"}
 	for _, value := range []string{"", "false", "TRUE", "true"} {
 		t.Run(value, func(t *testing.T) {
-			dda := &metav1.ObjectMeta{Annotations: map[string]string{EnableJemallocAnnotation: value}}
-			assert.Equal(t, value == "true", len(JemallocEnvVars(dda, nil)) == 2)
+			dda := &metav1.ObjectMeta{Annotations: map[string]string{DisableJemallocAnnotation: value}}
+			if value == "true" {
+				assert.Equal(t, []corev1.EnvVar{{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so"}}, JemallocEnvVars(dda, image))
+			} else {
+				assert.Empty(t, JemallocEnvVars(dda, image))
+			}
 		})
 	}
-	assert.Empty(t, JemallocEnvVars(&metav1.ObjectMeta{}, nil))
+	assert.Empty(t, JemallocEnvVars(&metav1.ObjectMeta{}, image))
+	assert.Empty(t, JemallocEnvVars(&metav1.ObjectMeta{Annotations: map[string]string{"agent.datadoghq.com/jemalloc-enabled": "true"}}, image))
 }
 
 func TestJemallocEnvVarsVersionGate(t *testing.T) {
@@ -33,19 +39,19 @@ func TestJemallocEnvVarsVersionGate(t *testing.T) {
 		wantNode    bool
 		wantRunner  bool
 	}{
-		{name: "default images", wantNode: true, wantRunner: true},
+		{name: "default images"},
 		{name: "empty image configuration", nodeImage: &v2alpha1.AgentImageConfig{}, runnerImage: &v2alpha1.AgentImageConfig{}, wantNode: true, wantRunner: true},
-		{name: "both too old", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.83.9"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.83.9"}},
-		{name: "minimum version", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, wantNode: true, wantRunner: true},
-		{name: "minimum prerelease", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0-rc.1"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0-rc.1"}, wantNode: true, wantRunner: true},
-		{name: "newer version", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.85.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.85.0"}, wantNode: true, wantRunner: true},
-		{name: "old node new runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.83.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, wantRunner: true},
-		{name: "new node old runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.83.0"}, wantNode: true},
-		{name: "version from image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0-jmx"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0"}, wantNode: true},
-		{name: "tag overrides image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.83.0", Tag: "7.84.0"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.84.0", Tag: "7.83.0"}, wantNode: true},
+		{name: "both too old", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.86.9"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.86.9"}},
+		{name: "minimum version", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}, wantNode: true, wantRunner: true},
+		{name: "minimum prerelease", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0-rc.1"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0-rc.1"}, wantNode: true, wantRunner: true},
+		{name: "newer version", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.88.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.88.0"}, wantNode: true, wantRunner: true},
+		{name: "old node new runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}, wantRunner: true},
+		{name: "new node old runner", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}, wantNode: true},
+		{name: "version from image name", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.87.0-jmx"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.86.0"}, wantNode: true},
+		{name: "tagged image name overrides tag", nodeImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.86.0", Tag: "7.87.0"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:7.87.0", Tag: "7.86.0"}, wantRunner: true},
 		{name: "unknown versions", nodeImage: &v2alpha1.AgentImageConfig{Tag: "latest"}, runnerImage: &v2alpha1.AgentImageConfig{Name: "registry.example/agent:custom"}, wantNode: true, wantRunner: true},
 	}
-	dda := &metav1.ObjectMeta{Annotations: map[string]string{EnableJemallocAnnotation: "true"}}
+	dda := &metav1.ObjectMeta{Annotations: map[string]string{DisableJemallocAnnotation: "true"}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, c := range []struct {
@@ -55,8 +61,7 @@ func TestJemallocEnvVarsVersionGate(t *testing.T) {
 				envs := JemallocEnvVars(dda, c.image)
 				if c.want {
 					assert.Equal(t, []corev1.EnvVar{
-						{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so /opt/datadog-agent/embedded/lib/libjemalloc.so"},
-						{Name: "MALLOC_CONF", Value: "background_thread:true,dirty_decay_ms:5000"},
+						{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so"},
 					}, envs)
 				} else {
 					assert.Empty(t, envs)

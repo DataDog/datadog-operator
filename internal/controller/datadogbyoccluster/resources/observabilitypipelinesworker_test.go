@@ -96,6 +96,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		nodeConfigOverrides *runtime.RawExtension
 		global              datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec
 		pipeline            *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
+		identity            *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		pipelineDatadog     *datadoghqv1alpha1.DatadogBYOCClusterPipelineDatadogSpec
 		image               byocimage.ResolvedImage
 		want                *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 		wantErr             string
@@ -143,16 +145,77 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			want:     wantDefaultWorker(),
 		},
 		{
+			name:     "pipeline identity",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			identity: &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("opw-logs")},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Identity = &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("opw-logs")}
+				return want
+			}(),
+		},
+		{
+			name:     "pipeline API key Secret",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			pipelineDatadog: &datadoghqv1alpha1.DatadogBYOCClusterPipelineDatadogSpec{
+				APIKeySecretRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "pipeline-secret"},
+					Key:                  "api-key",
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Datadog.APIKeySecretRef.Name = "pipeline-secret"
+				return want
+			}(),
+		},
+		{
 			name:                "REST TLS uses HTTPS",
 			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
 			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:               defaultImage,
-			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
-				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "http://global-override:7280"}},
-			},
 			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 				want := wantDefaultWorker()
 				want.Spec.Env[0].Value = "https://byoc-indexer:7280"
+				return want
+			}(),
+		},
+		{
+			name:     "global destination endpoint overrides the indexer Service",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "https://byoc-indexer.testing.svc.cluster.local:7280"}},
+			},
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env[0].Value = "https://byoc-indexer.testing.svc.cluster.local:7280"
+				return want
+			}(),
+		},
+		{
+			name: "destination endpoint keeps its position after the variables it references",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("existing-pipeline"),
+				Ports:      testPipelinePorts(),
+				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Env: []corev1.EnvVar{
+							{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
+							{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
+						},
+					},
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{
+					{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
+					{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
+				}
 				return want
 			}(),
 		},
@@ -298,7 +361,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 								Env: []corev1.EnvVar{
 									{Name: "SHARED_SETTING", Value: "pipeline"},
 									{Name: "GLOBAL_SETTING", Value: "global"},
-									{Name: envPipelineDestinationEndpoint, Value: "http://byoc-indexer:7280"},
+									{Name: envPipelineDestinationEndpoint, Value: "replaced"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
 								},
@@ -388,10 +451,15 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 					NodeConfigOverrides: tt.nodeConfigOverrides,
 					Global:              tt.global,
 					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-						Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *tt.pipeline}},
+						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:   &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Searcher:  &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
+							Name:                                    "logs",
+							Identity:                                tt.identity,
+							Datadog:                                 tt.pipelineDatadog,
+							DatadogBYOCClusterPipelineComponentSpec: *tt.pipeline,
+						}},
 						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					},
@@ -414,6 +482,64 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("BuildObservabilityPipelinesWorker() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBuildObservabilityPipelinesWorkerName(t *testing.T) {
+	tests := []struct {
+		name         string
+		pipelineName string
+		wantName     string
+		wantErr      string
+	}{
+		{
+			name:         "52-character worker name",
+			pipelineName: strings.Repeat("a", 38),
+			wantName:     "byoc-pipeline-" + strings.Repeat("a", 38),
+		},
+		{
+			name:         "53-character worker name",
+			pipelineName: strings.Repeat("a", 39),
+			wantErr:      "must be no more than 52 characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := byocdefaults.Apply(&datadoghqv1alpha1.DatadogBYOCCluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: "testing"},
+				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+						APIKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "api-key",
+						},
+					},
+					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+						Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: tt.pipelineName}},
+						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					},
+				},
+			})
+
+			got, err := BuildObservabilityPipelinesWorker(cluster, &cluster.Spec.Components.Pipelines[0], byocimage.ResolvedImage{Repository: "registry.example.com/observability-pipelines-worker", Tag: "2.10.0"})
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("BuildObservabilityPipelinesWorker() error = %v, want error containing %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("BuildObservabilityPipelinesWorker() unexpected error: %v", err)
+			}
+			if got.Name != tt.wantName {
+				t.Errorf("BuildObservabilityPipelinesWorker() name = %q, want %q", got.Name, tt.wantName)
 			}
 		})
 	}

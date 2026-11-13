@@ -55,6 +55,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr, datadogmonitor.ReconcilerOptions{
+		APIReader:     mgr.GetAPIReader(),
 		RequeuePeriod: r.Options.RequeuePeriod,
 	})
 
@@ -75,9 +76,13 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 	// delivered after controller startup. This ensures that every existing
 	// DatadogMonitor is reconciled promptly; only controller-scheduled
 	// background requeues are assigned low priority by the internal reconciler.
-	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).WithOptions(ctrlcontroller.Options{
-		MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
-	}).Complete(or); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(ctrlcontroller.Options{
+			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+		}).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), monitorControllerName)).
+		Complete(or); err != nil {
 		return err
 	}
 

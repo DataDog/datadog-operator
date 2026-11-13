@@ -42,6 +42,7 @@ func (r *DatadogSLOReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = datadogslo.NewReconciler(r.Client, r.CredsManager, r.Log, r.Recorder)
 	builder := ctrl.NewControllerManagedBy(mgr).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), sloControllerName)).
 		For(&v1alpha1.DatadogSLO{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 

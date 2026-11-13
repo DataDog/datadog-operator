@@ -18,6 +18,12 @@ const (
 	gkeCOSNVIDIADriverLib64HostPath   = "/home/kubernetes/bin/nvidia/lib64"
 	gkeCOSNVIDIADriverLib64MountPath  = "/host/run/nvidia/driver/usr/lib/x86_64-linux-gnu"
 
+	// CDI specs written by DRA drivers on the host; the agent reads them to
+	// attribute GPUs to pods that obtained them through DRA resource claims.
+	cdiVolumeName = "cdi"
+	cdiHostPath   = "/var/run/cdi"
+	cdiMountPath  = "/host/var/run/cdi"
+
 	// defaultGPURuntimeClass default runtime class for GPU pods
 	defaultGPURuntimeClass = "nvidia"
 )

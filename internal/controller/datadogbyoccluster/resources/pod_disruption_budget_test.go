@@ -78,7 +78,7 @@ func TestBuildResources_PodDisruptionBudget(t *testing.T) {
 			cluster.Spec.Global.PodDisruptionBudget = tt.global
 			cluster.Spec.Components.Indexer.PodDisruptionBudget = tt.component
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -96,7 +96,7 @@ func TestBuildResources_PodDisruptionBudgetConflict(t *testing.T) {
 		MaxUnavailable: ptr.To(intstr.FromString("25%")),
 	}
 
-	if _, err := buildResources(cluster, testRelease()); err == nil {
+	if _, err := buildResources(cluster, testImages()); err == nil {
 		t.Fatal("BuildResources() expected an error for conflicting minAvailable and maxUnavailable")
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -92,6 +93,11 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			{
 				Name:      nvidiaDevicesVolumeName,
 				MountPath: nvidiaDevicesMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      cdiVolumeName,
+				MountPath: cdiMountPath,
 				ReadOnly:  true,
 			},
 			{
@@ -172,6 +178,15 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: devNullPath,
+					},
+				},
+			},
+			{
+				Name: cdiVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: cdiHostPath,
+						Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 					},
 				},
 			},
@@ -269,6 +284,11 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
+				Name:      cdiVolumeName,
+				MountPath: cdiMountPath,
+				ReadOnly:  true,
+			},
+			{
 				Name:      common.KubeletPodResourcesVolumeName,
 				MountPath: podResourcesSocketPath,
 				ReadOnly:  false,
@@ -289,6 +309,15 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: devNullPath,
+					},
+				},
+			},
+			{
+				Name: cdiVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: cdiHostPath,
+						Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 					},
 				},
 			},
@@ -492,6 +521,34 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
 		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
 		assert.NotContains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
+	})
+
+	t.Run("gke-autopilot removes the CDI volume and mount", func(t *testing.T) {
+		f := &gpuFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		cdiVol, cdiMount := volume.GetVolumes(cdiVolumeName, cdiHostPath, cdiMountPath, true)
+		mgr.Volume().AddVolume(&cdiVol)
+		mgr.VolumeMount().AddVolumeMountToContainer(&cdiMount, apicommon.CoreAgentContainerName)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKEAutopilotProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Empty(t, tmpl.Spec.Volumes)
+		assert.Empty(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts)
+	})
+
+	t.Run("non-autopilot provider keeps the CDI volume and mount", func(t *testing.T) {
+		f := &gpuFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		cdiVol, cdiMount := volume.GetVolumes(cdiVolumeName, cdiHostPath, cdiMountPath, true)
+		mgr.Volume().AddVolume(&cdiVol)
+		mgr.VolumeMount().AddVolumeMountToContainer(&cdiMount, apicommon.CoreAgentContainerName)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, tmpl.Spec.Volumes, cdiVol)
+		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, cdiMount)
 	})
 
 	t.Run("non-gke-cos provider adds nothing", func(t *testing.T) {

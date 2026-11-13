@@ -8,6 +8,7 @@ package resources
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +47,11 @@ func (r *Resources) Component(name string) *ComponentResources {
 func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byocimage.ResolvedImages) (*Resources, error) {
 	cluster = cluster.DeepCopy()
 
-	configMap, err := newConfigMap(cluster)
+	nodeConfig, err := newNodeConfig(cluster)
+	if err != nil {
+		return nil, err
+	}
+	configMap, err := newConfigMap(cluster, nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +72,7 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 	r.objects = append(r.objects, r.headlessService)
 
 	checksum := sha256.Sum256([]byte(configMap.Data[nodeConfigFileName]))
-	pod := podInput{cluster: cluster, image: images.Pomsky, checksum: hex.EncodeToString(checksum[:])}
+	pod := podInput{cluster: cluster, image: images.Pomsky, checksum: hex.EncodeToString(checksum[:]), clusterID: fmt.Sprint(nodeConfig[quickwitClusterIDConfigKey])}
 	for _, c := range components(cluster) {
 		if !c.enabled() {
 			r.obsoleteObjects = append(r.obsoleteObjects, disabledComponentObjects(cluster, c)...)
