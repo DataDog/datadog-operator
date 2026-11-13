@@ -32,6 +32,8 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
+	// owner stores the user's DatadogAgent resource, which we keep because the passwd mount path depends on the Agent image version set in it.
+	owner          metav1.Object
 	runInCoreAgent bool
 }
 
@@ -51,6 +53,7 @@ func (p *processDiscoveryFeature) NodeAgentProviderCapabilities() providercaps.P
 }
 
 func (p *processDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	p.owner = dda
 	var reqComp feature.RequiredComponents
 	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddaSpec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
@@ -110,8 +113,9 @@ func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers featur
 
 func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+	mountPath := featutils.ProcessPasswdMountPath(p.owner)
+	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount

@@ -33,6 +33,8 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
+	// owner stores the user's DatadogAgent resource, which we keep because the passwd mount path depends on the Agent image version set in it.
+	owner          metav1.Object
 	scrubArgs      *bool
 	stripArgs      *bool
 	runInCoreAgent bool
@@ -56,6 +58,7 @@ func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.Provid
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.owner = dda
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = new(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
@@ -132,8 +135,9 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+	mountPath := featutils.ProcessPasswdMountPath(f.owner)
+	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount

@@ -1347,7 +1347,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 0d995b061e69a8937ab223991deeede6
+    agent.datadoghq.com/agentspechash: 8ec405f1e6aeddc1d5af04c7b80a3f48
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1520,6 +1520,9 @@ spec:
           readOnly: true
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
+          readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
           readOnly: true
         - mountPath: /var/run/datadog
           name: dsdsocket
@@ -1854,6 +1857,9 @@ spec:
       - hostPath:
           path: /sys/fs/cgroup
         name: cgroups
+      - hostPath:
+          path: /etc/os-release
+        name: os-release-file
       - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate

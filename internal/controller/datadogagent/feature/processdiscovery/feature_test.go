@@ -41,7 +41,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.PasswdMountPath),
 		},
 		{
 			Name: "process discovery disabled",
@@ -55,7 +55,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.PasswdMountPath),
 		},
 		{
 			Name: "process discovery without min version to run in core agent",
@@ -69,7 +69,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, common.PasswdMountPath),
 		},
 		{
 			Name: "process discovery enabled on single container",
@@ -78,28 +78,42 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, common.PasswdMountPath),
+		},
+		{
+			Name: "host passwd on supported core agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.HostPasswdMountPath),
+		},
+		{
+			Name: "host passwd on supported unprivileged single agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, common.HostPasswdMountPath),
 		},
 		{
 			Name:          "process discovery on Windows",
 			DDA:           windowsProfile,
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, common.PasswdMountPath),
 		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, expectedPath string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// check volume mounts
-			wantVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      common.PasswdVolumeName,
-					MountPath: common.PasswdMountPath,
+					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
 				{
@@ -115,10 +129,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(agentMounts, wantVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, wantVolumeMounts))
+			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMounts))
 
 			// check volumes
-			wantVolumes := []corev1.Volume{
+			expectedVolumes := []corev1.Volume{
 				{
 					Name: common.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
@@ -146,10 +160,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 
 			volumes := mgr.VolumeMgr.Volumes
-			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolumes))
 
 			// check env vars
-			wantEnvVars := []*corev1.EnvVar{
+			expectedEnvVars := []*corev1.EnvVar{
 				{
 					Name:  common.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
@@ -161,7 +175,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, wantEnvVars))
+			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, expectedEnvVars))
 		},
 	)
 }

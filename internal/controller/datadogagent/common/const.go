@@ -118,6 +118,16 @@ const (
 	PasswdHostPath   = "/etc/passwd"
 	PasswdMountPath  = "/etc/passwd"
 
+	// Agent 7.86.0+ process collection mounts the passwd volume here instead of PasswdMountPath.
+	HostPasswdMountPath = "/host/etc/passwd"
+
+	// Always mounted in the core agent and process-agent (like Helm): the Agent sets HOST_ETC=/host/etc
+	// whenever that directory exists and then reads the host OS from /host/etc/os-release.
+	// The volume name matches the Helm chart and the GKE Autopilot WorkloadAllowlist.
+	OSReleaseFileVolumeName = "os-release-file"
+	OSReleaseFileHostPath   = "/etc/os-release"
+	OSReleaseFileMountPath  = "/host/etc/os-release"
+
 	ProcdirVolumeName = "procdir"
 	ProcdirHostPath   = "/proc"
 	ProcdirMountPath  = "/host/proc"
