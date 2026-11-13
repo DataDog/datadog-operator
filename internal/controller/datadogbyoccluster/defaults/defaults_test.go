@@ -190,7 +190,7 @@ func TestApply(t *testing.T) {
 							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 						Replicas:                      ptr.To[int32](1),
-						TerminationGracePeriodSeconds: ptr.To[int64](60),
+						TerminationGracePeriodSeconds: ptr.To[int64](300),
 					},
 				},
 				Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
@@ -727,7 +727,7 @@ func TestApplyCompactorDefaults(t *testing.T) {
 						ReadOnlyRootFilesystem: ptr.To(true),
 					},
 					Replicas:                      ptr.To[int32](1),
-					TerminationGracePeriodSeconds: ptr.To[int64](60),
+					TerminationGracePeriodSeconds: ptr.To[int64](300),
 				},
 			},
 		},
@@ -766,7 +766,7 @@ func TestApplyCompactorDefaults(t *testing.T) {
 						ReadOnlyRootFilesystem: ptr.To(true),
 					},
 					Replicas:                      ptr.To[int32](1),
-					TerminationGracePeriodSeconds: ptr.To[int64](60),
+					TerminationGracePeriodSeconds: ptr.To[int64](300),
 				},
 				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 					MinReplicas: ptr.To[int32](1),

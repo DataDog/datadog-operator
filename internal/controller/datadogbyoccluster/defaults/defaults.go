@@ -28,7 +28,7 @@ const (
 	// Termination grace periods
 	defaultIndexerTerminationGracePeriodSeconds   int64 = 300
 	defaultPipelineTerminationGracePeriodSeconds  int64 = 70
-	defaultCompactorTerminationGracePeriodSeconds int64 = 60
+	defaultCompactorTerminationGracePeriodSeconds int64 = 300
 
 	// Autoscaling
 	defaultAutoscalingMinReplicas         int32 = 2
