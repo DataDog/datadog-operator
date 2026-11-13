@@ -6,9 +6,6 @@ metadata:
 spec:
   components:
     controlPlane:
-      env:
-      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
-        value: "true"
       podDisruptionBudget: {}
       replicas: 1
       resources:
@@ -24,13 +21,6 @@ spec:
           port: health
         periodSeconds: 5
     indexer:
-      env:
-      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
-        value: "true"
-      - name: QW_ENABLE_IN_MEMORY_INDEXING
-        value: "true"
-      - name: QW_INDEXING_MAX_WRITE_THROUGHPUT
-        value: 50MiB
       podDisruptionBudget: {}
       podManagementPolicy: OrderedReady
       replicas: 2
@@ -50,9 +40,6 @@ spec:
         emptyDir: {}
       terminationGracePeriodSeconds: 300
     janitor:
-      env:
-      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
-        value: "true"
       podDisruptionBudget: {}
       replicas: 1
       resources:
@@ -72,9 +59,6 @@ spec:
         uriSecretRef:
           key: QW_METASTORE_URI
           name: cloudprem-metastore
-      env:
-      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
-        value: "true"
       envFrom:
       - secretRef:
           name: cloudprem-metastore
@@ -111,11 +95,6 @@ spec:
         emptyDir: {}
       terminationGracePeriodSeconds: 70
     searcher:
-      env:
-      - name: QW_ENABLE_LOCALITY_AWARE_SCHEDULING
-        value: "true"
-      - name: QW_DISABLE_LOAD_ESTIMATION
-        value: "true"
       podDisruptionBudget: {}
       podManagementPolicy: OrderedReady
       replicas: 2
@@ -158,12 +137,9 @@ spec:
     ingest_api:
       max_queue_disk_usage: 7.2GiB
       max_queue_memory_usage: 3.6GiB
-    metastore:
-      postgres:
-        max_connections: 50
-        min_connections: 10
     searcher:
       fast_field_cache_capacity: 4.875G
+      max_num_concurrent_split_searches: 40
       partial_request_cache_capacity: 187.5M
       split_footer_cache_capacity: 375M
   provider:
