@@ -49,7 +49,7 @@ func Test_applyOtelAgentGatewayResources(t *testing.T) {
 		},
 		{
 			Name:  "DD_OTELCOLLECTOR_CONVERTER_FEATURES",
-			Value: "health_check,zpages,pprof,datadog",
+			Value: "health_check,zpages,pprof,datadog,cumulativetodelta",
 		},
 		{
 			Name:  "DD_ENABLE_METADATA_COLLECTION",

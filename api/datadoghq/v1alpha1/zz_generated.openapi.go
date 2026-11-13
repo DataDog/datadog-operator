@@ -47,7 +47,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPipelineStatus":                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPodDisruptionBudgetSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterProviderSpec":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterProviderSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterReleaseSpec":                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterReleaseSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterSpec":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec":                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulComponentSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulSetStatus":                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulSetStatus(ref),
@@ -1734,7 +1733,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterImageOverr
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterImageOverrides defines overrides for the images selected by a BYOC release.",
+				Description: "DatadogBYOCClusterImageOverrides defines overrides for the default BYOC images.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"byoc": {
@@ -2801,40 +2800,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterProviderSp
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterReleaseSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"repository": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Repository is the OCI repository containing BYOC release artifacts. The public Datadog BYOC release repository is used when this field is omitted.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"tag": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Tag is the OCI tag of the BYOC release artifact.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"digest": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Digest is the OCI digest of the BYOC release artifact.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2849,15 +2814,9 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 							Format:      "",
 						},
 					},
-					"release": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Release identifies the BYOC release artifact. When both images are fully specified, the release artifact is not fetched, even if Release is set.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterReleaseSpec"),
-						},
-					},
 					"imageOverrides": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ImageOverrides overrides the images selected by the release. Removing an override restores the image selected by the current release.",
+							Description: "ImageOverrides overrides the default images. Removing an override restores the default image.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides"),
 						},
 					},
@@ -2902,7 +2861,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentsSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterGlobalSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterProviderSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterReleaseSpec", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentsSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterGlobalSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterProviderSpec", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 
@@ -3365,7 +3324,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCImageSpec(ref com
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCImageSpec defines common BYOC workload image settings. For an image override, omitted repository and version fields retain values from the release.",
+				Description: "DatadogBYOCImageSpec defines common BYOC workload image settings. For an image override, omitted repository and version fields retain the default values.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"repository": {
@@ -3406,7 +3365,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCImageSpec(ref com
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image. They are added only to Pods using this image and are not used to fetch the release artifact.",
+							Description: "ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image. They are added only to Pods using this image.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -4238,6 +4197,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 					"currentHash": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know if the JsonSpec has changed and needs an update.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"remoteDefinitionHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoteDefinitionHash is the hash of the resource definition returned by Datadog after the last successful create or update, for resource types that support it. A force sync skips the update while the remote resource still has this hash.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5197,6 +5163,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorStatus(ref com
 							Format:      "",
 						},
 					},
+					"remoteDefinitionHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoteDefinitionHash is the hash of the monitor definition returned by Datadog after the last successful create or update. A force sync skips the update while the remote monitor still has this hash.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -5360,7 +5333,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image. They are added only to Pods using this image and are not used to fetch the release artifact.",
+							Description: "ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image. They are added only to Pods using this image.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"slices"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -139,7 +139,7 @@ func GetVolumeFromMultiCustomConfig(multiCustomConfig *v2alpha1.MultiCustomConfi
 			configData := multiCustomConfig.ConfigDataMap[filename]
 			// Validate that user input is valid YAML
 			m := make(map[any]any)
-			if yaml.Unmarshal([]byte(configData), m) != nil {
+			if yaml.Unmarshal([]byte(configData), &m) != nil {
 				continue
 			}
 			keysToPaths = append(keysToPaths, corev1.KeyToPath{Key: filename, Path: filename})

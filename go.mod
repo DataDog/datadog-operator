@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.83.2 // indirect
@@ -55,7 +55,6 @@ require (
 	github.com/aws/smithy-go v1.28.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/distribution/reference v0.6.0
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/fatih/color v1.19.0
 	github.com/go-logr/zapr v1.3.0
@@ -64,8 +63,6 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mattn/go-runewidth v0.0.30
 	github.com/onsi/ginkgo/v2 v2.33.0
-	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.24.1
 	github.com/samber/lo v1.53.0
@@ -74,7 +71,6 @@ require (
 	golang.org/x/text v0.43.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
-	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/kubectl v0.37.1
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
@@ -86,6 +82,8 @@ require (
 	github.com/extism/go-sdk v1.7.1 // indirect
 	github.com/fluxcd/cli-utils v1.2.2 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
 )
@@ -227,7 +225,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.19.2 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -313,7 +311,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
