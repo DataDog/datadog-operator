@@ -15,13 +15,14 @@ import (
 )
 
 type eksManagedAgentInstallationIntent struct {
-	Version                 string                               `json:"version"`
-	InstallationID          string                               `json:"installationID"`
-	EKSARNSHA256            string                               `json:"eksARNSHA256"`
-	OperationID             string                               `json:"operationID"`
-	DesiredState            managedAgentInstallationDesiredState `json:"desiredState"`
-	AcknowledgedOperationID string                               `json:"acknowledgedOperationID,omitempty"`
-	Bootstrap               managedAgentInstallationBootstrap    `json:"bootstrap"`
+	Version                 string                                      `json:"version"`
+	InstallationID          string                                      `json:"installationID"`
+	EKSARNSHA256            string                                      `json:"eksARNSHA256"`
+	OperationID             string                                      `json:"operationID"`
+	DesiredState            managedAgentInstallationDesiredState        `json:"desiredState"`
+	AcknowledgedOperationID string                                      `json:"acknowledgedOperationID,omitempty"`
+	Bootstrap               managedAgentInstallationBootstrap           `json:"bootstrap"`
+	DatadogAgent            *datadogAgentManagedAgentInstallationConfig `json:"datadogAgent,omitempty"`
 }
 
 func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
@@ -41,7 +42,13 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentIn
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("decode EKS managed Agent installation intent: trailing JSON content")
 	}
-	if eksIntent.Version != managedAgentInstallationVersion {
+	switch eksIntent.Version {
+	case managedAgentInstallationVersionV1:
+		if eksIntent.DatadogAgent != nil {
+			return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("EKS managed Agent installation version %q does not support DatadogAgent config", eksIntent.Version)
+		}
+	case managedAgentInstallationVersionV2:
+	default:
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported EKS managed Agent installation version %q", eksIntent.Version)
 	}
 	intentIdentity := NewEKSManagedAgentInstallationIdentity(eksIntent.InstallationID, eksIntent.EKSARNSHA256)
@@ -73,12 +80,15 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentIn
 	var normalizedConfig json.RawMessage
 	switch eksIntent.DesiredState {
 	case managedAgentInstallationDesiredStateInstalled:
-		config, configErr := managedAgentInstallationBootstrapConfig(eksIntent.Bootstrap)
+		config, configErr := managedAgentInstallationConfig(eksIntent.Bootstrap, eksIntent.DatadogAgent)
 		if configErr != nil {
 			return managedAgentInstallationIntent{}, nil, "", configErr
 		}
 		normalizedConfig = config
 	case managedAgentInstallationDesiredStateAbsent:
+		if eksIntent.DatadogAgent != nil {
+			return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("EKS managed Agent uninstall intent must not contain DatadogAgent config")
+		}
 		normalizedConfig = json.RawMessage(`{}`)
 	default:
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported EKS managed Agent installation desired state %q", eksIntent.DesiredState)
@@ -102,6 +112,9 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentIn
 		OperationID:    intent.OperationID,
 		DesiredState:   intent.DesiredState,
 		Bootstrap:      intent.Bootstrap,
+	}
+	if intent.Version == managedAgentInstallationVersionV2 {
+		normalized.DatadogAgent = eksIntent.DatadogAgent
 	}
 	encoded, err := json.Marshal(normalized)
 	if err != nil {
