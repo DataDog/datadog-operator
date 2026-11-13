@@ -68,6 +68,36 @@ func Test_extractHandles(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "padded with spaces and tabs",
+			handles: []string{
+				" ENC[api_key]\t",
+				"\t ENC[app_key] ",
+			},
+			want: []string{
+				"api_key",
+				"app_key",
+			},
+			wantErr: false,
+		},
+		{
+			name: "inner whitespace preserved",
+			handles: []string{
+				"ENC[ api_key ]",
+			},
+			want: []string{
+				" api_key ",
+			},
+			wantErr: false,
+		},
+		{
+			name: "padded with newline",
+			handles: []string{
+				"ENC[api_key]\n",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
 			name: "multiple brackets",
 			handles: []string{
 				"ENC[[]]",
@@ -87,6 +117,35 @@ func Test_extractHandles(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extractHandles() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsEnc(t *testing.T) {
+	tests := []struct {
+		name string
+		str  string
+		want bool
+	}{
+		{name: "exact", str: "ENC[handle]", want: true},
+		{name: "leading space", str: " ENC[handle]", want: true},
+		{name: "trailing tab", str: "ENC[handle]\t", want: true},
+		{name: "spaces and tabs", str: " \tENC[handle]\t ", want: true},
+		{name: "empty handle", str: "ENC[]", want: true},
+		{name: "literal", str: "0123456789abcdef", want: false},
+		{name: "empty", str: "", want: false},
+		{name: "whitespace only", str: " \t ", want: false},
+		{name: "lowercase", str: "enc[handle]", want: false},
+		{name: "missing closing bracket", str: " ENC[handle", want: false},
+		{name: "missing prefix", str: "handle] ", want: false},
+		{name: "newline not trimmed", str: "\nENC[handle]", want: false},
+		{name: "space inside prefix", str: "ENC [handle]", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsEnc(tt.str); got != tt.want {
+				t.Errorf("IsEnc(%q) = %v, want %v", tt.str, got, tt.want)
 			}
 		})
 	}
