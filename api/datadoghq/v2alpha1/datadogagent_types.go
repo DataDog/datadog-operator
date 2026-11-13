@@ -984,7 +984,6 @@ type ServiceDiscoveryFeatureConfig struct {
 // GPUFeatureConfig contains the GPU monitoring configuration.
 type GPUFeatureConfig struct {
 	// Enabled enables GPU monitoring core check.
-	// With Agent 7.86.0+ and requiredRuntimeClassName amd, it also enables the AMD GPU check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1000,7 +999,6 @@ type GPUFeatureConfig struct {
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Set to amd for AMD GPUs; this also enables the AMD GPU check.
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
@@ -1010,6 +1008,22 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+
+	// AMD configures monitoring of AMD GPUs.
+	// +optional
+	AMD *GPUAMDConfig `json:"amd,omitempty"`
+}
+
+// GPUAMDConfig contains the AMD GPU monitoring configuration.
+// +k8s:openapi-gen=true
+type GPUAMDConfig struct {
+	// Enables the AMD GPU check (Agent 7.86.0+).
+	// Set the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /
+	// `runtimeClassName`); otherwise leave it empty (`""`).
+	// Not supported on GKE Autopilot.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.

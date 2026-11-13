@@ -129,18 +129,18 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		Containers: requiredContainers,
 	}
 
-	// The AMD GPU check is enabled only with the amd RuntimeClass. spec.override.nodeAgent.runtimeClassName
-	// is applied after features, so only requiredRuntimeClassName is considered.
-	if rc := ddaSpec.Features.GPU.PodRuntimeClassName; rc == nil || *rc != amdGPURuntimeClass {
-		f.logger.V(1).Info("Not enabling the AMD GPU check: requiredRuntimeClassName is not amd")
-	} else if experimental.IsAutopilotEnabled(dda) {
-		// GKE Autopilot has no AMD GPUs.
-		f.logger.V(1).Info("Not enabling the AMD GPU check on GKE Autopilot")
-	} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {
-		// Non-semver (custom) tags are assumed recent enough.
-		f.amdEnabled = true
-	} else {
-		f.logger.V(1).Info("Not enabling the AMD GPU check: it requires Agent >= 7.86.0", "version", version, "minVersion", amdGPUMinVersion)
+	// The AMD GPU check is opt-in and never depends on the RuntimeClass.
+	amdRequested := ddaSpec.Features.GPU.AMD != nil && apiutils.BoolValue(ddaSpec.Features.GPU.AMD.Enabled)
+	if amdRequested {
+		if experimental.IsAutopilotEnabled(dda) {
+			// GKE Autopilot has no AMD GPUs.
+			f.logger.V(1).Info("features.gpu.amd is not supported on GKE Autopilot; ignoring it")
+		} else if version := nodeAgentVersion(dda, ddaSpec); utils.IsAboveMinVersion(version, amdGPUMinVersion, nil) {
+			// Non-semver (custom) tags are assumed recent enough.
+			f.amdEnabled = true
+		} else {
+			f.logger.V(1).Info("features.gpu.amd.enabled requires Agent >= 7.86.0; not enabling the AMD GPU check", "version", version, "minVersion", amdGPUMinVersion)
+		}
 	}
 
 	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {

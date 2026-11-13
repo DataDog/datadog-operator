@@ -1941,8 +1941,19 @@
               "additionalProperties": false,
               "description": "GPU monitoring",
               "properties": {
+                "amd": {
+                  "additionalProperties": false,
+                  "description": "AMD configures monitoring of AMD GPUs.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the AMD GPU check (Agent 7.86.0+).\nSet the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /\n`runtimeClassName`); otherwise leave it empty (`\"\"`).\nNot supported on GKE Autopilot.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "enabled": {
-                  "description": "Enabled enables GPU monitoring core check.\nWith Agent 7.86.0+ and requiredRuntimeClassName amd, it also enables the AMD GPU check.\nDefault: false",
+                  "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                   "type": "boolean"
                 },
                 "patchCgroupPermissions": {
@@ -1954,7 +1965,7 @@
                   "type": "boolean"
                 },
                 "requiredRuntimeClassName": {
-                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nSet to amd for AMD GPUs; this also enables the AMD GPU check.\nDefault: nvidia",
+                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
                   "type": "string"
                 }
               },
@@ -11076,8 +11087,19 @@
                   "additionalProperties": false,
                   "description": "GPU monitoring",
                   "properties": {
+                    "amd": {
+                      "additionalProperties": false,
+                      "description": "AMD configures monitoring of AMD GPUs.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enables the AMD GPU check (Agent 7.86.0+).\nSet the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /\n`runtimeClassName`); otherwise leave it empty (`\"\"`).\nNot supported on GKE Autopilot.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
-                      "description": "Enabled enables GPU monitoring core check.\nWith Agent 7.86.0+ and requiredRuntimeClassName amd, it also enables the AMD GPU check.\nDefault: false",
+                      "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                       "type": "boolean"
                     },
                     "patchCgroupPermissions": {
@@ -11089,7 +11111,7 @@
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {
-                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nSet to amd for AMD GPUs; this also enables the AMD GPU check.\nDefault: nvidia",
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
                       "type": "string"
                     }
                   },

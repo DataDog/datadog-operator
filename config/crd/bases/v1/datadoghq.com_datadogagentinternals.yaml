@@ -1941,10 +1941,21 @@ spec:
                     gpu:
                       description: GPU monitoring
                       properties:
+                        amd:
+                          description: AMD configures monitoring of AMD GPUs.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the AMD GPU check (Agent 7.86.0+).
+                                Set the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /
+                                `runtimeClassName`); otherwise leave it empty (`""`).
+                                Not supported on GKE Autopilot.
+                                Default: false
+                              type: boolean
+                          type: object
                         enabled:
                           description: |-
                             Enabled enables GPU monitoring core check.
-                            With Agent 7.86.0+ and requiredRuntimeClassName amd, it also enables the AMD GPU check.
                             Default: false
                           type: boolean
                         patchCgroupPermissions:
@@ -1966,7 +1977,6 @@ spec:
                           description: |-
                             PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
                             If the value is an empty string, the runtime class is not set.
-                            Set to amd for AMD GPUs; this also enables the AMD GPU check.
                             Default: nvidia
                           type: string
                       type: object
@@ -11346,10 +11356,21 @@ spec:
                         gpu:
                           description: GPU monitoring
                           properties:
+                            amd:
+                              description: AMD configures monitoring of AMD GPUs.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enables the AMD GPU check (Agent 7.86.0+).
+                                    Set the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` /
+                                    `runtimeClassName`); otherwise leave it empty (`""`).
+                                    Not supported on GKE Autopilot.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             enabled:
                               description: |-
                                 Enabled enables GPU monitoring core check.
-                                With Agent 7.86.0+ and requiredRuntimeClassName amd, it also enables the AMD GPU check.
                                 Default: false
                               type: boolean
                             patchCgroupPermissions:
@@ -11371,7 +11392,6 @@ spec:
                               description: |-
                                 PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
                                 If the value is an empty string, the runtime class is not set.
-                                Set to amd for AMD GPUs; this also enables the AMD GPU check.
                                 Default: nvidia
                               type: string
                           type: object

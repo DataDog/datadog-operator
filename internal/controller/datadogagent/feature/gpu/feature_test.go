@@ -625,16 +625,18 @@ func Test_GPUMonitoringFeature_EBPFProbesOverride(t *testing.T) {
 }
 
 func Test_GPUMonitoringFeature_AMD(t *testing.T) {
-	newDDA := func(runtimeClass *string, agentTag string) *v2alpha1.DatadogAgent {
+	newDDA := func(amdEnabled *bool, runtimeClass *string, agentTag string) *v2alpha1.DatadogAgent {
+		gpu := &v2alpha1.GPUFeatureConfig{
+			Enabled:             ptr.To(true),
+			PodRuntimeClassName: runtimeClass,
+		}
+		if amdEnabled != nil {
+			gpu.AMD = &v2alpha1.GPUAMDConfig{Enabled: amdEnabled}
+		}
 		dda := &v2alpha1.DatadogAgent{
 			Spec: v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled:             ptr.To(true),
-						PodRuntimeClassName: runtimeClass,
-					},
-				},
-				Global: &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
+				Features: &v2alpha1.DatadogFeatures{GPU: gpu},
+				Global:   &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
 			},
 		}
 		if agentTag != "" {
@@ -644,6 +646,7 @@ func Test_GPUMonitoringFeature_AMD(t *testing.T) {
 		}
 		return dda
 	}
+	amdOn := ptr.To(true)
 
 	withNodeAgentImage := func(dda *v2alpha1.DatadogAgent, image *v2alpha1.AgentImageConfig) *v2alpha1.DatadogAgent {
 		dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -689,112 +692,134 @@ func Test_GPUMonitoringFeature_AMD(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
+		// amd.enabled adds the env vars and leaves the RuntimeClass as configured.
 		{
-			Name:          "amd runtime class on agent 7.86.0 adds amd env vars",
-			DDA:           newDDA(ptr.To("amd"), "7.86.0"),
+			Name:          "amd enabled on agent 7.86.0 adds amd env vars and keeps the nvidia default",
+			DDA:           newDDA(amdOn, nil, "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled with an empty runtime class adds amd env vars and sets no runtime class",
+			DDA:           newDDA(amdOn, ptr.To(""), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "")),
+		},
+		{
+			Name:          "amd enabled with the amd runtime class adds amd env vars and keeps it",
+			DDA:           newDDA(amdOn, ptr.To("amd"), "7.86.0"),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
 		},
 		{
-			Name:          "unset runtime class (nvidia default) on agent 7.86.0 skips amd env vars",
-			DDA:           newDDA(nil, "7.86.0"),
+			Name:          "amd enabled with a custom runtime class keeps it",
+			DDA:           newDDA(amdOn, ptr.To(alternativeRuntimeClass), "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, alternativeRuntimeClass)),
+		},
+		// Without amd.enabled, nothing is added, whatever the runtime class.
+		{
+			Name:          "amd unset skips amd env vars",
+			DDA:           newDDA(nil, nil, "7.86.0"),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
 		},
 		{
-			Name:          "explicit nvidia runtime class skips amd env vars",
-			DDA:           newDDA(ptr.To("nvidia"), "7.86.0"),
+			Name:          "amd unset with the amd runtime class skips amd env vars",
+			DDA:           newDDA(nil, ptr.To("amd"), "7.86.0"),
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "nvidia")),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
 		},
 		{
-			Name:          "empty runtime class skips amd env vars and leaves it unset",
-			DDA:           newDDA(ptr.To(""), "7.86.0"),
+			Name:          "amd unset with an empty runtime class skips amd env vars",
+			DDA:           newDDA(nil, ptr.To(""), "7.86.0"),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "")),
 		},
 		{
-			Name:          "runtime class other than amd skips amd env vars",
-			DDA:           newDDA(ptr.To("my-amd"), "7.86.0"),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "my-amd")),
-		},
-		{
-			Name:          "custom runtime class is used when set",
-			DDA:           newDDA(ptr.To(alternativeRuntimeClass), "7.86.0"),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, alternativeRuntimeClass)),
-		},
-		{
-			Name:          "amd runtime class on agent 7.85.0 skips amd env vars",
-			DDA:           newDDA(ptr.To("amd"), "7.85.0"),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
-		},
-		{
-			Name:          "amd runtime class on agent 7.86.0-rc.3 adds amd env vars",
-			DDA:           newDDA(ptr.To("amd"), "7.86.0-rc.3"),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
-		},
-		{
-			Name:          "amd runtime class on custom non-semver tag adds amd env vars",
-			DDA:           newDDA(ptr.To("amd"), "dev"),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
-		},
-		{
-			Name:          "amd runtime class with the bundled agent follows its version",
-			DDA:           newDDA(ptr.To("amd"), ""),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(bundledAgentSupportsAMD, "amd")),
-		},
-		{
-			// A tagless override (e.g. only pullPolicy) keeps the bundled image, so the gate uses its version.
-			Name:          "pullPolicy-only image override uses the bundled agent version",
-			DDA:           withNodeAgentImage(newDDA(ptr.To("amd"), ""), &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)}),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(bundledAgentSupportsAMD, "amd")),
-		},
-		{
-			Name:          "tag in the image name adds amd env vars",
-			DDA:           withNodeAgentImage(newDDA(ptr.To("amd"), ""), &v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/agent:7.86.0"}),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
-		},
-		{
-			Name:          "tag in the image name below 7.86.0 skips amd env vars",
-			DDA:           withNodeAgentImage(newDDA(ptr.To("amd"), ""), &v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/agent:7.85.0"}),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
-		},
-		{
-			Name:          "experimental image override upgrading the bundled agent adds amd env vars",
-			DDA:           withImageOverrideAnnotation(newDDA(ptr.To("amd"), ""), `{"agent":{"tag":"7.86.0"}}`),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, "amd")),
-		},
-		{
-			Name:          "experimental image override downgrading the agent skips amd env vars",
-			DDA:           withImageOverrideAnnotation(newDDA(ptr.To("amd"), "7.86.0"), `{"agent":{"tag":"7.85.0"}}`),
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
-		},
-		{
-			Name:          "experimental image override does not enable amd without the amd runtime class",
-			DDA:           withImageOverrideAnnotation(newDDA(nil, ""), `{"agent":{"tag":"7.86.0"}}`),
+			Name:          "amd struct without enabled skips amd env vars",
+			DDA:           func() *v2alpha1.DatadogAgent { d := newDDA(nil, nil, "7.86.0"); d.Spec.Features.GPU.AMD = &v2alpha1.GPUAMDConfig{}; return d }(),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
 		},
 		{
-			Name:          "GKE Autopilot skips amd env vars with the amd runtime class",
-			DDA:           onAutopilot(newDDA(ptr.To("amd"), "7.86.0")),
+			Name:          "amd disabled with the amd runtime class skips amd env vars",
+			DDA:           newDDA(ptr.To(false), ptr.To("amd"), "7.86.0"),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, "amd")),
 		},
 		{
-			Name:          "GKE Autopilot keeps the nvidia default",
-			DDA:           onAutopilot(newDDA(nil, "7.86.0")),
+			Name:          "amd disabled with the nvidia default skips amd env vars",
+			DDA:           newDDA(ptr.To(false), nil, "7.86.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		// Version gate.
+		{
+			Name:          "amd enabled on agent 7.85.0 skips amd env vars",
+			DDA:           newDDA(amdOn, nil, "7.85.0"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled on agent 7.86.0-rc.3 adds amd env vars",
+			DDA:           newDDA(amdOn, nil, "7.86.0-rc.3"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled on custom non-semver tag adds amd env vars",
+			DDA:           newDDA(amdOn, nil, "dev"),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "amd enabled with the bundled agent follows its version",
+			DDA:           newDDA(amdOn, nil, ""),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(bundledAgentSupportsAMD, defaultGPURuntimeClass)),
+		},
+		{
+			// A tagless override (e.g. only pullPolicy) keeps the bundled image, so the gate uses its version.
+			Name:          "pullPolicy-only image override uses the bundled agent version",
+			DDA:           withNodeAgentImage(newDDA(amdOn, nil, ""), &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(bundledAgentSupportsAMD, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "tag in the image name adds amd env vars",
+			DDA:           withNodeAgentImage(newDDA(amdOn, nil, ""), &v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/agent:7.86.0"}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "tag in the image name below 7.86.0 skips amd env vars",
+			DDA:           withNodeAgentImage(newDDA(amdOn, nil, ""), &v2alpha1.AgentImageConfig{Name: "registry.example.com:5000/agent:7.85.0"}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "experimental image override upgrading the bundled agent adds amd env vars",
+			DDA:           withImageOverrideAnnotation(newDDA(amdOn, nil, ""), `{"agent":{"tag":"7.86.0"}}`),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(true, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "experimental image override downgrading the agent skips amd env vars",
+			DDA:           withImageOverrideAnnotation(newDDA(amdOn, nil, "7.86.0"), `{"agent":{"tag":"7.85.0"}}`),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		{
+			Name:          "experimental image override does not enable amd without amd.enabled",
+			DDA:           withImageOverrideAnnotation(newDDA(nil, nil, ""), `{"agent":{"tag":"7.86.0"}}`),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
+		},
+		// GKE Autopilot.
+		{
+			Name:          "GKE Autopilot skips amd env vars with amd enabled",
+			DDA:           onAutopilot(newDDA(amdOn, nil, "7.86.0")),
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(wantFunc(false, defaultGPURuntimeClass)),
 		},
@@ -803,13 +828,13 @@ func Test_GPUMonitoringFeature_AMD(t *testing.T) {
 	tests.Run(t, buildFeature)
 }
 
-func Test_GPUMonitoringFeature_AMDRuntimeClassOverrideWins(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
+func newAMDTestDDA() *v2alpha1.DatadogAgent {
+	return &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled:             ptr.To(true),
-					PodRuntimeClassName: ptr.To("amd"),
+					Enabled: ptr.To(true),
+					AMD:     &v2alpha1.GPUAMDConfig{Enabled: ptr.To(true)},
 				},
 			},
 			Global: &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
@@ -818,69 +843,37 @@ func Test_GPUMonitoringFeature_AMDRuntimeClassOverrideWins(t *testing.T) {
 			},
 		},
 	}
-	f := buildFeature(&feature.Options{Logger: logr.Discard()})
-	f.Configure(dda, &dda.Spec, nil)
-
-	tmpl := &corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
-		Spec: corev1.PodSpec{
-			Containers:     []corev1.Container{{Name: string(apicommon.CoreAgentContainerName)}},
-			InitContainers: []corev1.Container{{Name: string(apicommon.InitConfigContainerName)}},
-		},
-	}
-	mgr := feature.NewPodTemplateManagers(tmpl)
-	assert.NoError(t, f.ManageNodeAgent(mgr))
-	assert.Equal(t, "amd", *tmpl.Spec.RuntimeClassName)
-
-	// spec.override is applied after the features, so it wins.
-	override.PodTemplateSpec(logr.Discard(), mgr, &v2alpha1.DatadogAgentComponentOverride{RuntimeClassName: ptr.To("custom")}, v2alpha1.NodeAgentComponentName, "dda")
-	assert.Equal(t, "custom", *tmpl.Spec.RuntimeClassName)
 }
 
-// spec.override.nodeAgent.runtimeClassName is applied after the features, so it does not enable the AMD GPU check.
-func Test_GPUMonitoringFeature_AMDIgnoresRuntimeClassOverride(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{GPU: &v2alpha1.GPUFeatureConfig{Enabled: ptr.To(true)}},
-			Global:   &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
-			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Image:            &v2alpha1.AgentImageConfig{Name: "agent", Tag: "7.86.0"},
-					RuntimeClassName: ptr.To("amd"),
-				},
-			},
-		},
-	}
-	f := buildFeature(&feature.Options{Logger: logr.Discard()})
-	f.Configure(dda, &dda.Spec, nil)
-
-	tmpl := &corev1.PodTemplateSpec{
+func newAMDTestAgentTemplate(env ...corev1.EnvVar) *corev1.PodTemplateSpec {
+	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
 		Spec: corev1.PodSpec{
-			Containers:     []corev1.Container{{Name: string(apicommon.CoreAgentContainerName)}},
+			Containers:     []corev1.Container{{Name: string(apicommon.CoreAgentContainerName), Env: env}},
 			InitContainers: []corev1.Container{{Name: string(apicommon.InitConfigContainerName)}},
 		},
 	}
+}
+
+// spec.override.nodeAgent.runtimeClassName is applied after the features, so it still wins with amd.enabled.
+func Test_GPUMonitoringFeature_AMDRuntimeClassOverrideWins(t *testing.T) {
+	dda := newAMDTestDDA()
+	f := buildFeature(&feature.Options{Logger: logr.Discard()})
+	f.Configure(dda, &dda.Spec, nil)
+
+	tmpl := newAMDTestAgentTemplate()
 	mgr := feature.NewPodTemplateManagers(tmpl)
 	require.NoError(t, f.ManageNodeAgent(mgr))
-	override.PodTemplateSpec(logr.Discard(), mgr, &v2alpha1.DatadogAgentComponentOverride{RuntimeClassName: ptr.To("amd")}, v2alpha1.NodeAgentComponentName, "dda")
+	assert.Equal(t, defaultGPURuntimeClass, *tmpl.Spec.RuntimeClassName)
 
-	assert.Equal(t, "amd", *tmpl.Spec.RuntimeClassName)
+	override.PodTemplateSpec(logr.Discard(), mgr, &v2alpha1.DatadogAgentComponentOverride{RuntimeClassName: ptr.To("custom")}, v2alpha1.NodeAgentComponentName, "dda")
+	assert.Equal(t, "custom", *tmpl.Spec.RuntimeClassName)
 	env := tmpl.Spec.Containers[0].Env
-	assert.Empty(t, containerEnvValues(env, DDEnableAMDGPUEnvVar))
-	assert.Empty(t, containerEnvValues(env, AMDVisibleDevicesEnvVar))
+	assert.Equal(t, []string{"true"}, containerEnvValues(env, DDEnableAMDGPUEnvVar))
+	assert.Equal(t, []string{"all"}, containerEnvValues(env, AMDVisibleDevicesEnvVar))
 }
 
 func Test_GPUMonitoringFeature_AMDUserEnvWins(t *testing.T) {
-	newAgentTemplate := func(env ...corev1.EnvVar) *corev1.PodTemplateSpec {
-		return &corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
-			Spec: corev1.PodSpec{
-				Containers:     []corev1.Container{{Name: string(apicommon.CoreAgentContainerName), Env: env}},
-				InitContainers: []corev1.Container{{Name: string(apicommon.InitConfigContainerName)}},
-			},
-		}
-	}
 	userEnv := []corev1.EnvVar{
 		{Name: DDEnableAMDGPUEnvVar, Value: "false"},
 		{Name: AMDVisibleDevicesEnvVar, Value: "1"},
@@ -904,19 +897,11 @@ func Test_GPUMonitoringFeature_AMDUserEnvWins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := &v2alpha1.DatadogAgent{
-				Spec: v2alpha1.DatadogAgentSpec{
-					Features: &v2alpha1.DatadogFeatures{GPU: &v2alpha1.GPUFeatureConfig{Enabled: ptr.To(true), PodRuntimeClassName: ptr.To("amd")}},
-					Global:   &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
-					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "7.86.0"}},
-					},
-				},
-			}
+			dda := newAMDTestDDA()
 			f := buildFeature(&feature.Options{Logger: logr.Discard()})
 			f.Configure(dda, &dda.Spec, nil)
 
-			tmpl := newAgentTemplate(tt.preset...)
+			tmpl := newAMDTestAgentTemplate(tt.preset...)
 			mgr := feature.NewPodTemplateManagers(tmpl)
 			require.NoError(t, f.ManageNodeAgent(mgr))
 			if tt.override != nil {
@@ -942,20 +927,8 @@ func containerEnvValues(envs []corev1.EnvVar, name string) []string {
 }
 
 func Test_GPUMonitoringFeature_AMDOnAutopilotStaysDegraded(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
-		},
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				GPU: &v2alpha1.GPUFeatureConfig{Enabled: ptr.To(true), PodRuntimeClassName: ptr.To("amd")},
-			},
-			Global: &v2alpha1.GlobalConfig{Kubelet: &v2alpha1.KubeletConfig{}},
-			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "7.86.0"}},
-			},
-		},
-	}
+	dda := newAMDTestDDA()
+	dda.Annotations = map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}
 	f := buildFeature(&feature.Options{Logger: logr.Discard()})
 	f.Configure(dda, &dda.Spec, nil)
 

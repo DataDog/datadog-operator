@@ -40,6 +40,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentCheckpoint":                       schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentCheckpoint(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus":                           schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                                 schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUAMDConfig":                               schema_datadog_operator_api_datadoghq_v2alpha1_GPUAMDConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GlobalConfig":                               schema_datadog_operator_api_datadoghq_v2alpha1_GlobalConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
@@ -1448,6 +1449,26 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref common.Refere
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_GPUAMDConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GPUAMDConfig contains the AMD GPU monitoring configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enables the AMD GPU check (Agent 7.86.0+). Set the RuntimeClass only if your cluster defines one for AMD GPUs (`requiredRuntimeClassName` / `runtimeClassName`); otherwise leave it empty (`\"\"`). Not supported on GKE Autopilot. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
