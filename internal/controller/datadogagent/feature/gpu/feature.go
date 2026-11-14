@@ -2,8 +2,11 @@ package gpu
 
 import (
 	"errors"
+	"fmt"
 	"path"
+	"strings"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -13,10 +16,14 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -25,8 +32,14 @@ func init() {
 	}
 }
 
-func buildFeature(*feature.Options) feature.Feature {
-	return &gpuFeature{}
+func buildFeature(options *feature.Options) feature.Feature {
+	gpuFeat := &gpuFeature{}
+
+	if options != nil {
+		gpuFeat.logger = options.Logger
+	}
+
+	return gpuFeat
 }
 
 type gpuFeature struct {
@@ -37,6 +50,10 @@ type gpuFeature struct {
 	podResourcesSocketPath  string
 	isPrivilegedModeEnabled bool
 	patchCgroupPermissions  bool
+	// vendor is the GPU vendor to configure, after the Autopilot and Agent version checks.
+	vendor string
+
+	logger logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -85,8 +102,19 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	return caps
 }
 
+// nodeAgentVersion returns the core Agent version for the AMD gate, from the image the operator
+// will run: the bundled image with the component and experimental image overrides applied.
+func nodeAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	image := images.GetLatestAgentImage()
+	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+		image = images.OverrideAgentImage(image, override.Image)
+	}
+	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.CoreAgentContainerName), image)
+	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
 		return reqComp
 	}
@@ -104,18 +132,52 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		Containers: requiredContainers,
 	}
 
-	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
-		// Configuration option not set, so revert to the default
+	gpu := ddaSpec.Features.GPU
+	f.vendor = f.resolveVendor(dda, ddaSpec)
+
+	// Only NVIDIA defines a standard RuntimeClass; other vendors default to none.
+	switch {
+	case gpu.PodRuntimeClassName != nil:
+		f.podRuntimeClassName = *gpu.PodRuntimeClassName // "" = leave unset
+		if f.vendor != vendorNVIDIA && f.podRuntimeClassName == defaultGPURuntimeClass {
+			f.logger.Info(fmt.Sprintf("Warning: features.gpu.vendor is %s with requiredRuntimeClassName nvidia, which usually doesn't exist on %s nodes; set it to the cluster's %s RuntimeClass or \"\"", f.vendor, strings.ToUpper(f.vendor), strings.ToUpper(f.vendor)))
+		}
+	case f.vendor != vendorNVIDIA:
+		f.podRuntimeClassName = ""
+		f.logger.Info(fmt.Sprintf("Warning: features.gpu.vendor is %s without requiredRuntimeClassName, so the node agent uses no RuntimeClass (the node's default runtime); set it to the cluster's %s RuntimeClass if it defines one", f.vendor, strings.ToUpper(f.vendor)))
+	default:
 		f.podRuntimeClassName = defaultGPURuntimeClass
-	} else {
-		// Configuration option set, use the value. Note that here the value might be an empty
-		// string, which tells us to not change the runtime class.
-		f.podRuntimeClassName = *ddaSpec.Features.GPU.PodRuntimeClassName
 	}
 
 	f.podResourcesSocketPath = ddaSpec.Global.Kubelet.PodResourcesSocketPath
 
 	return reqComp
+}
+
+// resolveVendor returns features.gpu.vendor if it is known and the node Agent supports it, otherwise nvidia.
+// GKE Autopilot always uses nvidia: it has no non-NVIDIA GPUs.
+func (f *gpuFeature) resolveVendor(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	vendor := apiutils.StringValue(ddaSpec.Features.GPU.Vendor)
+	if vendor == "" || vendor == vendorNVIDIA || experimental.IsAutopilotEnabled(dda) {
+		return vendorNVIDIA
+	}
+	version := nodeAgentVersion(dda, ddaSpec)
+	minVersion, known := vendorMinAgentVersion[vendor]
+	if !known {
+		// Agents too old for any non-NVIDIA vendor ignore the field silently.
+		for _, v := range vendorMinAgentVersion {
+			if utils.IsAboveMinVersion(version, v, nil) {
+				f.logger.Info("Warning: unknown features.gpu.vendor, falling back to nvidia", "vendor", vendor)
+				break
+			}
+		}
+		return vendorNVIDIA
+	}
+	if !utils.IsAboveMinVersion(version, minVersion, nil) { // non-semver tags are assumed recent enough
+		f.logger.V(1).Info("features.gpu.vendor needs a newer Agent; falling back to nvidia", "vendor", vendor, "version", version, "minVersion", minVersion)
+		return vendorNVIDIA
+	}
+	return vendor
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -308,6 +370,19 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvidiaVisibleDevicesEnvVar)
+
+	if f.vendor == vendorAMD {
+		// Enable the amd_gpu core check and ask the AMD container runtime to expose all GPUs.
+		// These are defaults: a value set earlier (spec.global.env) is kept, and spec.override env replaces them.
+		for _, envVar := range []*corev1.EnvVar{
+			{Name: DDEnableAMDGPUEnvVar, Value: "true"},
+			{Name: AMDVisibleDevicesEnvVar, Value: "all"},
+		} {
+			if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, envVar, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+				return err
+			}
+		}
+	}
 
 	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
 	// env variable. This is usually configured with the options

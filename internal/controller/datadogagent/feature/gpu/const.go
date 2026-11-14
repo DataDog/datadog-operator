@@ -26,4 +26,14 @@ const (
 
 	// defaultGPURuntimeClass default runtime class for GPU pods
 	defaultGPURuntimeClass = "nvidia"
+
+	// GPU vendors accepted by features.gpu.vendor.
+	vendorNVIDIA = "nvidia"
+	vendorAMD    = "amd"
 )
+
+// vendorMinAgentVersion is the first Agent release supporting each non-NVIDIA vendor. A vendor missing here is
+// unknown; below its version a vendor is ignored. Both fall back to nvidia.
+var vendorMinAgentVersion = map[string]string{
+	vendorAMD: "7.86.0-0", // amd_gpu core check
+}
