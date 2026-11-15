@@ -26,7 +26,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context) fi
 			err := deleteDashboard(auth, r.datadogClient, datadogID)
 			if err != nil {
 				logger.Error(err, "failed to finalize dashboard", "dashboard ID", fmt.Sprint(datadogID))
-				return nil
+				return err
 			}
 			logger.Info("Successfully finalized DatadogDashboard", "dashboard ID", fmt.Sprint(datadogID))
 		}
