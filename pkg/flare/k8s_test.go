@@ -7,6 +7,7 @@ package flare
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,7 @@ func TestDatadogResourcesCollectors(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "datadog", Annotations: map[string]string{
 			"kubectl.kubernetes.io/last-applied-configuration": `{"apiKey":"` + testAPIKey + `"}`,
+			"agent.datadoghq.com/agentspechash":                testSpecHash,
 		}},
 		Spec: v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{
 			ClusterName:       ptr.To("my-cluster"),
@@ -73,6 +75,8 @@ func TestDatadogResourcesCollectors(t *testing.T) {
 	assert.Contains(t, ddaFile, "clusterName: my-cluster")
 	assert.Contains(t, ddaFile, "ReconcileSucceeded")
 	assert.NotContains(t, ddaFile, "last-applied-configuration")
+	// The MD5 spec hash has the shape of an API key, but is kept.
+	assert.Contains(t, ddaFile, "agent.datadoghq.com/agentspechash: "+testSpecHash)
 	assert.Contains(t, files, "datadog/datadogagentprofiles/datadog/linux.yaml")
 	assert.Contains(t, files, "datadog/datadogagentinternals/NONE.txt")
 
@@ -83,6 +87,14 @@ func TestDatadogResourcesCollectors(t *testing.T) {
 	assert.NotContains(t, summary, "system.cpu.user")
 
 	assert.Contains(t, files["datadog/events/datadogagent.yaml"], "Create DaemonSet")
+	// A kind without events still has its file, so that "no events" can be
+	// told from "not collected".
+	for _, kind := range []string{"datadogagentprofile", "datadogagentinternal", "datadogmonitor", "datadogslo", "datadogdashboard", "datadoggenericresource"} {
+		noEvents := files["datadog/events/"+kind+".yaml"]
+		assert.Contains(t, noEvents, "# No events found for ", kind)
+		assert.Contains(t, noEvents, " in all namespaces at ", kind)
+		assert.True(t, strings.HasSuffix(noEvents, "\n[]\n"), "%s: %q", kind, noEvents)
+	}
 	for name := range files {
 		assert.NotContains(t, name, "events/pod")
 	}
@@ -132,6 +144,7 @@ func TestWorkloadsCollector(t *testing.T) {
 	assert.Contains(t, pods, "CrashLoopBackOff")
 	assert.Contains(t, pods, "node: node-1")
 	assert.Contains(t, files["workloads/events/datadog/daemonset-datadog-agent.yaml"], "BackOff")
+	assert.Contains(t, files["workloads/events/datadog/deployment-datadog-cluster-agent.yaml"], "# No events found for Deployment datadog-cluster-agent, its pods and replica sets in namespace datadog at ")
 	assertNoSecrets(t, files, testAPIKey)
 }
 

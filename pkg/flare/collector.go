@@ -65,8 +65,17 @@ type Env struct {
 type Collection struct {
 	*Archive
 	Env    Env
+	now    func() time.Time
 	mu     sync.Mutex
 	errors []string
+}
+
+// Now returns the current time of the flare run.
+func (c *Collection) Now() time.Time {
+	if c.now == nil {
+		return time.Now()
+	}
+	return c.now()
 }
 
 // Warn records a non-fatal error: the collector goes on and its status is
@@ -185,7 +194,7 @@ func runCollector(ctx context.Context, env Env, archive *Archive, collector Coll
 	collectorCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	collection := &Collection{Archive: archive, Env: env}
+	collection := &Collection{Archive: archive, Env: env, now: now}
 	start := now()
 	done := make(chan error, 1)
 	go func() {

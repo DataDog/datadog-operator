@@ -146,6 +146,18 @@ func summarizeEvent(event *corev1.Event) EventSummary {
 	}
 }
 
+// addEvents writes events to name. When there are none it still writes the
+// file, as an empty list with a note, so that a flare reader can tell "no
+// events" from "the collector didn't run". scope says where the events were
+// looked for, such as "for DatadogAgent in all namespaces".
+func addEvents(c *Collection, name string, events []EventSummary, scope string) error {
+	if len(events) > 0 {
+		return c.AddYAML(name, events)
+	}
+	note := fmt.Sprintf("# No events found %s at %s.\n[]\n", scope, c.Now().UTC().Format(time.RFC3339))
+	return c.AddText(name, []byte(note))
+}
+
 // listEvents lists events in a namespace ("" for all namespaces) that match a
 // field selector, and keeps the ones keep accepts, most recent last.
 func listEvents(ctx context.Context, env Env, namespace string, selector fields.Selector, keep func(*corev1.Event) bool) ([]EventSummary, error) {

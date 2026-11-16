@@ -8,6 +8,7 @@ package flare
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,7 +38,24 @@ var (
 	// certRegexp matches PEM blocks. It is the agent scrubber multi-line
 	// certificate replacer.
 	certRegexp = regexp.MustCompile(`-----BEGIN (?:.*)-----[A-Za-z0-9=\+\/\s]*-----END (?:.*)-----`)
+
+	// hashValueRegexp matches the 32 or 40 hex character value of a key that
+	// names a git commit or a hash, such as `commit: <sha>`, `Git Commit:
+	// <sha>`, `"agent.datadoghq.com/agentspechash": "<md5>"`, `currentHash:
+	// <md5>` or `checksum/config: <md5>`. The agent scrubber masks every bare
+	// 32 and 40 hex character string because API keys and application keys
+	// have that
+	// shape, which also masks the Operator's git commit (40 hex) and the MD5
+	// spec hashes (32 hex) the Operator writes to annotations and statuses.
+	// These values are kept: a key named like this doesn't hold a
+	// credential, and the credential key names (api_key, app_key, token...)
+	// are still scrubbed.
+	hashValueRegexp = regexp.MustCompile(`(?i)(\b(?:git[ _-]?)?commit(?:[ _-]?(?:sha|id|hash))?|[\w./-]*(?:hash|checksum)(?:/[\w.-]+)?)("?\s*[:=]\s*["']?)([a-f0-9]{40}|[a-f0-9]{32})\b`)
 )
+
+// keptPlaceholder replaces a kept hash while the agent scrubber runs. It is
+// made of private use code points and letters no replacer matches.
+const keptPlaceholder = "kept-%d"
 
 // Scrubber removes credentials from everything written to a flare. It uses
 // the Datadog Agent scrubber (API and App keys, bearer tokens, passwords, URL
@@ -99,12 +117,28 @@ func (s *Scrubber) ScrubBytes(data []byte) []byte {
 		} else {
 			data = nil
 		}
-		out.WriteString(s.agent.ScrubLine(string(line)))
+		out.WriteString(scrubLineKeepingHashes(s.agent, string(line)))
 		out.Write(eol)
 	}
 	scrubbed := out.Bytes()
 	if bytes.Contains(scrubbed, []byte("BEGIN")) {
 		scrubbed = certRegexp.ReplaceAll(scrubbed, []byte(redacted))
+	}
+	return scrubbed
+}
+
+// scrubLineKeepingHashes scrubs a line with the agent scrubber, but keeps the
+// git commits and hashes hashValueRegexp matches.
+func scrubLineKeepingHashes(agent *scrubber.Scrubber, line string) string {
+	var kept []string
+	protected := hashValueRegexp.ReplaceAllStringFunc(line, func(match string) string {
+		sub := hashValueRegexp.FindStringSubmatchIndex(match)
+		kept = append(kept, match[sub[6]:sub[7]])
+		return match[:sub[6]] + fmt.Sprintf(keptPlaceholder, len(kept)-1)
+	})
+	scrubbed := agent.ScrubLine(protected)
+	for i, value := range kept {
+		scrubbed = strings.Replace(scrubbed, fmt.Sprintf(keptPlaceholder, i), value, 1)
 	}
 	return scrubbed
 }

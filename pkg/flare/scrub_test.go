@@ -19,6 +19,12 @@ const (
 	testAppKey = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbb"
 	testToken  = "s3cr3t-T0ken-Value"
 	testPass   = "p@ssw0r)"
+
+	// testGitCommit and testSpecHash have the shape of an application key and
+	// an API key, but are kept when their key names a commit or a hash.
+	testGitCommit = "0332fa2858bd59c1fcbe5fd4a6b0e4ea4a24c8d3"
+	testSpecHash  = "5d41402abc4b2a76b9719d911017c592"
+	testDigest    = "b32bd6f9b73ba7ccb64953a04b82b48e29dfafab65fd57ca01d3b94a0e024885"
 )
 
 const testCert = `-----BEGIN PRIVATE KEY-----
@@ -57,6 +63,21 @@ func TestScrubBytes(t *testing.T) {
 		{name: "container id is kept", input: `container_id: "b32bd6f9b73ba7ccb64953a04b82b48e29dfafab65fd57ca01d3b94a0e024885"`, keep: []string{"b32bd6f9b73ba7ccb64953a04b82b48e29dfafab65fd57ca01d3b94a0e024885"}},
 		{name: "booleans are kept", input: "automountServiceAccountToken: true", keep: []string{"automountServiceAccountToken: true"}},
 		{name: "secret references are kept", input: "secretName: datadog-secret\nkeyName: api-key", keep: []string{"secretName: datadog-secret", "keyName: api-key"}},
+		{name: "app key in an env var", input: `"DD_APP_KEY=` + testAppKey + `",`, secrets: []string{testAppKey}},
+		{name: "app key in a flag", input: "--app-key=" + testAppKey, secrets: []string{testAppKey}},
+		{name: "bare app key in a log line", input: "using key " + testAppKey + " for the request", secrets: []string{testAppKey}},
+		{name: "bare api key in a log line", input: "using key " + testAPIKey, secrets: []string{testAPIKey}},
+		{name: "app key next to a git commit", input: "commit: " + testGitCommit + " app_key=" + testAppKey, secrets: []string{testAppKey}, keep: []string{"commit: " + testGitCommit}},
+		{name: "app key in a json log line with a commit", input: `{"commit":"` + testGitCommit + `","appKey":"` + testAppKey + `"}`, secrets: []string{testAppKey}, keep: []string{`"commit":"` + testGitCommit + `"`}},
+		{name: "git commit in version yaml", input: "commit: " + testGitCommit, keep: []string{"commit: " + testGitCommit}},
+		{name: "git commit in version text", input: "Git Commit: " + testGitCommit, keep: []string{"Git Commit: " + testGitCommit}},
+		{name: "git commit in a json log line", input: `{"level":"INFO","msg":"Version","gitCommit":"` + testGitCommit + `"}`, keep: []string{testGitCommit}},
+		{name: "spec hash annotation", input: "    agent.datadoghq.com/agentspechash: " + testSpecHash, keep: []string{"agentspechash: " + testSpecHash}},
+		{name: "quoted spec hash annotation", input: `    agent.datadoghq.com/ddaispechash: "` + testSpecHash + `"`, keep: []string{testSpecHash}},
+		{name: "spec hash annotation in json", input: `{"agent.datadoghq.com/agentspechash":"` + testSpecHash + `"}`, keep: []string{testSpecHash}},
+		{name: "status current hash", input: "  currentHash: " + testSpecHash, keep: []string{"currentHash: " + testSpecHash}},
+		{name: "configmap checksum", input: "    checksum/config: " + testSpecHash, keep: []string{testSpecHash}},
+		{name: "image digest", input: "image: gcr.io/datadoghq/operator@sha256:" + testDigest, keep: []string{"sha256:" + testDigest}},
 		{name: "comments are kept", input: "# HELP controller_runtime_reconcile_total Total reconciliations\nfoo 1", keep: []string{"# HELP controller_runtime_reconcile_total"}},
 	}
 	s := NewScrubber()

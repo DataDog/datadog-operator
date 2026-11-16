@@ -197,10 +197,8 @@ func collectWorkloadEvents(ctx context.Context, c *Collection, w workload, podNa
 		c.Warn(fmt.Errorf("unable to list the events of %s %s/%s: %w", w.kind, w.namespace, w.name, err))
 		return
 	}
-	if len(events) == 0 {
-		return
-	}
-	c.Warn(c.AddYAML(path.Join("workloads/events", safeName(w.namespace), strings.ToLower(w.kind)+"-"+safeName(w.name)+".yaml"), events))
+	scope := fmt.Sprintf("for %s %s, its pods and replica sets in namespace %s", w.kind, w.name, w.namespace)
+	c.Warn(addEvents(c, path.Join("workloads/events", safeName(w.namespace), strings.ToLower(w.kind)+"-"+safeName(w.name)+".yaml"), events, scope))
 }
 
 // SummarizePod returns the phase, readiness and restarts of a pod.

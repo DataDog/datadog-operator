@@ -131,10 +131,7 @@ func collectDatadogEvents(ctx context.Context, c *Collection) error {
 			c.Warn(fmt.Errorf("unable to list %s events: %w", kind, err))
 			continue
 		}
-		if len(events) == 0 {
-			continue
-		}
-		c.Warn(c.AddYAML(path.Join("datadog/events", strings.ToLower(kind)+".yaml"), events))
+		c.Warn(addEvents(c, path.Join("datadog/events", strings.ToLower(kind)+".yaml"), events, "for "+kind+" in all namespaces"))
 	}
 	if failed == len(kinds) {
 		return fmt.Errorf("unable to list events")

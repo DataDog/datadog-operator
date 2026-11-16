@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -188,12 +189,13 @@ func TestResolveVersion(t *testing.T) {
 }
 
 func TestCollectVersionFile(t *testing.T) {
+	const gitCommit = "0332fa2858bd59c1fcbe5fd4a6b0e4ea4a24c8d3"
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}}}
 	archive := pkgflare.NewArchive(pkgflare.ArchiveOptions{Root: "root"})
 	var got *version.JSON
 	manifest := pkgflare.Run(context.Background(), pkgflare.Env{}, archive, []pkgflare.Collector{{Name: "operator/version", Collect: func(ctx context.Context, c *pkgflare.Collection) error {
 		info, source, err := resolveVersion(ctx, pod, func(context.Context, *corev1.Pod, string, []string) ([]byte, error) {
-			return []byte(`{"version":"v1.23.0_abc","commit":"abc"}`), nil
+			return []byte(`{"version":"v1.23.0_abc","commit":"` + gitCommit + `"}`), nil
 		})
 		require.NoError(t, err)
 		got, err = writeVersion(c, pod, info, source)
@@ -206,10 +208,21 @@ func TestCollectVersionFile(t *testing.T) {
 	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	require.NoError(t, err)
 	names := []string{}
+	var versionFile string
 	for _, f := range r.File {
 		names = append(names, f.Name)
+		if f.Name == "root/operator/version.yaml" {
+			rc, openErr := f.Open()
+			require.NoError(t, openErr)
+			content, readErr := io.ReadAll(rc)
+			require.NoError(t, readErr)
+			_ = rc.Close()
+			versionFile = string(content)
+		}
 	}
 	assert.Contains(t, names, "root/operator/version.yaml")
+	// The git commit has the shape of an application key, but is kept.
+	assert.Contains(t, versionFile, "commit: "+gitCommit)
 
 	baseURL, err := pkgflare.FlareURL("datadoghq.com", "", got.Version)
 	require.NoError(t, err)
