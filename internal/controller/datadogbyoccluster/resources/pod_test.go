@@ -75,3 +75,50 @@ func TestBuildResources_Affinity(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildResources_Args(t *testing.T) {
+	tests := []struct {
+		name         string
+		indexerArgs  []string
+		wantIndexer  []string
+		wantSearcher []string
+	}{
+		{
+			name:         "default",
+			wantIndexer:  []string{"run", "--service", "indexer"},
+			wantSearcher: []string{"run", "--service", "searcher"},
+		},
+		{
+			name:         "empty args falls back to default",
+			indexerArgs:  []string{},
+			wantIndexer:  []string{"run", "--service", "indexer"},
+			wantSearcher: []string{"run", "--service", "searcher"},
+		},
+		{
+			name:         "indexer args",
+			indexerArgs:  []string{"run", "--foo"},
+			wantIndexer:  []string{"run", "--foo"},
+			wantSearcher: []string{"run", "--service", "searcher"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Indexer.Args = tt.indexerArgs
+
+			resources, err := buildResources(cluster, testImages())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			got := resources.Component(IndexerComponentName).StatefulSet.Spec.Template.Spec.Containers[0].Args
+			if diff := cmp.Diff(tt.wantIndexer, got); diff != "" {
+				t.Errorf("indexer args mismatch (-want +got):\n%s", diff)
+			}
+			got = resources.Component(SearcherComponentName).StatefulSet.Spec.Template.Spec.Containers[0].Args
+			if diff := cmp.Diff(tt.wantSearcher, got); diff != "" {
+				t.Errorf("searcher args mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
