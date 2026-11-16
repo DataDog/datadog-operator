@@ -308,10 +308,10 @@ spec:
 : PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Applies to NVIDIA GPUs only. Default: false
 
 `features.gpu.requiredRuntimeClassName`
-: PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia, or none when vendor is amd.
+: PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia, or unset when vendor is amd
 
 `features.gpu.vendor`
-: Selects the vendor of the GPUs on the nodes: `nvidia` (default) or `amd`. With `amd`, NVIDIA-specific settings are skipped, the RuntimeClass defaults to none, and the AMD check is enabled on Agent 7.86.0+. Ignored on GKE Autopilot.
+: Selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings, sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot.
 
 `features.helmCheck.collectEvents`
 : CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false
