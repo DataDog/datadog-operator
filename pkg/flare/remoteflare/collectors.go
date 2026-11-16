@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/prometheus/common/expfmt"
-	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,21 +27,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/flare"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
-
-// redactedFlags are flags whose value is never collected: they can hold
-// secret backend credentials.
-var redactedFlags = map[string]struct{}{
-	"secretBackendArgs":   {},
-	"secretBackendConfig": {},
-}
-
-// collectedEnvPrefixes select the environment variables collected. Values of
-// variables whose name looks like a credential are redacted.
-var collectedEnvPrefixes = []string{"DD_", "WATCH_NAMESPACE", "POD_", "KUBERNETES_SERVICE_", "GOMEMLIMIT", "GOMAXPROCS", "GOGC", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"}
-
-// credentialWords redact environment variables that contain them anywhere in
-// their name, such as DD_API_KEY_FILE.
-var credentialWords = []string{"KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "CREDENTIAL", "AUTH", "CERT"}
 
 func (r *Runner) operatorCollectors() []flare.Collector {
 	return []flare.Collector{
@@ -70,23 +54,15 @@ func (r *Runner) collectVersion(_ context.Context, c *flare.Collection) error {
 func (r *Runner) collectConfig(_ context.Context, c *flare.Collection) error {
 	flags := map[string]string{}
 	r.cfg.Flags.VisitAll(func(f *flag.Flag) {
-		value := f.Value.String()
-		if _, redact := redactedFlags[f.Name]; (redact || flare.IsSensitiveKey(f.Name)) && value != "" {
-			value = "********"
-		}
-		flags[f.Name] = value
+		flags[f.Name] = flare.RedactFlagValue(f.Name, f.Value.String())
 	})
 
 	env := map[string]string{}
 	for _, kv := range r.cfg.Environ() {
 		name, value, _ := strings.Cut(kv, "=")
-		if !hasAnyPrefix(name, collectedEnvPrefixes) {
-			continue
+		if flare.IsCollectedEnv(name) {
+			env[name] = flare.RedactEnvValue(name, value)
 		}
-		if isCredentialEnv(name) && value != "" {
-			value = "********"
-		}
-		env[name] = value
 	}
 
 	return c.AddYAML("operator/config.yaml", map[string]any{
@@ -94,28 +70,6 @@ func (r *Runner) collectConfig(_ context.Context, c *flare.Collection) error {
 		"env":      env,
 		"features": r.cfg.Features,
 	})
-}
-
-func hasAnyPrefix(name string, prefixes []string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
-func isCredentialEnv(name string) bool {
-	if flare.IsSensitiveKey(name) {
-		return true
-	}
-	upper := strings.ToUpper(name)
-	for _, word := range credentialWords {
-		if strings.Contains(upper, word) {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *Runner) collectLeaderElection(ctx context.Context, c *flare.Collection) error {
@@ -129,12 +83,10 @@ func (r *Runner) collectLeaderElection(ctx context.Context, c *flare.Collection)
 	}
 	var leaseErr error
 	if r.cfg.LeaderElectionEnabled && r.cfg.LeaderElectionID != "" {
-		lease := &coordinationv1.Lease{}
-		if err := r.cfg.Reader.Get(ctx, types.NamespacedName{Namespace: r.cfg.Namespace, Name: r.cfg.LeaderElectionID}, lease); err != nil {
-			leaseErr = fmt.Errorf("unable to get the leader election lease: %w", err)
+		if spec, err := flare.GetLease(ctx, r.cfg.Reader, r.cfg.Namespace, r.cfg.LeaderElectionID); err != nil {
+			leaseErr = err
 		} else {
-			lease.ManagedFields = nil
-			info["lease"] = lease.Spec
+			info["lease"] = spec
 		}
 	}
 	c.Warn(leaseErr)
@@ -153,21 +105,9 @@ func (r *Runner) collectHealth(ctx context.Context, c *flare.Collection) error {
 	if err != nil {
 		return fmt.Errorf("unable to read the health probes: %w", err)
 	}
-	failures := 0
-	var out bytes.Buffer
-	for _, endpoint := range []string{"/healthz?verbose", "/readyz?verbose"} {
-		status, body, err := r.localGet(ctx, base+endpoint)
-		if err != nil {
-			failures++
-			c.Warn(fmt.Errorf("unable to read %s: %w", endpoint, err))
-			continue
-		}
-		fmt.Fprintf(&out, "GET %s: %s\n%s\n\n", endpoint, status, body)
-	}
-	if failures == 2 {
-		return errors.New("unable to read the health probes")
-	}
-	return c.AddText("operator/health.txt", out.Bytes())
+	return flare.CollectHealthEndpoints(ctx, c, func(ctx context.Context, endpoint string) (string, []byte, error) {
+		return r.localGet(ctx, base+endpoint)
+	})
 }
 
 // collectMetrics reads the metrics from the configured metrics endpoint.

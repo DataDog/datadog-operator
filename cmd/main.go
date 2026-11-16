@@ -118,6 +118,7 @@ type options struct {
 	logLevel         *zapcore.Level
 	logEncoder       string
 	printVersion     bool
+	versionFormat    string
 	pprofActive      bool
 
 	// Leader Election options
@@ -172,6 +173,7 @@ func (opts *options) Parse() {
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
+	flag.StringVar(&opts.versionFormat, "version-format", "text", "Format of the --version output: text or json")
 	flag.BoolVar(&opts.pprofActive, "pprof", false, "Enable pprof endpoint")
 
 	// Leader Election options flags
@@ -348,7 +350,7 @@ func run(opts *options) error {
 
 	// Print version information
 	if opts.printVersion {
-		version.PrintVersionWriter(os.Stdout, "text")
+		version.PrintVersionWriter(os.Stdout, opts.versionFormat)
 		return nil
 	}
 	version.PrintVersionLogs(setupLog)

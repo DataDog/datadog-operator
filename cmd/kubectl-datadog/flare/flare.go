@@ -8,12 +8,13 @@ package flare
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,11 +37,14 @@ import (
 )
 
 const (
-	leaderElectionID   = "datadog-operator-lock"
+	leaderElectionID   = flare.LeaderElectionID
 	operatorLabel      = "app.kubernetes.io/name=datadog-operator"
 	defaultMetricsAddr = ":8080"
 	// flareHostname is the hostname of flares sent with the plugin.
 	flareHostname = "datadog-operator"
+	// fallbackVersion builds the flare intake URL when the Operator version
+	// is unknown. It isn't written to the manifest.
+	fallbackVersion = "0.1.0"
 )
 
 var (
@@ -185,15 +190,30 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 	archive := flare.NewArchive(flare.ArchiveOptions{Root: "datadog-operator"})
 
+	// The plugin runs on the user's machine and only sees the Operator
+	// through the Kubernetes API: it collects the Operator configuration
+	// from its pod spec, leader election from the Lease and health from the
+	// pod status and the probe endpoints (through the API server proxy).
+	// The Remote Configuration state is only in the Operator's memory: only
+	// flares requested from Fleet Automation, which the Operator collects
+	// itself, include it.
+	var operatorVersion *version.JSON
 	pluginCollectors := []flare.Collector{
-		{Name: "operator/logs", Timeout: 60 * time.Second, Collect: func(ctx context.Context, c *flare.Collection) error {
-			return collectOperatorLogs(ctx, c, o.Clientset, o.UserNamespace)
+		{Name: "operator/version", Collect: func(ctx context.Context, c *flare.Collection) error {
+			info, collectErr := o.collectVersion(ctx, c, leaderPod)
+			operatorVersion = info
+			return collectErr
+		}},
+		flare.OperatorPodConfigCollector(),
+		flare.LeaderElectionCollector(leaderElectionID),
+		{Name: "operator/health", Collect: func(ctx context.Context, c *flare.Collection) error {
+			return o.collectHealth(ctx, c, leaderPod)
 		}},
 		{Name: "operator/metrics", Collect: func(ctx context.Context, c *flare.Collection) error {
 			return o.collectMetrics(ctx, c, leaderPod)
 		}},
-		{Name: "operator/version", Collect: func(ctx context.Context, c *flare.Collection) error {
-			return o.collectVersion(ctx, c, leaderPod)
+		{Name: "operator/logs", Timeout: 60 * time.Second, Collect: func(ctx context.Context, c *flare.Collection) error {
+			return collectOperatorLogs(ctx, c, o.Clientset, o.UserNamespace)
 		}},
 	}
 	collectors := slices.Concat(pluginCollectors, flare.ConfigCollectors(), flare.DatadogResourcesCollectors(), []flare.Collector{flare.WorkloadsCollector(), flare.ClusterCollector()})
@@ -205,15 +225,13 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	// Get the operator version
-	operatorVersion, err := o.getVersion(ctx, leaderPod)
-	if err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't get operator version: %v", err))
-
-		// Fallback to a default version used to build the flare URL
-		operatorVersion = "0.1.0"
+	uploadVersion := fallbackVersion
+	if operatorVersion != nil {
+		manifest.OperatorVersion = operatorVersion.Version
+		uploadVersion = operatorVersion.Version
+	} else {
+		cmd.Println(fmt.Sprintf("Couldn't get the Operator version, using %s to send the flare", fallbackVersion))
 	}
-	manifest.OperatorVersion = operatorVersion
 
 	data, err := archive.Close(manifest)
 	if err != nil {
@@ -231,7 +249,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	// Send the flare
-	baseURL, err := flare.FlareURL(o.site, "", operatorVersion)
+	baseURL, err := flare.FlareURL(o.site, "", uploadVersion)
 	if err != nil {
 		return err
 	}
@@ -240,7 +258,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		CaseID:          o.caseID,
 		Email:           email,
 		Hostname:        flareHostname,
-		OperatorVersion: operatorVersion,
+		OperatorVersion: uploadVersion,
 		ArchiveName:     filepath.Base(zipFilePath),
 		Archive:         data,
 	})
@@ -297,27 +315,16 @@ func (o *options) collectMetrics(ctx context.Context, c *flare.Collection, pod *
 // from its -metrics-addr flag or DD_METRICS_ADDR environment variable.
 func metricsPort(pod *corev1.Pod) (string, error) {
 	addr := ""
-	for _, container := range pod.Spec.Containers {
+	for i := range pod.Spec.Containers {
+		container := &pod.Spec.Containers[i]
 		for _, env := range container.Env {
 			if env.Name == "DD_METRICS_ADDR" && env.Value != "" {
 				addr = env.Value
 			}
 		}
 		// Flags take precedence over the environment.
-		args := append(append([]string{}, container.Command...), container.Args...)
-		for i, arg := range args {
-			if !strings.HasPrefix(arg, "-") {
-				continue
-			}
-			name, value, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")
-			if name != "metrics-addr" {
-				continue
-			}
-			if hasValue {
-				addr = value
-			} else if i+1 < len(args) {
-				addr = args[i+1]
-			}
+		if value, ok := flare.ContainerFlag(container, "metrics-addr"); ok {
+			addr = value
 		}
 	}
 	if addr == "" {
@@ -333,49 +340,140 @@ func metricsPort(pod *corev1.Pod) (string, error) {
 	return port, nil
 }
 
-// collectVersion gets the version from the operator pod
-func (o *options) collectVersion(ctx context.Context, c *flare.Collection, pod *corev1.Pod) error {
+// collectHealth collects the health of the leader pod: its conditions and
+// probe results from the pod status, and the verbose health probe endpoints
+// through the API server proxy.
+func (o *options) collectHealth(ctx context.Context, c *flare.Collection, pod *corev1.Pod) error {
 	if pod == nil {
 		return errors.New("nil leader pod")
 	}
-
-	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --version-format text"}
-	versionText, err := o.execInPod(ctx, versionCmd, pod)
-	if err != nil {
+	if err := c.AddYAML("operator/health-pod-status.yaml", flare.SummarizePodHealth(pod)); err != nil {
 		return err
 	}
-
-	return c.AddText(fmt.Sprintf("operator/%s-version.txt", pod.Name), versionText)
+	port := flare.HealthProbePort(pod)
+	return flare.CollectHealthEndpoints(ctx, c, func(ctx context.Context, endpoint string) (string, []byte, error) {
+		return o.proxyGet(ctx, pod, port, endpoint)
+	})
 }
 
-// getVersion gets the version from the operator pod
-func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, error) {
-	if pod == nil {
-		return "", errors.New("nil leader pod")
+// proxyGet reads an HTTP endpoint of a pod through the API server proxy. It
+// returns the HTTP status and body of the pod's answer, even when it isn't
+// a success.
+func (o *options) proxyGet(ctx context.Context, pod *corev1.Pod, port, endpoint string) (string, []byte, error) {
+	endpointPath, query, _ := strings.Cut(endpoint, "?")
+	request := o.Clientset.CoreV1().RESTClient().Get().
+		Namespace(pod.Namespace).
+		Resource("pods").
+		Name(fmt.Sprintf("%s:%s", pod.Name, port)).
+		SubResource("proxy").
+		Suffix(strings.TrimPrefix(endpointPath, "/"))
+	for param := range strings.SplitSeq(query, "&") {
+		if param == "" {
+			continue
+		}
+		name, value, _ := strings.Cut(param, "=")
+		request = request.Param(name, value)
 	}
+	result := request.Do(ctx)
+	code := 0
+	result.StatusCode(&code)
+	body, err := result.Raw()
+	// client-go doesn't set the status code of plain text errors, such as
+	// a 404 from the pod: it's in the error.
+	var status apierrors.APIStatus
+	if code == 0 && errors.As(err, &status) {
+		code = int(status.Status().Code)
+	}
+	if code == 0 {
+		if err == nil {
+			err = errors.New("no HTTP status")
+		}
+		return "", nil, err
+	}
+	return fmt.Sprintf("%d %s", code, http.StatusText(code)), body, nil
+}
 
-	// Prepare command and execute it
-	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --version-format json"}
-	versionJSON, err := o.execInPod(ctx, versionCmd, pod)
+// versionCommands are run in the Operator container to get its version:
+// the json format first, then the text format of Operators without
+// --version-format. The binary is exec'd directly: the image has no shell.
+var versionCommands = [][]string{
+	{flare.OperatorBinary, "--version", "--version-format", "json"},
+	{flare.OperatorBinary, "--version"},
+}
+
+// collectVersion gets the version of the leader pod and writes it to
+// operator/version.yaml. It runs the Operator binary in the pod, and falls
+// back to the tag of the Operator image.
+func (o *options) collectVersion(ctx context.Context, c *flare.Collection, pod *corev1.Pod) (*version.JSON, error) {
+	info, source, err := resolveVersion(ctx, pod, o.execInPod)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// Unmarshal payload
-	decoded := version.JSON{}
-	if err := json.Unmarshal(versionJSON, &decoded); err != nil {
-		return "", err
-	}
-	if decoded.Error != "" {
-		return "", errors.New(decoded.Error)
-	}
-	if decoded.Version == "" {
-		return "", errors.New("empty version")
-	}
-
-	version, _, _ := strings.Cut(decoded.Version, "_")
-	return strings.TrimLeft(version, "v"), nil
+	return writeVersion(c, pod, info, source)
 }
+
+// writeVersion writes operator/version.yaml and returns the version with the
+// normalized version number, used for the manifest and the intake host.
+func writeVersion(c *flare.Collection, pod *corev1.Pod, info *version.JSON, source string) (*version.JSON, error) {
+	if err := c.AddYAML("operator/version.yaml", map[string]any{
+		"pod":       pod.Name,
+		"source":    source,
+		"version":   info.Version,
+		"commit":    info.Commit,
+		"buildTime": info.BuildTime,
+		"goVersion": info.Go,
+		"platform":  info.Os,
+	}); err != nil {
+		return nil, err
+	}
+	info.Version = version.Normalize(info.Version)
+	return info, nil
+}
+
+// execFunc runs a command in a container of a pod and returns its stdout.
+type execFunc func(ctx context.Context, pod *corev1.Pod, container string, command []string) ([]byte, error)
+
+// resolveVersion returns the version of an Operator pod, and where it was
+// read from.
+func resolveVersion(ctx context.Context, pod *corev1.Pod, exec execFunc) (*version.JSON, string, error) {
+	container := flare.OperatorContainer(pod)
+	if container == nil {
+		return nil, "", errors.New("nil leader pod")
+	}
+	var errs []error
+	for _, command := range versionCommands {
+		out, err := exec(ctx, pod, container.Name, command)
+		if err == nil {
+			var info version.JSON
+			if info, err = version.Parse(out); err == nil {
+				return &info, "exec " + strings.Join(command, " "), nil
+			}
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", strings.Join(command, " "), err))
+	}
+	if tag := imageTag(container.Image); tag != "" {
+		return &version.JSON{Version: tag}, "image tag of " + container.Image, nil
+	}
+	return nil, "", fmt.Errorf("unable to get the Operator version: %w", errors.Join(errs...))
+}
+
+// imageTag returns the tag of an image if it looks like a version, such as
+// 1.22.0 for gcr.io/datadoghq/operator:1.22.0.
+func imageTag(image string) string {
+	image, _, _ = strings.Cut(image, "@")
+	slash := strings.LastIndex(image, "/")
+	colon := strings.LastIndex(image, ":")
+	if colon <= slash {
+		return ""
+	}
+	tag := image[colon+1:]
+	if !imageVersionRegexp.MatchString(tag) {
+		return ""
+	}
+	return tag
+}
+
+var imageVersionRegexp = regexp.MustCompile(`^v?\d+\.\d+\.\d+`)
 
 // getLeader returns the leader pod, from the leader election Lease, or the
 // ConfigMap older Operators used.
@@ -406,12 +504,12 @@ func getLeader(ctx context.Context, reader client.Reader, clientset kubernetes.I
 	return clientset.CoreV1().Pods(namespace).Get(ctx, leaderName, metav1.GetOptions{})
 }
 
-// execInPod execs a given command in a given pod
-func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.Pod) ([]byte, error) {
+// execInPod runs a command in a container of a pod and returns its stdout.
+func (o *options) execInPod(ctx context.Context, pod *corev1.Pod, container string, command []string) ([]byte, error) {
 	req := o.Clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.Name).
-		Namespace(o.UserNamespace).
+		Namespace(pod.Namespace).
 		SubResource("exec")
 
 	scheme := runtime.NewScheme()
@@ -422,11 +520,12 @@ func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.P
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 	req.VersionedParams(&corev1.PodExecOptions{
-		Command: command,
-		Stdin:   false,
-		Stdout:  true,
-		Stderr:  false,
-		TTY:     false,
+		Container: container,
+		Command:   command,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
 	}, parameterCodec)
 
 	restConfig, err := o.ConfigFlags.ToRESTConfig()
@@ -439,9 +538,15 @@ func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.P
 		return []byte{}, err
 	}
 
-	var stdout bytes.Buffer
-	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
-		return []byte{}, err
+	var stdout, stderr bytes.Buffer
+	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: &stdout, Stderr: &stderr}); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			if len(msg) > 300 {
+				msg = msg[:300] + "..."
+			}
+			return nil, fmt.Errorf("%w: %s", err, msg)
+		}
+		return nil, err
 	}
 
 	return stdout.Bytes(), nil

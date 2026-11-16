@@ -55,6 +55,10 @@ type Env struct {
 	LogTailLines int64
 	// LogLimitBytes caps the bytes collected per container log.
 	LogLimitBytes int64
+	// LogHeadLines and LogHeadBytes cap the start of a container log,
+	// collected when the tail doesn't hold the whole log.
+	LogHeadLines int64
+	LogHeadBytes int64
 }
 
 // Collection is what a running collector writes to.

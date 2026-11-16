@@ -9,6 +9,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	pkgflare "github.com/DataDog/datadog-operator/pkg/flare"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func TestMetricsPort(t *testing.T) {
@@ -119,9 +121,110 @@ func TestCollectOperatorLogs(t *testing.T) {
 
 func TestNilLeaderPod(t *testing.T) {
 	o := &options{}
-	_, err := o.getVersion(context.Background(), nil)
+	_, err := o.collectVersion(context.Background(), nil, nil)
 	require.Error(t, err)
-	require.Error(t, o.collectVersion(context.Background(), nil, nil))
 	require.Error(t, o.collectMetrics(context.Background(), nil, nil))
+	require.Error(t, o.collectHealth(context.Background(), nil, nil))
 	assert.Contains(t, getArchivePath(), "datadog-operator-")
+}
+
+func TestResolveVersion(t *testing.T) {
+	ctx := context.Background()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "datadog-operator-abc", Namespace: "datadog"},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{
+			{Name: "sidecar", Image: "busybox:1.36.1"},
+			{Name: "manager", Image: "gcr.io/datadoghq/operator:1.22.0", Command: []string{"/manager"}},
+		}},
+	}
+	jsonOut := []byte(`{"version":"v1.23.0_abc","commit":"abc","go":"go1.26","os":"linux/arm64"}`)
+	textOut := []byte("Version:\n- Version: 163b93d0\n- Git Commit: 163b93d0\n")
+	exitErr := errors.New("command terminated with exit code 2: flag provided but not defined: -version-format")
+
+	t.Run("json", func(t *testing.T) {
+		var calls [][]string
+		info, source, err := resolveVersion(ctx, pod, func(_ context.Context, p *corev1.Pod, container string, command []string) ([]byte, error) {
+			assert.Equal(t, "manager", container)
+			calls = append(calls, command)
+			return jsonOut, nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "v1.23.0_abc", info.Version)
+		assert.Equal(t, "exec /manager --version --version-format json", source)
+		assert.Equal(t, [][]string{{"/manager", "--version", "--version-format", "json"}}, calls, "no shell: the image has none")
+	})
+
+	t.Run("text, for Operators without --version-format", func(t *testing.T) {
+		info, source, err := resolveVersion(ctx, pod, func(_ context.Context, _ *corev1.Pod, _ string, command []string) ([]byte, error) {
+			if len(command) > 2 {
+				return nil, exitErr
+			}
+			return textOut, nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "163b93d0", info.Version)
+		assert.Equal(t, "exec /manager --version", source)
+	})
+
+	t.Run("image tag when exec fails", func(t *testing.T) {
+		info, source, err := resolveVersion(ctx, pod, func(context.Context, *corev1.Pod, string, []string) ([]byte, error) {
+			return nil, errors.New("pods/exec is forbidden")
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "1.22.0", info.Version)
+		assert.Contains(t, source, "image tag")
+	})
+
+	t.Run("unknown", func(t *testing.T) {
+		noTag := pod.DeepCopy()
+		noTag.Spec.Containers[1].Image = "registry.local:5000/operator@sha256:abc"
+		_, _, err := resolveVersion(ctx, noTag, func(context.Context, *corev1.Pod, string, []string) ([]byte, error) {
+			return []byte("garbage"), nil
+		})
+		require.ErrorContains(t, err, "unable to get the Operator version")
+		_, _, err = resolveVersion(ctx, nil, nil)
+		require.Error(t, err)
+	})
+}
+
+func TestCollectVersionFile(t *testing.T) {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}}}
+	archive := pkgflare.NewArchive(pkgflare.ArchiveOptions{Root: "root"})
+	var got *version.JSON
+	manifest := pkgflare.Run(context.Background(), pkgflare.Env{}, archive, []pkgflare.Collector{{Name: "operator/version", Collect: func(ctx context.Context, c *pkgflare.Collection) error {
+		info, source, err := resolveVersion(ctx, pod, func(context.Context, *corev1.Pod, string, []string) ([]byte, error) {
+			return []byte(`{"version":"v1.23.0_abc","commit":"abc"}`), nil
+		})
+		require.NoError(t, err)
+		got, err = writeVersion(c, pod, info, source)
+		return err
+	}}}, pkgflare.RunOptions{})
+	require.Equal(t, pkgflare.StatusOK, manifest.Collectors[0].Status)
+	assert.Equal(t, "1.23.0", got.Version, "normalized for the intake host and the manifest")
+	data, err := archive.Close(manifest)
+	require.NoError(t, err)
+	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	require.NoError(t, err)
+	names := []string{}
+	for _, f := range r.File {
+		names = append(names, f.Name)
+	}
+	assert.Contains(t, names, "root/operator/version.yaml")
+
+	baseURL, err := pkgflare.FlareURL("datadoghq.com", "", got.Version)
+	require.NoError(t, err)
+	assert.Equal(t, "https://1-23-0-flare.agent.datadoghq.com", baseURL)
+}
+
+func TestImageTag(t *testing.T) {
+	for image, want := range map[string]string{
+		"gcr.io/datadoghq/operator:1.22.0":          "1.22.0",
+		"datadog/operator:v1.22.0-rc.1":             "v1.22.0-rc.1",
+		"registry.local:5000/operator":              "",
+		"registry.local:5000/operator:latest":       "",
+		"gcr.io/datadoghq/operator:1.22.0@sha256:a": "1.22.0",
+		"operator": "",
+	} {
+		assert.Equal(t, want, imageTag(image), image)
+	}
 }
