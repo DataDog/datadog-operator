@@ -31,6 +31,14 @@
       "labels": ["dependencies", "qa/skip-qa"],
       "schedule": ["before 6am on Monday"],
       "groupName": "go dependencies"
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["github-releases"],
+      "matchPackageNames": ["kubernetes-csi/node-driver-registrar"],
+      "labels": ["dependencies", "qa/skip-qa"],
+      "groupName": "CSI node-driver-registrar",
+      "ignoreUnstable": true
     }
   ]
 }
