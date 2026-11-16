@@ -31,7 +31,7 @@ func TestResolve(t *testing.T) {
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository:      "public.ecr.aws/datadog/observability-pipelines-worker",
-					Tag:             "2.25.2",
+					Tag:             "2.26.0",
 					ImagePullPolicy: corev1.PullIfNotPresent,
 				},
 			},
@@ -56,7 +56,7 @@ func TestResolve(t *testing.T) {
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository:      "private.example.com/worker",
-					Tag:             "2.25.2",
+					Tag:             "2.26.0",
 					ImagePullPolicy: corev1.PullIfNotPresent,
 				},
 			},
