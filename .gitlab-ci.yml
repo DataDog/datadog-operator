@@ -330,10 +330,10 @@ prepare_e2e_plugins:
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   before_script:
     # Restore the Go caches and plugins prepared once for this pipeline.
-    - tar xJf e2e_go_cache.tar.xz -C "$CI_PROJECT_DIR"
-    - rm -f e2e_go_cache.tar.xz
-    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
-    - rm -f pulumi_plugins.tar.xz
+    - tar -I zstd -xf e2e_go_cache.tar.zst -C "$CI_PROJECT_DIR"
+    - rm -f e2e_go_cache.tar.zst
+    - mkdir -p ~/.pulumi && tar -I zstd -xf pulumi_plugins.tar.zst -C ~/.pulumi
+    - rm -f pulumi_plugins.tar.zst
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
     - dd-octo-sts version
     - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
