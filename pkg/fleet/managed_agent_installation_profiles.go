@@ -16,6 +16,7 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 )
 
 func (d *Daemon) ensureManagedAgentInstallationAgentProfiles(ctx context.Context, dda *v2alpha1.DatadogAgent, profiles []decodedManagedAgentInstallationAgentProfile) error {
@@ -83,6 +84,16 @@ func (d *Daemon) validateManagedAgentInstallationAgentProfile(profile *v1alpha1.
 	}
 	if !apiequality.Semantic.DeepEqual(profile.Spec.ProfileAffinity, wanted.ProfileAffinity) || !apiequality.Semantic.DeepEqual(profile.Spec.Config, wanted.Config) {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentProfile %s/%s differs from the pinned managed Agent installation configuration", profile.Namespace, profile.Name)}
+	}
+	for _, condition := range profile.Status.Conditions {
+		if condition.Type != agentprofile.AppliedConditionType || condition.Status != metav1.ConditionFalse {
+			continue
+		}
+		detail := condition.Reason
+		if condition.Message != "" {
+			detail = fmt.Sprintf("%s: %s", condition.Reason, condition.Message)
+		}
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentProfile %s/%s is not applied: %s", profile.Namespace, profile.Name, detail)}
 	}
 	return nil
 }

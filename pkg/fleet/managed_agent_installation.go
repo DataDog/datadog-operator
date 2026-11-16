@@ -27,7 +27,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -156,10 +155,6 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 			},
 		},
 		Spec: *spec,
-	}
-	if len(command.Intent.AgentProfiles) != 0 {
-		// Agent Profiles need the DatadogAgentInternal mode selector update, applied here for Operators older than 1.21.
-		dda.Annotations[apicommon.UpdateMetadataAnnotationKey] = "true"
 	}
 	if createErr := d.client.Create(ctx, dda, client.FieldOwner("fleet-daemon")); createErr != nil {
 		if !apierrors.IsAlreadyExists(createErr) && !isRetryable(createErr) {

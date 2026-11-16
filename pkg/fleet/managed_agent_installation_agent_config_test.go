@@ -21,9 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 )
 
 func testAgentProfileJSON(t *testing.T, name string) json.RawMessage {
@@ -257,7 +257,6 @@ func TestManagedAgentInstallationInstallWithAgentProfiles(t *testing.T) {
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, kubeClient.Get(ctx, daemon.managedAgentInstallationTarget(), dda))
-	assert.Equal(t, "true", dda.Annotations[apicommon.UpdateMetadataAnnotationKey])
 
 	profile := &v1alpha1.DatadogAgentProfile{}
 	require.NoError(t, kubeClient.Get(ctx, daemon.managedAgentInstallationKey("gpu-nodes"), profile))
@@ -451,6 +450,33 @@ func TestManagedAgentInstallationAgentProfileValidationBranches(t *testing.T) {
 	unowned := valid.DeepCopy()
 	unowned.OwnerReferences = nil
 	assertInstallErrorContains(t, daemon.validateManagedAgentInstallationAgentProfile(unowned, dda, wanted), "is not owned by")
+}
+
+func TestManagedAgentInstallationAgentProfileAppliedCondition(t *testing.T) {
+	daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	wanted := testGPUAgentProfile("gpu-nodes")
+	profile := daemon.managedAgentInstallationAgentProfile(dda, wanted)
+
+	if err := daemon.validateManagedAgentInstallationAgentProfile(profile, dda, wanted); err != nil {
+		t.Fatalf("expected a profile without conditions to validate, got %v", err)
+	}
+
+	conflicted := profile.DeepCopy()
+	conflicted.Status.Conditions = []metav1.Condition{{
+		Type:    agentprofile.AppliedConditionType,
+		Status:  metav1.ConditionFalse,
+		Reason:  agentprofile.ConflictConditionReason,
+		Message: "conflicts with gpu-legacy on node ip-10-0-0-1",
+	}}
+	err := daemon.validateManagedAgentInstallationAgentProfile(conflicted, dda, wanted)
+	var stateErr *stateDoesntMatchError
+	if !errors.As(err, &stateErr) {
+		t.Fatalf("expected a stateDoesntMatchError, got %v", err)
+	}
+	if got := err.Error(); !strings.Contains(got, "is not applied") || !strings.Contains(got, agentprofile.ConflictConditionReason) {
+		t.Fatalf("expected the error to surface the conflict, got %q", got)
+	}
 }
 
 func TestManagedAgentInstallationInstallAgentProfilesFailureModes(t *testing.T) {
