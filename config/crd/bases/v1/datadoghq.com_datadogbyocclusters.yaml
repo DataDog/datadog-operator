@@ -492,6 +492,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         autoscaling:
                           properties:
                             behavior:
@@ -3562,6 +3567,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         env:
                           items:
                             properties:
@@ -6287,6 +6297,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         autoscaling:
                           properties:
                             behavior:
@@ -9485,6 +9500,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         env:
                           items:
                             properties:
@@ -12210,6 +12230,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         database:
                           properties:
                             uriSecretRef:
@@ -14956,6 +14981,11 @@ spec:
                             additionalProperties:
                               type: string
                             type: object
+                          args:
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           autoscaling:
                             properties:
                               behavior:
@@ -18220,6 +18250,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         database:
                           properties:
                             uriSecretRef:
@@ -20965,6 +21000,11 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        args:
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                         autoscaling:
                           properties:
                             behavior:
