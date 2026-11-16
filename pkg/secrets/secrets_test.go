@@ -226,6 +226,19 @@ func TestSecretBackend_fetchSecret(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "padded references keyed by original input",
+			cmd:  "./testdata/decryptor/dummy_decryptor.py",
+			encrypted: []string{
+				" ENC[api_key]\t",
+				"ENC[app_key]",
+			},
+			want: map[string]string{
+				" ENC[api_key]\t": "decrypted_api_key",
+				"ENC[app_key]":    "decrypted_app_key",
+			},
+			wantErr: false,
+		},
+		{
 			name: "error decrypting a secret",
 			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{
