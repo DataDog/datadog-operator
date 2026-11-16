@@ -8,8 +8,6 @@ spec:
     controlPlane:
       annotations:
         example.com/owner: logs
-      labels:
-        team: logs
       podDisruptionBudget: {}
       replicas: 1
       resources:
@@ -48,8 +46,6 @@ spec:
         image: busybox:1.36
         name: init
         resources: {}
-      labels:
-        team: logs
       nodeSelector:
         example.com/pool: indexer
       podDisruptionBudget: {}
@@ -84,8 +80,6 @@ spec:
     janitor:
       annotations:
         example.com/owner: logs
-      labels:
-        team: logs
       podDisruptionBudget: {}
       replicas: 1
       resources:
@@ -115,8 +109,6 @@ spec:
       envFrom:
       - secretRef:
           name: cloudprem-metastore
-      labels:
-        team: logs
       podDisruptionBudget:
         maxUnavailable: 1
       replicas: 2
@@ -157,8 +149,6 @@ spec:
     searcher:
       annotations:
         example.com/owner: logs
-      labels:
-        team: logs
       podDisruptionBudget: {}
       podManagementPolicy: OrderedReady
       replicas: 2
@@ -196,7 +186,9 @@ spec:
     dogstatsdServer:
       port: 8125
     site: datadoghq.com
-  global: {}
+  global:
+    labels:
+      team: logs
   imageOverrides:
     byoc:
       digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

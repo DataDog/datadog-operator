@@ -7,6 +7,7 @@ package converter
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -99,6 +100,7 @@ func Convert(cloudprem Manifest, pipelines []PipelineManifest) (*Result, error) 
 		}
 		cluster.Spec.Components.Pipelines = append(cluster.Spec.Components.Pipelines, spec)
 	}
+	setGlobalLabels(cluster, cloudprem.Objects)
 
 	if err = applyOverrides(cluster, cloudprem, pipelines); err != nil {
 		return nil, err
@@ -153,6 +155,39 @@ func MarshalCluster(cluster *datadoghqv1alpha1.DatadogBYOCCluster) ([]byte, erro
 		delete(metadata, "creationTimestamp")
 	}
 	return yaml.Marshal(object)
+}
+
+// setGlobalLabels sets the additionalLabels of the chart as global labels, so that the controller also sets them on the
+// objects without a component, such as the ConfigMap, the ServiceAccount, and the headless Service. The chart sets
+// additionalLabels on every object, and the ConfigMap has no other labels than the chart labels. The components keep
+// only the labels that the global labels do not set to the same value.
+func setGlobalLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, objects []client.Object) {
+	configMap, found := findObject(objects, func(configMap *corev1.ConfigMap) bool { return configMap.Name == cluster.Name })
+	if !found {
+		return
+	}
+	global := withoutKeys(configMap.Labels, chartLabels...)
+	cluster.Spec.Global.Labels = global
+	for _, ref := range componentRefs(cluster.Spec.Components) {
+		ref.spec.Labels = withoutLabels(ref.spec.Labels, global)
+	}
+	for i := range cluster.Spec.Components.Pipelines {
+		pipeline := &cluster.Spec.Components.Pipelines[i]
+		pipeline.Labels = withoutLabels(pipeline.Labels, global)
+	}
+}
+
+// withoutLabels removes the labels that are set to the same value in removed.
+func withoutLabels(labels, removed map[string]string) map[string]string {
+	result := maps.Clone(labels)
+	maps.DeleteFunc(result, func(key, value string) bool {
+		removedValue, found := removed[key]
+		return found && removedValue == value
+	})
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 // identity references the ServiceAccount of the Pods, unless the chart created it with the name that the controller
