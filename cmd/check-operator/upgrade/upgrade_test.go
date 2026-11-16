@@ -150,26 +150,14 @@ func TestIsReconcileError(t *testing.T) {
 	}
 }
 
-// testNode returns a node with the taints that the node lifecycle controller adds when it is not Ready.
 func testNode(name string, ready corev1.ConditionStatus) corev1.Node {
-	node := corev1.Node{
+	return corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Status: corev1.NodeStatus{Conditions: []corev1.NodeCondition{{
 			Type:   corev1.NodeReady,
 			Status: ready,
 		}}},
 	}
-	taintKey := map[corev1.ConditionStatus]string{
-		corev1.ConditionFalse:   corev1.TaintNodeNotReady,
-		corev1.ConditionUnknown: corev1.TaintNodeUnreachable,
-	}[ready]
-	if taintKey != "" {
-		node.Spec.Taints = []corev1.Taint{
-			{Key: taintKey, Effect: corev1.TaintEffectNoSchedule},
-			{Key: taintKey, Effect: corev1.TaintEffectNoExecute},
-		}
-	}
-	return node
 }
 
 // testAgentDaemonSet returns an Agent DaemonSet with a status that matches its spec.
@@ -191,13 +179,12 @@ func testAgentDaemonSet(name, ddaName, generation string) appsv1.DaemonSet {
 }
 
 // testAgentPod returns a pod of the DaemonSet. The revision hash is "hash-<generation>".
-func testAgentPod(name string, ds *appsv1.DaemonSet, generation, nodeName string, age time.Duration) corev1.Pod {
+func testAgentPod(name string, ds *appsv1.DaemonSet, generation, nodeName string) corev1.Pod {
 	isController := true
 	return corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              name,
-			Namespace:         ds.Namespace,
-			CreationTimestamp: metav1.NewTime(time.Now().Add(-age)),
+			Name:      name,
+			Namespace: ds.Namespace,
 			Labels: map[string]string{
 				apicommon.AgentDeploymentNameLabelKey:      ds.Labels[apicommon.AgentDeploymentNameLabelKey],
 				apicommon.AgentDeploymentComponentLabelKey: ds.Labels[apicommon.AgentDeploymentComponentLabelKey],
@@ -258,7 +245,7 @@ func TestComputeNotReadyNodeDiscount(t *testing.T) {
 	otherDS := testAgentDaemonSet("other-agent", "other", "5")
 
 	// Generation changed, but the revision hash is the current one (template revert).
-	revertedPod := testAgentPod("reverted", &defaultDS, "3", "node-reverted", time.Hour)
+	revertedPod := testAgentPod("reverted", &defaultDS, "3", "node-reverted")
 	revertedPod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "hash-5"
 
 	nodes := []corev1.Node{
@@ -272,36 +259,33 @@ func TestComputeNotReadyNodeDiscount(t *testing.T) {
 	}
 	pods := []corev1.Pod{
 		// Pods on the current generation, so that the current revision hashes are known.
-		testAgentPod("updated-ready", &defaultDS, "5", "node-ready", time.Minute),
-		testAgentPod("profile-updated-ready", &profileDS, "3", "node-ready", time.Minute),
-		testAgentPod("other-updated-ready", &otherDS, "5", "node-ready", time.Minute),
+		testAgentPod("updated-ready", &defaultDS, "5", "node-ready"),
+		testAgentPod("profile-updated-ready", &profileDS, "3", "node-ready"),
+		testAgentPod("other-updated-ready", &otherDS, "5", "node-ready"),
 
 		// Skipped.
-		testAgentPod("outdated-not-ready", &defaultDS, "4", "node-not-ready", time.Hour),
-		deleting(testAgentPod("outdated-stuck-terminating", &defaultDS, "4", "node-unknown", time.Hour), corev1.PodRunning),
-		testAgentPod("outdated-no-condition", &defaultDS, "4", "node-no-condition", time.Hour),
-		testAgentPod("profile-outdated-unknown", &profileDS, "2", "node-unknown", time.Hour),
+		testAgentPod("outdated-not-ready", &defaultDS, "4", "node-not-ready"),
+		deleting(testAgentPod("outdated-stuck-terminating", &defaultDS, "4", "node-unknown"), corev1.PodRunning),
+		testAgentPod("outdated-no-condition", &defaultDS, "4", "node-no-condition"),
+		testAgentPod("profile-outdated-unknown", &profileDS, "2", "node-unknown"),
 
 		// Not skipped.
-		testAgentPod("outdated-ready", &defaultDS, "4", "node-ready", time.Hour),
-		testAgentPod("outdated-two-pods", &defaultDS, "4", "node-two-pods", time.Hour),
-		testAgentPod("updated-two-pods", &defaultDS, "5", "node-two-pods", time.Minute),
+		testAgentPod("outdated-ready", &defaultDS, "4", "node-ready"),
+		testAgentPod("outdated-two-pods", &defaultDS, "4", "node-two-pods"),
+		testAgentPod("updated-two-pods", &defaultDS, "5", "node-two-pods"),
 		revertedPod,
-		deleting(testAgentPod("outdated-terminal-deleted", &defaultDS, "4", "node-terminal", time.Hour), corev1.PodFailed),
-		testAgentPod("outdated-deleted-node", &defaultDS, "4", "node-deleted", time.Hour),
-		testAgentPod("new-outdated-unknown", &newDS, "4", "node-unknown", time.Hour),
-		testAgentPod("other-outdated-unknown", &otherDS, "4", "node-unknown", time.Hour),
+		deleting(testAgentPod("outdated-terminal-deleted", &defaultDS, "4", "node-terminal"), corev1.PodFailed),
+		testAgentPod("outdated-deleted-node", &defaultDS, "4", "node-deleted"),
+		testAgentPod("new-outdated-unknown", &newDS, "4", "node-unknown"),
+		testAgentPod("other-outdated-unknown", &otherDS, "4", "node-unknown"),
 	}
 	daemonSets := []appsv1.DaemonSet{defaultDS, profileDS, newDS}
 
+	// Skipped: agent-agent on node-no-condition, node-not-ready and node-unknown, and profile-agent on
+	// node-unknown.
 	skipped, err := computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 100)
 	require.NoError(t, err)
-	assert.Equal(t, []string{
-		"agent-agent/node-no-condition",
-		"agent-agent/node-not-ready",
-		"agent-agent/node-unknown",
-		"profile-agent/node-unknown",
-	}, skipped)
+	assert.Equal(t, 4, skipped)
 
 	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 5, 100)
 	require.ErrorIs(t, err, errNoDiscount, "below minSkipped")
@@ -317,10 +301,10 @@ func deadNodes(dsStatus func(*appsv1.DaemonSetStatus)) []client.Object {
 	if dsStatus != nil {
 		dsStatus(&ds.Status)
 	}
-	readyNode, updatedPod := testNode("node-ready", corev1.ConditionTrue), testAgentPod("updated", &ds, "5", "node-ready", time.Minute)
+	readyNode, updatedPod := testNode("node-ready", corev1.ConditionTrue), testAgentPod("updated", &ds, "5", "node-ready")
 	objects := []client.Object{&ds, &readyNode, &updatedPod}
 	for _, name := range []string{"dead-1", "dead-2", "dead-3"} {
-		node, pod := testNode(name, corev1.ConditionUnknown), testAgentPod(name, &ds, "4", name, time.Hour)
+		node, pod := testNode(name, corev1.ConditionUnknown), testAgentPod(name, &ds, "4", name)
 		objects = append(objects, &node, &pod)
 	}
 	return objects
@@ -339,7 +323,7 @@ func TestGetNotReadyNodeDiscount(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 40, current)
 	assert.Equal(t, 37, upToDate)
-	assert.Equal(t, []string{"agent-agent/dead-1", "agent-agent/dead-2", "agent-agent/dead-3"}, skipped)
+	assert.Equal(t, 3, skipped)
 }
 
 func TestIsAgentDoneSkippingNotReadyNodesNoAPICall(t *testing.T) {

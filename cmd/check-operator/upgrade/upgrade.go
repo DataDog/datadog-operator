@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"strconv"
 	"time"
 
@@ -308,21 +307,21 @@ func (o *Options) isAgentDoneSkippingNotReadyNodes(ctx context.Context, status *
 		return false
 	}
 
-	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d", len(skipped), current-len(skipped), current)
-	return o.isAgentDone(&v2alpha1.DaemonSetStatus{Current: int32(current - len(skipped)), UpToDate: int32(upToDate)})
+	o.printOutf("[Agent] skipping %d not-Ready nodes with an out-of-date Agent pod, counting %d nodes instead of %d", skipped, current-skipped, current)
+	return o.isAgentDone(&v2alpha1.DaemonSetStatus{Current: int32(current - skipped), UpToDate: int32(upToDate)})
 }
 
-// getNotReadyNodeDiscount returns the live Agent node counts and the "<DaemonSet>/<node>" pairs to
-// remove from Current.
-func (o *Options) getNotReadyNodeDiscount(ctx context.Context, status *v2alpha1.DaemonSetStatus) (current, upToDate int, skipped []string, err error) {
+// getNotReadyNodeDiscount returns the live Agent node counts and the number of nodes to remove from
+// Current.
+func (o *Options) getNotReadyNodeDiscount(ctx context.Context, status *v2alpha1.DaemonSetStatus) (current, upToDate, skipped int, err error) {
 	// Free test on the DatadogAgent status first, so that polls make no API call early in a rollout.
 	if _, _, err = o.getSkipBounds(int(status.Current), int(status.UpToDate)); err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 
 	daemonSets, err := o.getAgentDaemonSets(ctx)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	// The DatadogAgent status is copied from the DaemonSets at reconcile time and can lag behind
 	// them, so the discount uses the live DaemonSet status.
@@ -332,20 +331,20 @@ func (o *Options) getNotReadyNodeDiscount(ctx context.Context, status *v2alpha1.
 	}
 	minSkipped, maxSkipped, err := o.getSkipBounds(current, upToDate)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 
 	pods, err := o.getAgentPods(ctx)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	nodes, err := o.getNodes(ctx)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	skipped, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, minSkipped, maxSkipped)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	return current, upToDate, skipped, nil
 }
@@ -407,10 +406,10 @@ func (o *Options) agentLabels() client.MatchingLabels {
 	}
 }
 
-// computeNotReadyNodeDiscount returns the "<DaemonSet>/<node>" pairs that the DaemonSet status counts
-// in Current but not in UpToDate, on not-Ready nodes. It returns errNoDiscount if fewer than
-// minSkipped or more than maxSkipped pairs qualify.
-func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Pod, nodes []corev1.Node, minSkipped, maxSkipped int) ([]string, error) {
+// computeNotReadyNodeDiscount returns the number of not-Ready nodes that the DaemonSet status counts in
+// Current but not in UpToDate, per DaemonSet. It returns errNoDiscount if fewer than minSkipped or more
+// than maxSkipped nodes qualify.
+func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Pod, nodes []corev1.Node, minSkipped, maxSkipped int) (int, error) {
 	notReadyNodes := map[string]bool{}
 	for i := range nodes {
 		notReadyNodes[nodes[i].Name] = !isNodeReady(&nodes[i])
@@ -444,7 +443,7 @@ func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Po
 		}
 	}
 
-	var skipped []string
+	skipped := 0
 	for key, nodePods := range podsByDSNode {
 		currentHash := currentHashes[key.ds]
 		switch {
@@ -458,16 +457,14 @@ func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Po
 		// Ready and deleted nodes.
 		case !notReadyNodes[key.node]:
 		default:
-			skipped = append(skipped, key.ds.Name+"/"+key.node)
+			skipped++
 		}
 	}
-	slices.Sort(skipped)
-
-	if len(skipped) < minSkipped {
-		return nil, fmt.Errorf("%w: %d not-Ready nodes with an out-of-date Agent pod, %d needed", errNoDiscount, len(skipped), minSkipped)
+	if skipped < minSkipped {
+		return 0, fmt.Errorf("%w: %d not-Ready nodes with an out-of-date Agent pod, %d needed", errNoDiscount, skipped, minSkipped)
 	}
-	if len(skipped) > maxSkipped {
-		return nil, fmt.Errorf("%w: %d not-Ready nodes with an out-of-date Agent pod, above the %d cap", errNoDiscount, len(skipped), maxSkipped)
+	if skipped > maxSkipped {
+		return 0, fmt.Errorf("%w: %d not-Ready nodes with an out-of-date Agent pod, above the %d cap", errNoDiscount, skipped, maxSkipped)
 	}
 	return skipped, nil
 }
