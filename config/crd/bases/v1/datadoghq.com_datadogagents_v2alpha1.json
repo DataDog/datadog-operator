@@ -1954,11 +1954,15 @@
                   "type": "boolean"
                 },
                 "requiredRuntimeClassName": {
-                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or no RuntimeClass with vendor amd.",
+                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or none when vendor is amd.",
                   "type": "string"
                 },
                 "vendor": {
-                  "description": "Vendor selects the GPU vendor to monitor: `nvidia` (default) or `amd` (Agent 7.86.0+).\nUnknown values fall back to `nvidia`. With `amd` and `requiredRuntimeClassName` unset, no RuntimeClass is set.\nNot supported on GKE Autopilot.",
+                  "description": "Vendor selects the vendor of the GPUs on the nodes: `nvidia` (default) or `amd`. With `amd`, NVIDIA-specific settings are skipped,\nthe RuntimeClass defaults to none, and the AMD check is enabled on Agent 7.86.0+. Ignored on GKE Autopilot.",
+                  "enum": [
+                    "nvidia",
+                    "amd"
+                  ],
                   "type": "string"
                 }
               },
@@ -11093,11 +11097,15 @@
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {
-                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or no RuntimeClass with vendor amd.",
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or none when vendor is amd.",
                       "type": "string"
                     },
                     "vendor": {
-                      "description": "Vendor selects the GPU vendor to monitor: `nvidia` (default) or `amd` (Agent 7.86.0+).\nUnknown values fall back to `nvidia`. With `amd` and `requiredRuntimeClassName` unset, no RuntimeClass is set.\nNot supported on GKE Autopilot.",
+                      "description": "Vendor selects the vendor of the GPUs on the nodes: `nvidia` (default) or `amd`. With `amd`, NVIDIA-specific settings are skipped,\nthe RuntimeClass defaults to none, and the AMD check is enabled on Agent 7.86.0+. Ignored on GKE Autopilot.",
+                      "enum": [
+                        "nvidia",
+                        "amd"
+                      ],
                       "type": "string"
                     }
                   },

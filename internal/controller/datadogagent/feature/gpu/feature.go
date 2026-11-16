@@ -50,8 +50,10 @@ type gpuFeature struct {
 	podResourcesSocketPath  string
 	isPrivilegedModeEnabled bool
 	patchCgroupPermissions  bool
-	// vendor is the GPU vendor to configure, after the Autopilot and Agent version checks.
-	vendor string
+	// vendor is the vendor of the GPU nodes: nvidia when unset or unknown, and on Autopilot.
+	vendor v2alpha1.GPUVendor
+	// vendorCheckEnabled is true for a non-NVIDIA vendor whose check the node Agent supports.
+	vendorCheckEnabled bool
 
 	logger logr.Logger
 }
@@ -62,7 +64,7 @@ func (f *gpuFeature) ID() feature.IDType {
 }
 
 // NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
-// On GKE COS, the NVIDIA driver libraries are not available at the standard path used
+// On GKE COS (NVIDIA nodes only), the NVIDIA driver libraries are not available at the standard path used
 // by the nvidia-container-runtime; mount them from the host location.
 // On Talos, tracefs is a standalone mount rather than nested under the debugfs
 // mount privileged mode adds, so system-probe needs it explicitly.
@@ -73,11 +75,16 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 		containers = append(containers, apicommon.SystemProbeContainerName)
 	}
 
-	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
-	vol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
-
 	caps := providercaps.ProviderCapabilityMap{
-		kubernetes.GKECosProvider: {
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{cdiVolumeName},
+		},
+	}
+
+	if f.nvidiaNodes() {
+		vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
+		vol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+		caps[kubernetes.GKECosProvider] = providercaps.ProviderCapabilities{
 			Volumes: []providercaps.VolumeAndMount{
 				{
 					Volume:     vol,
@@ -85,10 +92,7 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 					Containers: containers,
 				},
 			},
-		},
-		kubernetes.GKEAutopilotProvider: {
-			RemoveVolumes: []string{cdiVolumeName},
-		},
+		}
 	}
 
 	if f.isPrivilegedModeEnabled {
@@ -100,6 +104,11 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	}
 
 	return caps
+}
+
+// nvidiaNodes reports whether the GPU nodes are NVIDIA. An unconfigured feature (zero value) counts as NVIDIA.
+func (f *gpuFeature) nvidiaNodes() bool {
+	return f.vendor == "" || f.vendor == v2alpha1.GPUVendorNVIDIA
 }
 
 // nodeAgentVersion returns the core Agent version for the AMD gate, from the image the operator
@@ -133,18 +142,18 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	}
 
 	gpu := ddaSpec.Features.GPU
-	f.vendor = f.resolveVendor(dda, ddaSpec)
+	f.vendor = nodeVendor(dda, gpu)
+	f.vendorCheckEnabled = f.vendor != v2alpha1.GPUVendorNVIDIA && f.vendorSupportedByAgent(dda, ddaSpec)
 
 	// Only NVIDIA defines a standard RuntimeClass; other vendors default to none.
 	switch {
 	case gpu.PodRuntimeClassName != nil:
 		f.podRuntimeClassName = *gpu.PodRuntimeClassName // "" = leave unset
-		if f.vendor != vendorNVIDIA && f.podRuntimeClassName == defaultGPURuntimeClass {
-			f.logger.Info(fmt.Sprintf("Warning: features.gpu.vendor is %s with requiredRuntimeClassName nvidia, which usually doesn't exist on %s nodes; set it to the cluster's %s RuntimeClass or \"\"", f.vendor, strings.ToUpper(f.vendor), strings.ToUpper(f.vendor)))
+		if f.vendor != v2alpha1.GPUVendorNVIDIA && f.podRuntimeClassName == defaultGPURuntimeClass {
+			f.logger.Info(fmt.Sprintf("Warning: features.gpu.vendor is %s with requiredRuntimeClassName nvidia, which usually doesn't exist on %s nodes; set it to the cluster's %s RuntimeClass or \"\"", f.vendor, strings.ToUpper(string(f.vendor)), strings.ToUpper(string(f.vendor))))
 		}
-	case f.vendor != vendorNVIDIA:
+	case f.vendor != v2alpha1.GPUVendorNVIDIA:
 		f.podRuntimeClassName = ""
-		f.logger.Info(fmt.Sprintf("Warning: features.gpu.vendor is %s without requiredRuntimeClassName, so the node agent uses no RuntimeClass (the node's default runtime); set it to the cluster's %s RuntimeClass if it defines one", f.vendor, strings.ToUpper(f.vendor)))
 	default:
 		f.podRuntimeClassName = defaultGPURuntimeClass
 	}
@@ -154,30 +163,29 @@ func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	return reqComp
 }
 
-// resolveVendor returns features.gpu.vendor if it is known and the node Agent supports it, otherwise nvidia.
-// GKE Autopilot always uses nvidia: it has no non-NVIDIA GPUs.
-func (f *gpuFeature) resolveVendor(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	vendor := apiutils.StringValue(ddaSpec.Features.GPU.Vendor)
-	if vendor == "" || vendor == vendorNVIDIA || experimental.IsAutopilotEnabled(dda) {
-		return vendorNVIDIA
+// nodeVendor returns the vendor of the GPU nodes. Autopilot has only NVIDIA GPUs, and an unset or
+// unknown value is treated as nvidia.
+func nodeVendor(dda metav1.Object, gpu *v2alpha1.GPUFeatureConfig) v2alpha1.GPUVendor {
+	vendor := v2alpha1.GPUVendorNVIDIA
+	if gpu.Vendor != nil {
+		vendor = *gpu.Vendor
 	}
-	version := nodeAgentVersion(dda, ddaSpec)
-	minVersion, known := vendorMinAgentVersion[vendor]
-	if !known {
-		// Agents too old for any non-NVIDIA vendor ignore the field silently.
-		for _, v := range vendorMinAgentVersion {
-			if utils.IsAboveMinVersion(version, v, nil) {
-				f.logger.Info("Warning: unknown features.gpu.vendor, falling back to nvidia", "vendor", vendor)
-				break
-			}
-		}
-		return vendorNVIDIA
-	}
-	if !utils.IsAboveMinVersion(version, minVersion, nil) { // non-semver tags are assumed recent enough
-		f.logger.V(1).Info("features.gpu.vendor needs a newer Agent; falling back to nvidia", "vendor", vendor, "version", version, "minVersion", minVersion)
-		return vendorNVIDIA
+	if _, known := vendorMinAgentVersion[vendor]; !known || experimental.IsAutopilotEnabled(dda) {
+		return v2alpha1.GPUVendorNVIDIA
 	}
 	return vendor
+}
+
+// vendorSupportedByAgent reports whether the node Agent is recent enough for the vendor's check.
+// Non-semver tags are assumed recent enough.
+func (f *gpuFeature) vendorSupportedByAgent(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	version := nodeAgentVersion(dda, ddaSpec)
+	minVersion := vendorMinAgentVersion[f.vendor]
+	if !utils.IsAboveMinVersion(version, minVersion, nil) {
+		f.logger.V(1).Info("features.gpu.vendor check needs a newer Agent; not enabling it", "vendor", f.vendor, "version", version, "minVersion", minVersion)
+		return false
+	}
+	return true
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -192,7 +200,7 @@ func (f *gpuFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	return nil
 }
 
-func configureSystemProbe(managers feature.PodTemplateManagers) {
+func (f *gpuFeature) configureSystemProbe(managers feature.PodTemplateManagers) {
 	// env var to enable the GPU probe module in system-probe
 	enableSPEnvVar := &corev1.EnvVar{
 		Name:  DDEnableGPUProbeEnvVar,
@@ -230,8 +238,10 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// We need CAP_MKNOD in both containers to be able to create the nvidia devices nodes if the driver is not loaded when the container starts
-	managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"MKNOD"}, apicommon.SystemProbeContainerName)
-	managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"MKNOD"}, apicommon.CoreAgentContainerName)
+	if f.nvidiaNodes() {
+		managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"MKNOD"}, apicommon.SystemProbeContainerName)
+		managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"MKNOD"}, apicommon.CoreAgentContainerName)
+	}
 
 	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
 	// env variable. This is usually configured with the options
@@ -246,7 +256,9 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 		ReadOnly:  true,
 	}
 
-	managers.VolumeMount().AddVolumeMountToContainer(nvidiaDevicesMount, apicommon.SystemProbeContainerName)
+	if f.nvidiaNodes() {
+		managers.VolumeMount().AddVolumeMountToContainer(nvidiaDevicesMount, apicommon.SystemProbeContainerName)
+	}
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
@@ -283,7 +295,9 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 		Value: "all",
 	}
 
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, nvidiaVisibleDevicesEnvVar)
+	if f.nvidiaNodes() {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, nvidiaVisibleDevicesEnvVar)
+	}
 }
 
 func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateManagers) {
@@ -340,7 +354,9 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Name:  DDEnableNVMLDetectionEnvVar,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvmlDetectionEnvVar)
+	if f.nvidiaNodes() {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvmlDetectionEnvVar)
+	}
 
 	// in the core agent
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, enableCoreCheckEnvVar)
@@ -348,7 +364,7 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	f.configurePodResourcesSocket(managers)
 
 	if f.isPrivilegedModeEnabled {
-		configureSystemProbe(managers)
+		f.configureSystemProbe(managers)
 	}
 
 	if f.patchCgroupPermissions {
@@ -369,9 +385,11 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Value: "all",
 	}
 
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvidiaVisibleDevicesEnvVar)
+	if f.nvidiaNodes() {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvidiaVisibleDevicesEnvVar)
+	}
 
-	if f.vendor == vendorAMD {
+	if f.vendorCheckEnabled && f.vendor == v2alpha1.GPUVendorAMD {
 		// Enable the amd_gpu core check and ask the AMD container runtime to expose all GPUs.
 		// These are defaults: a value set earlier (spec.global.env) is kept, and spec.override env replaces them.
 		for _, envVar := range []*corev1.EnvVar{
@@ -392,8 +410,10 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	// /var/run/nvidia-container-devices/all directory into the container, so that
 	// the nvidia-container-runtime can see that we want to use all GPUs.
 	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
-	managers.Volume().AddVolume(&devicesVol)
-	managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.CoreAgentContainerName)
+	if f.nvidiaNodes() {
+		managers.Volume().AddVolume(&devicesVol)
+		managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.CoreAgentContainerName)
+	}
 
 	// Mount the host CDI spec directory so the agent can attribute GPUs allocated
 	// through DRA resource claims. DirectoryOrCreate so a missing dir never blocks pod start.

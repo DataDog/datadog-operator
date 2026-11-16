@@ -2338,7 +2338,7 @@ func (in *GPUFeatureConfig) DeepCopyInto(out *GPUFeatureConfig) {
 	}
 	if in.Vendor != nil {
 		in, out := &in.Vendor, &out.Vendor
-		*out = new(string)
+		*out = new(GPUVendor)
 		**out = **in
 	}
 }

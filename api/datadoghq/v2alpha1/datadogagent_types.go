@@ -999,7 +999,7 @@ type GPUFeatureConfig struct {
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Default: nvidia, or no RuntimeClass with vendor amd.
+	// Default: nvidia, or none when vendor is amd.
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
@@ -1009,12 +1009,22 @@ type GPUFeatureConfig struct {
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
 
-	// Vendor selects the GPU vendor to monitor: `nvidia` (default) or `amd` (Agent 7.86.0+).
-	// Unknown values fall back to `nvidia`. With `amd` and `requiredRuntimeClassName` unset, no RuntimeClass is set.
-	// Not supported on GKE Autopilot.
+	// Vendor selects the vendor of the GPUs on the nodes: `nvidia` (default) or `amd`. With `amd`, NVIDIA-specific settings are skipped,
+	// the RuntimeClass defaults to none, and the AMD check is enabled on Agent 7.86.0+. Ignored on GKE Autopilot.
 	// +optional
-	Vendor *string `json:"vendor,omitempty"`
+	Vendor *GPUVendor `json:"vendor,omitempty"`
 }
+
+// GPUVendor is the vendor of the GPUs on the nodes.
+// +kubebuilder:validation:Enum=nvidia;amd
+type GPUVendor string
+
+const (
+	// GPUVendorNVIDIA is the NVIDIA GPU vendor.
+	GPUVendorNVIDIA GPUVendor = "nvidia"
+	// GPUVendorAMD is the AMD GPU vendor.
+	GPUVendorAMD GPUVendor = "amd"
+)
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
 // Data Plane runs as a sidecar container alongside the Core Agent.
