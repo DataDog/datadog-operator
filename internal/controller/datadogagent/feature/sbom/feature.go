@@ -19,8 +19,14 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+// inPlaceScanMinVersion is the first Agent release that scans container images
+// in place by default, from the containerd snapshotter directories.
+const inPlaceScanMinVersion = "7.87.0-0"
 
 func init() {
 	err := feature.Register(feature.SBOMIDType, buildSBOMFeature)
@@ -47,6 +53,7 @@ type sbomFeature struct {
 	containerImageAnalyzers                 []string
 	containerImageUncompressedLayersSupport bool
 	containerImageOverlayFSDirectScan       bool
+	containerImageUseMount                  bool
 	hostEnabled                             bool
 	hostAnalyzers                           []string
 	enrichmentUsageEnabled                  bool
@@ -74,7 +81,7 @@ func (f *sbomFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapab
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *sbomFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(ddaSpec, ddaRCStatus)
@@ -88,6 +95,7 @@ func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentS
 			f.containerImageAnalyzers = sbomConfig.ContainerImage.Analyzers
 			f.containerImageUncompressedLayersSupport = sbomConfig.ContainerImage.UncompressedLayersSupport
 			f.containerImageOverlayFSDirectScan = sbomConfig.ContainerImage.OverlayFSDirectScan
+			f.containerImageUseMount = !agentScansImagesInPlace(dda)
 		}
 		if sbomConfig.Host != nil && apiutils.BoolValue(sbomConfig.Host.Enabled) {
 			f.hostEnabled = true
@@ -111,6 +119,18 @@ func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentS
 	}
 
 	return reqComp
+}
+
+// agentScansImagesInPlace reports whether the node Agent scans container images
+// in place by default. An image override without a tag keeps the default Agent
+// version. A version the Operator cannot parse is assumed recent enough.
+func agentScansImagesInPlace(dda metav1.Object) bool {
+	version := common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
+	if version == "" {
+		version = images.AgentLatestVersion
+	}
+	defaultIfVersionUnknown := true
+	return utils.IsAboveMinVersion(version, inPlaceScanMinVersion, &defaultIfVersionUnknown)
 }
 
 func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
@@ -213,11 +233,15 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 				Value: "true",
 			})
 		} else {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  DDSBOMContainerUseMount,
-				Value: "true",
-			})
+			if f.containerImageUseMount {
+				managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+					Name:  DDSBOMContainerUseMount,
+					Value: "true",
+				})
+			}
 
+			// SYS_ADMIN lets the in-place scan read the trusted.overlay.opaque
+			// xattr, which marks a directory that a later image layer replaced.
 			managers.SecurityContext().AddCapabilitiesToContainer(
 				[]corev1.Capability{"SYS_ADMIN"},
 				apicommon.CoreAgentContainerName,
