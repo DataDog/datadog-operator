@@ -35,7 +35,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 )
 
 const (
@@ -281,13 +280,11 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			want, err := byocTestResourceVersions(namespace.Name)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("running a reconcile of the cluster and of its worker to completion")
-			clusterReconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
-			Expect(clusterReconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})).To(Equal(ctrl.Result{}))
-			workerReconciler := &datadogobservabilitypipelinesworker.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
-			Expect(workerReconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKey{Name: "byoc-pipeline-logs", Namespace: namespace.Name}})).To(Equal(ctrl.Result{}))
+			By("running a reconcile of the cluster to completion")
+			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
+			Expect(reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})).To(Equal(ctrl.Result{}))
 
-			By("verifying that the reconciles did not update any object")
+			By("verifying that the reconcile did not update any object")
 			got, err := byocTestResourceVersions(namespace.Name)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cmp.Diff(want, got)).To(BeEmpty())

@@ -24,9 +24,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 )
 
 var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
@@ -133,6 +135,27 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 			}
 			g.Expect(cmp.Diff(want, current.Status, cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"))).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
+	})
+
+	It("does not update the managed resources once they match the desired state", func() {
+		By("waiting for the worker to be reconciled")
+		Eventually(func(g Gomega) {
+			current := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+			g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current)).To(Succeed())
+			g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Reconciled")).To(BeTrue())
+		}, timeout, interval).Should(Succeed())
+
+		want, err := byocTestResourceVersions(namespace.Name)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("running a reconcile of the worker to completion")
+		reconciler := &datadogobservabilitypipelinesworker.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
+		Expect(reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(worker)})).To(Equal(ctrl.Result{}))
+
+		By("verifying that the reconcile did not update any object")
+		got, err := byocTestResourceVersions(namespace.Name)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cmp.Diff(want, got)).To(BeEmpty())
 	})
 
 	DescribeTable("uses the StatefulSet replica target for autoscaled availability", func(replicas, readyReplicas int32, observedGenerationLag int64, wantStatus metav1.ConditionStatus, wantReason, wantMessage string) {
