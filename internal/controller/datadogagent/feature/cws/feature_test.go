@@ -24,7 +24,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -135,8 +137,12 @@ func Test_cwsFeature_Configure(t *testing.T) {
 // configSyncEnvVars are the env vars direct send needs so that the system-probe, which cannot
 // resolve secret handles itself, receives a resolved api_key from the core agent.
 func configSyncEnvVars() []*corev1.EnvVar {
+	transport := &corev1.EnvVar{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort}
+	if pkgutils.IsAboveMinVersion(images.AgentLatestVersion, featureutils.AgentIPCUnixSocketMinVersion, nil) {
+		transport = &corev1.EnvVar{Name: common.DDAgentIpcUseSocket, Value: "true"}
+	}
 	return []*corev1.EnvVar{
-		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		transport,
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
 	}
 }

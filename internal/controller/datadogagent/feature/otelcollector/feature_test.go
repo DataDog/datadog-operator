@@ -19,10 +19,12 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 type expectedPorts struct {
@@ -59,41 +61,32 @@ var (
 		grpcPort: 4317,
 	}
 	defaultLocalObjectReferenceName = "-otel-config"
-	defaultExpectedEnvVars          = expectedEnvVars{
-		agent_ipc_port: expectedEnvVar{
-			present: true,
-			value:   "5009",
-		},
-		agent_ipc_refresh: expectedEnvVar{
-			present: true,
-			value:   "60",
-		},
-		enabled: expectedEnvVar{
-			present: true,
-			value:   "true",
-		},
-		extensionTimeout:   expectedEnvVar{},
-		extensionURL:       expectedEnvVar{},
-		converter_features: expectedEnvVar{},
-		installation_method: expectedEnvVar{
-			present: true,
-			value:   "kubernetes",
-		},
+
+	// defaultIpcEnvVars follows the default agent version so the expectations
+	// do not break when it crosses the socket gate.
+	dynamicDefaultIpc = func() expectedEnvVars {
+		e := expectedEnvVars{}
+		if pkgutils.IsAboveMinVersion(images.AgentLatestVersion, featureutils.AgentIPCUnixSocketMinVersion, nil) {
+			e.agent_ipc_use_socket = expectedEnvVar{present: true, value: "true"}
+		} else {
+			e.agent_ipc_port = expectedEnvVar{present: true, value: "5009"}
+		}
+		return e
 	}
 
-	onlyIpcEnvVars = expectedEnvVars{
-		agent_ipc_port: expectedEnvVar{
-			present: true,
-			value:   "5009",
-		},
-		agent_ipc_refresh: expectedEnvVar{
-			present: true,
-			value:   "60",
-		},
-		installation_method: expectedEnvVar{
-			present: true,
-			value:   "kubernetes",
-		},
+	defaultExpectedEnvVars = func() expectedEnvVars {
+		e := dynamicDefaultIpc()
+		e.agent_ipc_refresh = expectedEnvVar{present: true, value: "60"}
+		e.enabled = expectedEnvVar{present: true, value: "true"}
+		e.installation_method = expectedEnvVar{present: true, value: "kubernetes"}
+		return e
+	}
+
+	onlyIpcEnvVars = func() expectedEnvVars {
+		e := dynamicDefaultIpc()
+		e.agent_ipc_refresh = expectedEnvVar{present: true, value: "60"}
+		e.installation_method = expectedEnvVar{present: true, value: "kubernetes"}
+		return e
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{
 		{
@@ -147,7 +140,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars(), defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
 		},
 		{
 			Name: "otel agent enabled with an agent supporting the unix socket",
@@ -186,7 +179,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, map[string]string{}, defaultVolumeMounts, defaultVolumes("user-provided-config-map")),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars(), map[string]string{}, defaultVolumeMounts, defaultVolumes("user-provided-config-map")),
 		},
 		{
 			Name: "otel agent enabled with configMap multi items",
@@ -196,7 +189,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, map[string]string{}, []corev1.VolumeMount{
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars(), map[string]string{}, []corev1.VolumeMount{
 				{
 					Name:      otelAgentVolumeName,
 					MountPath: otelConfigPath,
@@ -233,7 +226,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars(), defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
 		},
 		{
 			Name: "otel agent enabled without config non default ports",
@@ -247,7 +240,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				grpcPort: 4444,
 				httpPort: 5555,
 			},
-				defaultExpectedEnvVars,
+				defaultExpectedEnvVars(),
 				map[string]string{},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
@@ -264,10 +257,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts,
 				expectedEnvVars{
-					agent_ipc_port: expectedEnvVar{
-						present: true,
-						value:   "5009",
-					},
+					agent_ipc_port:       dynamicDefaultIpc().agent_ipc_port,
+					agent_ipc_use_socket: dynamicDefaultIpc().agent_ipc_use_socket,
 					agent_ipc_refresh: expectedEnvVar{
 						present: true,
 						value:   "60",
@@ -306,10 +297,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				httpPort: 5555,
 			},
 				expectedEnvVars{
-					agent_ipc_port: expectedEnvVar{
-						present: true,
-						value:   "5009",
-					},
+					agent_ipc_port:       dynamicDefaultIpc().agent_ipc_port,
+					agent_ipc_use_socket: dynamicDefaultIpc().agent_ipc_use_socket,
 					agent_ipc_refresh: expectedEnvVar{
 						present: true,
 						value:   "60",
@@ -343,7 +332,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars(), defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
 		},
 		{
 			Name: "otel agent coreconfig disabled",
@@ -353,7 +342,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, onlyIpcEnvVars, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, onlyIpcEnvVars(), defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
 		},
 		{
 			Name: "otel agent coreconfig extensionTimeout",
@@ -365,10 +354,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, expectedEnvVars{
-				agent_ipc_port: expectedEnvVar{
-					present: true,
-					value:   "5009",
-				},
+				agent_ipc_port:       dynamicDefaultIpc().agent_ipc_port,
+				agent_ipc_use_socket: dynamicDefaultIpc().agent_ipc_use_socket,
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -396,10 +383,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, expectedEnvVars{
-				agent_ipc_port: expectedEnvVar{
-					present: true,
-					value:   "5009",
-				},
+				agent_ipc_port:       dynamicDefaultIpc().agent_ipc_port,
+				agent_ipc_use_socket: dynamicDefaultIpc().agent_ipc_use_socket,
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -428,10 +413,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, expectedEnvVars{
-				agent_ipc_port: expectedEnvVar{
-					present: true,
-					value:   "5009",
-				},
+				agent_ipc_port:       dynamicDefaultIpc().agent_ipc_port,
+				agent_ipc_use_socket: dynamicDefaultIpc().agent_ipc_use_socket,
 				agent_ipc_refresh: expectedEnvVar{
 					present: true,
 					value:   "60",
@@ -468,7 +451,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			Agent: testExpectedAgent(
 				apicommon.OtelAgent,
 				defaultExpectedPorts,
-				defaultExpectedEnvVars,
+				defaultExpectedEnvVars(),
 				defaultAnnotations,
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
@@ -489,7 +472,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					grpcPort: 4444,
 					httpPort: 5555,
 				},
-				defaultExpectedEnvVars,
+				defaultExpectedEnvVars(),
 				defaultAnnotations,
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),

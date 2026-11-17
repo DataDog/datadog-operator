@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func newDatadogAgentWithNodeAgentVersion(tag string) *v2alpha1.DatadogAgent {
@@ -128,14 +129,23 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 		apicommon.SystemProbeContainerName,
 	}
 
+	// defaultAgentIPCEnvVars returns the expected transport env var for a DDA
+	// without an image override, so the expectation follows the default agent
+	// version instead of breaking when it crosses the socket gate.
+	defaultAgentIPCEnvVars := func() *corev1.EnvVar {
+		if pkgutils.IsAboveMinVersion(images.AgentLatestVersion, AgentIPCUnixSocketMinVersion, nil) {
+			return &corev1.EnvVar{Name: common.DDAgentIpcUseSocket, Value: "true"}
+		}
+		return &corev1.EnvVar{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort}
+	}
+
 	t.Run("sets both env vars on every container", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		// the default agent version is below the gate, so it keeps the port
 		EnableConfigSyncForDirectSend(managers, &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "dda"}}, containers)
 
 		want := []*corev1.EnvVar{
-			{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
+			defaultAgentIPCEnvVars(),
 			{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
 		}
 		for _, container := range containers {

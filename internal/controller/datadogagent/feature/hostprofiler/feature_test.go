@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -51,6 +52,15 @@ var (
 	}
 )
 
+// wantIpcEnvVarsForDefaultAgent follows the default agent version so the
+// expectation does not break when it crosses the socket gate.
+func wantIpcEnvVarsForDefaultAgent() []*corev1.EnvVar {
+	if pkgutils.IsAboveMinVersion(images.AgentLatestVersion, featureutils.AgentIPCUnixSocketMinVersion, nil) {
+		return wantIpcSocketEnvVars
+	}
+	return wantIpcPortEnvVars
+}
+
 func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
@@ -66,7 +76,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcEnvVarsForDefaultAgent()),
 		},
 		{
 			Name: "host profiler enabled with an agent supporting the unix socket",
@@ -82,7 +92,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithHostProfilerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcEnvVarsForDefaultAgent()),
 		},
 		{
 			Name: "host profiler disabled via spec takes precedence over annotation",
@@ -99,7 +109,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithHostProfilerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcEnvVarsForDefaultAgent()),
 		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
