@@ -30,6 +30,7 @@ const (
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
 	CSILatestImageVersion = "1.4.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
+	// renovate: datasource=github-releases depName=kubernetes-csi/node-driver-registrar
 	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"

@@ -90,6 +90,42 @@ func Test_getCredentials(t *testing.T) {
 			},
 		},
 		{
+			name: "creds found, padded encrypted references",
+			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_API_KEY", " ENC[ApiKey]\t")
+				os.Setenv("DD_APP_KEY", "\tENC[AppKey] ")
+				d := secrets.NewDummyDecryptor(0)
+				d.On("Decrypt", []string{" ENC[ApiKey]\t", "\tENC[AppKey] "}).Once()
+				return d
+			},
+			want:    Creds{APIKey: "DEC[ ENC[ApiKey]\t]", AppKey: "DEC[\tENC[AppKey] ]"},
+			wantErr: false,
+			wantFunc: func(t *testing.T, d *secrets.DummyDecryptor, cm *CredentialManager) {
+				d.AssertCalled(t, "Decrypt", []string{" ENC[ApiKey]\t", "\tENC[AppKey] "})
+			},
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+		{
+			name: "creds found, padded literals not trimmed",
+			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_API_KEY", " foo\t")
+				os.Setenv("DD_APP_KEY", "bar ")
+				return secrets.NewDummyDecryptor(0)
+			},
+			want:    Creds{APIKey: " foo\t", AppKey: "bar "},
+			wantErr: false,
+			wantFunc: func(t *testing.T, d *secrets.DummyDecryptor, cm *CredentialManager) {
+				d.AssertNotCalled(t, "Decrypt")
+			},
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+		{
 			name: "creds found, api key encrypted",
 			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
 				os.Setenv("DD_API_KEY", "ENC[ApiKey]")
