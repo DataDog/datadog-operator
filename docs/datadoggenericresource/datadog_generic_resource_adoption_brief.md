@@ -114,7 +114,41 @@ spec:
 
 The principle: **`jsonSpec` is the source of truth, and the ID is never silently replaced.** Adoption is explicit (the user wrote the ID), and its consequences are explicit too (the first reconcile writes `jsonSpec` and records an event).
 
+How a reconcile is routed:
+
+```mermaid
+flowchart TD
+  start([Reconcile DDGR]) --> del{Being deleted?}
+  del -- yes --> fin[[Finalizer: see deletion flow]]
+  del -- no --> sid{spec.id set?}
+  sid -- no --> legacy[Existing behavior based on status.id<br/>create if empty, recreate on 404]
+  sid -- yes --> stid{status.id?}
+  stid -- empty --> adopt[[Adoption: see first-reconcile flow]]
+  stid -- "== spec.id" --> normal[Update / force sync as today<br/>404 → AdoptedResourceNotFound, NO recreate]
+  stid -- "!= spec.id" --> mismatch[IDMismatch<br/>no remote action]
+```
+
 ### First reconcile (adoption)
+
+```mermaid
+flowchart TD
+  a([spec.id set, status.id empty]) --> v{Type supported and<br/>ID format valid?}
+  v -- no --> e1[AdoptionUnsupportedType / AdoptionInvalidID<br/>permanent, no API call]
+  v -- yes --> fresh[Fresh read of the CR via apiReader]
+  fresh --> stale{CR changed?<br/>UID, deleting, other status.id}
+  stale -- yes --> rq[Skip, requeue]
+  stale -- no --> dup{Another DDGR owns<br/>same type + id?}
+  dup -- yes --> e2[AdoptionConflict<br/>retry at forceSyncPeriod]
+  dup -- no --> leg{Legacy CR with same status.id?<br/>uncached List}
+  leg -- yes --> e3[AdoptionLegacyOwner<br/>retry at requeuePeriod 60s]
+  leg -- forbidden --> e3b[Fail closed: missing list RBAC]
+  leg -- "no / CRD absent" --> get{GET spec.id}
+  get -- 404 --> e4[AdoptionTargetNotFound<br/>NO create]
+  get -- 401/403 --> e5[AdoptionForbidden<br/>NO create]
+  get -- "5xx / 429 / network" --> e6[Transient, retry in 5s]
+  get -- 200 --> persist[status.id = spec.id<br/>Adopted=True, Event Adopted<br/>currentHash empty]
+  persist --> upd[Next reconcile: hash mismatch<br/>existing update path writes jsonSpec]
+```
 
 ```
 spec.id set, status.id empty:
@@ -186,6 +220,20 @@ One limitation: the list covers the Operator's own cluster only, and legacy CRs 
 
 New annotation: `datadoghq.com/deletion-policy`, which takes `delete` (the default) or `orphan`.
 
+```mermaid
+flowchart TD
+  d([CR deleted, finalizer present]) --> pol{deletion-policy annotation}
+  pol -- orphan --> o[Skip remote delete<br/>Event Orphaned]
+  pol -- "delete / absent" --> id{status.id set?}
+  id -- no --> s[Nothing to delete]
+  id -- yes --> rd{Remote delete}
+  rd -- "ok / 404" --> ok[Deleted]
+  rd -- error --> retry[Retry. Setting orphan<br/>releases a stuck CR]
+  o --> rm[Remove finalizer]
+  s --> rm
+  ok --> rm
+```
+
 - It's handled in `finalizer.HandleFinalizer`. On deletion, if the annotation is `orphan`, the finalizer skips `deleteFunc`, records an `Orphaned` event and removes the finalizer.
 - One change covers DDGR and the three legacy CRDs.
 - It's an annotation rather than a spec field so that it works on the legacy CRDs without schema changes. Annotations are also outside the spec hash, so setting one doesn't trigger an update.
@@ -241,6 +289,31 @@ The design doesn't depend on the order in which the GitOps tool creates the DDGR
 - **Old CR gone first:** the DDGR adopts on its first reconcile.
 - **DDGR created first,** or while the old CR is still terminating: the DDGR reports `AdoptionLegacyOwner` and adopts on its first retry after the old CR is gone, at most `requeuePeriod` (60s) later.
 
+```mermaid
+sequenceDiagram
+  actor U as User
+  participant G as GitOps tool
+  participant DM as DatadogMonitor controller
+  participant DG as DDGR controller
+  participant DD as Datadog API
+  Note over U,G: Step 1 — commit orphan annotation (or migrate --annotate-only)
+  U->>G: commit annotated DatadogMonitor
+  G->>DM: apply (annotation only, no spec change)
+  U->>U: migrate --check (live CR annotated?)
+  Note over U,G: Step 2 — one commit replaces DatadogMonitor with DDGR (spec.id)
+  U->>G: commit
+  par order not guaranteed
+    G->>DM: prune DatadogMonitor
+    DM->>DM: finalizer sees orphan, no API call, finalizer removed
+  and
+    G->>DG: create DDGR
+    DG-->>DG: AdoptionLegacyOwner while old CR exists (retry 60s)
+  end
+  DG->>DD: GET spec.id
+  DG->>DG: status.id = spec.id, Adopted=True
+  DG->>DD: update with same definition (no change)
+```
+
 **The `DatadogMonitor` controller must keep running until the old CR is gone.** The orphan annotation is applied by that controller's finalizer. If the controller is disabled while the CR is deleted, the CR stays terminating, and the DDGR stays blocked (a terminating legacy CR still blocks). Users disable `-datadogMonitorEnabled` only after the migration.
 
 **Without auto-prune** (Argo CD without `prune`, Flux with `prune: false`), the `DatadogMonitor` stays in the cluster after its manifest leaves Git. The DDGR stays blocked, and its condition message says to delete the old CR. Deleting it is safe because it's annotated.
@@ -267,6 +340,28 @@ To prevent this, **the DDGR generated by `migrate` carries `datadoghq.com/deleti
 - The DDGR is pruned and the monitor is kept.
 - The recreated `DatadogMonitor` tries to create an identical monitor. The API rejects it as a duplicate, so it stays in error and creates nothing.
 - Recovery: reapply the step-2 commit. The legacy check doesn't block, because the recreated `DatadogMonitor` has no `status.id`, so the DDGR adopts the monitor again. The broken `DatadogMonitor` is removed in that same commit.
+
+```mermaid
+sequenceDiagram
+  actor U as User
+  participant G as GitOps tool
+  participant DG as DDGR controller
+  participant DM as DatadogMonitor controller
+  participant DD as Datadog API
+  Note over U,DD: DDGR generated by migrate carries deletion-policy orphan
+  U->>G: revert step-2 commit
+  G->>DG: prune DDGR
+  DG->>DG: orphan, monitor kept
+  G->>DM: recreate DatadogMonitor (no status.id)
+  DM->>DD: create identical monitor
+  DD-->>DM: 400 Duplicate of an existing monitor_id
+  Note over DM: stays in error, creates nothing
+  U->>G: reapply step-2 commit
+  G->>DM: prune broken DatadogMonitor (nothing to delete)
+  G->>DG: create DDGR, legacy check passes (no status.id)
+  DG->>DD: adopt again
+  Note over U,DD: once validated, migrate --finalize removes the orphan annotation
+```
 
 When the user has validated the migration, they drop the annotation from the DDGR manifest. From then on, the DDGR behaves like any other DDGR (deleting it deletes the monitor).
 - `migrate` prints this as the final step.
