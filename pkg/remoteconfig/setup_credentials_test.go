@@ -23,7 +23,7 @@ type fakeAPIKeyCredentialsGetter struct {
 	calls int
 }
 
-func (f *fakeAPIKeyCredentialsGetter) GetCredentialsForMetadata() (config.Creds, error) {
+func (f *fakeAPIKeyCredentialsGetter) GetAPIKeyCredentials() (config.Creds, error) {
 	f.calls++
 	return f.creds, f.err
 }

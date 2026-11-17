@@ -67,7 +67,7 @@ func Test_getCredentials(t *testing.T) {
 			resetFunc: func(cm *CredentialManager) {},
 		},
 		{
-			// GetCredentialsForMetadata (used by Remote Config and metadata) caches
+			// GetAPIKeyCredentials (used by Remote Config and metadata) caches
 			// API-key-only creds; GetCredentials must still require the App key.
 			name: "cached API-key-only creds without DD_APP_KEY should error",
 			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
@@ -334,7 +334,7 @@ func Test_refresh(t *testing.T) {
 	}
 }
 
-func Test_getCredentialsForMetadata(t *testing.T) {
+func Test_getAPIKeyCredentials(t *testing.T) {
 	tests := []struct {
 		name      string
 		setupFunc func(*CredentialManager) *secrets.DummyDecryptor
@@ -400,7 +400,7 @@ func Test_getCredentialsForMetadata(t *testing.T) {
 			credsManager := NewCredentialManager(client)
 			decryptor := tt.setupFunc(credsManager)
 			credsManager.secretBackend = decryptor
-			got, err := credsManager.GetCredentialsForMetadata()
+			got, err := credsManager.GetAPIKeyCredentials()
 			assert.Equal(t, tt.wantErr, err != nil)
 			assert.EqualValues(t, tt.want, got)
 			tt.resetFunc(credsManager)

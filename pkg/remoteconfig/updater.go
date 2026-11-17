@@ -212,14 +212,14 @@ func (d dummyTelemetryReporter) SetConfigSubscriptionClientsTracked(value int) {
 // APIKeyCredentialsGetter returns Datadog credentials that are only required to
 // contain an API key. *config.CredentialManager implements it.
 type APIKeyCredentialsGetter interface {
-	GetCredentialsForMetadata() (config.Creds, error)
+	GetAPIKeyCredentials() (config.Creds, error)
 }
 
 // SetupWithCredentials loads credentials and sets up Remote Configuration.
 // Remote Configuration authenticates with the API key only, so an App key is
 // not required.
 func (r *RemoteConfigUpdater) SetupWithCredentials(credsGetter APIKeyCredentialsGetter) error {
-	creds, err := credsGetter.GetCredentialsForMetadata()
+	creds, err := credsGetter.GetAPIKeyCredentials()
 	if err != nil {
 		return fmt.Errorf("unable to get API key for Remote Configuration: %w", err)
 	}
