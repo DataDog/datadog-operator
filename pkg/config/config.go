@@ -51,6 +51,9 @@ const (
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
 	// CSIDriverWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogCSIDriver controller.
 	csiDriverWatchNamespaceEnvVar = "DD_CSIDRIVER_WATCH_NAMESPACE"
+	// BYOCClusterWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogBYOCCluster and DatadogObservabilityPipelinesWorker controllers.
+	// Both controllers share it because DatadogBYOCCluster creates DatadogObservabilityPipelinesWorker objects in its own namespace.
+	byocClusterWatchNamespaceEnvVar = "DD_BYOC_CLUSTER_WATCH_NAMESPACE"
 )
 
 var (
@@ -135,7 +138,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogBYOCClusterEnabled {
-		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
+		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, byocClusterWatchNamespaceEnvVar)
 		logger.Info("DatadogBYOCCluster Enabled", "watching namespaces", slices.Collect(maps.Keys(byocClusterNamespaces)))
 		byObject[byocClusterObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
 		byObject[workerObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
@@ -233,6 +236,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 						Namespace: pod.Namespace,
 						Name:      pod.Name,
 						Labels:    pod.Labels,
+						// Keep ResourceVersion so client-go distinguishes updates from resyncs.
+						// See https://github.com/DataDog/datadog-operator/issues/3661.
+						ResourceVersion: pod.ResourceVersion,
 					},
 					Spec: corev1.PodSpec{
 						NodeName: pod.Spec.NodeName,
@@ -291,6 +297,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					ObjectMeta: v1.ObjectMeta{
 						Name:   node.Name,
 						Labels: node.Labels,
+						// Keep ResourceVersion so client-go distinguishes updates from resyncs.
+						// See https://github.com/DataDog/datadog-operator/issues/3661.
+						ResourceVersion: node.ResourceVersion,
 					},
 				}
 
@@ -308,6 +317,8 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				// not only when introspection is enabled; gating it any narrower makes
 				// that fallback silently resolve to the default provider on Talos.
 				newNode.Status.NodeInfo.OSImage = node.Status.NodeInfo.OSImage
+				// Same reason for Spec.ProviderID: Nebius is identified from it alone.
+				newNode.Spec.ProviderID = node.Spec.ProviderID
 
 				return newNode, nil
 			},

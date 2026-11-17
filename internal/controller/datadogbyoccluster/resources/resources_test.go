@@ -7,6 +7,7 @@ package resources
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -27,6 +28,8 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func TestResources_Objects(t *testing.T) {
@@ -37,7 +40,7 @@ func TestResources_Objects(t *testing.T) {
 		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		searcherAutoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		readOnlyMetastore   *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
-		compactor           *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor           *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 		want                []string
 	}{
 		{
@@ -56,7 +59,7 @@ func TestResources_Objects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 			want: []string{
 				"*v1.ConfigMap/byoc", "*v1.ServiceAccount/byoc", "*v1.Service/byoc-headless",
 				"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore", "*v1.PodDisruptionBudget/byoc-metastore",
@@ -65,7 +68,7 @@ func TestResources_Objects(t *testing.T) {
 				"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane", "*v1.PodDisruptionBudget/byoc-control-plane",
 				"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor", "*v1.PodDisruptionBudget/byoc-janitor",
 				"*v1.Service/byoc-read-only-metastore", "*v1.Deployment/byoc-read-only-metastore", "*v1.PodDisruptionBudget/byoc-read-only-metastore",
-				"*v1.Service/byoc-compactor", "*v1.Deployment/byoc-compactor", "*v1.PodDisruptionBudget/byoc-compactor",
+				"*v1.Service/byoc-compactor", "*v1.Deployment/byoc-compactor", "*v2.HorizontalPodAutoscaler/byoc-compactor", "*v1.PodDisruptionBudget/byoc-compactor",
 			},
 		},
 		{
@@ -92,7 +95,7 @@ func TestResources_Objects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -124,7 +127,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		searcherAutoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
 		readOnlyMetastore   *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
-		compactor           *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor           *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 		want                []client.Object
 	}{
 		{
@@ -134,9 +137,11 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
 				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
 				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("read-only-metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
 				&corev1.Service{ObjectMeta: metadata("compactor")},
 				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("compactor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
 			},
 		},
@@ -145,7 +150,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 		},
 		{
 			name:               "retain read-only metastore and indexer autoscaling",
@@ -155,18 +160,21 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
 				&corev1.Service{ObjectMeta: metadata("compactor")},
 				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("compactor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
 			},
 		},
 		{
 			name:                "retain compactor and searcher autoscaling",
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 			want: []client.Object{
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
 				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
 				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("read-only-metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("compactor")},
 			},
 		},
 		{
@@ -175,7 +183,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 			want: []client.Object{
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("indexer")},
@@ -193,8 +201,11 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+				},
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			},
 			want: []client.Object{
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
@@ -210,7 +221,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 			want: []client.Object{
 				&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: "testing"}},
 			},
@@ -221,7 +232,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 		},
 	}
 
@@ -235,7 +246,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 			cluster.Spec.Components.Compactor = tt.compactor
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -248,51 +259,61 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 
 func TestBuildResources_ConfigMap(t *testing.T) {
 	type nodeConfigValues struct {
-		splitStoreMaxNumBytes         int64
-		maxQueueDiskUsage             any
-		maxQueueMemoryUsage           any
-		aggregationMemoryLimit        any
-		fastFieldCacheCapacity        any
-		maxNumConcurrentSplitSearches int64
-		partialRequestCacheCapacity   any
-		splitFooterCacheCapacity      any
-		createLogsIndex               bool
-		createTracesIndex             bool
+		clusterID string
+		indexer   map[string]any
+		ingestAPI map[string]any
+		searcher  map[string]any
+		cloudprem map[string]any
+		metastore map[string]any
 	}
+	capacity := func(value any) map[string]any {
+		return map[string]any{"capacity": value}
+	}
+	defaultIndexer := map[string]any{
+		"split_store_max_num_bytes":  17394617550,
+		"split_store_max_num_splits": 10000,
+	}
+	defaultIngestAPI := map[string]any{
+		"max_queue_disk_usage":   int64(5153960754),
+		"max_queue_memory_usage": int64(2576980377),
+	}
+	defaultSearcher := map[string]any{
+		"aggregation_memory_limit":          "500M",
+		"fast_field_cache":                  capacity(int64(6500000000)),
+		"max_num_concurrent_split_searches": 50,
+		"partial_request_cache":             capacity(int64(250000000)),
+		"split_footer_cache":                capacity(int64(500000000)),
+	}
+	defaultCloudPrem := map[string]any{
+		"mtls_header":              "X-Amzn-Mtls-Clientcert",
+		"create_dd_logs_index":     true,
+		"create_dd_metrics_index":  false,
+		"create_dd_sketches_index": false,
+		"create_dd_traces_index":   false,
+	}
+	defaultMetastore := map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 50}}
 	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
 		config := map[string]any{
-			"version":               0.8,
-			"listen_address":        "0.0.0.0",
-			"gossip_listen_port":    7282,
-			"cloudprem_listen_port": 7283,
-			"data_dir":              "/quickwit/qwdata",
-			"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-			"health":                map[string]any{"listen_port": 7284},
-			"cloudprem": map[string]any{
-				"mtls_header":              "X-Amzn-Mtls-Clientcert",
-				"create_dd_logs_index":     values.createLogsIndex,
-				"create_dd_metrics_index":  false,
-				"create_dd_sketches_index": false,
-				"create_dd_traces_index":   values.createTracesIndex,
-			},
+			"version":                 0.8,
+			"cluster_id":              values.clusterID,
+			"listen_address":          "0.0.0.0",
+			"gossip_listen_port":      7282,
+			"gossip_protocol_version": 1,
+			"cloudprem_listen_port":   7283,
+			"data_dir":                "/quickwit/qwdata",
+			"grpc":                    map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+			"health":                  map[string]any{"listen_port": 7284},
+			"cloudprem":               values.cloudprem,
 			"docs_clustering": []any{
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 			},
-			"indexer": map[string]any{"split_store_max_num_bytes": values.splitStoreMaxNumBytes, "split_store_max_num_splits": 10000},
-			"ingest_api": map[string]any{
-				"max_queue_disk_usage":   values.maxQueueDiskUsage,
-				"max_queue_memory_usage": values.maxQueueMemoryUsage,
-			},
-			"searcher": map[string]any{
-				"aggregation_memory_limit":          values.aggregationMemoryLimit,
-				"fast_field_cache_capacity":         values.fastFieldCacheCapacity,
-				"max_num_concurrent_split_searches": values.maxNumConcurrentSplitSearches,
-				"partial_request_cache_capacity":    values.partialRequestCacheCapacity,
-				"split_footer_cache_capacity":       values.splitFooterCacheCapacity,
-			},
+			"indexer":    values.indexer,
+			"ingest_api": values.ingestAPI,
+			"metastore":  values.metastore,
+			"searcher":   values.searcher,
 		}
 		nodeConfig, err := yaml.Marshal(config)
 		if err != nil {
@@ -323,15 +344,12 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			name:        "default",
 			clusterFunc: func(*datadoghqv1alpha1.DatadogBYOCCluster) {},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -344,59 +362,204 @@ ingest_api:
   max_queue_memory_usage: 1GiB`)}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           "1GiB",
-				aggregationMemoryLimit:        "1G",
-				fastFieldCacheCapacity:        "2G",
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(5153960754), "max_queue_memory_usage": "1GiB"},
+				metastore: defaultMetastore,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "1G",
+					"fast_field_cache_capacity":         "2G",
+					"max_num_concurrent_split_searches": 50,
+					"partial_request_cache":             capacity(int64(250000000)),
+					"split_footer_cache":                capacity(int64(500000000)),
+				},
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
-			name: "independent component limits",
+			name: "with cache node config overrides",
 			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
-				cluster.Spec.Components.Indexer.Resources = &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("8Gi")},
-				}
-				cluster.Spec.Components.Searcher.Resources = &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("32Gi")},
-				}
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`searcher:
+  fast_field_cache:
+    capacity: 280G
+    policy: s3-fifo
+  partial_request_cache: 40G
+  split_footer_cache:
+    policy: s3-fifo`)}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         17394617549,
-				maxQueueDiskUsage:             int64(5153960755),
-				maxQueueMemoryUsage:           int64(2576980377),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(13958643712),
-				maxNumConcurrentSplitSearches: 100,
-				partialRequestCacheCapacity:   int64(536870912),
-				splitFooterCacheCapacity:      int64(1073741824),
-				createLogsIndex:               true,
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  map[string]any{"capacity": "280G", "policy": "s3-fifo"},
+					"max_num_concurrent_split_searches": 50,
+					"partial_request_cache":             "40G",
+					"split_footer_cache":                map[string]any{"capacity": int64(500000000), "policy": "s3-fifo"},
+				},
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
-			name: "fractional GiB limits",
+			name: "with cluster ID node config override",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "search",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with metastore connections node config override",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`metastore:
+  postgres:
+    max_connections: 30`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: map[string]any{"postgres": map[string]any{"min_connections": 10, "max_connections": 30}},
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "with metastore connections node config override under alias",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`metastore:
+  postgres:
+    max_num_connections: 30`)}
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: map[string]any{"postgres": map[string]any{"min_connections": 10, "max_num_connections": 30}},
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "Helm large pod size",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = testPomskyResources("1600m", "5700Mi")
+				cluster.Spec.Components.Searcher.Resources = testPomskyResources("1600m", "5700Mi")
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   map[string]any{"split_store_max_num_bytes": 20830591386, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(1717986918), "max_queue_memory_usage": int64(858993459)},
+				metastore: defaultMetastore,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  capacity(int64(2031250000)),
+					"max_num_concurrent_split_searches": 16,
+					"partial_request_cache":             capacity(int64(78125000)),
+					"split_footer_cache":                capacity(int64(156250000)),
+				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "Helm 4xlarge pod size",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = testPomskyResources("15600m", "59300Mi")
+				cluster.Spec.Components.Searcher.Resources = testPomskyResources("15600m", "59300Mi")
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   map[string]any{"split_store_max_num_bytes": 0, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(46385646796), "max_queue_memory_usage": int64(23192823398)},
+				metastore: defaultMetastore,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  capacity(int64(23156250000)),
+					"max_num_concurrent_split_searches": 179,
+					"partial_request_cache":             capacity(int64(890625000)),
+					"split_footer_cache":                capacity(int64(1781250000)),
+				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "between Helm pod sizes",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = testPomskyResources("6", "24Gi")
+				cluster.Spec.Components.Searcher.Resources = testPomskyResources("2", "10752Mi")
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   map[string]any{"split_store_max_num_bytes": 12748283284, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(9800295020), "max_queue_memory_usage": int64(4900147510)},
+				metastore: defaultMetastore,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  capacity(int64(4062500000)),
+					"max_num_concurrent_split_searches": 32,
+					"partial_request_cache":             capacity(int64(156250000)),
+					"split_footer_cache":                capacity(int64(312500000)),
+				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "small pods",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = testPomskyResources("500m", "2Gi")
+				cluster.Spec.Components.Searcher.Resources = testPomskyResources("500m", "512Mi")
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   map[string]any{"split_store_max_num_bytes": 21975915998, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(572662306), "max_queue_memory_usage": int64(286331153)},
+				metastore: defaultMetastore,
+				searcher: map[string]any{
+					"aggregation_memory_limit":          "500M",
+					"fast_field_cache":                  capacity(int64(203125000)),
+					"max_num_concurrent_split_searches": 2,
+					"partial_request_cache":             capacity(int64(7812500)),
+					"split_footer_cache":                capacity(int64(15625000)),
+				},
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "indexer CPU limit without request",
 			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
 				cluster.Spec.Components.Indexer.Resources = &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("10752Mi")},
-				}
-				cluster.Spec.Components.Searcher.Resources = &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("10752Mi")},
+					Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1600m"), corev1.ResourceMemory: resource.MustParse("5700Mi")},
 				}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         15784004813,
-				maxQueueDiskUsage:             int64(6764573491),
-				maxQueueMemoryUsage:           int64(3382286745),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(4580179968),
-				maxNumConcurrentSplitSearches: 33,
-				partialRequestCacheCapacity:   int64(176160768),
-				splitFooterCacheCapacity:      int64(352321536),
-				createLogsIndex:               true,
+				clusterID: "testing-byoc",
+				indexer:   map[string]any{"split_store_max_num_bytes": 20830591386, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(1717986918), "max_queue_memory_usage": int64(858993459)},
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
+			},
+		},
+		{
+			name: "indexer with many cores and little memory",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = testPomskyResources("16", "8Gi")
+			},
+			want: nodeConfigValues{
+				clusterID: "testing-byoc",
+				indexer:   map[string]any{"split_store_max_num_bytes": 15676630632, "split_store_max_num_splits": 10000},
+				ingestAPI: map[string]any{"max_queue_disk_usage": int64(6871947672), "max_queue_memory_usage": int64(3435973836)},
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -405,15 +568,12 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs)
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: defaultCloudPrem,
 			},
 		},
 		{
@@ -422,15 +582,18 @@ ingest_api:
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createTracesIndex:             true,
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: map[string]any{
+					"mtls_header":              "X-Amzn-Mtls-Clientcert",
+					"create_dd_logs_index":     false,
+					"create_dd_metrics_index":  false,
+					"create_dd_sketches_index": false,
+					"create_dd_traces_index":   true,
+				},
 			},
 		},
 		{
@@ -438,19 +601,21 @@ ingest_api:
 			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
 				cluster.Spec.Signal = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces)
 				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cloudprem:
-  create_dd_logs_index: true`)}
+  create_datadog_index: true`)}
 			},
 			want: nodeConfigValues{
-				splitStoreMaxNumBytes:         12240656794,
-				maxQueueDiskUsage:             int64(10307921510),
-				maxQueueMemoryUsage:           int64(5153960755),
-				aggregationMemoryLimit:        "500M",
-				fastFieldCacheCapacity:        int64(6979321856),
-				maxNumConcurrentSplitSearches: 50,
-				partialRequestCacheCapacity:   int64(268435456),
-				splitFooterCacheCapacity:      int64(536870912),
-				createLogsIndex:               true,
-				createTracesIndex:             true,
+				clusterID: "testing-byoc",
+				indexer:   defaultIndexer,
+				ingestAPI: defaultIngestAPI,
+				metastore: defaultMetastore,
+				searcher:  defaultSearcher,
+				cloudprem: map[string]any{
+					"mtls_header":              "X-Amzn-Mtls-Clientcert",
+					"create_datadog_index":     true,
+					"create_dd_metrics_index":  false,
+					"create_dd_sketches_index": false,
+					"create_dd_traces_index":   true,
+				},
 			},
 		},
 	}
@@ -459,7 +624,7 @@ ingest_api:
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
 			tt.clusterFunc(cluster)
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -502,7 +667,7 @@ func TestBuildResources_HeadlessService(t *testing.T) {
 		},
 	}
 
-	resources, err := buildResources(cluster, testRelease())
+	resources, err := buildResources(cluster, testImages())
 	if err != nil {
 		t.Fatalf("BuildResources() unexpected error: %v", err)
 	}
@@ -551,7 +716,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			cluster.Spec.Identity = tt.identity
 			cluster.Spec.Provider = tt.provider
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -624,6 +789,13 @@ func TestBuildResources_Environment(t *testing.T) {
 				{Name: "COMPONENT_SETTING", Value: "component"},
 			},
 		},
+		{
+			name: "cluster ID of the node configuration",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`cluster_id: search`)}
+			},
+			wantEnv: []corev1.EnvVar{{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=search,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -631,7 +803,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			cluster := testCluster()
 			tt.input(cluster)
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -649,9 +821,17 @@ func TestBuildResources_Environment(t *testing.T) {
 func TestBuildResources_Indexer(t *testing.T) {
 	wantDefault := func() *ComponentResources {
 		want := wantDefaultStatefulSet(wantStatefulSetOptions{
-			component:                     "indexer",
-			configVolumeMount:             corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
-			additionalEnv:                 []corev1.EnvVar{{Name: "QW_INGEST_DECOMMISSION_TIMEOUT", Value: "270s"}},
+			component:         "indexer",
+			configVolumeMount: corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
+			additionalEnv: []corev1.EnvVar{
+				{Name: "QW_INGEST_DECOMMISSION_TIMEOUT", Value: "270s"},
+				{Name: "QW_ENABLE_IN_MEMORY_INDEXING", Value: "true"},
+				{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "50MiB"},
+			},
+			resources: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
+			},
 			terminationGracePeriodSeconds: ptr.To[int64](300),
 		})
 		want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
@@ -687,6 +867,8 @@ func TestBuildResources_Indexer(t *testing.T) {
 				want.StatefulSet.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
 					component:          "indexer",
+					kind:               "StatefulSet",
+					minReplicas:        2,
 					averageUtilization: 70,
 					scaleUpWindow:      0,
 					scaleDownWindow:    300,
@@ -763,6 +945,17 @@ func TestBuildResources_Indexer(t *testing.T) {
 				return want
 			},
 		},
+		{
+			name: "pod management policy",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
+			},
+			want: func() *ComponentResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.PodManagementPolicy = appsv1.OrderedReadyPodManagement
+				return want
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -770,7 +963,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Indexer = tt.indexer
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -781,10 +974,66 @@ func TestBuildResources_Indexer(t *testing.T) {
 	}
 }
 
+func TestBuildResources_IndexerMaxWriteThroughput(t *testing.T) {
+	tests := []struct {
+		name      string
+		resources *corev1.ResourceRequirements
+		want      []corev1.EnvVar
+	}{
+		{
+			name:      "whole cores",
+			resources: &corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2")}},
+			want:      []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "25MiB"}},
+		},
+		{
+			name:      "rounds the cores up",
+			resources: &corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2600m")}},
+			want:      []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "37.5MiB"}},
+		},
+		{
+			name: "prefers the request over the limit",
+			resources: &corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("16")},
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("15600m")},
+			},
+			want: []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "200MiB"}},
+		},
+		{
+			name:      "falls back to the limit",
+			resources: &corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("32")}},
+			want:      []corev1.EnvVar{{Name: "QW_INDEXING_MAX_WRITE_THROUGHPUT", Value: "400MiB"}},
+		},
+		{
+			name:      "no CPU",
+			resources: &corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("16Gi")}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Indexer = &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{Resources: tt.resources},
+			}
+
+			resources, err := buildResources(cluster, testImages())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			env := resources.Component(IndexerComponentName).StatefulSet.Spec.Template.Spec.Containers[0].Env
+			got := slices.DeleteFunc(slices.Clone(env), func(e corev1.EnvVar) bool { return e.Name != "QW_INDEXING_MAX_WRITE_THROUGHPUT" })
+			if diff := cmp.Diff(tt.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("QW_INDEXING_MAX_WRITE_THROUGHPUT mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestBuildResources_Searcher(t *testing.T) {
 	wantDefault := func() *ComponentResources {
 		return wantDefaultStatefulSet(wantStatefulSetOptions{
-			component: "searcher",
+			component:     "searcher",
+			additionalEnv: []corev1.EnvVar{{Name: "QW_DISABLE_LOAD_ESTIMATION", Value: "true"}},
 			additionalServicePorts: []corev1.ServicePort{{
 				Name:       "cloudprem",
 				Port:       7283,
@@ -796,6 +1045,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 				MountPath: "/quickwit/node.yaml",
 				SubPath:   "node.yaml",
 			},
+			resources: *testPomskyResources("4", "16Gi"),
 		})
 	}
 
@@ -819,10 +1069,38 @@ func TestBuildResources_Searcher(t *testing.T) {
 				want.StatefulSet.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
 					component:          "searcher",
+					kind:               "StatefulSet",
+					minReplicas:        2,
 					averageUtilization: 50,
 					scaleUpWindow:      60,
 					scaleDownWindow:    300,
 				})
+				return want
+			},
+		},
+		{
+			name: "probes",
+			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					StartupProbe: &corev1.Probe{
+						ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}},
+						PeriodSeconds:    5,
+						TimeoutSeconds:   3,
+						FailureThreshold: 120,
+					},
+					ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString("rest")}}},
+				},
+			},
+			want: func() *ComponentResources {
+				want := wantDefault()
+				container := &want.StatefulSet.Spec.Template.Spec.Containers[0]
+				container.StartupProbe = &corev1.Probe{
+					ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}},
+					PeriodSeconds:    5,
+					TimeoutSeconds:   3,
+					FailureThreshold: 120,
+				}
+				container.ReadinessProbe = &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromString("rest")}}}
 				return want
 			},
 		},
@@ -864,7 +1142,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Searcher = tt.searcher
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -928,7 +1206,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Metastore = tt.metastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -965,7 +1243,7 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ControlPlane = tt.controlPlane
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1002,7 +1280,7 @@ func TestBuildResources_Janitor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Janitor = tt.janitor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1070,7 +1348,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1098,7 +1376,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		compactor *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec
 		want      func() *ComponentResources
 	}{
 		{
@@ -1109,18 +1387,39 @@ func TestBuildResources_Compactor(t *testing.T) {
 		},
 		{
 			name:      "defaults",
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 			want: func() *ComponentResources {
-				return wantDefault(60, "54s")
+				return wantDefault(300, "270s")
 			},
 		},
 		{
 			name: "termination grace period",
-			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-				TerminationGracePeriodSeconds: ptr.To[int64](120),
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					TerminationGracePeriodSeconds: ptr.To[int64](120),
+				},
 			},
 			want: func() *ComponentResources {
 				return wantDefault(120, "108s")
+			},
+		},
+		{
+			name: "autoscaling",
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			},
+			want: func() *ComponentResources {
+				want := wantDefault(300, "270s")
+				want.Deployment.Spec.Replicas = nil
+				want.HPA = wantAutoscaling(wantAutoscalingOptions{
+					component:          "compactor",
+					kind:               "Deployment",
+					minReplicas:        1,
+					averageUtilization: 80,
+					scaleUpWindow:      60,
+				})
+				want.HPA.Spec.Behavior.ScaleDown = nil
+				return want
 			},
 		},
 	}
@@ -1130,7 +1429,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Compactor = tt.compactor
 
-			resources, err := buildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testImages())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -1172,7 +1471,14 @@ func buildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 	return BuildResources(byocdefaults.Apply(cluster), images)
 }
 
-func testRelease() *byocimage.ResolvedImages {
+func testPomskyResources(cpu, memory string) *corev1.ResourceRequirements {
+	return &corev1.ResourceRequirements{
+		Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse(memory)},
+		Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(cpu), corev1.ResourceMemory: resource.MustParse(memory)},
+	}
+}
+
+func testImages() *byocimage.ResolvedImages {
 	return &byocimage.ResolvedImages{
 		Pomsky: byocimage.ResolvedImage{
 			Repository: "registry.example.com/cloudprem",
@@ -1201,21 +1507,19 @@ type wantStatefulSetOptions struct {
 	additionalServicePorts        []corev1.ServicePort
 	configVolumeMount             corev1.VolumeMount
 	additionalEnv                 []corev1.EnvVar
+	resources                     corev1.ResourceRequirements
 	terminationGracePeriodSeconds *int64
 }
 
 func wantDefaultStatefulSet(options wantStatefulSetOptions) *ComponentResources {
 	workload := wantDefaultWorkload(wantWorkloadOptions{
-		component:              options.component,
-		service:                options.component,
-		replicas:               2,
-		additionalServicePorts: options.additionalServicePorts,
-		configVolumeMount:      options.configVolumeMount,
-		additionalEnv:          options.additionalEnv,
-		resources: corev1.ResourceRequirements{
-			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("16Gi")},
-			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
-		},
+		component:                     options.component,
+		service:                       options.component,
+		replicas:                      2,
+		additionalServicePorts:        options.additionalServicePorts,
+		configVolumeMount:             options.configVolumeMount,
+		additionalEnv:                 options.additionalEnv,
+		resources:                     options.resources,
 		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 	})
 
@@ -1226,7 +1530,7 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *ComponentResources 
 			Spec: appsv1.StatefulSetSpec{
 				Replicas:            workload.replicas,
 				ServiceName:         "byoc-headless",
-				PodManagementPolicy: appsv1.OrderedReadyPodManagement,
+				PodManagementPolicy: appsv1.ParallelPodManagement,
 				Selector:            workload.selector,
 				Template:            workload.template,
 			},
@@ -1290,6 +1594,8 @@ type wantWorkload struct {
 	template corev1.PodTemplateSpec
 }
 
+// wantDefaultEnvironment returns the default environment with additional replacing the variables of the same name
+// and adding the others.
 func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 	field := func(fieldPath string) *corev1.EnvVarSource {
 		return &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: fieldPath}}
@@ -1309,7 +1615,6 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "QW_NUM_CPUS", ValueFrom: resourceField("requests.cpu")},
 		{Name: "KUBERNETES_REQUESTS_MEMORY", ValueFrom: resourceField("requests.memory")},
 		{Name: "QW_CONFIG", Value: "/quickwit/node.yaml"},
-		{Name: "QW_CLUSTER_ID", Value: "testing-byoc"},
 		{Name: "QW_NODE_ID", Value: "$(KUBERNETES_POD_NAME)"},
 		{Name: "QW_AVAILABILITY_ZONE", ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
 		{Name: "QW_PEER_SEEDS", Value: "byoc-headless"},
@@ -1322,7 +1627,7 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "DD_SITE", Value: "datadoghq.com"},
 		{Name: "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER", Value: "true"},
 		{Name: "BYOC_TELEMETRY_ENABLED", Value: "true"},
-		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),kube_node=$(KUBERNETES_NODE_NAME),component=$(KUBERNETES_COMPONENT),operator.version=" + version.Version},
 		{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "http/protobuf"},
 		{Name: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"},
 		{Name: "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", Value: "delta"},
@@ -1333,13 +1638,14 @@ func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "IMAGE_NAME", Value: "registry.example.com/cloudprem"},
 		{Name: "IMAGE_TAG", Value: "v1.2.3"},
 	}
-	env = append(env, additional...)
+	env = controllerutils.MergeEnv(env, additional)
 	return append(env,
 		corev1.EnvVar{Name: "NO_COLOR", Value: "true"},
 		corev1.EnvVar{Name: "QW_DISABLE_INGEST_V1", Value: "true"},
 		corev1.EnvVar{Name: "QW_DISABLE_TELEMETRY", Value: "true"},
 		corev1.EnvVar{Name: "QW_LOG_FORMAT", Value: "DDG"},
 		corev1.EnvVar{Name: "QW_RANDOM_SPLIT_PREFIX", Value: "true"},
+		corev1.EnvVar{Name: "QW_ENABLE_LOCALITY_AWARE_SCHEDULING", Value: "true"},
 	)
 }
 
@@ -1469,6 +1775,8 @@ func wantDefaultPodDisruptionBudget(workload wantWorkload) *policyv1.PodDisrupti
 
 type wantAutoscalingOptions struct {
 	component          string
+	kind               string
+	minReplicas        int32
 	averageUtilization int32
 	scaleUpWindow      int32
 	scaleDownWindow    int32
@@ -1490,8 +1798,8 @@ func wantAutoscaling(options wantAutoscalingOptions) *autoscalingv2.HorizontalPo
 			Annotations: map[string]string{"example.com/owner": "operator"},
 		},
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: resourceName},
-			MinReplicas:    ptr.To[int32](2),
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: options.kind, Name: resourceName},
+			MinReplicas:    ptr.To(options.minReplicas),
 			MaxReplicas:    10,
 			Metrics: []autoscalingv2.MetricSpec{{
 				Type: autoscalingv2.ResourceMetricSourceType,

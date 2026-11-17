@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/utils"
 )
 
 type MonitorHandler struct {
@@ -21,9 +22,10 @@ func (h *MonitorHandler) createResource(auth context.Context, instance *v1alpha1
 	}
 	createdTime := metav1.NewTime(*createdMonitor.Created)
 	return CreateResult{
-		ID:          resourceInt64ToStringID(createdMonitor.GetId()),
-		CreatedTime: &createdTime,
-		Creator:     *createdMonitor.GetCreator().Handle,
+		ID:                   resourceInt64ToStringID(createdMonitor.GetId()),
+		CreatedTime:          &createdTime,
+		Creator:              *createdMonitor.GetCreator().Handle,
+		RemoteDefinitionHash: monitorDefinitionHash(instance, createdMonitor),
 	}, nil
 }
 
@@ -31,9 +33,67 @@ func (h *MonitorHandler) getResource(auth context.Context, instance *v1alpha1.Da
 	_, err := getMonitor(auth, h.client, instance.Status.Id)
 	return err
 }
+
+func (h *MonitorHandler) getRemoteDefinitionHash(auth context.Context, instance *v1alpha1.DatadogGenericResource) (string, error) {
+	// Assets are part of the hashed definition and are only returned on request.
+	monitor, err := getMonitor(auth, h.client, instance.Status.Id, *datadogV1.NewGetMonitorOptionalParameters().WithWithAssets(true))
+	if err != nil {
+		return "", err
+	}
+	return monitorDefinitionHash(instance, monitor), nil
+}
+
 func (h *MonitorHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateMonitor(auth, h.client, instance)
 	return err
+}
+
+func (h *MonitorHandler) updateResourceWithHash(auth context.Context, instance *v1alpha1.DatadogGenericResource) (string, error) {
+	monitor, err := updateMonitor(auth, h.client, instance)
+	if err != nil {
+		return "", err
+	}
+	return monitorDefinitionHash(instance, monitor), nil
+}
+
+// monitorDefinitionHash returns the definition hash of a monitor returned by the
+// API, or "" when force syncs must keep updating it: a restriction policy in the
+// spec is not part of the monitor definition that the hash covers, and supplied
+// fields missing from the response cannot be monitored for drift.
+func monitorDefinitionHash(instance *v1alpha1.DatadogGenericResource, monitor datadogV1.Monitor) string {
+	var spec map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &spec); err != nil {
+		return ""
+	}
+	if _, ok := spec["restriction_policy"]; ok {
+		return ""
+	}
+	data, err := json.Marshal(monitor)
+	if err != nil {
+		return ""
+	}
+	var remoteFields map[string]json.RawMessage
+	if err = json.Unmarshal(data, &remoteFields); err != nil {
+		return ""
+	}
+	// The SDK preserves unknown properties, so jsonSpec can manage fields that
+	// are not in the shared definition list, even without an SDK upgrade.
+	// Response-only fields such as "state" are deliberately not filtered out:
+	// hashing one only costs extra updates, while a filter list that wrongly
+	// excluded a writable field would hide drift. The docs ask users to keep
+	// response-only fields out of jsonSpec.
+	fields := []string{"assets"}
+	for field := range spec {
+		if _, returned := remoteFields[field]; !returned {
+			return ""
+		}
+		fields = append(fields, field)
+	}
+	hash, err := utils.MonitorDefinitionHash(monitor, fields...)
+	if err != nil {
+		return ""
+	}
+	return hash
 }
 func (h *MonitorHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	return deleteMonitor(auth, h.client, instance.Status.Id)
@@ -54,12 +114,12 @@ func (h *MonitorHandler) refreshState(auth context.Context, instance *v1alpha1.D
 	return &state, nil
 }
 
-func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {
+func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string, params ...datadogV1.GetMonitorOptionalParameters) (datadogV1.Monitor, error) {
 	monitorID, err := resourceStringToInt64ID(monitorStringID)
 	if err != nil {
 		return datadogV1.Monitor{}, err
 	}
-	monitor, httpResp, err := client.GetMonitor(auth, monitorID)
+	monitor, httpResp, err := client.GetMonitor(auth, monitorID, params...)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
 	}

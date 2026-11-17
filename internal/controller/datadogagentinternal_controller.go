@@ -47,16 +47,13 @@ type DatadogAgentInternalReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (ctrl.Result, error) {
-	// Get the logger from context (already has namespace, name, reconcileID from controller-runtime)
-	// Add our controller name - this enriched logger will be available to all downstream functions
-	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogAgentInternal")
-	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, ddai)
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), agentInternalControllerName)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}).

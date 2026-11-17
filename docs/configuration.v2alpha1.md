@@ -103,7 +103,7 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
-| features.apm.instrumentation.injectionMode | InjectionMode is the injection mode to use for libraries injection. Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+). Empty by default so the Cluster Agent can apply its own defaults. |
+| features.apm.instrumentation.injectionMode | InjectionMode is the injection mode to use for libraries injection. Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+). Empty by default so the Cluster Agent can apply its own defaults. |
 | features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
@@ -143,6 +143,7 @@ spec:
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
 | features.cspm.customBenchmarks.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
+| features.cspm.databaseBenchmarks.enabled | Enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: false |
 | features.cspm.enabled | Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false |
 | features.cspm.hostBenchmarks.enabled | Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true |
 | features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send payloads directly, without using the security-agent. Requires Agent 7.77.0 or above; on older Agents this defaults to false. Default: true |
@@ -188,8 +189,9 @@ spec:
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.gpu.enabled | Enables GPU monitoring core check. Default: false |
 | features.gpu.patchCgroupPermissions | PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false |
-| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Default: false |
-| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
+| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Applies to NVIDIA GPUs only. Default: false |
+| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia, or unset when vendor is amd |
+| features.gpu.vendor | Selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings, sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot. |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
@@ -208,13 +210,6 @@ spec:
 | features.kubernetesActions.communication.privateActionRunner.enabled | Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true |
 | features.kubernetesActions.communication.remoteConfiguration.enabled | Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true |
 | features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false |
-| features.kueue.collectWorkloadEvents | CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true |
-| features.kueue.conf.configData | ConfigData corresponds to the configuration file content. |
-| features.kueue.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
-| features.kueue.conf.configMap.name | Is the name of the ConfigMap. |
-| features.kueue.enabled | Enables Kueue metadata collection in the Cluster Agent and the Kueue check, which runs as an endpoints check against each Kueue controller pod. The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes. With `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics` non-resource URL separately, as Kueue authorizes metrics scrapes against it. (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.) Default: false |
-| features.kueue.metricsService.name | Is the name of the Kueue metrics Service. Default: kueue-controller-manager-metrics-service |
-| features.kueue.metricsService.namespace | Is the namespace of the Kueue metrics Service. Default: kueue-system |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |

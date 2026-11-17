@@ -8,11 +8,9 @@ package resources
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,16 +26,6 @@ type Resources struct {
 	components      map[string]*ComponentResources
 	objects         []client.Object
 	obsoleteObjects []client.Object
-}
-
-// ComponentResources contains the resources managed for a component.
-// Exactly one of Deployment and StatefulSet is set.
-type ComponentResources struct {
-	Service             *corev1.Service
-	Deployment          *appsv1.Deployment
-	StatefulSet         *appsv1.StatefulSet
-	HPA                 *autoscalingv2.HorizontalPodAutoscaler
-	PodDisruptionBudget *policyv1.PodDisruptionBudget
 }
 
 // Objects returns the resources in apply order.
@@ -59,7 +47,11 @@ func (r *Resources) Component(name string) *ComponentResources {
 func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byocimage.ResolvedImages) (*Resources, error) {
 	cluster = cluster.DeepCopy()
 
-	configMap, err := newConfigMap(cluster)
+	nodeConfig, err := newNodeConfig(cluster)
+	if err != nil {
+		return nil, err
+	}
+	configMap, err := newConfigMap(cluster, nodeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +72,7 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 	r.objects = append(r.objects, r.headlessService)
 
 	checksum := sha256.Sum256([]byte(configMap.Data[nodeConfigFileName]))
-	pod := podInput{cluster: cluster, image: images.Pomsky, checksum: hex.EncodeToString(checksum[:])}
+	pod := podInput{cluster: cluster, image: images.Pomsky, checksum: hex.EncodeToString(checksum[:]), clusterID: fmt.Sprint(nodeConfig[quickwitClusterIDConfigKey])}
 	for _, c := range components(cluster) {
 		if !c.enabled() {
 			r.obsoleteObjects = append(r.obsoleteObjects, disabledComponentObjects(cluster, c)...)
@@ -95,44 +87,4 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 		r.obsoleteObjects = append(r.obsoleteObjects, resources.obsoleteObjects(cluster, c)...)
 	}
 	return r, nil
-}
-
-func (r *ComponentResources) objects() []client.Object {
-	objects := []client.Object{r.Service}
-	if r.Deployment != nil {
-		objects = append(objects, r.Deployment)
-	}
-	if r.StatefulSet != nil {
-		objects = append(objects, r.StatefulSet)
-	}
-	if r.HPA != nil {
-		objects = append(objects, r.HPA)
-	}
-	if r.PodDisruptionBudget != nil {
-		objects = append(objects, r.PodDisruptionBudget)
-	}
-	return objects
-}
-
-func (r *ComponentResources) obsoleteObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
-	metadata := componentObjectMeta(cluster, c.name)
-	objects := c.workload.obsoleteObjects(metadata)
-	if r.PodDisruptionBudget == nil {
-		objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
-	}
-	return objects
-}
-
-// disabledComponentObjects returns the resources of a disabled component. Only Deployment components are optional.
-func disabledComponentObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
-	metadata := componentObjectMeta(cluster, c.name)
-	return []client.Object{
-		&corev1.Service{ObjectMeta: metadata},
-		&appsv1.Deployment{ObjectMeta: metadata},
-		&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
-	}
-}
-
-func componentObjectMeta(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) metav1.ObjectMeta {
-	return metav1.ObjectMeta{Name: ComponentResourceName(cluster.Name, componentName), Namespace: cluster.Namespace}
 }

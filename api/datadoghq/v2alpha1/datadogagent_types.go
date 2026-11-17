@@ -125,8 +125,6 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
-	// Kueue configuration.
-	Kueue *KueueFeatureConfig `json:"kueue,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
@@ -389,7 +387,7 @@ const (
 	InjectionModeAuto InjectionModeType = "auto"
 	// InjectionModeInitContainer uses init containers for library injection.
 	InjectionModeInitContainer InjectionModeType = "init_container"
-	// InjectionModeCSI uses CSI driver for library injection (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
+	// InjectionModeCSI uses CSI driver for library injection (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
 	InjectionModeCSI InjectionModeType = "csi"
 	// InjectionModeImageVolume uses image volumes for library injection (experimental, requires Cluster Agent 7.77.0+).
 	InjectionModeImageVolume InjectionModeType = "image_volume"
@@ -435,7 +433,7 @@ type SingleStepInstrumentation struct {
 	Injector *InjectorConfig `json:"injector,omitempty"`
 
 	// InjectionMode is the injection mode to use for libraries injection.
-	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
 	// Empty by default so the Cluster Agent can apply its own defaults.
 	// +optional
 	InjectionMode InjectionModeType `json:"injectionMode,omitempty"`
@@ -773,6 +771,10 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
+	// DatabaseBenchmarks contains configuration for database benchmarks.
+	// +optional
+	DatabaseBenchmarks *CSPMDatabaseBenchmarksConfig `json:"databaseBenchmarks,omitempty"`
+
 	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
 	// payloads directly, without using the security-agent.
 	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
@@ -786,6 +788,15 @@ type CSPMFeatureConfig struct {
 type CSPMHostBenchmarksConfig struct {
 	// Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
 	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.
+// +k8s:openapi-gen=true
+type CSPMDatabaseBenchmarksConfig struct {
+	// Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -981,13 +992,14 @@ type GPUFeatureConfig struct {
 	// probes are disabled; privileged mode is retained for cgroup permission patching.
 	// To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
 	// core agent and system-probe containers via spec.override.nodeAgent.containers.
+	// Applies to NVIDIA GPUs only.
 	// Default: false
 	// +optional
 	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Default: nvidia
+	// Default: nvidia, or unset when vendor is amd
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
@@ -996,7 +1008,23 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+
+	// Vendor selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings,
+	// sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot.
+	// +optional
+	Vendor *GPUVendor `json:"vendor,omitempty"`
 }
+
+// GPUVendor is the vendor of the GPUs on the nodes.
+// +kubebuilder:validation:Enum=nvidia;amd
+type GPUVendor string
+
+const (
+	// GPUVendorNVIDIA is the NVIDIA GPU vendor.
+	GPUVendorNVIDIA GPUVendor = "nvidia"
+	// GPUVendorAMD is the AMD GPU vendor.
+	GPUVendorAMD GPUVendor = "amd"
+)
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
 // Data Plane runs as a sidecar container alongside the Core Agent.
@@ -1915,54 +1943,6 @@ type HelmCheckFeatureConfig struct {
 	// Default: {}
 	// +optional
 	ValuesAsTags map[string]string `json:"valuesAsTags,omitempty"`
-}
-
-// KueueFeatureConfig allows configuration of the Kueue feature.
-// +k8s:openapi-gen=true
-type KueueFeatureConfig struct {
-	// Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,
-	// which runs as an endpoints check against each Kueue controller pod.
-	// The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.
-	// With `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics`
-	// non-resource URL separately, as Kueue authorizes metrics scrapes against it.
-	// (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,
-	// and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.
-	// Default: true
-	// +optional
-	CollectWorkloadEvents *bool `json:"collectWorkloadEvents,omitempty"`
-
-	// MetricsService identifies the Service exposing the Kueue controller metrics.
-	// +optional
-	MetricsService *KueueMetricsServiceConfig `json:"metricsService,omitempty"`
-
-	// Conf overrides the configuration for the Kueue check. It replaces the generated configuration,
-	// so it must keep `advanced_ad_identifiers.kube_endpoints` and `cluster_check: true` to scrape every Kueue replica.
-	// Ignored when cluster checks are disabled.
-	// +optional
-	Conf *CustomConfig `json:"conf,omitempty"`
-}
-
-// KueueMetricsServiceConfig identifies the Service exposing the Kueue controller metrics.
-// +k8s:openapi-gen=true
-type KueueMetricsServiceConfig struct {
-	// Name is the name of the Kueue metrics Service.
-	// Default: kueue-controller-manager-metrics-service
-	// +optional
-	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
-	Name *string `json:"name,omitempty"`
-
-	// Namespace is the namespace of the Kueue metrics Service.
-	// Default: kueue-system
-	// +optional
-	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
-	Namespace *string `json:"namespace,omitempty"`
 }
 
 // Generic support structs

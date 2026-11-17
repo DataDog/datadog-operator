@@ -7,10 +7,12 @@ package resources
 
 import (
 	"fmt"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,11 +32,14 @@ type component struct {
 	extraEnv          []corev1.EnvVar
 }
 
-// workload renders the controller running the pods of a component.
-type workload interface {
-	dataVolumes() []corev1.Volume
-	populate(r *ComponentResources, metadata metav1.ObjectMeta, selector map[string]string, template corev1.PodTemplateSpec)
-	obsoleteObjects(metadata metav1.ObjectMeta) []client.Object
+// ComponentResources contains the resources managed for a component.
+// Exactly one of Deployment and StatefulSet is set.
+type ComponentResources struct {
+	Service             *corev1.Service
+	Deployment          *appsv1.Deployment
+	StatefulSet         *appsv1.StatefulSet
+	HPA                 *autoscalingv2.HorizontalPodAutoscaler
+	PodDisruptionBudget *policyv1.PodDisruptionBudget
 }
 
 // components returns every BYOC component in apply order.
@@ -49,7 +54,10 @@ func components(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []component {
 			workload:          statefulSetWorkload{spec: spec.Indexer, serviceName: headlessService},
 			quickwitService:   quickwitIndexerServiceName,
 			configVolumeMount: corev1.VolumeMount{Name: configVolumeName, MountPath: quickwitDirectory},
-			extraEnv:          []corev1.EnvVar{decommissionTimeoutEnv(envQuickwitIngestDecommissionTimeout, &spec.Indexer.DatadogBYOCClusterComponentSpec)},
+			extraEnv: append([]corev1.EnvVar{
+				decommissionTimeoutEnv(envQuickwitIngestDecommissionTimeout, &spec.Indexer.DatadogBYOCClusterComponentSpec),
+				{Name: envQuickwitInMemoryIndexing, Value: "true"},
+			}, indexingMaxWriteThroughputEnv(spec.Indexer.Resources)...),
 		},
 		{
 			name:              SearcherComponentName,
@@ -58,6 +66,7 @@ func components(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []component {
 			quickwitService:   quickwitSearcherServiceName,
 			configVolumeMount: configFileVolumeMount(),
 			extraServicePorts: []corev1.ServicePort{{Name: "cloudprem", Port: cloudpremPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("cloudprem")}},
+			extraEnv:          []corev1.EnvVar{{Name: envQuickwitDisableLoadEstimation, Value: "true"}},
 		},
 		{
 			name:              ControlPlaneComponentName,
@@ -94,16 +103,16 @@ func metastoreComponent(name, quickwitService, databaseURIEnv string, spec *data
 	return c
 }
 
-func compactorComponent(spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) component {
+func compactorComponent(spec *datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec) component {
 	c := component{
 		name:              CompactorComponentName,
 		quickwitService:   quickwitCompactorServiceName,
 		configVolumeMount: configFileVolumeMount(),
 	}
 	if spec != nil {
-		c.spec = spec
-		c.workload = deploymentWorkload{replicas: *spec.Replicas}
-		c.extraEnv = []corev1.EnvVar{decommissionTimeoutEnv(envQuickwitCompactorDecommissionTimeout, spec)}
+		c.spec = &spec.DatadogBYOCClusterComponentSpec
+		c.workload = autoscalableDeploymentWorkload{deploymentWorkload: deploymentWorkload{replicas: *spec.Replicas}, autoscaling: spec.Autoscaling}
+		c.extraEnv = []corev1.EnvVar{decommissionTimeoutEnv(envQuickwitCompactorDecommissionTimeout, c.spec)}
 	}
 	return c
 }
@@ -111,6 +120,17 @@ func compactorComponent(spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec)
 // decommissionTimeoutEnv leaves part of the termination grace period for the process to exit.
 func decommissionTimeoutEnv(name string, spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) corev1.EnvVar {
 	return corev1.EnvVar{Name: name, Value: fmt.Sprintf("%ds", *spec.TerminationGracePeriodSeconds*9/10)}
+}
+
+// indexingMaxWriteThroughputEnv scales the indexer write throughput cap with the cores. It leaves the cap
+// unset without a CPU resource.
+func indexingMaxWriteThroughputEnv(resources *corev1.ResourceRequirements) []corev1.EnvVar {
+	cores := cpuCores(resources)
+	if cores == 0 {
+		return nil
+	}
+	throughput := strconv.FormatFloat(float64(cores)*indexingMaxWriteThroughputMiBPerCore, 'f', -1, 64) + "MiB"
+	return []corev1.EnvVar{{Name: envQuickwitIndexingMaxWriteThroughput, Value: throughput}}
 }
 
 func (c component) enabled() bool {
@@ -128,4 +148,59 @@ func (c component) servicePorts() []corev1.ServicePort {
 
 func configFileVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{Name: configVolumeName, MountPath: nodeConfigPath, SubPath: nodeConfigFileName}
+}
+
+func newComponentResources(in podInput, c component) (*ComponentResources, error) {
+	cluster := in.cluster
+	template, err := newPodTemplate(in, c)
+	if err != nil {
+		return nil, err
+	}
+	podDisruptionBudget, err := newPodDisruptionBudget(workloadObjectMeta(cluster, c), selectorLabels(cluster, c.name), cluster.Spec.Global.PodDisruptionBudget, c.spec.PodDisruptionBudget)
+	if err != nil {
+		return nil, err
+	}
+	r := &ComponentResources{
+		Service:             newService(serviceObjectMeta(cluster, c), selectorLabels(cluster, c.name), c.servicePorts()),
+		PodDisruptionBudget: podDisruptionBudget,
+	}
+	c.workload.populate(r, workloadObjectMeta(cluster, c), selectorLabels(cluster, c.name), template)
+	return r, nil
+}
+
+func (r *ComponentResources) objects() []client.Object {
+	objects := []client.Object{r.Service}
+	if r.Deployment != nil {
+		objects = append(objects, r.Deployment)
+	}
+	if r.StatefulSet != nil {
+		objects = append(objects, r.StatefulSet)
+	}
+	if r.HPA != nil {
+		objects = append(objects, r.HPA)
+	}
+	if r.PodDisruptionBudget != nil {
+		objects = append(objects, r.PodDisruptionBudget)
+	}
+	return objects
+}
+
+func (r *ComponentResources) obsoleteObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
+	metadata := componentObjectMeta(cluster, c.name)
+	objects := c.workload.obsoleteObjects(metadata)
+	if r.PodDisruptionBudget == nil {
+		objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
+	}
+	return objects
+}
+
+// disabledComponentObjects returns the resources of a disabled component. Only Deployment components are optional.
+func disabledComponentObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
+	metadata := componentObjectMeta(cluster, c.name)
+	return []client.Object{
+		&corev1.Service{ObjectMeta: metadata},
+		&appsv1.Deployment{ObjectMeta: metadata},
+		&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata},
+		&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
+	}
 }

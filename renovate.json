@@ -1,9 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["github-actions", "gomod"],
+  "enabledManagers": ["github-actions", "gomod", "custom.regex"],
   "minimumReleaseAge": "7 days",
   "ignoreDeps": ["mstksg/get-package", "github.com/aws/smithy-go"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "External image version constants annotated with `// renovate:`",
+      "managerFilePatterns": ["/^pkg/images/images\\.go$/"],
+      "matchStrings": [
+        "// renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+ = \"(?<currentValue>.+?)\""
+      ]
+    }
+  ],
   "packageRules": [
     {
       "matchManagers": ["gomod"],
@@ -21,6 +31,14 @@
       "labels": ["dependencies", "qa/skip-qa"],
       "schedule": ["before 6am on Monday"],
       "groupName": "go dependencies"
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["github-releases"],
+      "matchPackageNames": ["kubernetes-csi/node-driver-registrar"],
+      "labels": ["dependencies", "qa/skip-qa"],
+      "groupName": "CSI node-driver-registrar",
+      "ignoreUnstable": true
     }
   ]
 }

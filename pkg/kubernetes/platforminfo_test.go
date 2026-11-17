@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -277,8 +276,4 @@ func newApiGroupPointer(apiGroup v1.APIGroup) *v1.APIGroup {
 
 func newApiResourceListPointer(apiResourceList v1.APIResourceList) *v1.APIResourceList {
 	return &apiResourceList
-}
-
-func containsObjectKind(list []ObjectKind, s ObjectKind) bool {
-	return slices.Contains(list, s)
 }

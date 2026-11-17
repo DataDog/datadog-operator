@@ -44,8 +44,13 @@ const (
 	EnablePrivateActionRunnerSystemdAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
 	PrivateActionRunnerSystemdJournalStorageAnnotation      = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"
 	EnablePrivateActionRunnerSystemdJournalVacuumAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
+	EnablePrivateActionRunnerPacketCaptureAnnotation        = "agent.datadoghq.com/private-action-runner-packet-capture-enabled"
 
 	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
+	EnableKueueAnnotation         = "agent.datadoghq.com/kueue-enabled"
+	KueueConfigAnnotation         = "agent.datadoghq.com/kueue-config"
+
+	EnableKAISchedulerAnnotation = "agent.datadoghq.com/kai-scheduler-enabled"
 
 	// DefaultAgentIpcPort and DefaultAgentIpcConfigRefreshInterval configure config sync, which
 	// serves resolved config (notably a secret-backed api_key) from the core agent to sub-processes.

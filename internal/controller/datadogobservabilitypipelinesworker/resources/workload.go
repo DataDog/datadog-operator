@@ -6,6 +6,7 @@
 package resources
 
 import (
+	"cmp"
 	"maps"
 	"strconv"
 
@@ -33,6 +34,7 @@ func newPodSpec(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, i
 	serviceAccountName, _ := serviceAccountName(worker)
 	return corev1.PodSpec{
 		ServiceAccountName:            serviceAccountName,
+		SecurityContext:               spec.PodSecurityContext,
 		DNSPolicy:                     corev1.DNSClusterFirst,
 		ImagePullSecrets:              image.pullSecrets,
 		InitContainers:                spec.InitContainers,
@@ -58,8 +60,10 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		Ports:           containerPorts(spec.Ports),
 		Resources:       ptr.Deref(spec.Resources, corev1.ResourceRequirements{}),
 		VolumeMounts:    controllerutils.MergeVolumeMounts(spec.VolumeMounts, []corev1.VolumeMount{{Name: DataVolumeName, MountPath: DataDirectory}}),
-		LivenessProbe:   workerProbe(livenessProbeFailureThreshold),
-		ReadinessProbe:  workerProbe(readinessProbeFailureThreshold),
+		StartupProbe:    spec.StartupProbe,
+		LivenessProbe:   cmp.Or(spec.LivenessProbe, workerProbe(livenessProbeFailureThreshold)),
+		ReadinessProbe:  cmp.Or(spec.ReadinessProbe, workerProbe(readinessProbeFailureThreshold)),
+		SecurityContext: spec.SecurityContext,
 	}
 }
 

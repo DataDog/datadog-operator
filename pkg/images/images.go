@@ -16,13 +16,13 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.84.1"
+	AgentLatestVersion = "7.85.4"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.84.1"
+	ClusterAgentLatestVersion = "7.85.4"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
-	DdotCollectorLatestVersion = "7.84.1"
+	DdotCollectorLatestVersion = "7.85.4"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.32"
+	FIPSProxyLatestVersion = "1.1.33"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
 	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
@@ -30,7 +30,8 @@ const (
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
 	CSILatestImageVersion = "1.4.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
-	DefaultRegistrarImageVersion = "v2.0.1"
+	// renovate: datasource=github-releases depName=kubernetes-csi/node-driver-registrar
+	DefaultRegistrarImageVersion = "v2.18.0"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry

@@ -6,6 +6,8 @@
 package resources
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 )
@@ -13,6 +15,33 @@ import (
 // ComponentResourceName returns the Kubernetes resource name for a BYOC component.
 func ComponentResourceName(clusterName, componentName string) string {
 	return clusterName + "-" + componentName
+}
+
+func componentObjectMeta(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{Name: ComponentResourceName(cluster.Name, componentName), Namespace: cluster.Namespace}
+}
+
+func workloadObjectMeta(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:        ComponentResourceName(cluster.Name, c.name),
+		Namespace:   cluster.Namespace,
+		Labels:      podLabels(cluster, c),
+		Annotations: annotations(cluster, c.spec.Annotations),
+	}
+}
+
+func serviceObjectMeta(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:        ComponentResourceName(cluster.Name, c.name),
+		Namespace:   cluster.Namespace,
+		Labels:      labels(cluster, componentLabel(c.name), c.spec.Labels),
+		Annotations: annotations(cluster),
+	}
+}
+
+// podLabels lets component labels override the global ones without changing the selector.
+func podLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) map[string]string {
+	return labels(cluster, componentLabel(c.name), c.spec.Labels, selectorLabels(cluster, c.name))
 }
 
 // instanceSelectorLabels selects every pod of the cluster.

@@ -10,7 +10,7 @@ package controller
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -26,19 +26,18 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
 )
 
 const (
-	byocSuccessReleaseTag = "success"
-	byocUpdatedReleaseTag = "updated"
-	byocFailureReleaseTag = "failure"
 	byocPipelineID        = "pipeline-id"
 	testDeletionFinalizer = "test.datadoghq.com/deletion"
 )
@@ -58,9 +57,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		cluster = &datadoghqv1alpha1.DatadogBYOCCluster{
 			ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
 			Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To(byocSuccessReleaseTag),
-				},
 				Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
 					APIKeySecretRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
@@ -92,7 +88,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							},
 						},
 					},
-					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 				},
 			},
 		}
@@ -102,7 +98,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		deleteKubernetesObject(k8sClient, namespace)
 	})
 
-	Context("when release resolution succeeds", func() {
+	Context("when the cluster is created", func() {
 		BeforeEach(func() {
 			createKubernetesObject(k8sClient, cluster)
 		})
@@ -121,9 +117,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				},
 				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 					Signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs),
-					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-						Tag: ptr.To(byocSuccessReleaseTag),
-					},
 					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
 						Site:          ptr.To("datadoghq.com"),
 						BYOCTelemetry: ptr.To(true),
@@ -160,18 +153,11 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 								},
 							},
 						},
-						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterCompactorComponentSpec{},
 					},
 				},
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
 					Conditions: []metav1.Condition{
-						{
-							Type:               "ReleaseResolved",
-							Status:             metav1.ConditionTrue,
-							ObservedGeneration: 1,
-							Reason:             "Resolved",
-							Message:            "Workload images resolved successfully",
-						},
 						{
 							Type:               "Reconciled",
 							Status:             metav1.ConditionTrue,
@@ -278,6 +264,30 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(resource), resource)).Should(Succeed())
 			}
 			Expect(metav1.IsControlledBy(worker, cluster)).To(BeTrue())
+		})
+
+		It("does not update the managed resources once they match the desired state", func() {
+			By("waiting for the cluster and its worker to be reconciled")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-pipeline-logs", Namespace: namespace.Name}, worker)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(worker.Status.Conditions, "Reconciled")).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			want, err := byocTestResourceVersions(namespace.Name)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("running a reconcile of the cluster to completion")
+			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
+			Expect(reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})).To(Equal(ctrl.Result{}))
+
+			By("verifying that the reconcile did not update any object")
+			got, err := byocTestResourceVersions(namespace.Name)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cmp.Diff(want, got)).To(BeEmpty())
 		})
 
 		It("becomes available only when both workers are available", func() {
@@ -573,6 +583,21 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				g.Expect(auditWorker.DeletionTimestamp.IsZero()).To(BeTrue())
 				g.Expect(cmp.Diff(originalAudit.Spec, auditWorker.Spec)).To(BeEmpty())
 			}, timeout, interval).Should(Succeed())
+
+			By("deleting every worker when all pipelines are removed")
+			setPipelines()
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(auditWorker), auditWorker)).To(Succeed())
+				g.Expect(auditWorker.DeletionTimestamp.IsZero()).To(BeFalse())
+			}, timeout, interval).Should(Succeed())
+			removeBYOCTestFinalizers(auditWorker, metav1.FinalizerDeleteDependents)
+			waitForBYOCTestDeletion(auditWorker)
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				g.Expect(current.Status.Pipelines).To(BeEmpty())
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
@@ -785,203 +810,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 	})
-
-	Context("when release resolution fails", func() {
-		BeforeEach(func() {
-			cluster.Spec.Release.Tag = ptr.To(byocFailureReleaseTag)
-			createKubernetesObject(k8sClient, cluster)
-		})
-
-		AfterEach(func() {
-			deleteKubernetesObject(k8sClient, cluster)
-		})
-
-		It("reports the failure without creating managed resources", func() {
-			want := &datadoghqv1alpha1.DatadogBYOCCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "byoc",
-					Namespace:  namespace.Name,
-					Generation: 1,
-					Finalizers: []string{"finalizer.datadoghq.com/datadogbyoccluster"},
-				},
-				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-					Signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalLogs),
-					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-						Tag: ptr.To(byocFailureReleaseTag),
-					},
-					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
-						Site:          ptr.To("datadoghq.com"),
-						BYOCTelemetry: ptr.To(true),
-						APIKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "api-key",
-						},
-						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
-							Port: ptr.To[int32](8125),
-						},
-					},
-					Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-						AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-					},
-					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
-							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
-								URISecretRef: &corev1.SecretKeySelector{
-									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
-									Key:                  "primary-uri",
-								},
-							},
-						},
-						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
-						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
-							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
-								URISecretRef: &corev1.SecretKeySelector{
-									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
-									Key:                  "read-only-metastore-uri",
-								},
-							},
-						},
-						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-					},
-				},
-				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:               "ReleaseResolved",
-							Status:             metav1.ConditionFalse,
-							ObservedGeneration: 1,
-							Reason:             "ResolutionFailed",
-							Message:            "release unavailable",
-						},
-						{
-							Type:               "Reconciled",
-							Status:             metav1.ConditionFalse,
-							ObservedGeneration: 1,
-							Reason:             "ResolutionFailed",
-							Message:            "release unavailable",
-						},
-						{
-							Type:               "Available",
-							Status:             metav1.ConditionFalse,
-							ObservedGeneration: 1,
-							Reason:             "ResolutionFailed",
-							Message:            "release unavailable",
-						},
-					},
-				},
-			}
-
-			Eventually(func() string {
-				got := &datadoghqv1alpha1.DatadogBYOCCluster{}
-				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), got); err != nil {
-					return err.Error()
-				}
-				return cmp.Diff(want, got,
-					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "UID", "CreationTimestamp", "ManagedFields"),
-					cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
-				)
-			}, timeout, interval).Should(BeEmpty())
-
-			err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc", Namespace: namespace.Name}, &corev1.ConfigMap{})
-			Expect(apierrors.IsNotFound(err)).Should(BeTrue())
-		})
-	})
 })
-
-type fakeBYOCImageResolver struct {
-	results map[string]fakeBYOCImageResult
-}
-
-type fakeBYOCImageResult struct {
-	images *byocimage.ResolvedImages
-	err    error
-}
-
-func newFakeBYOCImageResolver() byocimage.ImageResolver {
-	return &fakeBYOCImageResolver{
-		results: map[string]fakeBYOCImageResult{
-			byocSuccessReleaseTag: {
-				images: &byocimage.ResolvedImages{
-					Pomsky: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/cloudprem",
-						Tag:        "envtest",
-					},
-					ObservabilityPipelinesWorker: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/observability-pipelines-worker",
-						Tag:        "envtest",
-					},
-				},
-			},
-			byocUpdatedReleaseTag: {
-				images: &byocimage.ResolvedImages{
-					Pomsky: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/cloudprem",
-						Tag:        "envtest",
-					},
-					ObservabilityPipelinesWorker: byocimage.ResolvedImage{
-						Repository: "registry.invalid/datadog/observability-pipelines-worker",
-						Tag:        "envtest-updated",
-					},
-				},
-			},
-			byocFailureReleaseTag: {err: errors.New("release unavailable")},
-		},
-	}
-}
-
-func (r *fakeBYOCImageResolver) Resolve(_ context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec, overrides *datadoghqv1alpha1.DatadogBYOCClusterImageOverrides) (*byocimage.ResolvedImages, error) {
-	if overrides != nil && completeFakeImageOverride(overrides.BYOC) && completeFakeImageOverride(overrides.ObservabilityPipelinesWorker) {
-		return &byocimage.ResolvedImages{
-			Pomsky:                       fakeResolvedImage(byocimage.ResolvedImage{}, overrides.BYOC),
-			ObservabilityPipelinesWorker: fakeResolvedImage(byocimage.ResolvedImage{}, overrides.ObservabilityPipelinesWorker),
-		}, nil
-	}
-	var tag string
-	if spec != nil {
-		tag = ptr.Deref(spec.Tag, "")
-	}
-	result, found := r.results[tag]
-	if !found {
-		return nil, errors.New("unexpected release")
-	}
-	if result.err != nil {
-		return nil, result.err
-	}
-	images := *result.images
-	if overrides != nil {
-		images.Pomsky = fakeResolvedImage(images.Pomsky, overrides.BYOC)
-		images.ObservabilityPipelinesWorker = fakeResolvedImage(images.ObservabilityPipelinesWorker, overrides.ObservabilityPipelinesWorker)
-	}
-	return &images, nil
-}
-
-func completeFakeImageOverride(override *datadoghqv1alpha1.DatadogBYOCImageSpec) bool {
-	return override != nil && ptr.Deref(override.Repository, "") != "" &&
-		((ptr.Deref(override.Tag, "") != "") != (ptr.Deref(override.Digest, "") != ""))
-}
-
-func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1.DatadogBYOCImageSpec) byocimage.ResolvedImage {
-	if override == nil {
-		return base
-	}
-	if override.Repository != nil {
-		base.Repository = *override.Repository
-	}
-	if override.Tag != nil {
-		base.Tag, base.Digest = *override.Tag, ""
-	} else if override.Digest != nil {
-		base.Tag, base.Digest = "", *override.Digest
-	}
-	if override.PullPolicy != nil {
-		base.ImagePullPolicy = *override.PullPolicy
-	}
-	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
-	return base
-}
 
 func byocTestPipeline() *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec {
 	return &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
@@ -1025,6 +854,36 @@ func waitForBYOCTestDeletion(object client.Object) {
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object.DeepCopyObject().(client.Object))
 		return apierrors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
+}
+
+// byocTestResourceVersions returns the resource version of every object of the kinds that the BYOC controllers manage in
+// the namespace, keyed by kind and name.
+func byocTestResourceVersions(namespace string) (map[string]string, error) {
+	lists := []client.ObjectList{
+		&datadoghqv1alpha1.DatadogBYOCClusterList{},
+		&datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerList{},
+		&corev1.ConfigMapList{},
+		&corev1.ServiceAccountList{},
+		&corev1.ServiceList{},
+		&appsv1.DeploymentList{},
+		&appsv1.StatefulSetList{},
+		&autoscalingv2.HorizontalPodAutoscalerList{},
+		&policyv1.PodDisruptionBudgetList{},
+	}
+	versions := map[string]string{}
+	for _, list := range lists {
+		if err := k8sClient.List(context.Background(), list, client.InNamespace(namespace)); err != nil {
+			return nil, err
+		}
+		if err := meta.EachListItem(list, func(item runtime.Object) error {
+			object := item.(client.Object)
+			versions[fmt.Sprintf("%T %s", object, object.GetName())] = object.GetResourceVersion()
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return versions, nil
 }
 
 // terminalReconcileErrors returns the number of reconcile errors of the controller that controller-runtime did not retry.

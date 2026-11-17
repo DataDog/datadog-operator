@@ -46,7 +46,6 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
-	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -73,6 +72,7 @@ const (
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
 	defaultComponentHealthSnapshotInterval               = 60 * time.Second
+	defaultComponentHealthResolveGracePeriod             = 5 * time.Minute
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
 )
 
@@ -151,6 +151,7 @@ type options struct {
 	componentHealthIntakeEnabled        bool
 	componentHealthIntakeURL            string
 	componentHealthSnapshotInterval     time.Duration
+	componentHealthResolveGracePeriod   time.Duration
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -213,6 +214,8 @@ func (opts *options) Parse() {
 		"Requires --componentHealthEnabled. When set, the ComponentHealth controller reports current-state HealthReport snapshots to the Datadog agenthealth intake on a fixed cadence, instead of only logging them.")
 	flag.DurationVar(&opts.componentHealthSnapshotInterval, "componentHealthSnapshotInterval", defaultComponentHealthSnapshotInterval,
 		"Cadence at which the ComponentHealth controller emits current-state snapshots (log or intake), for example 60s.")
+	flag.DurationVar(&opts.componentHealthResolveGracePeriod, "componentHealthResolveGracePeriod", defaultComponentHealthResolveGracePeriod,
+		"How long a ComponentHealth issue must stay clear before a RESOLVED signal is emitted, debouncing a flapping component, for example 5m.")
 	flag.StringVar(&opts.componentHealthIntakeURL, "componentHealthIntakeURL", "",
 		"Override the full agenthealth intake URL the ComponentHealth controller POSTs to (including path, e.g. http://host:port/api/v2/agenthealth). Intended for testing/QA against a fakeintake; empty derives the URL from the configured site.")
 
@@ -254,6 +257,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.componentHealthIntakeEnabled, "DD_COMPONENT_HEALTH_INTAKE_ENABLED"),
 		stringEnv(&opts.componentHealthIntakeURL, "DD_COMPONENT_HEALTH_INTAKE_URL"),
 		durationEnv(&opts.componentHealthSnapshotInterval, "DD_COMPONENT_HEALTH_SNAPSHOT_INTERVAL"),
+		durationEnv(&opts.componentHealthResolveGracePeriod, "DD_COMPONENT_HEALTH_RESOLVE_GRACE_PERIOD"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
@@ -569,8 +573,8 @@ func run(opts *options) error {
 		ComponentHealthIntakeEnabled:      opts.componentHealthIntakeEnabled,
 		ComponentHealthIntakeURL:          opts.componentHealthIntakeURL,
 		ComponentHealthSnapshotInterval:   opts.componentHealthSnapshotInterval,
+		ComponentHealthResolveGracePeriod: opts.componentHealthResolveGracePeriod,
 		ClusterProviderDetector:           providerDetector,
-		BYOCImageResolver:                 byocimage.NewOCIImageResolver(),
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -741,10 +745,9 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	// Wrap the encoder to filter out certain controller-runtime fields
 	fieldsToSkip := []string{
-		"controller",           // "datadogagentinternal", present in log name
-		"controllerGroup",      // "datadoghq.com", unnecessary
-		"controllerKind",       // "DatadogAgentInternal", present in log name
-		"DatadogAgentInternal", // {"name":"datadog-agent","namespace":"default"}, duplicate of namespace and name
+		"controller",      // present in log name
+		"controllerGroup", // "datadoghq.com", unnecessary
+		"controllerKind",  // present in log name
 	}
 	encoder := newFilteringEncoder(baseEncoder, fieldsToSkip)
 

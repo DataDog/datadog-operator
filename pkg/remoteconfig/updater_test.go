@@ -516,3 +516,17 @@ func newFakeClient(t *testing.T, objects ...client.Object) client.Client {
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 }
+
+func TestConfigureServiceConfigReadable(t *testing.T) {
+	updater := &RemoteConfigUpdater{logger: logr.Discard()}
+	require.NoError(t, updater.configureService("api-key", "datad0g.com", "", "director-root", "config-root", ""))
+
+	cfg := updater.serviceConf.cfg
+	// The Remote Configuration service picks its TUF roots from these values:
+	// an empty site selects the prod roots, which fail on datad0g.com.
+	assert.Equal(t, "datad0g.com", cfg.GetString("site"))
+	assert.Equal(t, "director-root", cfg.GetString("remote_configuration.director_root"))
+	assert.Equal(t, "config-root", cfg.GetString("remote_configuration.config_root"))
+	assert.Equal(t, "api-key", cfg.GetString("api_key"))
+	assert.Equal(t, "https://config.datad0g.com", updater.serviceConf.baseRawURL)
+}

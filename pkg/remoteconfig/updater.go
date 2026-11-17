@@ -396,6 +396,10 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	cfg.SetDefault("site", site)
 	cfg.SetDefault("remote_configuration.config_root", configRoot)
 	cfg.SetDefault("remote_configuration.director_root", directorRoot)
+	// The config must be built before it is read: an unbuilt config returns
+	// empty values, so the Remote Configuration service would get an empty
+	// site and verify every site against the prod TUF roots.
+	cfg.BuildSchema()
 	hostname, _ := os.Hostname()
 
 	if endpoint == "" {

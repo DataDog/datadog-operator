@@ -219,6 +219,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		m.SetMessage(msg)
 		m.SetPriority(priority)
 		m.SetOptions(o)
+		// The API rejects an empty list.
+		if len(restrictedRoles) > 0 {
+			m.SetRestrictedRoles(restrictedRoles)
+		}
 	}
 
 	u := datadogV1.NewMonitorUpdateRequest()

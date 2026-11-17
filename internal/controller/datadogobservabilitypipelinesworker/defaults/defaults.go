@@ -7,6 +7,7 @@
 package defaults
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -27,6 +28,9 @@ const (
 	// Resources
 	defaultCPURequest    = "2"
 	defaultMemoryRequest = "4Gi"
+
+	// Security context
+	workerUserID int64 = 1000
 )
 
 // Apply returns a deep copy of the worker with reconciliation-time defaults applied.
@@ -47,6 +51,19 @@ func Apply(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) *datad
 	}
 	if component.TerminationGracePeriodSeconds == nil {
 		component.TerminationGracePeriodSeconds = new(defaultTerminationGracePeriodSeconds)
+	}
+	if component.PodManagementPolicy == nil {
+		component.PodManagementPolicy = new(appsv1.ParallelPodManagement)
+	}
+	if component.PodSecurityContext == nil {
+		component.PodSecurityContext = &corev1.PodSecurityContext{FSGroup: new(workerUserID)}
+	}
+	if component.SecurityContext == nil {
+		component.SecurityContext = &corev1.SecurityContext{
+			RunAsNonRoot: new(true),
+			RunAsUser:    new(workerUserID),
+			RunAsGroup:   new(workerUserID),
+		}
 	}
 	applyAutoscalingDefaults(component.Autoscaling)
 

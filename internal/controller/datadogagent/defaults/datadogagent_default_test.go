@@ -2911,7 +2911,24 @@ func Test_DefaultProviderSpecificConfig_KubeletTLSVerify(t *testing.T) {
 			want:          ptr.To(false),
 		},
 		{
-			// Off OpenShift the field stays nil, which emits no DD_KUBELET_TLS_VERIFY
+			name:     "nebius, unset: defaults to false",
+			provider: "nebius",
+			want:     ptr.To(false),
+		},
+		{
+			name:          "nebius, user set true: preserved",
+			provider:      "nebius",
+			userTLSVerify: ptr.To(true),
+			want:          ptr.To(true),
+		},
+		{
+			name:          "nebius, user set false: preserved",
+			provider:      "nebius",
+			userTLSVerify: ptr.To(false),
+			want:          ptr.To(false),
+		},
+		{
+			// Elsewhere the field stays nil, which emits no DD_KUBELET_TLS_VERIFY
 			// at all rather than an explicit "true".
 			name:     "eks: left unset",
 			provider: "eks",

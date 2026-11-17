@@ -114,14 +114,16 @@ func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
-// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
+// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig.
+// A tag included in Name takes precedence over Tag, matching image resolution.
 func GetAgentVersionFromImage(imageConfig v2alpha1.AgentImageConfig) string {
 	version := ""
 	if imageConfig.Name != "" {
 		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
 	}
-	// Give priority to image Tag setting
-	if imageConfig.Tag != "" {
+	// A registry port does not count as a tag in the image name.
+	nameHasTag := strings.LastIndex(imageConfig.Name, ":") > strings.LastIndex(imageConfig.Name, "/")
+	if imageConfig.Tag != "" && !nameHasTag {
 		version = imageConfig.Tag
 	}
 	return version

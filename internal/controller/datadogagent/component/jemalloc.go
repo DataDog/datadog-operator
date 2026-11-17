@@ -18,12 +18,12 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-// EnableJemallocAnnotation temporarily gates jemalloc defaults during rollout.
-const EnableJemallocAnnotation = "agent.datadoghq.com/jemalloc-enabled"
+// DisableJemallocAnnotation disables the Agent image's default jemalloc preload.
+const DisableJemallocAnnotation = "agent.datadoghq.com/jemalloc-disable"
 
-// JemallocEnvVars returns opt-in allocator defaults for supported Agent images.
+// JemallocEnvVars returns the jemalloc opt-out override for supported Agent images.
 func JemallocEnvVars(dda metav1.Object, image *v2alpha1.AgentImageConfig) []corev1.EnvVar {
-	if dda.GetAnnotations()[EnableJemallocAnnotation] != "true" {
+	if dda.GetAnnotations()[DisableJemallocAnnotation] != "true" {
 		return nil
 	}
 	if experimental.IsAutopilotEnabled(dda) {
@@ -37,12 +37,11 @@ func JemallocEnvVars(dda metav1.Object, image *v2alpha1.AgentImageConfig) []core
 	if image != nil {
 		version = common.GetAgentVersionFromImage(*image)
 	}
-	if !utils.IsAboveMinVersion(version, "7.84.0-0", new(true)) {
+	if !utils.IsAboveMinVersion(version, "7.87.0-0", new(true)) {
 		return nil
 	}
 	return []corev1.EnvVar{
 		// Pod environment variables replace image defaults, so retain the Agent image's nosys shim.
-		{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so /opt/datadog-agent/embedded/lib/libjemalloc.so"},
-		{Name: "MALLOC_CONF", Value: "background_thread:true,dirty_decay_ms:5000"},
+		{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so"},
 	}
 }

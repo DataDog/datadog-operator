@@ -158,7 +158,7 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 2*time.Minute, 10*time.Second, "GKE did not install the Agent WorkloadAllowlist")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
 	}
 	require.NotEmpty(s.T(), workloadAllowlistName)
@@ -175,7 +175,7 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 2*time.Minute, 10*time.Second, "GKE Autopilot rejected or did not create the Agent DaemonSet")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
 	}
 
@@ -190,10 +190,6 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 
 			for _, pod := range agentPods {
 				assertContainerPresent(c, pod, systemProbeContainerName)
-				assertContainerPresent(c, pod, adpContainerName)
-				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_DATA_PLANE_ENABLED", "true")
-				assertContainerHasEnvVar(c, pod, adpContainerName, "DD_DATA_PLANE_REMOTE_AGENT_ENABLED", "true")
-				assertContainerHasEnvVar(c, pod, adpContainerName, "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT", "true")
 			}
 
 			s.verifyAPIMetrics(c)
@@ -202,7 +198,7 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent in time")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
 	}
 
@@ -239,26 +235,8 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		}, 5*time.Minute, 30*time.Second, "could not validate GKE Autopilot live containers in time")
 	})
 	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		s.logAutopilotWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 		return
-	}
-
-	s.Run("Verify Autopilot Agent with ADP explicitly disabled", func() {
-		require.NoError(s.T(), s.setDDAField(gkeAutopilotDDAName, false, "spec", "features", "dataPlane", "enabled"))
-
-		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), gkeAutopilotAgentSelector)
-
-			agentPods, err := s.runningAgentPods(gkeAutopilotAgentSelector)
-			assert.NoError(c, err)
-			assert.NotEmpty(c, agentPods)
-			for _, pod := range agentPods {
-				assertContainerAbsent(c, pod, adpContainerName)
-			}
-		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent with ADP disabled in time")
-	})
-	if s.T().Failed() {
-		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
 	}
 }
 
@@ -373,7 +351,7 @@ func (s *gkeAutopilotSuite) setDDANodeAgentLabel(ddaName, key, value string) err
 	return err
 }
 
-func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector string) {
+func (s *gkeAutopilotSuite) logAutopilotWorkloadDiagnostics(ddaName, agentSelector string) {
 	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
 	if err != nil {
 		s.T().Logf("could not list Agent pods for %s: %v", ddaName, err)

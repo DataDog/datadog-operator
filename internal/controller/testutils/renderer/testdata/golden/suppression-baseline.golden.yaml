@@ -1294,7 +1294,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7c3ba75ac8a4f52e97174e16d83693ba
+    agent.datadoghq.com/agentspechash: 8c0b3219791d35c23a185e570ddb2037
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1363,6 +1363,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1510,6 +1512,9 @@ spec:
         - mountPath: /var/run/nvidia-container-devices/all
           name: nvidia-devices
           readOnly: true
+        - mountPath: /host/var/run/cdi
+          name: cdi
+          readOnly: true
         - mountPath: /etc/passwd
           name: passwd
           readOnly: true
@@ -1562,6 +1567,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1661,6 +1668,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1924,6 +1933,10 @@ spec:
       - hostPath:
           path: /dev/null
         name: nvidia-devices
+      - hostPath:
+          path: /var/run/cdi
+          type: DirectoryOrCreate
+        name: cdi
       - hostPath:
           path: /etc/passwd
         name: passwd
