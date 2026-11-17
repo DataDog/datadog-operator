@@ -197,6 +197,9 @@ When `spec.id` is not set, behavior doesn't change, including recreating the obj
 
 #### Blocking check against legacy CRs
 
+<details>
+<summary>Show details</summary>
+
 A DDGR of type `monitor`, `dashboard` or `slo` doesn't adopt an ID while a CR of the matching legacy kind has the same `status.id`. The condition is `AdoptionLegacyOwner`, and its message names the CR and points to `kubectl datadog monitor migrate` or the orphan annotation. Adoption goes ahead on its own once the legacy CR is gone.
 
 The controller retries at `requeuePeriod` (60s by default), not at `forceSyncPeriod` (60 min). During a GitOps migration this state can be expected rather than an error: if the GitOps tool creates the DDGR before the old CR is gone, the DDGR waits. It then adopts on its first retry after the old CR's finalizer completes, so at most `requeuePeriod` later. A watch on legacy kinds would react faster, but it brings back the informer problem described below. The list is one uncached call per minute per waiting DDGR, and only while a migration is in progress. A legacy CR that is terminating still blocks until it's deleted, because its finalizer might still delete the object.
@@ -215,6 +218,8 @@ The controller retries at `requeuePeriod` (60s by default), not at `forceSyncPer
 - **Adoption is the only point where this needs checking.** Legacy CRDs can't adopt, so a legacy CR can't acquire an adopted ID later, except by setting `status.id` by hand, which isn't supported.
 
 One limitation: the list covers the Operator's own cluster only, and legacy CRs in another cluster aren't visible. That falls under the cross-cluster row above.
+
+</details>
 
 ### Deletion and retention
 
@@ -270,6 +275,9 @@ Recovering from a partial migration:
 | Rollback to the legacy CRD | Not possible with the same ID: legacy CRDs can't adopt. | Fix forward with DDGR. The [migration safety net](#migration-safety-net) makes sure an attempted rollback never deletes the object. |
 
 ### GitOps (Argo CD, Flux)
+
+<details>
+<summary>Show details</summary>
 
 GitOps users don't delete the old CR themselves: the GitOps tool prunes it when its manifest leaves Git. A prune deletes the object **as it exists in the cluster**. So the orphan annotation must be on the live CR *before* the manifest is removed. Adding it to the manifest that you remove in the same commit doesn't work: that version is never applied.
 
@@ -329,7 +337,12 @@ sequenceDiagram
 
 **Drift goes away.** The `DatadogMonitor` controller writes `generated:kubernetes` into the CR spec, so GitOps tools often show these CRs as OutOfSync. The DDGR has no such problem: the tag is already in the committed `jsonSpec`, and the DDGR controller never writes to the spec.
 
+</details>
+
 ### Migration safety net
+
+<details>
+<summary>Show details</summary>
 
 Reverting the step-2 commit is the natural GitOps rollback, and today it would be destructive:
 - The revert prunes the DDGR, whose finalizer deletes the adopted monitor.
@@ -369,11 +382,16 @@ When the user has validated the migration, they drop the annotation from the DDG
 
 Rollback stays unsupported: the safety net makes sure the object is never lost, not that the old CR works again.
 
+</details>
+
 ### Old Operator versions
 
 The annotation needs the new Operator version on the legacy controllers. On older versions: disable the legacy controller (`-datadogMonitorEnabled=false`, and so on), remove the finalizer, then delete the CR.
 
 ## Adopting resources created outside Kubernetes (UI, API, Terraform)
+
+<details>
+<summary>Show details</summary>
 
 1. **Export the definition.** Use the existing `jq` recipes from the migration guide, which strip response-only fields, and add `spec.id`.
 2. **Hand off from the previous manager.**
@@ -383,7 +401,12 @@ The annotation needs the new Operator version on the legacy controllers. On olde
 
 **Read-only / observe phase: deferred.** A mode that adopts without writing, and reports the diff between `jsonSpec` and the remote object, would make the first update less surprising. It needs a per-type normalization of API responses against create payloads, which we only have for monitors (the definition hash). The first update is already explicit and visible in Events. Users who want a dry run can compare the exported JSON with their `jsonSpec` before applying.
 
+</details>
+
 ## Tooling
+
+<details>
+<summary>Show details</summary>
 
 | Path | Plan |
 | --- | --- |
@@ -433,6 +456,8 @@ The command runs with the user's kubeconfig and needs `get/update/delete` on `da
 
 `--all` (migrating every `DatadogMonitor` in a namespace) is a straightforward follow-up once the single-resource flow is proven.
 
+</details>
+
 ## Supported types and limitations
 
 Adoption doesn't depend on the type: it's a GET by ID followed by the existing update path. Every type addressed by ID can be enabled at once. Tests and docs focus on the migration targets.
@@ -456,6 +481,9 @@ Adoption doesn't depend on the type: it's a GET by ID followed by the existing u
 
 ## Side benefit: active/passive clusters
 
+<details>
+<summary>Show details</summary>
+
 Supporting DR isn't a goal. Even so, `spec.id` plus the orphan policy give the customer's active/passive setup a reasonable pattern without any DR-specific code:
 
 1. Create the resources once in the active cluster, then write each `status.id` back into the manifests as `spec.id`.
@@ -464,6 +492,8 @@ Supporting DR isn't a goal. Even so, `spec.id` plus the orphan policy give the c
 4. **Retire the old cluster:** stop its controller, or annotate its CRs with `orphan` and delete them.
 
 Still unsupported: both controllers active at the same time (they overwrite each other on force sync, and this isn't detected), and recovering from an out-of-band delete. With `spec.id` set, an out-of-band delete produces an error instead of a recreate. That's what keeps the two clusters from splitting into two monitors.
+
+</details>
 
 ## Compatibility
 
@@ -474,6 +504,9 @@ Still unsupported: both controllers active at the same time (they overwrite each
 - The migration guide needs updating: remove "DDGR does not adopt an existing object" and describe the new workflow (CONTP-2283).
 
 ## Test matrix
+
+<details>
+<summary>Show details</summary>
 
 | # | Case | Expected |
 | --- | --- | --- |
@@ -515,6 +548,8 @@ Still unsupported: both controllers active at the same time (they overwrite each
 | 31 | Same `DatadogMonitor` manifest in 2 clusters, `migrate -o yaml` run per cluster | Each output has that cluster's `spec.id`. Each DDGR adopts its own cluster's monitor. |
 | 32 | Revert of the step-2 commit with the safety-net annotation | DDGR pruned, monitor kept. Recreated `DatadogMonitor` fails as a duplicate. Reapplying step 2 adopts again. |
 | 33 | `--finalize` | Annotation removed. Deleting the DDGR afterwards deletes the monitor. |
+
+</details>
 
 ## Open questions
 
