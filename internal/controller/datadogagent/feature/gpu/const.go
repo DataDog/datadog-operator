@@ -5,6 +5,8 @@
 
 package gpu
 
+import "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+
 const (
 	nvidiaDevicesMountPath  = "/var/run/nvidia-container-devices/all"
 	nvidiaDevicesVolumeName = "nvidia-devices"
@@ -27,3 +29,9 @@ const (
 	// defaultGPURuntimeClass default runtime class for GPU pods
 	defaultGPURuntimeClass = "nvidia"
 )
+
+// vendorMinAgentVersion is the first Agent release with the check of each non-NVIDIA vendor.
+// A vendor missing here is treated as nvidia.
+var vendorMinAgentVersion = map[v2alpha1.GPUVendor]string{
+	v2alpha1.GPUVendorAMD: "7.86.0-0", // amd_gpu core check
+}

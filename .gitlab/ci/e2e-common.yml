@@ -15,10 +15,10 @@
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   before_script:
     # Restore the Go caches and plugins prepared once for this pipeline.
-    - tar xJf e2e_go_cache.tar.xz -C "$CI_PROJECT_DIR"
-    - rm -f e2e_go_cache.tar.xz
-    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
-    - rm -f pulumi_plugins.tar.xz
+    - tar -I zstd -xf e2e_go_cache.tar.zst -C "$CI_PROJECT_DIR"
+    - rm -f e2e_go_cache.tar.zst
+    - mkdir -p ~/.pulumi && tar -I zstd -xf pulumi_plugins.tar.zst -C ~/.pulumi
+    - rm -f pulumi_plugins.tar.zst
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
     - dd-octo-sts version
     - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
@@ -87,11 +87,11 @@
       GOWORK=off go test -p 2 ./... -count=1 --tags=e2e -cover -run '^$'
       GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
       popd
-      tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
+      tar c -I "zstd -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.zst -C ~/.pulumi plugins
       # Only E2E jobs download this pipeline's module and build caches.
-      tar c --use-compress-program="xz -T${KUBERNETES_CPU_REQUEST}" -f "$CI_PROJECT_DIR/e2e_go_cache.tar.xz" -C "$CI_PROJECT_DIR" .go/pkg/mod .cache/go-build
+      tar c -I "zstd -T${KUBERNETES_CPU_REQUEST}" -f "$CI_PROJECT_DIR/e2e_go_cache.tar.zst" -C "$CI_PROJECT_DIR" .go/pkg/mod .cache/go-build
   artifacts:
     expire_in: 1 day
     paths:
-      - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
-      - $CI_PROJECT_DIR/e2e_go_cache.tar.xz
+      - $CI_PROJECT_DIR/pulumi_plugins.tar.zst
+      - $CI_PROJECT_DIR/e2e_go_cache.tar.zst
