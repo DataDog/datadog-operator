@@ -38,8 +38,8 @@ func TestSecretBackend_execCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := &SecretBackend{
 				cmd:              tt.cmd,
-				cmdTimeout:       defaultCmdTimeout,
-				cmdOutputMaxSize: defaultCmdOutputMaxSize,
+				cmdTimeout:       DefaultCmdTimeout,
+				cmdOutputMaxSize: DefaultCmdOutputMaxSize,
 			}
 			got, err := sb.execCommand(tt.payload)
 			if (err != nil) != tt.wantErr {
@@ -109,8 +109,8 @@ func TestSecretBackend_Decrypt(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := &SecretBackend{
 				cmd:              tt.cmd,
-				cmdTimeout:       defaultCmdTimeout,
-				cmdOutputMaxSize: defaultCmdOutputMaxSize,
+				cmdTimeout:       DefaultCmdTimeout,
+				cmdOutputMaxSize: DefaultCmdOutputMaxSize,
 			}
 			got, err := sb.Decrypt(tt.encrypted)
 			if (err != nil) != tt.wantErr {
@@ -263,8 +263,8 @@ func TestSecretBackend_fetchSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := &SecretBackend{
 				cmd:              tt.cmd,
-				cmdTimeout:       defaultCmdTimeout,
-				cmdOutputMaxSize: defaultCmdOutputMaxSize,
+				cmdTimeout:       DefaultCmdTimeout,
+				cmdOutputMaxSize: DefaultCmdOutputMaxSize,
 			}
 			got, err := sb.fetchSecret(tt.encrypted)
 			if (err != nil) != tt.wantErr {

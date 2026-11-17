@@ -30,8 +30,10 @@ var (
 )
 
 const (
-	defaultCmdOutputMaxSize = 1024 * 1024
-	defaultCmdTimeout       = 30 * time.Second
+	// DefaultCmdOutputMaxSize is the maximum size of the secret backend output.
+	DefaultCmdOutputMaxSize = 1024 * 1024
+	// DefaultCmdTimeout is the secret backend command timeout.
+	DefaultCmdTimeout = 30 * time.Second
 
 	// PayloadVersion represents the version of the SB API
 	PayloadVersion = "1.0"
@@ -88,8 +90,8 @@ func NewSecretBackend() *SecretBackend {
 		cmdArgs:          cmdArgs,
 		backendType:      backendType,
 		backendConfig:    backendConfig,
-		cmdOutputMaxSize: defaultCmdOutputMaxSize,
-		cmdTimeout:       defaultCmdTimeout,
+		cmdOutputMaxSize: DefaultCmdOutputMaxSize,
+		cmdTimeout:       DefaultCmdTimeout,
 	}
 }
 

@@ -34,6 +34,8 @@ require (
 
 require (
 	github.com/DataDog/agent-payload/v5 v5.0.207
+	github.com/DataDog/datadog-agent/comp/core/secrets/impl v0.83.2
+	github.com/DataDog/datadog-agent/comp/core/secrets/utils v0.83.2
 	github.com/DataDog/datadog-agent/pkg/config/create v0.83.2
 	github.com/DataDog/datadog-agent/pkg/config/model v0.83.2
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.83.2
@@ -78,6 +80,9 @@ require (
 )
 
 require (
+	github.com/DataDog/datadog-agent/comp/api/api/def v0.83.2 // indirect
+	github.com/DataDog/datadog-agent/comp/core/status v0.83.2 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/flavor v0.83.2 // indirect
 	github.com/dylibso/observe-sdk/go v0.0.0-20240819160327-2d926c5d788a // indirect
 	github.com/extism/go-sdk v1.7.1 // indirect
 	github.com/fluxcd/cli-utils v1.2.2 // indirect
@@ -101,9 +106,9 @@ require (
 	github.com/DataDog/datadog-agent/comp/core/delegatedauth v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/comp/core/flare/builder v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/comp/core/flare/types v0.83.2 // indirect
-	github.com/DataDog/datadog-agent/comp/core/secrets/def v0.83.2 // indirect
+	github.com/DataDog/datadog-agent/comp/core/secrets/def v0.83.2
 	github.com/DataDog/datadog-agent/comp/core/tagger/origindetection v0.82.3 // indirect
-	github.com/DataDog/datadog-agent/comp/core/telemetry v0.83.2 // indirect
+	github.com/DataDog/datadog-agent/comp/core/telemetry v0.83.2
 	github.com/DataDog/datadog-agent/comp/def v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/collector/check/defaults v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/basic v0.83.2 // indirect
@@ -129,7 +134,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/filesystem v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/grpc v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/http v0.83.2 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/log v0.83.2 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/log v0.83.2
 	github.com/DataDog/datadog-agent/pkg/util/pointer v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/system v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/uuid v0.83.2 // indirect
