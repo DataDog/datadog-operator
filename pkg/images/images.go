@@ -31,7 +31,7 @@ const (
 	CSILatestImageVersion = "1.4.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	// renovate: datasource=github-releases depName=kubernetes-csi/node-driver-registrar
-	DefaultRegistrarImageVersion = "v2.0.1"
+	DefaultRegistrarImageVersion = "v2.18.0"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
