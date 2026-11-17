@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -64,9 +63,15 @@ func readSecrets(r io.Reader, w io.Writer, dir string) error {
 		return errors.New("no secrets listed in input")
 	}
 
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
 	response := map[string]s.Secret{}
 	for _, name := range request.Secrets {
-		response[name] = readSecret(filepath.Join(dir, name))
+		response[name] = readSecret(root, name)
 	}
 
 	out, err := json.Marshal(response)
@@ -81,8 +86,8 @@ func splitVersion(ver string) []string {
 	return strings.SplitN(ver, ".", 2)
 }
 
-func readSecret(path string) s.Secret {
-	value, err := readSecretFile(path)
+func readSecret(root *os.Root, name string) s.Secret {
+	value, err := readSecretFile(root, name)
 	var errMsg string
 	if err != nil {
 		errMsg = err.Error()
@@ -90,60 +95,23 @@ func readSecret(path string) s.Secret {
 	return s.Secret{Value: value, ErrorMsg: errMsg}
 }
 
-func readSecretFile(path string) (string, error) {
-	fi, err := os.Lstat(path)
+// readSecretFile follows symlinks only within the configured directory.
+func readSecretFile(root *os.Root, name string) (string, error) {
+	file, err := root.Open(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", errors.New("secret does not exist")
 		}
 		return "", err
 	}
+	defer file.Close()
 
-	if fi.Mode()&os.ModeSymlink != 0 {
-		// Ensure that the symlink is in the same dir
-		var target string
-		target, err = os.Readlink(path)
-		if err != nil {
-			return "", fmt.Errorf("failed to read symlink target: %w", err)
-		}
-
-		dir := filepath.Dir(path)
-		if !filepath.IsAbs(target) {
-			target, err = filepath.Abs(filepath.Join(dir, target))
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve symlink absolute path: %w", err)
-			}
-		}
-
-		var dirAbs string
-		dirAbs, err = filepath.Abs(dir)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve absolute path of directory: %w", err)
-		}
-
-		if !strings.HasPrefix(target, dirAbs) {
-			return "", fmt.Errorf("not following symlink %q outside of %q", target, dir)
-		}
-	}
-	fi, err = os.Stat(path)
+	value, err := io.ReadAll(io.LimitReader(file, maxSecretFileSize+1))
 	if err != nil {
 		return "", err
 	}
-
-	if fi.Size() > maxSecretFileSize {
+	if len(value) > maxSecretFileSize {
 		return "", errors.New("secret exceeds max allowed size")
 	}
-
-	var file *os.File
-	file, err = os.Open(path)
-	if err != nil {
-		return "", err
-	}
-
-	var bytes []byte
-	bytes, err = io.ReadAll(file)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
+	return string(value), nil
 }
