@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	secretsdef "github.com/DataDog/datadog-agent/comp/core/secrets/def"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/DataDog/dd-trace-go/v2/profiler"
 	"github.com/go-logr/logr"
@@ -46,6 +47,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	ddgr "github.com/DataDog/datadog-operator/internal/controller/datadoggenericresource"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -56,6 +58,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/secrets/resolver"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -389,8 +392,9 @@ func run(opts *options) error {
 	}
 
 	// Dispatch CLI flags to each package
-	if err := configureSecretBackend(opts); err != nil {
-		setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
+	secretBackendConfig, secretBackendErr := configureSecretBackend(opts)
+	if secretBackendErr != nil {
+		setupLog.Error(secretBackendErr, "Invalid -secretBackendConfig JSON, ignoring")
 	}
 
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
@@ -564,6 +568,7 @@ func run(opts *options) error {
 		DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
 		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
+		GenericResourceSecretResolver:     newGenericResourceSecretResolver(opts, secretBackendConfig, secretBackendErr),
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
@@ -628,13 +633,14 @@ func parseSecretBackendConfig(raw string) (map[string]any, error) {
 	return config, err
 }
 
-func configureSecretBackend(opts *options) error {
+// configureSecretBackend applies the secret backend flags and returns the parsed config.
+func configureSecretBackend(opts *options) (map[string]any, error) {
 	backendConfig := map[string]any{}
 	if opts.secretBackendConfig != "" {
 		var err error
 		backendConfig, err = parseSecretBackendConfig(opts.secretBackendConfig)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -642,7 +648,23 @@ func configureSecretBackend(opts *options) error {
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 	secrets.SetSecretBackendType(opts.secretBackendType)
 	secrets.SetSecretBackendConfig(backendConfig)
-	return nil
+	return backendConfig, nil
+}
+
+// newGenericResourceSecretResolver builds the DGR resolver from the secret backend flags; nil if the controller is disabled.
+func newGenericResourceSecretResolver(opts *options, backendConfig map[string]any, configErr error) ddgr.SecretResolver {
+	if !opts.datadogGenericResourceEnabled {
+		return nil
+	}
+	return resolver.New(secretsdef.ConfigParams{
+		Command:   opts.secretBackendCommand,
+		Arguments: opts.secretBackendArgs,
+		Type:      opts.secretBackendType,
+		Config:    backendConfig,
+		// The image ships readsecret.sh as 550.
+		GroupExecPerm:   true,
+		RefreshInterval: int(opts.secretRefreshInterval.Seconds()),
+	}, configErr)
 }
 
 func getVersionAndPlatformInfo(configCopy *rest.Config) (*apimversion.Info, kubernetes.PlatformInfo, error) {

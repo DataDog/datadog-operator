@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
+	ddgr "github.com/DataDog/datadog-operator/internal/controller/datadoggenericresource"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -57,6 +58,7 @@ type SetupOptions struct {
 	DatadogBYOCClusterEnabled         bool
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
+	GenericResourceSecretResolver     ddgr.SecretResolver
 	CreateControllerRevisions         bool
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
@@ -202,11 +204,12 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	}
 
 	genericResourceReconciler := &DatadogGenericResourceReconciler{
-		Client:       mgr.GetClient(),
-		CredsManager: options.CredsManager,
-		Log:          ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
-		Scheme:       mgr.GetScheme(),
-		Recorder:     mgr.GetEventRecorderFor(genericResourceControllerName),
+		Client:         mgr.GetClient(),
+		CredsManager:   options.CredsManager,
+		Log:            ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
+		Scheme:         mgr.GetScheme(),
+		Recorder:       mgr.GetEventRecorderFor(genericResourceControllerName),
+		SecretResolver: options.GenericResourceSecretResolver,
 		Options: DatadogGenericResourceReconcilerOptions{
 			MaxConcurrentReconciles: options.DatadogGenericResourceMaxWorkers,
 			RequeuePeriod:           options.DatadogGenericResourceRequeue,

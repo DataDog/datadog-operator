@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/secrets/resolver"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -185,22 +187,38 @@ func TestConfigureSecretBackend(t *testing.T) {
 	resetSecretBackend()
 	t.Cleanup(resetSecretBackend)
 
-	require.NoError(t, configureSecretBackend(&options{}))
-	require.NoError(t, configureSecretBackend(&options{
+	_, err := configureSecretBackend(&options{})
+	require.NoError(t, err)
+	config, err := configureSecretBackend(&options{
 		secretBackendType:   "hashicorp.vault",
 		secretBackendConfig: `{"vault_session":{"vault_auth_type":"kubernetes"}}`,
-	}))
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"vault_session": map[string]any{"vault_auth_type": "kubernetes"}}, config)
 
 	resetSecretBackend()
-	require.Error(t, configureSecretBackend(&options{secretBackendConfig: "not-json"}))
+	_, err = configureSecretBackend(&options{secretBackendConfig: "not-json"})
+	require.Error(t, err)
 
 	resetSecretBackend()
-	require.Error(t, configureSecretBackend(&options{
+	_, err = configureSecretBackend(&options{
 		secretBackendType:   "hashicorp.vault",
 		secretBackendConfig: "not-json",
-	}))
-	_, err := secrets.NewSecretBackend().Decrypt([]string{"ENC[vault://test]"})
+	})
+	require.Error(t, err)
+	_, err = secrets.NewSecretBackend().Decrypt([]string{"ENC[vault://test]"})
 	require.EqualError(t, err, "secret backend command not configured")
+}
+
+func TestNewGenericResourceSecretResolver(t *testing.T) {
+	require.Nil(t, newGenericResourceSecretResolver(&options{}, nil, nil), "nil when the controller is disabled")
+
+	enabled := &options{datadogGenericResourceEnabled: true, secretBackendCommand: "/readsecret.sh"}
+	res, err := newGenericResourceSecretResolver(enabled, nil, errors.New("invalid config")).ResolveJSON(`{"v": "ENC[a]"}`, "origin", "ns")
+	require.ErrorIs(t, err, resolver.ErrUnresolved)
+	require.Empty(t, res.JSON)
+
+	require.NotNil(t, newGenericResourceSecretResolver(enabled, map[string]any{}, nil))
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {

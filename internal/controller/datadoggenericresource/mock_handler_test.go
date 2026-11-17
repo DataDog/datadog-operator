@@ -24,13 +24,16 @@ var (
 	mockRefreshStateCalls  int
 	mockRefreshStateErr    error
 	mockRefreshStateResult *string
+	// mockLastJSONSpec is the jsonSpec passed to the last create or update.
+	mockLastJSONSpec string
 )
 
 // MockHandler is a test double for ResourceHandler.
 type MockHandler struct{}
 
-func (h *MockHandler) createResource(context.Context, *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+func (h *MockHandler) createResource(_ context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	mockCreateCalls++
+	mockLastJSONSpec = instance.Spec.JsonSpec
 	if mockCreateErr != nil {
 		return CreateResult{}, mockCreateErr
 	}
@@ -47,8 +50,9 @@ func (h *MockHandler) getResource(context.Context, *v1alpha1.DatadogGenericResou
 	return mockGetErr
 }
 
-func (h *MockHandler) updateResource(context.Context, *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) updateResource(_ context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	mockUpdateCalls++
+	mockLastJSONSpec = instance.Spec.JsonSpec
 	return mockUpdateErr
 }
 
@@ -79,4 +83,5 @@ func resetMockHandlerState() {
 	mockRefreshStateCalls = 0
 	mockRefreshStateErr = nil
 	mockRefreshStateResult = nil
+	mockLastJSONSpec = ""
 }
