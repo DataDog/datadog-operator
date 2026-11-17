@@ -185,8 +185,9 @@ func isReconcileError(conditions []metav1.Condition) error {
 
 // Run use to run the command.
 func (o *Options) Run() (result error) {
-	deadline := time.Now().Add(o.checkTimeout)
-	stopStartupCollection := o.startStartupCollection(deadline)
+	startedAt := time.Now()
+	deadline := startedAt.Add(o.checkTimeout)
+	stopStartupCollection := o.startStartupCollection(startedAt, deadline)
 	defer func() { stopStartupCollection(result == nil) }()
 	o.printOutf("Start checking rolling-update status")
 	checkFunc := func(ctx context.Context) (bool, error) {

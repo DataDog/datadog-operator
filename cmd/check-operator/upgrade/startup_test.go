@@ -365,6 +365,8 @@ type progressingStartupClient struct {
 	client.Client
 	scans       int
 	readyOnScan int
+	fresh       bool
+	createdAt   *metav1.Time
 }
 
 func (c *progressingStartupClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
@@ -373,9 +375,20 @@ func (c *progressingStartupClient) List(ctx context.Context, list client.ObjectL
 	}
 	if pods, ok := list.(*corev1.PodList); ok {
 		c.scans++
+		if c.fresh && c.createdAt == nil {
+			value := metav1.Now()
+			c.createdAt = &value
+		}
 		for i := range pods.Items {
+			if c.fresh {
+				pods.Items[i].CreationTimestamp = *c.createdAt
+			}
 			if c.readyOnScan > 0 && c.scans >= c.readyOnScan {
-				pods.Items[i].Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(110, 0))}}
+				readyAt := metav1.NewTime(time.Unix(110, 0))
+				if c.fresh {
+					readyAt = metav1.NewTime(c.createdAt.Add(16 * time.Second))
+				}
+				pods.Items[i].Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: readyAt}}
 			}
 		}
 	}
@@ -401,7 +414,7 @@ func TestStartupObservationCapturesLateReadiness(t *testing.T) {
 	c.observe(context.Background(), time.Now().Add(time.Second))
 	records := readStartupRecords(t, out)
 	summary := records[len(records)-1]
-	assert.Equal(t, 3, progressing.scans)
+	assert.Equal(t, 4, progressing.scans)
 	assert.Equal(t, "agent_startup_collection_summary", summary.Event)
 	assert.Equal(t, 1, summary.SelectedPods)
 	assert.Equal(t, 1, summary.ReadyPods)
@@ -658,7 +671,7 @@ func TestStartupCompletionChecksDaemonSetStatus(t *testing.T) {
 
 func TestStartupWaitUsesRemainingUpgradeDeadline(t *testing.T) {
 	c, out := observationCollector(t)
-	c.options.Client = &progressingStartupClient{Client: c.options.Client, readyOnScan: 1000}
+	c.options.Client = &progressingStartupClient{Client: c.options.Client, readyOnScan: 1000, fresh: true}
 	o := c.options
 	o.IOStreams = genericclioptions.IOStreams{Out: io.Discard, ErrOut: out}
 	o.collectStartupTimings = true
@@ -694,7 +707,7 @@ func TestStartupWaitsForLargeCohortAfterThresholdSuccess(t *testing.T) {
 	ds.Status.UpdatedNumberScheduled = 50
 	ds.Status.NumberReady = 50
 	require.NoError(t, c.options.Client.Status().Update(context.Background(), ds))
-	progressing := &progressingStartupClient{Client: c.options.Client, readyOnScan: 8}
+	progressing := &progressingStartupClient{Client: c.options.Client, readyOnScan: 8, fresh: true}
 	c.options.Client = progressing
 	o := c.options
 	o.IOStreams = genericclioptions.IOStreams{Out: io.Discard, ErrOut: out}
@@ -766,4 +779,117 @@ func TestStartupDisabledAgentAndZeroNodes(t *testing.T) {
 		assert.Contains(t, c.revisions, "agent")
 		assert.Zero(t, c.expectedPods)
 	})
+}
+
+func TestStartupCutoffExcludesOldReadyPods(t *testing.T) {
+	c, out := observationCollector(t)
+	c.createdAfter = time.Unix(101, 0)
+	c.options.Client = &progressingStartupClient{Client: c.options.Client, readyOnScan: 1}
+	c.observe(context.Background(), time.Now().Add(15*time.Millisecond))
+	records := readStartupRecords(t, out)
+	for _, r := range records {
+		assert.NotEqual(t, "agent_startup_measurement", r.Event)
+	}
+	summary := records[len(records)-1]
+	assert.Equal(t, "no_fresh_pods", summary.Reason)
+	assert.False(t, summary.RolloutComplete)
+	assert.False(t, summary.MeasurementsEnabled)
+	assert.Zero(t, summary.SelectedPods)
+	require.NotNil(t, summary.CreatedAfter)
+	assert.Equal(t, c.createdAfter.Unix(), summary.CreatedAfter.Unix())
+}
+
+func TestStartupCutoffBoundaryAndProfiles(t *testing.T) {
+	c, out := testCollector(t)
+	c.createdAfter = time.Unix(101, 0)
+	for _, name := range []string{"agent", "profile"} {
+		for _, created := range []int64{100, 101, 102} {
+			pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("%s-%d", name, created), UID: types.UID(fmt.Sprintf("%s-%d", name, created)), CreationTimestamp: metav1.NewTime(time.Unix(created, 0)), Labels: map[string]string{appsv1.DefaultDaemonSetUniqueLabelKey: "new"}}, Status: corev1.PodStatus{Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(110, 0))}}}}
+			require.NoError(t, c.collectPod(pod, name, testStartupRevision()))
+		}
+	}
+	measured := []string{}
+	for _, r := range readStartupRecords(t, out) {
+		if r.Event == "agent_startup_measurement" {
+			measured = append(measured, r.PodName)
+		}
+	}
+	assert.ElementsMatch(t, []string{"agent-101", "agent-102", "profile-101", "profile-102"}, measured)
+	assert.Len(t, c.outcomes, 4)
+}
+
+type delayedStartupRevisionClient struct {
+	client.Client
+	scans int
+}
+
+func (c *delayedStartupRevisionClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if pods, ok := list.(*corev1.PodList); ok {
+		c.scans++
+		if c.scans == 2 {
+			ds := &appsv1.DaemonSet{}
+			if err := c.Client.Get(ctx, client.ObjectKey{Namespace: "test", Name: "agent"}, ds); err != nil {
+				return err
+			}
+			ds.Spec.Template.Annotations = map[string]string{"test": "new-revision"}
+			if err := c.Client.Update(ctx, ds); err != nil {
+				return err
+			}
+			revision := startupTestRevisionForDSData(ds)
+			if err := c.Client.Create(ctx, revision); err != nil {
+				return err
+			}
+		}
+		if err := c.Client.List(ctx, pods, opts...); err != nil {
+			return err
+		}
+		for i := range pods.Items {
+			pods.Items[i].Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(110, 0))}}
+			if c.scans >= 2 {
+				pods.Items[i].CreationTimestamp = metav1.NewTime(time.Unix(102, 0))
+				pods.Items[i].Labels[appsv1.DefaultDaemonSetUniqueLabelKey] = "later"
+			}
+		}
+		return nil
+	}
+	return c.Client.List(ctx, list, opts...)
+}
+
+func startupTestRevisionForDSData(ds *appsv1.DaemonSet) *appsv1.ControllerRevision {
+	data, _ := json.Marshal(map[string]any{"spec": map[string]any{"template": ds.Spec.Template}})
+	controlled := true
+	return &appsv1.ControllerRevision{ObjectMeta: metav1.ObjectMeta{Name: ds.Name + "-later", Namespace: ds.Namespace, CreationTimestamp: metav1.NewTime(time.Unix(101, 0)), Labels: map[string]string{appsv1.DefaultDaemonSetUniqueLabelKey: "later"}, OwnerReferences: []metav1.OwnerReference{{Kind: "DaemonSet", UID: ds.UID, Controller: &controlled}}}, Revision: 3, Data: runtime.RawExtension{Raw: data}}
+}
+
+func TestStartupFollowsRevisionArrivingAfterOldReadyPods(t *testing.T) {
+	c, out := observationCollector(t)
+	c.createdAfter = time.Unix(101, 0)
+	delayed := &delayedStartupRevisionClient{Client: c.options.Client}
+	c.options.Client = delayed
+	c.observe(context.Background(), time.Now().Add(time.Second))
+	records := readStartupRecords(t, out)
+	measured := false
+	for _, r := range records {
+		if r.Event == "agent_startup_measurement" {
+			measured = true
+			require.NotNil(t, r.Revision)
+			assert.Equal(t, "later", r.Revision.Hash)
+		}
+	}
+	assert.True(t, measured)
+	summary := records[len(records)-1]
+	assert.True(t, summary.RolloutComplete)
+	assert.False(t, summary.TimedOut)
+	assert.GreaterOrEqual(t, delayed.scans, 4)
+}
+
+func TestStartupTimestampRangeRetainsOtherProfilesOnRevisionChange(t *testing.T) {
+	c, _ := observationCollector(t)
+	c.outcomes = map[types.UID]startupPodOutcome{"profile-pod": {daemonset: "profile", createdAt: metav1.NewTime(time.Unix(50, 0))}}
+	c.revisions = map[string]*startupRevision{"agent": {Name: "preceding-revision", Hash: "old"}}
+	require.NoError(t, c.collect(context.Background()))
+	require.NotNil(t, c.oldestPod)
+	require.NotNil(t, c.newestPod)
+	assert.Equal(t, int64(50), c.oldestPod.Unix())
+	assert.Equal(t, int64(100), c.newestPod.Unix())
 }
