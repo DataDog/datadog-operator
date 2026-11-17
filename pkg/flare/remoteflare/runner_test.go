@@ -441,3 +441,53 @@ func TestLocalURL(t *testing.T) {
 		assert.Equal(t, want, got, addr)
 	}
 }
+
+func TestRunnerManifestOrg(t *testing.T) {
+	setup := newTestSetup(t)
+	setup.cfg.Site = "datad0g.com"
+	setup.cfg.RemoteConfigOrg = func() remoteconfig.FlareOrg {
+		return remoteconfig.FlareOrg{Started: true, Site: "datad0g.com", OrgUUID: "8b8a7f3a-0000-4000-8000-000000000002", OrgEnabled: "true", APIKeyAuthorized: "true"}
+	}
+	task := testTask()
+	task.ConfigPath = "datadog/2/AGENT_TASK/task-uuid-1/config"
+	require.NoError(t, NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), task))
+
+	manifestJSON := unzip(t, setup.intake.archive)["datadog-operator."+testClusterID+"/manifest.json"]
+	var manifest flare.Manifest
+	require.NoError(t, json.Unmarshal([]byte(manifestJSON), &manifest))
+	require.NotNil(t, manifest.Org)
+	assert.Equal(t, flare.OrgValue{Value: "datad0g.com", Source: "DD_SITE from the Operator environment"}, manifest.Org.Site)
+	assert.Equal(t, "8b8a7f3a-0000-4000-8000-000000000002", manifest.Org.OrgUUID.Value)
+	assert.Contains(t, manifest.Org.OrgUUID.Source, "org data endpoint")
+	assert.Equal(t, flare.OrgValue{Value: "2", Source: "the Remote Configuration path of the flare task, datadog/2/AGENT_TASK/task-uuid-1/config"}, manifest.Org.OrgID)
+	assert.Equal(t, "true", manifest.Org.RemoteConfigOrgEnabled)
+	assert.Equal(t, "true", manifest.Org.RemoteConfigAPIKeyAuthorized)
+	assert.NotContains(t, manifestJSON, testAPIKey)
+	assert.NotContains(t, manifestJSON, testAPIKey[len(testAPIKey)-5:])
+}
+
+func TestRunnerManifestOrgUnknown(t *testing.T) {
+	setup := newTestSetup(t)
+	setup.cfg.Site = "datadoghq.eu"
+	setup.cfg.RemoteConfigOrg = func() remoteconfig.FlareOrg {
+		return remoteconfig.FlareOrg{Started: true, Site: "datadoghq.com", OrgUUIDError: "the Remote Configuration database doesn't exist yet"}
+	}
+	task := testTask()
+	task.ConfigPath = "employee/AGENT_TASK/task-uuid-1/config"
+	_, _, manifest := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
+
+	require.NotNil(t, manifest.Org)
+	assert.Equal(t, "datadoghq.eu", manifest.Org.Site.Value)
+	assert.Contains(t, manifest.Org.Site.Source, "the Remote Configuration client uses the site datadoghq.com")
+	assert.Equal(t, flare.OrgValue{Value: flare.Unknown, Reason: "the Remote Configuration database doesn't exist yet"}, manifest.Org.OrgUUID)
+	assert.Equal(t, flare.Unknown, manifest.Org.OrgID.Value)
+	assert.Contains(t, manifest.Org.OrgID.Reason, "employee source")
+	assert.Empty(t, manifest.Org.RemoteConfigOrgEnabled)
+
+	setup.cfg.RemoteConfigOrg = nil
+	task.ConfigPath = ""
+	_, _, manifest = NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
+	assert.Equal(t, flare.UnknownOrgValue("the Remote Configuration org data is not available"), manifest.Org.OrgUUID)
+	assert.Equal(t, flare.Unknown, manifest.Org.OrgID.Value)
+	assert.NotEmpty(t, manifest.Org.OrgID.Reason)
+}

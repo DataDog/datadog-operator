@@ -87,6 +87,9 @@ type Config struct {
 	IsLeader func() bool
 	// RemoteConfigState returns the Remote Configuration client state.
 	RemoteConfigState func() any
+	// RemoteConfigOrg returns what the Remote Configuration client knows of
+	// the org, for the manifest.
+	RemoteConfigOrg func() remoteconfig.FlareOrg
 
 	// Flags are the command line flags. flag.CommandLine if nil.
 	Flags *flag.FlagSet
@@ -261,6 +264,7 @@ func (r *Runner) Collect(ctx context.Context, task remoteconfig.FlareTask) ([]by
 	if clusterIDErr != nil {
 		manifest.Info["cluster_id_error"] = clusterIDErr.Error()
 	}
+	manifest.Org = r.orgInfo(task)
 
 	data, err := archive.Close(manifest)
 	if err != nil {
@@ -268,4 +272,35 @@ func (r *Runner) Collect(ctx context.Context, task remoteconfig.FlareTask) ([]by
 		return nil, hostname, manifest
 	}
 	return data, hostname, manifest
+}
+
+// orgInfo returns the org the flare came from: the site the Operator is
+// configured with, the org UUID the Remote Configuration client fetched from
+// the org data endpoint and stored in its database, and the org ID of the
+// task's Remote Configuration path.
+func (r *Runner) orgInfo(task remoteconfig.FlareTask) *flare.OrgInfo {
+	info := &flare.OrgInfo{Site: flare.SiteFromSettings(r.cfg.Site, r.cfg.DDURL, "the Operator environment")}
+
+	if orgID, err := remoteconfig.ConfigPathOrgID(task.ConfigPath); err != nil {
+		info.OrgID = flare.UnknownOrgValue(err.Error())
+	} else {
+		info.OrgID = flare.Known(orgID, "the Remote Configuration path of the flare task, "+task.ConfigPath)
+	}
+
+	if r.cfg.RemoteConfigOrg == nil {
+		info.OrgUUID = flare.UnknownOrgValue("the Remote Configuration org data is not available")
+		return info
+	}
+	org := r.cfg.RemoteConfigOrg()
+	if org.Site != "" && org.Site != info.Site.Value {
+		info.Site.Source += fmt.Sprintf("; the Remote Configuration client uses the site %s", org.Site)
+	}
+	if org.OrgUUID != "" {
+		info.OrgUUID = flare.Known(org.OrgUUID, "the Remote Configuration database: the org UUID the client fetched from the org data endpoint")
+	} else {
+		info.OrgUUID = flare.UnknownOrgValue(org.OrgUUIDError)
+	}
+	info.RemoteConfigOrgEnabled = org.OrgEnabled
+	info.RemoteConfigAPIKeyAuthorized = org.APIKeyAuthorized
+	return info
 }

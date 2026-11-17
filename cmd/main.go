@@ -518,6 +518,8 @@ func run(opts *options) error {
 		var rcUpdater *remoteconfig.RemoteConfigUpdater
 		flareRunner, flareErr := newFlareRunner(opts, restConfig, mgr.GetAPIReader(), credsManager, isLeader, func() any {
 			return rcUpdater.FlareState()
+		}, func() remoteconfig.FlareOrg {
+			return rcUpdater.FlareOrg()
 		})
 		if flareErr != nil {
 			setupLog.Error(flareErr, "Unable to set up remote flares; flare requests from Fleet Automation will fail")
@@ -932,7 +934,7 @@ func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, node
 // newFlareRunner returns the runner of the flares Fleet Automation requests
 // through Remote Configuration. Pass the manager's API reader, so a flare
 // doesn't start informers.
-func newFlareRunner(opts *options, restConfig *rest.Config, reader client.Reader, creds remoteflare.CredentialsGetter, isLeader func() bool, rcState func() any) (*remoteflare.Runner, error) {
+func newFlareRunner(opts *options, restConfig *rest.Config, reader client.Reader, creds remoteflare.CredentialsGetter, isLeader func() bool, rcState func() any, rcOrg func() remoteconfig.FlareOrg) (*remoteflare.Runner, error) {
 	clientset, err := kubeclientset.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the Kubernetes clientset for flares: %w", err)
@@ -949,6 +951,7 @@ func newFlareRunner(opts *options, restConfig *rest.Config, reader client.Reader
 		LeaderElectionID:      leaderElectionID,
 		IsLeader:              isLeader,
 		RemoteConfigState:     rcState,
+		RemoteConfigOrg:       rcOrg,
 	}, ctrl.Log.WithName("flare")), nil
 }
 

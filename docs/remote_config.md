@@ -58,7 +58,14 @@ The Operator collects the flare in-process, with its own Kubernetes client:
 * **Configuration**: the ConfigMaps, RBAC and webhook configurations the Operator manages, the RBAC of the Operator service account, the installed Datadog CRD versions, and the Operator Deployment with its Helm chart metadata. Helm keeps the release values in a Secret, so they are not collected.
 * **Cluster**: Kubernetes version and distribution, node count, OS and architecture mix, cluster name and ID.
 
-A `manifest.json` file at the root of the archive lists what was collected and which collectors failed.
+A `manifest.json` file at the root of the archive lists what was collected and which collectors failed. Its `org` section records the Datadog org the flare came from, each value with how it was obtained, or `unknown` with the reason:
+
+* `site`: the site the Operator is configured with (`DD_SITE`, or `DD_DD_URL`/`DD_URL`, else `datadoghq.com`).
+* `org_uuid`: the org UUID the Remote Configuration client fetched from the org data endpoint and stored in its database, which the Agent flare also includes.
+* `org_id`: the org ID of the flare task's Remote Configuration path (`datadog/<org_id>/AGENT_TASK/...`).
+* `remote_config_org_enabled` and `remote_config_api_key_authorized`: the last Remote Configuration org status, as the Agent status shows it.
+
+Flares from the `kubectl datadog flare` command only know the site set in the Operator pod spec: the org UUID and org ID are only known to the Operator's Remote Configuration client.
 
 ### Privacy and limits
 

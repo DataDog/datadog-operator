@@ -225,6 +225,11 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
+	// The plugin only sees the site the Operator pod spec sets: the org
+	// UUID and org ID are only known to the Operator's Remote Configuration
+	// client.
+	manifest.Org = flare.PodOrgInfo(leaderPod)
+
 	uploadVersion := fallbackVersion
 	if operatorVersion != nil {
 		manifest.OperatorVersion = operatorVersion.Version

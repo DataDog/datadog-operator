@@ -122,6 +122,9 @@ type Manifest struct {
 	MaxBytes        int64             `json:"max_bytes"`
 	TotalBytes      int64             `json:"total_bytes"`
 	Info            map[string]string `json:"info,omitempty"`
+	// Org is the Datadog org the flare came from, as far as the Operator
+	// knows it.
+	Org             *OrgInfo          `json:"org,omitempty"`
 	Collectors      []CollectorResult `json:"collectors"`
 	FailedCollector []string          `json:"failed_collectors,omitempty"`
 	Files           []FileInfo        `json:"files"`

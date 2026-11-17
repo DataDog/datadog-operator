@@ -63,6 +63,9 @@ type RemoteConfigUpdater struct {
 	clientMu                              sync.RWMutex
 	updaterTags                           []string
 	subscriptions                         []remoteConfigSubscription
+	// rcDatabasePath is the Remote Configuration database of the running
+	// service, read by flares for the org UUID. Set under clientMu.
+	rcDatabasePath string
 
 	// leaderCheck reports whether this replica is the elected leader. Agent
 	// tasks only run on the leader. A nil leaderCheck means this replica is
@@ -300,6 +303,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		return err
 	}
 
+	databasePath := filepath.Join(r.serviceConf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))
 	rcService, err := service.NewService(
 		r.serviceConf.cfg,
 		"",
@@ -309,7 +313,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithAPIKey(apiKey),
-		service.WithDatabaseFileName(filepath.Join(r.serviceConf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))),
+		service.WithDatabaseFileName(databasePath),
 		service.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		service.WithConfigRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.config_root")),
 	)
@@ -342,6 +346,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	r.clientMu.Lock()
 	r.rcService = rcService
 	r.rcClient = rcClient
+	r.rcDatabasePath = databasePath
 	r.updaterTags = append([]string(nil), updaterTags...)
 	r.clientMu.Unlock()
 
@@ -945,6 +950,7 @@ func (r *RemoteConfigUpdater) Stop() error {
 	}
 	r.rcService = nil
 	r.rcClient = nil
+	r.rcDatabasePath = ""
 	r.updaterTags = nil
 	return nil
 }

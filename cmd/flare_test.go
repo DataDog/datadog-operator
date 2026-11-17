@@ -22,11 +22,11 @@ func (testCreds) GetCredentialsForMetadata() (config.Creds, error) { return conf
 
 func TestNewFlareRunner(t *testing.T) {
 	opts := &options{metricsAddr: ":8383", datadogAgentEnabled: true, remoteConfigEnabled: true, enableLeaderElection: true}
-	runner, err := newFlareRunner(opts, &rest.Config{Host: "http://127.0.0.1:1"}, fake.NewClientBuilder().Build(), testCreds{}, func() bool { return true }, func() any { return nil })
+	runner, err := newFlareRunner(opts, &rest.Config{Host: "http://127.0.0.1:1"}, fake.NewClientBuilder().Build(), testCreds{}, func() bool { return true }, func() any { return nil }, nil)
 	require.NoError(t, err)
 	require.NotNil(t, runner)
 
-	_, err = newFlareRunner(opts, &rest.Config{Host: "http://127.0.0.1:1", Username: "u", BearerToken: "t"}, fake.NewClientBuilder().Build(), testCreds{}, nil, nil)
+	_, err = newFlareRunner(opts, &rest.Config{Host: "http://127.0.0.1:1", Username: "u", BearerToken: "t"}, fake.NewClientBuilder().Build(), testCreds{}, nil, nil, nil)
 	assert.Error(t, err, "basic and bearer auth together are rejected")
 }
 
