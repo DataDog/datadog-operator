@@ -184,9 +184,10 @@ func isReconcileError(conditions []metav1.Condition) error {
 }
 
 // Run use to run the command.
-func (o *Options) Run() error {
-	stopStartupCollection := o.startStartupCollection()
-	defer stopStartupCollection()
+func (o *Options) Run() (result error) {
+	deadline := time.Now().Add(o.checkTimeout)
+	stopStartupCollection := o.startStartupCollection(deadline)
+	defer func() { stopStartupCollection(result == nil) }()
 	o.printOutf("Start checking rolling-update status")
 	checkFunc := func(ctx context.Context) (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
@@ -250,7 +251,12 @@ func (o *Options) Run() error {
 		return false, nil
 	}
 
-	return wait.PollUntilContextTimeout(context.Background(), o.checkPeriod, o.checkTimeout, false, checkFunc)
+	if !o.collectStartupTimings {
+		return wait.PollUntilContextTimeout(context.Background(), o.checkPeriod, o.checkTimeout, false, checkFunc)
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	return wait.PollUntilContextCancel(ctx, o.checkPeriod, false, checkFunc)
 }
 
 func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
