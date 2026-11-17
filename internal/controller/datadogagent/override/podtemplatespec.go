@@ -60,19 +60,24 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
 			containerName := apicommon.AgentContainerName(container.Name)
 			if _, ok := agentContainersMap[containerName]; ok {
-				// OtelAgent uses a different image (ddot-collector) that doesn't support JMX suffix,
-				// so we need to apply overrides without JMX-related changes
-				if containerName == apicommon.OtelAgent {
-					// Create a copy of the override without JMX settings for OtelAgent
-					otelOverride := &v2alpha1.AgentImageConfig{
-						Name:       override.Image.Name,
-						Tag:        override.Image.Tag,
-						PullPolicy: override.Image.PullPolicy,
-						// Explicitly disable JMX for OtelAgent (ddot-collector doesn't support -jmx suffix)
-						JMXEnabled: false,
+				switch containerName {
+				case apicommon.HostProfiler:
+					// HostProfiler runs the separate host-profiler image; the component-level
+					// agent image override must never rewrite it.
+				case apicommon.OtelAgent:
+					// OtelAgent runs the ddot-collector image, so a Name override would point it at
+					// the agent image (no otel-agent binary) and crashloop it. Apply a tag-only
+					// override to keep the collector in sync with the agent version; ignore Name.
+					if override.Image.Name == "" {
+						otelOverride := &v2alpha1.AgentImageConfig{
+							Tag:        override.Image.Tag,
+							PullPolicy: override.Image.PullPolicy,
+							// ddot-collector doesn't support the -jmx suffix.
+							JMXEnabled: false,
+						}
+						manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
 					}
-					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
-				} else if containerName != apicommon.HostProfiler {
+				default:
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				}
 				if override.Image.PullPolicy != nil {
