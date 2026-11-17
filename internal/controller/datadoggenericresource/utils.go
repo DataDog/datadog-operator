@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 
@@ -31,13 +32,20 @@ func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.Supported
 	}
 }
 
+func isResourceNotFound(err error) bool {
+	if apiErr, ok := errors.AsType[*ctrutils.APIError](err); ok {
+		return apiErr.StatusCode == http.StatusNotFound
+	}
+	return err != nil && strings.Contains(err.Error(), ctrutils.NotFoundString)
+}
+
 func translateClientError(err error, httpResp *http.Response, msg string) error {
 	if msg == "" {
 		msg = "an error occurred"
 	}
 
 	if apiErr, ok := errors.AsType[datadogapi.GenericOpenAPIError](err); ok {
-		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
+		return ctrutils.NewAPIError(&responseBodyError{msg: msg, err: err, body: apiErr.Body()}, httpResp)
 	}
 
 	if errURL, ok := errors.AsType[*url.Error](err); ok {
@@ -46,6 +54,16 @@ func translateClientError(err error, httpResp *http.Response, msg string) error 
 
 	return ctrutils.NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
 }
+
+// responseBodyError is an API error that includes the response body.
+type responseBodyError struct {
+	msg  string
+	err  error
+	body []byte
+}
+
+func (e *responseBodyError) Error() string { return fmt.Sprintf("%s: %s: %s", e.msg, e.err, e.body) }
+func (e *responseBodyError) Unwrap() error { return e.err }
 
 // translateUnmarshalError wraps a failure to unmarshal spec.jsonSpec as a
 // permanent, bad-request-equivalent error: no HTTP request was made, and the
