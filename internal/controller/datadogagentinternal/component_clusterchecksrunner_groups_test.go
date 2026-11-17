@@ -194,7 +194,7 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			want:         map[string]wantGroup{"foo-cluster-checks-runner-core": {replicas: new(int32(2))}},
 		},
 		{
-			name: "user core group replaces the built-in",
+			name: "a core entry sets the built-in group's override",
 			groups: []componentccr.Group{
 				{Name: "core", Checks: []string{"kubernetes_state_core"}, Override: &datadoghqv2alpha1.DatadogAgentComponentOverride{Replicas: new(int32(5))}},
 			},
@@ -214,11 +214,14 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			},
 		},
 		{
-			name:         "overlapping claims: user groups are ignored, core is kept",
+			name:         "a user group claiming a core check takes it from core",
 			groups:       []componentccr.Group{{Name: "ksm", Checks: []string{"kubernetes_state_core"}}},
 			coreKnob:     true,
 			clusterAgent: true,
-			want:         map[string]wantGroup{"foo-cluster-checks-runner-core": {replicas: new(int32(2))}},
+			want: map[string]wantGroup{
+				"foo-cluster-checks-runner-core": {replicas: new(int32(2))},
+				"foo-cluster-checks-runner-ksm":  {},
+			},
 		},
 	}
 
@@ -325,8 +328,8 @@ func TestReconcileClusterChecksRunnerGroups_ComponentOverrideApplied(t *testing.
 }
 
 func TestClusterChecksRunnerGroupsAgentNotReadyToleration(t *testing.T) {
-	groups := []componentccr.Group{{Name: "core", Checks: []string{"kubernetes_state_core"}}}
-	name := componentccr.GetClusterChecksRunnerGroupName(newTestDDAI("foo", groups, false), "core")
+	groups := []componentccr.Group{{Name: "ksm", Checks: []string{"kubernetes_state_core"}}}
+	name := componentccr.GetClusterChecksRunnerGroupName(newTestDDAI("foo", groups, false), "ksm")
 
 	deployments := reconcileGroups(t, newTestDDAI("foo", groups, false), true, ReconcilerOptions{UntaintControllerEnabled: true})
 	assert.Contains(t, deployments[name].Spec.Template.Spec.Tolerations, untaint.AgentNotReadyEqualToleration())

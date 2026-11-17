@@ -126,6 +126,9 @@ func TestClusterChecksFeature(t *testing.T) {
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
 				WithCoreChecksRunnerDefault().
+				WithKSMEnabled(true).
+				WithOrchestratorExplorerEnabled(true).
+				WithHelmCheckEnabled(true).
 				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
@@ -140,6 +143,9 @@ func TestClusterChecksFeature(t *testing.T) {
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				WithCoreChecksRunnerDefault().
+				WithKSMEnabled(true).
+				WithOrchestratorExplorerEnabled(true).
+				WithHelmCheckEnabled(true).
 				WithClusterChecksRunnerGroups([]componentccr.Group{
 					{Name: "kafka", Checks: []string{"kafka_consumer"}},
 				}).
@@ -168,7 +174,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
 		},
 		{
-			Name: "runners off, invalid (overlapping) groups: groups are ignored",
+			Name: "runners off, overlapping groups: the check stays with the first group",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
@@ -180,8 +186,8 @@ func TestClusterChecksFeature(t *testing.T) {
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
 			WantConfigure:       true,
-			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
-			ClusterChecksRunner: testClusterChecksRunnerHasNoEnvs(),
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"a","checks":["kubernetes_state_core"]}]`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
 		},
 		{

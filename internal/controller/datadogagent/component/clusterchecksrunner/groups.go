@@ -39,18 +39,29 @@ const defaultCoreGroupReplicas int32 = 2
 // groupsMinVersion is the first Agent release supporting runner groups, for both the Cluster Agent and the runners.
 const groupsMinVersion = "7.86.0-0"
 
-func coreGroup() Group {
-	return Group{
-		Name:     CoreGroupName,
-		Checks:   []string{constants.KubeStateMetricsCoreCheckName, constants.OrchestratorCheckName, constants.HelmCheckName},
-		Override: &v2alpha1.DatadogAgentComponentOverride{Replicas: new(defaultCoreGroupReplicas)},
+// coreGroupChecks returns the checks the built-in core group claims: those whose feature is enabled.
+func coreGroupChecks(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
+	features := ddaSpec.Features
+	if features == nil {
+		return nil
 	}
+	var checks []string
+	if features.KubeStateMetricsCore != nil && apiutils.BoolValue(features.KubeStateMetricsCore.Enabled) {
+		checks = append(checks, constants.KubeStateMetricsCoreCheckName)
+	}
+	if features.OrchestratorExplorer != nil && apiutils.BoolValue(features.OrchestratorExplorer.Enabled) {
+		checks = append(checks, constants.OrchestratorCheckName)
+	}
+	if features.HelmCheck != nil && apiutils.BoolValue(features.HelmCheck.Enabled) {
+		checks = append(checks, constants.HelmCheckName)
+	}
+	return checks
 }
 
 // Groups returns the runner groups to deploy. There are none when cluster checks, the Cluster Agent or the Cluster
-// Checks Runner component are disabled, or when the Cluster Agent is older than 7.86, and a group whose runner image is
-// older than 7.86 is left out. A version the Operator cannot parse is assumed recent enough. The error reports what
-// was left out.
+// Checks Runner component are disabled, or when the Cluster Agent is older than 7.86. Each group is otherwise checked
+// on its own (see declaredGroups). A version the Operator cannot parse is assumed recent enough. The error reports
+// what was left out.
 func Groups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Group, error) {
 	if !constants.IsClusterChecksEnabled(ddaSpec) ||
 		isDisabled(ddaSpec, v2alpha1.ClusterAgentComponentName) ||
@@ -58,7 +69,7 @@ func Groups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Group, err
 		return nil, nil
 	}
 
-	groups, err := declaredGroups(obj)
+	groups, err := declaredGroups(obj, ddaSpec)
 	if len(groups) == 0 {
 		return nil, err
 	}
@@ -66,17 +77,7 @@ func Groups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Group, err
 	if version := clusterAgentVersion(ddaSpec); !utils.IsAboveMinVersion(version, groupsMinVersion, nil) {
 		return nil, fmt.Errorf("cluster checks runner groups require Cluster Agent 7.86 or later, got %s", version)
 	}
-
-	var supported []Group
-	errs := []error{err}
-	for _, group := range groups {
-		if version := groupVersion(ddaSpec, group); !utils.IsAboveMinVersion(version, groupsMinVersion, nil) {
-			errs = append(errs, fmt.Errorf("cluster checks runner group %q requires a runner image 7.86 or later, got %s", group.Name, version))
-			continue
-		}
-		supported = append(supported, group)
-	}
-	return supported, errors.Join(errs...)
+	return groups, err
 }
 
 // RunnersRequired returns whether the DDA needs the default Cluster Checks Runners or runner groups.
@@ -119,26 +120,94 @@ func claimingGroup(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkN
 	return Group{}, false
 }
 
-// declaredGroups returns the annotation groups plus the built-in core group when enabled. Any mistake in the groups
-// annotation drops all of its groups, but never the built-in core group.
-func declaredGroups(obj metav1.Object) ([]Group, error) {
-	custom, err := customGroups(obj)
-
-	if enabled, _ := strconv.ParseBool(obj.GetAnnotations()[v2alpha1.AnnotationExperimentalCoreChecksRunnerDefault]); enabled &&
-		!slices.ContainsFunc(custom, func(g Group) bool { return g.Name == CoreGroupName }) {
-		core := coreGroup()
-		if overlapErr := validateGroups(append([]Group{core}, custom...)); overlapErr != nil {
-			err = errors.Join(err, fmt.Errorf("ignoring the %s annotation: %w", v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, overlapErr))
-			custom = nil
-		}
-		custom = append([]Group{core}, custom...)
+// declaredGroups returns the groups from the groups annotation, then the built-in core group when enabled.
+//
+// User groups are taken in list order, and a group is skipped on its own when its name can't name a Deployment, it
+// declares no checks, its name is taken, its runner image is older than 7.86, or it claims a check an earlier group
+// already claims. The core group claims the checks of its enabled features that no user group claims, and isn't
+// returned when none are left. A group named core in the annotation only sets the core group's override.
+func declaredGroups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Group, error) {
+	declared, err := annotationGroups(obj)
+	errs := []error{err}
+	skip := func(group Group, reason string) {
+		errs = append(errs, fmt.Errorf("skipping cluster checks runner group %q: %s", group.Name, reason))
 	}
 
-	valid, nameErr := filterInvalidNames(obj, custom)
-	return valid, errors.Join(err, nameErr)
+	coreEnabled, _ := strconv.ParseBool(obj.GetAnnotations()[v2alpha1.AnnotationExperimentalCoreChecksRunnerDefault])
+	core := Group{
+		Name:     CoreGroupName,
+		Override: &v2alpha1.DatadogAgentComponentOverride{Replicas: new(defaultCoreGroupReplicas)},
+	}
+
+	var groups []Group
+	names := map[string]struct{}{}
+	claimedBy := map[string]string{}
+	for _, group := range declared {
+		if group.Name == CoreGroupName {
+			if !coreEnabled {
+				skip(group, "core is reserved for the built-in group, which is disabled")
+				continue
+			}
+			if len(group.Checks) > 0 {
+				errs = append(errs, errors.New("ignoring checks on the core group: its checks are fixed"))
+			}
+			if group.Override != nil {
+				override := group.Override.DeepCopy()
+				if override.Replicas == nil {
+					override.Replicas = core.Override.Replicas
+				}
+				core.Override = override
+			}
+			continue
+		}
+		if reason := invalidName(obj, group.Name); reason != "" {
+			skip(group, reason)
+			continue
+		}
+		if len(group.Checks) == 0 {
+			skip(group, "no checks declared")
+			continue
+		}
+		if _, dup := names[group.Name]; dup {
+			skip(group, "duplicate group name")
+			continue
+		}
+		if version := groupVersion(ddaSpec, group); !utils.IsAboveMinVersion(version, groupsMinVersion, nil) {
+			skip(group, fmt.Sprintf("requires a runner image 7.86 or later, got %s", version))
+			continue
+		}
+		if i := slices.IndexFunc(group.Checks, func(check string) bool { _, claimed := claimedBy[check]; return claimed }); i >= 0 {
+			skip(group, fmt.Sprintf("check %q is already claimed by %q", group.Checks[i], claimedBy[group.Checks[i]]))
+			continue
+		}
+		names[group.Name] = struct{}{}
+		for _, check := range group.Checks {
+			claimedBy[check] = group.Name
+		}
+		groups = append(groups, group)
+	}
+
+	if !coreEnabled {
+		return groups, errors.Join(errs...)
+	}
+	for _, check := range coreGroupChecks(ddaSpec) {
+		if _, claimed := claimedBy[check]; !claimed {
+			core.Checks = append(core.Checks, check)
+		}
+	}
+	switch {
+	case len(core.Checks) == 0:
+	case invalidName(obj, core.Name) != "":
+		skip(core, invalidName(obj, core.Name))
+	case !utils.IsAboveMinVersion(groupVersion(ddaSpec, core), groupsMinVersion, nil):
+		skip(core, fmt.Sprintf("requires a runner image 7.86 or later, got %s", groupVersion(ddaSpec, core)))
+	default:
+		groups = append([]Group{core}, groups...)
+	}
+	return groups, errors.Join(errs...)
 }
 
-func customGroups(obj metav1.Object) ([]Group, error) {
+func annotationGroups(obj metav1.Object) ([]Group, error) {
 	raw := obj.GetAnnotations()[v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups]
 	if raw == "" {
 		return nil, nil
@@ -147,51 +216,19 @@ func customGroups(obj metav1.Object) ([]Group, error) {
 	if err := json.Unmarshal([]byte(raw), &groups); err != nil {
 		return nil, fmt.Errorf("ignoring the %s annotation: %w", v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, err)
 	}
-	if err := validateGroups(groups); err != nil {
-		return nil, fmt.Errorf("ignoring the %s annotation: %w", v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, err)
-	}
 	return groups, nil
 }
 
-func validateGroups(groups []Group) error {
-	names := make(map[string]struct{}, len(groups))
-	claimedBy := make(map[string]string)
-	for _, group := range groups {
-		if _, dup := names[group.Name]; dup {
-			return fmt.Errorf("duplicate group name %q", group.Name)
-		}
-		names[group.Name] = struct{}{}
-
-		if len(group.Checks) == 0 {
-			return fmt.Errorf("group %q must declare checks", group.Name)
-		}
-		for _, check := range group.Checks {
-			if owner, claimed := claimedBy[check]; claimed && owner != group.Name {
-				return fmt.Errorf("check %q is claimed by both %q and %q", check, owner, group.Name)
-			}
-			claimedBy[check] = group.Name
-		}
+// invalidName returns why a group name can't name its Deployment, or "" when it can.
+func invalidName(obj metav1.Object, name string) string {
+	if msgs := k8svalidation.IsDNS1123Label(name); len(msgs) > 0 {
+		return strings.Join(msgs, "; ")
 	}
-	return nil
-}
-
-// filterInvalidNames drops the groups whose name can't name a Deployment, and keeps the others.
-func filterInvalidNames(obj metav1.Object, groups []Group) ([]Group, error) {
-	var valid []Group
-	var errs []error
-	for _, group := range groups {
-		if msgs := k8svalidation.IsDNS1123Label(group.Name); len(msgs) > 0 {
-			errs = append(errs, fmt.Errorf("skipping cluster checks runner group %q: %s", group.Name, strings.Join(msgs, "; ")))
-			continue
-		}
-		// The Deployment name is also used as a label value, which can't exceed 63 characters.
-		if name := GetClusterChecksRunnerGroupName(obj, group.Name); len(name) > k8svalidation.LabelValueMaxLength {
-			errs = append(errs, fmt.Errorf("skipping cluster checks runner group %q: Deployment name %q is longer than %d characters", group.Name, name, k8svalidation.LabelValueMaxLength))
-			continue
-		}
-		valid = append(valid, group)
+	// The Deployment name is also used as a label value, which can't exceed 63 characters.
+	if deployment := GetClusterChecksRunnerGroupName(obj, name); len(deployment) > k8svalidation.LabelValueMaxLength {
+		return fmt.Sprintf("Deployment name %q is longer than %d characters", deployment, k8svalidation.LabelValueMaxLength)
 	}
-	return valid, errors.Join(errs...)
+	return ""
 }
 
 func isDisabled(ddaSpec *v2alpha1.DatadogAgentSpec, component v2alpha1.ComponentName) bool {

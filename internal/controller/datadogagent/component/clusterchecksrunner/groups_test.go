@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -29,10 +30,15 @@ func newDDA(clusterChecks, useRunners bool, annotations map[string]string, overr
 	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{Name: "datadog", Annotations: annotations},
 		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-				Enabled:                 new(clusterChecks),
-				UseClusterChecksRunners: new(useRunners),
-			}},
+			Features: &v2alpha1.DatadogFeatures{
+				ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+					Enabled:                 new(clusterChecks),
+					UseClusterChecksRunners: new(useRunners),
+				},
+				KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{Enabled: new(true)},
+				OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{Enabled: new(true)},
+				HelmCheck:            &v2alpha1.HelmCheckFeatureConfig{Enabled: new(true)},
+			},
 			Override: override,
 		},
 	}
@@ -53,6 +59,13 @@ func groupNames(groups []Group) []string {
 	return names
 }
 
+func core(checks ...string) Group {
+	if len(checks) == 0 {
+		checks = []string{constants.KubeStateMetricsCoreCheckName, constants.OrchestratorCheckName, constants.HelmCheckName}
+	}
+	return Group{Name: CoreGroupName, Checks: checks, Override: &v2alpha1.DatadogAgentComponentOverride{Replicas: new(int32(2))}}
+}
+
 func TestDeclaredGroups(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -62,29 +75,66 @@ func TestDeclaredGroups(t *testing.T) {
 	}{
 		{name: "no annotations"},
 		{name: "groups annotation only", annotations: map[string]string{groupsKey: kafkaGroups}, want: []Group{kafka}},
-		{name: "core only", annotations: map[string]string{coreKey: "true"}, want: []Group{coreGroup()}},
-		{name: "core is listed first", annotations: map[string]string{coreKey: "true", groupsKey: kafkaGroups}, want: []Group{coreGroup(), kafka}},
+		{name: "core only", annotations: map[string]string{coreKey: "true"}, want: []Group{core()}},
+		{name: "core is listed first", annotations: map[string]string{coreKey: "true", groupsKey: kafkaGroups}, want: []Group{core(), kafka}},
 		{name: "core annotation set to false", annotations: map[string]string{coreKey: "false"}},
 		{
-			name:        "a user group named core replaces the built-in one",
-			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"core","checks":["kubernetes_state_core"],"override":{"replicas":5}}]`},
-			want:        []Group{{Name: "core", Checks: []string{"kubernetes_state_core"}, Override: &v2alpha1.DatadogAgentComponentOverride{Replicas: new(int32(5))}}},
+			name:        "a user group claiming a core check takes it from core",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"ksm","checks":["kubernetes_state_core"]},{"name":"kafka","checks":["kafka_consumer"]}]`},
+			want:        []Group{core(constants.OrchestratorCheckName, constants.HelmCheckName), {Name: "ksm", Checks: []string{constants.KubeStateMetricsCoreCheckName}}, kafka},
+		},
+		{
+			name:        "core isn't deployed when user groups claim all its checks",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"mine","checks":["kubernetes_state_core","orchestrator","helm"]}]`},
+			want:        []Group{{Name: "mine", Checks: []string{constants.KubeStateMetricsCoreCheckName, constants.OrchestratorCheckName, constants.HelmCheckName}}},
+		},
+		{
+			name:        "a core entry sets the built-in group's override, its checks stay fixed",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"core","checks":["http_check"],"override":{"replicas":5}}]`},
+			want:        []Group{{Name: CoreGroupName, Checks: core().Checks, Override: &v2alpha1.DatadogAgentComponentOverride{Replicas: new(int32(5))}}},
+			wantErr:     true,
+		},
+		{
+			name:        "a core entry without replicas keeps the default of 2",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"core","override":{"priorityClassName":"high"}}]`},
+			want:        []Group{{Name: CoreGroupName, Checks: core().Checks, Override: &v2alpha1.DatadogAgentComponentOverride{Replicas: new(int32(2)), PriorityClassName: new("high")}}},
+		},
+		{
+			name:        "a core entry is skipped when the built-in group is off",
+			annotations: map[string]string{groupsKey: `[{"name":"core","checks":["kubernetes_state_core"]},{"name":"kafka","checks":["kafka_consumer"]}]`},
+			want:        []Group{kafka},
+			wantErr:     true,
 		},
 		{name: "malformed groups annotation", annotations: map[string]string{groupsKey: "not-json"}, wantErr: true},
-		{name: "malformed groups annotation keeps core", annotations: map[string]string{coreKey: "true", groupsKey: "not-json"}, want: []Group{coreGroup()}, wantErr: true},
-		{name: "duplicate names drop every user group", annotations: map[string]string{groupsKey: `[{"name":"a","checks":["x"]},{"name":"a","checks":["y"]}]`}, wantErr: true},
-		{name: "a group without checks drops every user group", annotations: map[string]string{groupsKey: `[{"name":"a"},` + kafkaGroups[1:]}, wantErr: true},
-		{name: "a check claimed twice drops every user group", annotations: map[string]string{groupsKey: `[{"name":"a","checks":["x"]},{"name":"b","checks":["x"]}]`}, wantErr: true},
+		{name: "malformed groups annotation keeps core", annotations: map[string]string{coreKey: "true", groupsKey: "not-json"}, want: []Group{core()}, wantErr: true},
 		{
-			name:        "a user group claiming a core check drops the user groups, not core",
-			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"ksm","checks":["kubernetes_state_core"]},{"name":"kafka","checks":["kafka_consumer"]}]`},
-			want:        []Group{coreGroup()},
+			name:        "a duplicate name skips the later group",
+			annotations: map[string]string{groupsKey: `[{"name":"kafka","checks":["kafka_consumer"]},{"name":"kafka","checks":["redisdb"]}]`},
+			want:        []Group{kafka},
+			wantErr:     true,
+		},
+		{
+			name:        "a group without checks is skipped",
+			annotations: map[string]string{groupsKey: `[{"name":"a"},` + kafkaGroups[1:]},
+			want:        []Group{kafka},
+			wantErr:     true,
+		},
+		{
+			name:        "a check claimed twice stays with the first group",
+			annotations: map[string]string{groupsKey: `[{"name":"kafka","checks":["kafka_consumer"]},{"name":"b","checks":["kafka_consumer","redisdb"]}]`},
+			want:        []Group{kafka},
 			wantErr:     true,
 		},
 		{
 			name:        "a name that isn't a DNS label is skipped, the others are kept",
 			annotations: map[string]string{groupsKey: `[{"name":"HTTP_checks","checks":["http_check"]},{"name":"kafka","checks":["kafka_consumer"]}]`},
 			want:        []Group{kafka},
+			wantErr:     true,
+		},
+		{
+			name:        "a skipped group doesn't take checks from core",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"KSM","checks":["kubernetes_state_core"]}]`},
+			want:        []Group{core()},
 			wantErr:     true,
 		},
 		{
@@ -102,16 +152,26 @@ func TestDeclaredGroups(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := declaredGroups(newDDA(true, false, tt.annotations, nil))
+			dda := newDDA(true, false, tt.annotations, images786())
+			got, err := declaredGroups(dda, &dda.Spec)
 			assert.Equal(t, tt.wantErr, err != nil, "error: %v", err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
-func TestCoreGroupChecks(t *testing.T) {
-	assert.Equal(t, []string{constants.KubeStateMetricsCoreCheckName, constants.OrchestratorCheckName, constants.HelmCheckName}, coreGroup().Checks)
-	assert.Equal(t, new(int32(2)), coreGroup().Override.Replicas)
+func TestCoreGroupFollowsFeatures(t *testing.T) {
+	dda := newDDA(true, false, map[string]string{coreKey: "true"}, images786())
+	dda.Spec.Features.HelmCheck.Enabled = new(false)
+	got, err := declaredGroups(dda, &dda.Spec)
+	require.NoError(t, err)
+	assert.Equal(t, []Group{core(constants.KubeStateMetricsCoreCheckName, constants.OrchestratorCheckName)}, got)
+
+	dda.Spec.Features.KubeStateMetricsCore.Enabled = new(false)
+	dda.Spec.Features.OrchestratorExplorer.Enabled = new(false)
+	got, err = declaredGroups(dda, &dda.Spec)
+	require.NoError(t, err)
+	assert.Empty(t, got, "core isn't deployed when none of its features are on")
 }
 
 func TestGroupsVersionGate(t *testing.T) {
