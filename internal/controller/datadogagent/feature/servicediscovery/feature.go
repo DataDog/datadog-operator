@@ -33,6 +33,7 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type serviceDiscoveryFeature struct {
+	enabled            bool
 	useSystemProbeLite bool
 }
 
@@ -44,14 +45,21 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.useSystemProbeLite = false
-	if resolveEnabled(ddaSpec) {
+	f.enabled = resolveEnabled(ddaSpec)
+	if f.enabled {
 		f.useSystemProbeLite = shouldEnableServiceDiscoveryByDefault(ddaSpec)
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
+		return reqComp
 	}
 
+	// The Agent defaults discovery.enabled to true on Linux, so it has to be turned off explicitly
+	// when the feature is disabled.
+	reqComp.Agent = feature.RequiredComponent{
+		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+	}
 	return reqComp
 }
 
@@ -98,6 +106,17 @@ func (f *serviceDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplat
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	if !f.enabled {
+		disableEnvVar := &corev1.EnvVar{
+			Name:  common.DDServiceDiscoveryEnabled,
+			Value: "false",
+		}
+		// The System Probe container is only present when another feature requires it.
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, disableEnvVar)
+		managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, disableEnvVar)
+		return nil
+	}
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
@@ -151,7 +170,15 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *serviceDiscoveryFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers) error {
+func (f *serviceDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	if !f.enabled {
+		disableEnvVar := &corev1.EnvVar{
+			Name:  common.DDServiceDiscoveryEnabled,
+			Value: "false",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, disableEnvVar)
+		managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, disableEnvVar)
+	}
 	return nil
 }
 
