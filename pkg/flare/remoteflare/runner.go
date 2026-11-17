@@ -41,7 +41,7 @@ const (
 // CredentialsGetter returns the Operator credentials. Only the API key is
 // used. *config.CredentialManager implements it.
 type CredentialsGetter interface {
-	GetCredentialsForMetadata() (config.Creds, error)
+	GetAPIKeyCredentials() (config.Creds, error)
 }
 
 // Config configures a Runner.
@@ -182,7 +182,7 @@ func (r *Runner) Run(ctx context.Context, task remoteconfig.FlareTask) error {
 	if r.cfg.Credentials == nil {
 		return errors.New("unable to send the flare: no credentials")
 	}
-	creds, err := r.cfg.Credentials.GetCredentialsForMetadata()
+	creds, err := r.cfg.Credentials.GetAPIKeyCredentials()
 	if err != nil {
 		return fmt.Errorf("unable to send the flare: unable to get the API key: %w", err)
 	}

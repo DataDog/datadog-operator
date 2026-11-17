@@ -18,7 +18,7 @@ import (
 
 type testCreds struct{}
 
-func (testCreds) GetCredentialsForMetadata() (config.Creds, error) { return config.Creds{}, nil }
+func (testCreds) GetAPIKeyCredentials() (config.Creds, error) { return config.Creds{}, nil }
 
 func TestNewFlareRunner(t *testing.T) {
 	opts := &options{metricsAddr: ":8383", datadogAgentEnabled: true, remoteConfigEnabled: true, enableLeaderElection: true}

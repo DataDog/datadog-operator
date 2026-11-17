@@ -59,7 +59,7 @@ type fakeCreds struct {
 	err    error
 }
 
-func (f fakeCreds) GetCredentialsForMetadata() (config.Creds, error) {
+func (f fakeCreds) GetAPIKeyCredentials() (config.Creds, error) {
 	return config.Creds{APIKey: f.apiKey, AppKey: testAppKey}, f.err
 }
 
