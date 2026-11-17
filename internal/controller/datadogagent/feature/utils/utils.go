@@ -29,7 +29,7 @@ const (
 	// AgentIPCUnixSocketMinVersion is the minimum Agent version supporting the
 	// agent_ipc unix socket transport; older agents ignore it and would silently
 	// lose config sync, so they keep the TCP port.
-	AgentIPCUnixSocketMinVersion = "7.85.0-0"
+	AgentIPCUnixSocketMinVersion = "7.87.0-0"
 	// DefaultDataPlaneMinAgentVersion is the minimum Agent version that receives the Operator-level Data Plane default.
 	// Explicit Data Plane configuration remains available for older versions.
 	DefaultDataPlaneMinAgentVersion   = "7.84.0-0"

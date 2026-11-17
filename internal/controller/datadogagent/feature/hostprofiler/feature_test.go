@@ -66,15 +66,15 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcSocketEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
 		},
 		{
-			Name: "host profiler enabled with an agent without unix socket support",
+			Name: "host profiler enabled with an agent supporting the unix socket",
 			DDA: withNodeAgentVersion(testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
-				Build(), "7.84.0"),
+				Build(), "7.87.0"),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcSocketEnvVars),
 		},
 		{
 			Name: "host profiler enabled via spec",
@@ -82,7 +82,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithHostProfilerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcSocketEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
 		},
 		{
 			Name: "host profiler disabled via spec takes precedence over annotation",
@@ -99,7 +99,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithHostProfilerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcSocketEnvVars),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcPortEnvVars),
 		},
 	}
 	tests.Run(t, buildHostProfilerFeature)

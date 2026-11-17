@@ -131,11 +131,11 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	t.Run("sets both env vars on every container", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		// the default agent version supports the socket
+		// the default agent version is below the gate, so it keeps the port
 		EnableConfigSyncForDirectSend(managers, &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "dda"}}, containers)
 
 		want := []*corev1.EnvVar{
-			{Name: common.DDAgentIpcUseSocket, Value: "true"},
+			{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
 			{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
 		}
 		for _, container := range containers {
@@ -146,7 +146,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	t.Run("uses the unix socket on agents that support it", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.85.0"), containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.87.0"), containers)
 
 		want := []*corev1.EnvVar{
 			{Name: common.DDAgentIpcUseSocket, Value: "true"},
@@ -160,7 +160,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	t.Run("falls back to the port on agents without unix socket support", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.84.0"), containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.86.0"), containers)
 
 		want := []*corev1.EnvVar{
 			{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
@@ -176,7 +176,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 		userSocket := &corev1.EnvVar{Name: common.DDAgentIpcUseSocket, Value: "false"}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, userSocket)
 
-		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.85.0"), containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.87.0"), containers)
 
 		want := []*corev1.EnvVar{
 			userSocket,
