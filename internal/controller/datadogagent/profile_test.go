@@ -2114,3 +2114,25 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 		})
 	}
 }
+
+func Test_setProfileDDAIMetaStartupExperiment(t *testing.T) {
+	key := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalWithoutInitConfigSubkey
+	for _, value := range []string{"", "true", "false"} {
+		t.Run("DDA="+value, func(t *testing.T) {
+			annotations := map[string]string{}
+			if value != "" {
+				annotations[key] = value
+			}
+			ddai := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Annotations: annotations}}
+			profile := &v1alpha1.DatadogAgentProfile{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default", Annotations: map[string]string{key: "true"}}}
+			if value == "true" {
+				profile.Annotations[key] = "false"
+			}
+			require.NoError(t, setProfileDDAIMeta(ddai, profile))
+			assert.Equal(t, value, ddai.Annotations[key], "profile annotations must not change the DDA startup experiment")
+			if value == "" {
+				assert.NotContains(t, ddai.Annotations, key)
+			}
+		})
+	}
+}

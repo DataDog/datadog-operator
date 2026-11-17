@@ -3,9 +3,15 @@ package datadogagentinternal
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -258,5 +264,67 @@ func TestReconcileV2AgentFeatureError(t *testing.T) {
 			assert.Equal(t, "AgentFeatureError", agentCondition.Reason)
 			assert.Contains(t, agentCondition.Message, featErr.Error())
 		})
+	}
+}
+
+func TestReconcileV2AgentWithoutInitConfig(t *testing.T) {
+	ctx := context.Background()
+	ddai := newRolloutTestDDAI()
+	ddai.UID = "dda-uid"
+	ddai.Spec.Global = &datadoghqv2alpha1.GlobalConfig{Credentials: &datadoghqv2alpha1.DatadogCredentials{APISecret: &datadoghqv2alpha1.SecretConfig{SecretName: "datadog-secret", KeyName: "api-key"}}}
+	mainConfig := "api_key: ENC[test]\n"
+	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+		datadoghqv2alpha1.NodeAgentComponentName: {
+			CustomConfigurations: map[datadoghqv2alpha1.AgentConfigFileName]datadoghqv2alpha1.CustomConfig{datadoghqv2alpha1.AgentGeneralConfigFile: {ConfigData: &mainConfig}},
+			ExtraConfd:           &datadoghqv2alpha1.MultiCustomConfig{ConfigMap: &datadoghqv2alpha1.ConfigMapConfig{Name: "redis", Items: []corev1.KeyToPath{{Key: "cache", Path: "redisdb.d/cache.yaml"}, {Key: "queue", Path: "redisdb.d/queue.yaml"}}}},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
+	r := newRolloutTestReconciler(false)
+	_, managers := r.setupDependencies(ctx, ddai)
+	required := feature.RequiredComponents{Agent: feature.RequiredComponent{IsRequired: ptr.To(true), Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.TraceAgentContainerName, apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName}}}
+	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
+	key := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalWithoutInitConfigSubkey
+	getDS := func() *appsv1.DaemonSet {
+		ds := &appsv1.DaemonSet{}
+		require.NoError(t, r.client.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: "dda-foo-agent"}, ds))
+		return ds
+	}
+	hasInit := func(ds *appsv1.DaemonSet, name string) bool {
+		return slices.ContainsFunc(ds.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == name })
+	}
+	// Default behavior is unchanged.
+	_, err := r.reconcileV2Agent(ctx, required, nil, ddai, managers, status, "")
+	require.NoError(t, err)
+	assert.True(t, hasInit(getDS(), "init-config"))
+	ddai.Annotations = map[string]string{key: "true"}
+	// The desired template is regenerated on each pass, so reconcile twice.
+	for range 2 {
+		_, err = r.reconcileV2Agent(ctx, required, nil, ddai, managers, status, "")
+		require.NoError(t, err)
+		ds := getDS()
+		assert.False(t, hasInit(ds, "init-config"))
+		assert.True(t, hasInit(ds, "init-volume"))
+		assert.True(t, hasInit(ds, "seccomp-setup"))
+		for _, c := range ds.Spec.Template.Spec.Containers {
+			assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml", SubPath: "redisdb.d/cache.yaml", ReadOnly: true})
+		}
+	}
+	// An invalid experiment must return an error without changing the live DaemonSet.
+	before := getDS()
+	ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName].CustomConfigurations = nil
+	_, err = r.reconcileV2Agent(ctx, required, nil, ddai, managers, status, "")
+	require.ErrorContains(t, err, "requires an explicit")
+	assert.Equal(t, before.Spec.Template, getDS().Spec.Template)
+	// Turning off the annotation restores the ordinary init container and mounts.
+	ddai.Annotations[key] = "false"
+	_, err = r.reconcileV2Agent(ctx, required, nil, ddai, managers, status, "")
+	require.NoError(t, err)
+	ds := getDS()
+	assert.True(t, hasInit(ds, "init-config"))
+	for _, c := range ds.Spec.Template.Spec.Containers {
+		for _, m := range c.VolumeMounts {
+			assert.NotEqual(t, "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml", m.MountPath)
+		}
 	}
 }
