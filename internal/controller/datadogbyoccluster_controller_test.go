@@ -329,7 +329,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			By("running a reconcile with a Pomsky that only has the main index")
-			fake := &fakePomskyClient{}
+			fake := newFakePomskyClient()
 			var endpoint string
 			reconciler := &datadogbyoccluster.Reconciler{
 				Client:    k8sClient,
@@ -875,35 +875,53 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 	})
 })
 
+// fakePomskyClient keeps the indexes and the routing table it is given, so that a repeated sync changes nothing.
 type fakePomskyClient struct {
-	calls []string
+	indexes      []pomsky.Index
+	routingTable []pomsky.RoutingRule
+	calls        []string
+}
+
+func newFakePomskyClient() *fakePomskyClient {
+	return &fakePomskyClient{
+		indexes:      []pomsky.Index{{ID: "datadog", Retention: "30 days"}},
+		routingTable: []pomsky.RoutingRule{{Filter: "*", IndexID: "datadog"}},
+	}
 }
 
 func (f *fakePomskyClient) ListIndexes(context.Context) ([]pomsky.Index, error) {
-	return []pomsky.Index{{ID: "datadog", Retention: "30 days"}}, nil
+	return f.indexes, nil
 }
 
 func (f *fakePomskyClient) CreateIndex(_ context.Context, id, retention string) error {
 	f.calls = append(f.calls, fmt.Sprintf("create %s %s", id, retention))
+	f.indexes = append(f.indexes, pomsky.Index{ID: id, Retention: retention})
 	return nil
 }
 
 func (f *fakePomskyClient) UpdateIndexRetention(_ context.Context, id, retention string) error {
 	f.calls = append(f.calls, fmt.Sprintf("update %s %s", id, retention))
+	for i := range f.indexes {
+		if f.indexes[i].ID == id {
+			f.indexes[i].Retention = retention
+		}
+	}
 	return nil
 }
 
 func (f *fakePomskyClient) DeleteIndex(_ context.Context, id string) error {
 	f.calls = append(f.calls, "delete "+id)
+	f.indexes = slices.DeleteFunc(f.indexes, func(index pomsky.Index) bool { return index.ID == id })
 	return nil
 }
 
 func (f *fakePomskyClient) GetRoutingTable(context.Context) ([]pomsky.RoutingRule, error) {
-	return []pomsky.RoutingRule{{Filter: "*", IndexID: "datadog"}}, nil
+	return f.routingTable, nil
 }
 
 func (f *fakePomskyClient) SetRoutingTable(_ context.Context, rules []pomsky.RoutingRule) error {
 	f.calls = append(f.calls, fmt.Sprintf("set routing table %v", rules))
+	f.routingTable = rules
 	return nil
 }
 
