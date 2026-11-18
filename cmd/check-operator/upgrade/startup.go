@@ -58,10 +58,10 @@ type startupPodOutcome struct {
 }
 
 // startupCollector reads status without changing the upgrade result. Optional
-// observation after success shares the existing upgrade deadline. The Run-start
-// cutoff proves pod freshness, not that an intended DDA spec has reconciled.
+// observation after success shares the existing upgrade deadline.
+// Repeated runs can observe the same pods; revision membership does not prove
+// that an intended DDA spec has reconciled.
 type startupCollector struct {
-	createdAfter        time.Time
 	options             *Options
 	output              io.Writer
 	snapshots           map[types.UID][32]byte
@@ -82,7 +82,6 @@ type startupRecord struct {
 	Image               string                      `json:"image,omitempty"`
 	ImageID             string                      `json:"image_id,omitempty"`
 	Event               string                      `json:"event"`
-	CreatedAfter        *metav1.Time                `json:"created_after,omitempty"`
 	ObservedAt          time.Time                   `json:"observed_at"`
 	Namespace           string                      `json:"namespace"`
 	DatadogAgent        string                      `json:"datadogagent"`
@@ -179,7 +178,7 @@ func (c *startupCollector) emit(record startupRecord) error {
 
 // One worker owns the collector and its output. Waiting after upgrade success is
 // bounded even when an API client or output writer fails to honor cancellation.
-func (o *Options) startStartupCollection(startedAt, deadline time.Time) func(bool) {
+func (o *Options) startStartupCollection(deadline time.Time) func(bool) {
 	if !o.collectStartupTimings {
 		return func(bool) {}
 	}
@@ -187,7 +186,7 @@ func (o *Options) startStartupCollection(startedAt, deadline time.Time) func(boo
 	initialCtx, stopInitial := context.WithCancel(ctx)
 	finish := make(chan bool, 1)
 	done := make(chan struct{})
-	c := &startupCollector{createdAfter: startedAt, options: o, output: o.ErrOut, snapshots: make(map[types.UID][32]byte), attempts: make(map[string]struct{}), outcomes: make(map[types.UID]startupPodOutcome)}
+	c := &startupCollector{options: o, output: o.ErrOut, snapshots: make(map[types.UID][32]byte), attempts: make(map[string]struct{}), outcomes: make(map[types.UID]startupPodOutcome)}
 	go func() {
 		defer close(done)
 		ticker := time.NewTicker(o.checkPeriod)
@@ -319,10 +318,6 @@ func (c *startupCollector) coverageComplete() bool {
 
 func (c *startupCollector) emitSummary(timedOut bool) {
 	record := c.record("agent_startup_collection_summary")
-	if !c.createdAfter.IsZero() {
-		cutoff := metav1.NewTime(c.createdAfter)
-		record.CreatedAfter = &cutoff
-	}
 	record.Revisions = c.revisions
 	record.MeasurementsEnabled = c.measurementsStarted
 	record.OldestPodCreatedAt, record.NewestPodCreatedAt = c.oldestPod, c.newestPod
@@ -331,9 +326,9 @@ func (c *startupCollector) emitSummary(timedOut bool) {
 	record.CollectionComplete, record.TimedOut = c.collectionComplete, timedOut
 	record.RolloutComplete = c.coverageComplete()
 	if c.expectedPods > 0 && len(c.outcomes) == 0 {
-		record.Reason = "no_fresh_pods"
+		record.Reason = "no_current_revision_pods"
 	} else if !record.RolloutComplete {
-		record.Reason = "fresh_cohort_incomplete"
+		record.Reason = "current_revision_incomplete"
 	}
 	if c.collectionComplete && len(c.expectedByDS) == 0 {
 		record.Reason = "node_agent_disabled"
@@ -397,9 +392,6 @@ func (c *startupCollector) collect(ctx context.Context) error {
 		names[status.DaemonsetName] = struct{}{}
 		return nil
 	}
-	if err := add(&dda.Spec, dda.Status.Agent, "DatadogAgent "+dda.Name); err != nil {
-		return err
-	}
 	for _, status := range dda.Status.AgentList {
 		if err := add(&dda.Spec, status, "DatadogAgent "+dda.Name+" agentList"); err != nil {
 			return err
@@ -408,6 +400,13 @@ func (c *startupCollector) collect(ctx context.Context) error {
 	ddais := &v1alpha1.DatadogAgentInternalList{}
 	if err := c.list(ctx, ddais, client.InNamespace(c.options.UserNamespace), client.MatchingLabels{apicommon.DatadogAgentNameLabelKey: c.options.datadogAgentName}); err != nil {
 		return err
+	}
+	// With DDAIs, the DDA Agent status is an aggregate and can omit the
+	// DaemonSet name. Concrete targets come from the DDAIs or AgentList.
+	if (dda.Status.Agent != nil && dda.Status.Agent.DaemonsetName != "") || (len(ddais.Items) == 0 && len(dda.Status.AgentList) == 0) {
+		if err := add(&dda.Spec, dda.Status.Agent, "DatadogAgent "+dda.Name); err != nil {
+			return err
+		}
 	}
 	for _, ddai := range ddais.Items {
 		if err := add(&ddai.Spec, ddai.Status.Agent, "DatadogAgentInternal "+ddai.Name); err != nil {
@@ -522,15 +521,8 @@ func (c *startupCollector) collect(ctx context.Context) error {
 
 func (c *startupCollector) collectPod(pod *corev1.Pod, daemonset string, revision *startupRevision) error {
 	record := c.record("agent_startup_snapshot")
-	selected := revision != nil && !pod.CreationTimestamp.Time.Before(c.createdAfter) && !pod.CreationTimestamp.IsZero() && pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == revision.Hash && !pod.CreationTimestamp.Before(&revision.CreatedAt)
+	selected := revision != nil && !pod.CreationTimestamp.IsZero() && pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == revision.Hash && !pod.CreationTimestamp.Before(&revision.CreatedAt)
 	record.Revision, record.MeasurementsEnabled = revision, selected && c.measurementsStarted
-	if !c.createdAfter.IsZero() {
-		cutoff := metav1.NewTime(c.createdAfter)
-		record.CreatedAfter = &cutoff
-		if pod.CreationTimestamp.Time.Before(c.createdAfter) {
-			record.Reason = "created_before_checker_start"
-		}
-	}
 	record.PodName, record.PodUID, record.NodeName, record.DaemonSet = pod.Name, pod.UID, pod.Spec.NodeName, daemonset
 	record.CreationTimestamp, record.StartTime = &pod.CreationTimestamp, pod.Status.StartTime
 	record.PodPhase = pod.Status.Phase
