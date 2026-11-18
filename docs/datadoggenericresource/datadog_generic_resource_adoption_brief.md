@@ -223,13 +223,13 @@ One limitation: the list covers the Operator's own cluster only, and legacy CRs 
 
 ### Deletion and retention
 
-New annotation: `datadoghq.com/deletion-policy`, which takes `delete` (the default) or `orphan`.
+New annotation: `datadoghq.com/deletion-policy: orphan`. `orphan` is the only value: without the annotation, deletion behaves as it does today, so a `delete` value would add nothing. A migration counts as completed once the orphan annotation is gone.
 
 ```mermaid
 flowchart TD
   d([CR deleted, finalizer present]) --> pol{deletion-policy annotation}
   pol -- orphan --> o[Skip remote delete<br/>Event Orphaned]
-  pol -- "delete / absent" --> id{status.id set?}
+  pol -- absent --> id{status.id set?}
   id -- no --> s[Nothing to delete]
   id -- yes --> rd{Remote delete}
   rd -- "ok / 404" --> ok[Deleted]
@@ -245,7 +245,7 @@ flowchart TD
 - It fixes the race in today's workaround. Today, removing the finalizer and then deleting the CR can fail because the controller re-adds the finalizer in between. With the annotation, the user annotates and deletes while the controller is running, with no need to stop it.
 - Annotations can still be edited on a CR that is already being deleted. A CR stuck because its remote delete keeps failing can be released by setting `orphan`.
 
-Should adopted resources default to `orphan`, the way `DatadogMonitor` only deletes what it created? **No**, recommended default `delete`. After migration, DDGR should behave like any other DDGR. A different default for some resources makes `kubectl delete` behavior depend on history the user can't see. See [Open questions](#open-questions).
+Should adopted resources default to `orphan`, the way `DatadogMonitor` only deletes what it created? **No**, recommended: without the annotation, deleting an adopted DDGR deletes the object. After migration, DDGR should behave like any other DDGR. A different default for some resources makes `kubectl delete` behavior depend on history the user can't see. See [Open questions](#open-questions).
 
 ## Migrating from a legacy CRD (DatadogMonitor, DatadogDashboard, DatadogSLO)
 
@@ -554,7 +554,7 @@ Still unsupported: both controllers active at the same time (they overwrite each
 ## Open questions
 
 1. **Field name:** `spec.id` (mirrors `status.id`) or something more explicit (`spec.datadogID`, `spec.adoptID`)?
-2. **Default deletion policy for adopted resources:** `delete` (recommended, uniform) or `orphan` (safer, matches `DatadogMonitor`'s `primary`)?
+2. **Default deletion behavior for adopted resources:** delete the object like any other DDGR (recommended, uniform) or orphan it by default (safer, matches `DatadogMonitor`'s `primary`)?
 3. Is a **per-object pause annotation** (for example `datadoghq.com/reconcile: paused`) worth adding? It would make the passive-cluster pattern work without disabling a whole controller. It's a separate feature, deferred unless reviewers disagree.
 4. Should the **safety-net annotation** on migrated DDGRs stay on by default? It protects against reverts and accidental prunes, but a user who never runs `--finalize` keeps orphan-on-delete forever. An alternative: on by default for the `-o` outputs only, since reverts are a GitOps risk.
 5. The recovery after a reverted migration relies on the monitor API rejecting an identical monitor. If the recreated `DatadogMonitor` differs in any field, it creates a second monitor instead. That's acceptable for an unsupported rollback, but worth confirming the duplicate rules with the monitors team.
