@@ -16,11 +16,13 @@ import (
 	"fmt"
 	"path"
 	"slices"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/pomsky"
 )
 
 // ValidateClusterSpec checks the cross-field rules after defaults and before image resolution.
@@ -59,6 +61,20 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 			errs = append(errs, validateAutoscaling(components.Compactor.Autoscaling, compactorPath.Child("autoscaling"))...)
 		}
 		errs = append(errs, validatePomskyComponent(components.Janitor, componentPath.Child("janitor"))...)
+	}
+	errs = append(errs, validateIndexes(spec.Indexes, path.Child("indexes"))...)
+	return errs
+}
+
+// validateIndexes rejects names that cloudprem-bridge refuses to create, which the CRD pattern cannot express.
+func validateIndexes(indexes []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec, path *field.Path) field.ErrorList {
+	var errs field.ErrorList
+	for i, index := range indexes {
+		for _, prefix := range pomsky.ReservedIndexNamePrefixes {
+			if strings.HasPrefix(index.Name, prefix) {
+				errs = append(errs, field.Invalid(path.Index(i).Child("name"), index.Name, fmt.Sprintf("must not start with the reserved prefix %q", prefix)))
+			}
+		}
 	}
 	return errs
 }
