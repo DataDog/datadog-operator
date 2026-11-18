@@ -554,7 +554,7 @@ Still unsupported: both controllers active at the same time (they overwrite each
 ## Open questions
 
 1. **Field name:** `spec.id` (mirrors `status.id`) or something more explicit (`spec.datadogID`, `spec.adoptID`)?
-2. **Default deletion behavior for adopted resources:** delete the object like any other DDGR (recommended, uniform) or orphan it by default (safer, matches `DatadogMonitor`'s `primary`)?
+2. **Deleting an adopted DDGR:** when a DDGR that adopted an existing object (with `spec.id`) is deleted later, should the Datadog object be deleted like for any other DDGR (recommended, uniform), or kept by default because this DDGR didn't create it (safer, like `DatadogMonitor`'s `primary`)? This is separate from the temporary safety-net annotation that `migrate` adds (question 4).
 3. Is a **per-object pause annotation** (for example `datadoghq.com/reconcile: paused`) worth adding? It would make the passive-cluster pattern work without disabling a whole controller. It's a separate feature, deferred unless reviewers disagree.
 4. Should the **safety-net annotation** on migrated DDGRs stay on by default? It protects against reverts and accidental prunes, but a user who never runs `--finalize` keeps orphan-on-delete forever. An alternative: on by default for the `-o` outputs only, since reverts are a GitOps risk.
 5. The recovery after a reverted migration relies on the monitor API rejecting an identical monitor. If the recreated `DatadogMonitor` differs in any field, it creates a second monitor instead. That's acceptable for an unsupported rollback, but worth confirming the duplicate rules with the monitors team.
