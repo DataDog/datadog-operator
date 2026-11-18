@@ -67,7 +67,8 @@ func New(params secrets.ConfigParams, configErr error) *Resolver {
 	}
 	if params.Command != "" {
 		params.Type, params.Config = "", nil
-	} else if params.Type != "" {
+	} else {
+		// Arguments belong to the command; the embedded connector takes none.
 		params.Arguments = nil
 	}
 	comp := secretsimpl.NewEnabledResolver(noopsimpl.GetCompatComponent())
