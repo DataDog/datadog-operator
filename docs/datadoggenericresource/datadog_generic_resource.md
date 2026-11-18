@@ -175,6 +175,74 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
 
+## Secret references
+
+String values in `jsonSpec` can reference secrets with `ENC[<handle>]`. The Operator resolves them with its secret backend before it creates or updates the resource in Datadog. The `DatadogGenericResource` keeps only the references.
+
+Example: a Synthetic API test that uses a client certificate stored in the Kubernetes Secret `client-cert`:
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: api-test-client-cert
+spec:
+  type: synthetics_api_test
+  jsonSpec: |-
+    {
+      "config": {
+        "request": {
+          "method": "GET",
+          "url": "https://example.com",
+          "certificate": {
+            "cert": {"content": "ENC[secrets-ns/client-cert;tls.crt]", "filename": "tls.crt"},
+            "key": {"content": "ENC[secrets-ns/client-cert;tls.key]", "filename": "tls.key"}
+          }
+        },
+        "assertions": [{"type": "statusCode", "operator": "is", "target": 200}]
+      },
+      "locations": ["aws:us-east-1"],
+      "message": "Client certificate test",
+      "name": "Example API test with a client certificate",
+      "options": {"tick_every": 900},
+      "subtype": "http",
+      "type": "api"
+    }
+```
+
+### Configure the secret backend
+
+References use the Operator's secret backend flags, the same ones used for the Operator's own credentials:
+
+| Flag | Description |
+| --- | --- |
+| `-secretBackendType` | Built-in backend, such as `k8s.secrets` or `aws.secrets`. |
+| `-secretBackendConfig` | JSON configuration for the built-in backend, for example `{"aws_session":{"aws_region":"us-east-1"}}`. |
+| `-secretBackendCommand`, `-secretBackendArgs` | Custom backend command and its arguments. Takes precedence over `-secretBackendType`. With Helm, set `secretBackend.command` and `secretBackend.arguments`. |
+| `-secretRefreshInterval` | How often resolved values are fetched again, for example `1h`. By default, values are cached until the Operator restarts. |
+
+A custom command must not be accessible to other users, for example mode `700` or `750`.
+
+Handle format by backend:
+
+| Backend | Handle | Example |
+| --- | --- | --- |
+| `k8s.secrets` | `<namespace>/<secret-name>;<key>` | `ENC[secrets-ns/client-cert;tls.key]` |
+| `aws.secrets` | `<secret-id>;<json-key>`, where the secret ID is a name or an ARN | `ENC[my-secrets;apiKey]` |
+| `/readsecret.sh` with a mounted directory | File name in the directory | `ENC[tls.key]` |
+
+With `k8s.secrets`, the Operator's service account needs `get` access to the referenced Secrets.
+
+**Note**: Any user who can create a `DatadogGenericResource` can reference any secret that the backend can read.
+
+### Behavior
+
+* Only whole string values are resolved. `"ENC[<handle>]"` is resolved; `"token ENC[<handle>]"` and object keys are sent as is.
+* If a reference can't be resolved, nothing is sent to Datadog. The `Error` condition names the failing handle, and the Operator retries after the requeue period (60 seconds by default).
+* Deleting a `DatadogGenericResource` doesn't require its secrets.
+* If no backend is configured, references are sent as literal strings and the Operator records a `SecretBackendNotConfigured` Warning event.
+* Resolved values don't appear in the resource, its status, events, or Operator logs. For resources with references, Datadog API error responses are left out of the status.
+* With `-secretRefreshInterval`, refreshed values are sent at the next force sync (`DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD`). `monitor` resources are only updated when their spec or the monitor in Datadog changes, so they keep the previous value until then.
+
 ## Controller tuning
 
 The `DatadogGenericResource` controller exposes several tuning options for large installations or load tests.
