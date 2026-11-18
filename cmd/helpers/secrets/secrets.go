@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,8 @@ import (
 
 const (
 	maxSecretFileSize = 8192
+	// maxSymlinkHops bounds chains of absolute symlinks.
+	maxSymlinkHops = 8
 )
 
 // NewCmd implements reading secrets from a directory/volume mount
@@ -63,15 +66,15 @@ func readSecrets(r io.Reader, w io.Writer, dir string) error {
 		return errors.New("no secrets listed in input")
 	}
 
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return err
+	// A missing directory is reported per secret, like a missing file.
+	root, rootErr := os.OpenRoot(dir)
+	if rootErr == nil {
+		defer root.Close()
 	}
-	defer root.Close()
 
 	response := map[string]s.Secret{}
 	for _, name := range request.Secrets {
-		response[name] = readSecret(root, name)
+		response[name] = readSecret(root, rootErr, name)
 	}
 
 	out, err := json.Marshal(response)
@@ -86,8 +89,14 @@ func splitVersion(ver string) []string {
 	return strings.SplitN(ver, ".", 2)
 }
 
-func readSecret(root *os.Root, name string) s.Secret {
-	value, err := readSecretFile(root, name)
+func readSecret(root *os.Root, rootErr error, name string) s.Secret {
+	value, err := "", rootErr
+	if err == nil {
+		value, err = readSecretFile(root, name)
+	}
+	if os.IsNotExist(err) {
+		err = errors.New("secret does not exist")
+	}
 	var errMsg string
 	if err != nil {
 		errMsg = err.Error()
@@ -97,11 +106,8 @@ func readSecret(root *os.Root, name string) s.Secret {
 
 // readSecretFile follows symlinks only within the configured directory.
 func readSecretFile(root *os.Root, name string) (string, error) {
-	file, err := root.Open(name)
+	file, err := root.Open(insideAbsoluteLinks(root, name))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", errors.New("secret does not exist")
-		}
 		return "", err
 	}
 	defer file.Close()
@@ -114,4 +120,25 @@ func readSecretFile(root *os.Root, name string) (string, error) {
 		return "", errors.New("secret exceeds max allowed size")
 	}
 	return string(value), nil
+}
+
+// insideAbsoluteLinks replaces absolute symlinks that point inside root with their
+// relative target, since root only follows relative ones. Other names are unchanged.
+func insideAbsoluteLinks(root *os.Root, name string) string {
+	dir, err := filepath.Abs(root.Name())
+	if err != nil {
+		return name
+	}
+	for range maxSymlinkHops {
+		target, err := root.Readlink(name)
+		if err != nil || !filepath.IsAbs(target) {
+			return name
+		}
+		rel, err := filepath.Rel(dir, target)
+		if err != nil || !filepath.IsLocal(rel) {
+			return name // root rejects it
+		}
+		name = rel
+	}
+	return name
 }

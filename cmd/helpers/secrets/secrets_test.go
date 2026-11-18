@@ -33,6 +33,8 @@ func TestReadSecretsDirectoryBoundary(t *testing.T) {
 		"chain":     "escape",
 		"directory": "..",
 		"absolute":  filepath.Join(base, "outside"),
+		"absinside": filepath.Join(dir, "..data", "key"),
+		"abschain":  filepath.Join(dir, "absinside"),
 	} {
 		require.NoError(t, os.Symlink(target, filepath.Join(dir, name)))
 	}
@@ -49,6 +51,8 @@ func TestReadSecretsDirectoryBoundary(t *testing.T) {
 		{name: "chain"},
 		{name: "directory/outside"},
 		{name: "absolute"},
+		{name: "absinside", want: "inside\n"},
+		{name: "abschain", want: "inside\n"},
 		{name: "large"},
 		{name: "missing"},
 	} {
@@ -69,4 +73,14 @@ func TestReadSecretsDirectoryBoundary(t *testing.T) {
 			assert.NotContains(t, out.String(), "OUTSIDESECRET")
 		})
 	}
+}
+
+func TestReadSecretsMissingDirectory(t *testing.T) {
+	request, err := json.Marshal(secretsRequest{Version: s.PayloadVersion, Secrets: []string{"a", "b"}})
+	require.NoError(t, err)
+	var out bytes.Buffer
+	require.NoError(t, readSecrets(bytes.NewReader(request), &out, filepath.Join(t.TempDir(), "missing")))
+	var response map[string]s.Secret
+	require.NoError(t, json.Unmarshal(out.Bytes(), &response))
+	assert.Equal(t, map[string]s.Secret{"a": {ErrorMsg: "secret does not exist"}, "b": {ErrorMsg: "secret does not exist"}}, response)
 }
