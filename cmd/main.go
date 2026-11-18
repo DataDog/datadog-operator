@@ -663,8 +663,17 @@ func newGenericResourceSecretResolver(opts *options, backendConfig map[string]an
 		Config:    backendConfig,
 		// The image ships readsecret.sh as 550.
 		GroupExecPerm:   true,
-		RefreshInterval: int(opts.secretRefreshInterval.Seconds()),
+		RefreshInterval: refreshSeconds(opts.secretRefreshInterval),
 	}, configErr)
+}
+
+// refreshSeconds converts the refresh interval to the Agent's whole seconds, rounding
+// sub-second intervals up, since 0 disables refresh.
+func refreshSeconds(d time.Duration) int {
+	if d > 0 && d < time.Second {
+		return 1
+	}
+	return int(d.Seconds())
 }
 
 func getVersionAndPlatformInfo(configCopy *rest.Config) (*apimversion.Info, kubernetes.PlatformInfo, error) {

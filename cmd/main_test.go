@@ -221,6 +221,12 @@ func TestNewGenericResourceSecretResolver(t *testing.T) {
 	require.NotNil(t, newGenericResourceSecretResolver(enabled, map[string]any{}, nil))
 }
 
+func TestRefreshSeconds(t *testing.T) {
+	for d, want := range map[time.Duration]int{0: 0, 500 * time.Millisecond: 1, time.Second: 1, 90 * time.Second: 90} {
+		require.Equal(t, want, refreshSeconds(d), d.String())
+	}
+}
+
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	resetCommandLine(t)
 	t.Setenv("DD_MAXIMUM_GOROUTINES", "not-an-int")
