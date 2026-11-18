@@ -420,15 +420,19 @@ Other controllers handle this with an adoption policy. [AWS Controllers for Kube
 
 ### Proposal
 
-A new optional field, `spec.adoptionPolicy`. It only applies when `spec.id` isn't set. An explicit ID always wins and never falls back to a lookup.
+A per-resource setting, shown here as an optional field `spec.adoptionPolicy` (a field or an annotation, see [Open questions](#open-questions)), plus an Operator-wide default. It only applies when `spec.id` isn't set. An explicit ID always wins and never falls back to a lookup.
 
 | Policy | Behavior when the DDGR has no `status.id` |
 | --- | --- |
-| `fail` (default, or unset) | Today's behavior: create a new monitor. If the API rejects it as a duplicate, the CR stays in error. |
+| `fail` (default) | Today's behavior: create a new monitor. If the API rejects it as a duplicate, the CR stays in error. |
 | `adopt` | Find the existing monitor by its identity tag and adopt it. If none is found, **don't create one**: set an error condition and retry. |
 | `adopt-or-create` | Same as `adopt`, but create the monitor when none is found. |
 
 - **Operator-wide default:** `--datadogGenericResourceAdoptionPolicy` / `DD_GENERIC_RESOURCE_ADOPTION_POLICY`, default `fail`. Users can then turn the policy on without editing every manifest.
+- **Precedence:**
+  1. The per-resource setting, **only when it's explicitly set**. An explicit `fail` therefore opts a resource out of an Operator-wide `adopt-or-create`.
+  2. Otherwise, the Operator-wide default.
+  3. Otherwise, `fail`.
 - **Identity tag:** with `adopt` or `adopt-or-create`, the Operator adds a Datadog monitor tag that identifies the CR, for example `datadog_operator_adoption_key:<namespace>/<name>`. The `datadoghq.com/adoption-key` annotation overrides the value.
 - **Same safety checks as `spec.id`:** a conflicting DDGR in the cluster, a legacy CR with that ID, the `Adopted` condition and event, then a first update that writes `jsonSpec`.
 
@@ -667,7 +671,8 @@ Still unsupported: both controllers active at the same time. They overwrite each
 | 43 | 404 on a tracked monitor with `adopt-or-create` | `status.id` cleared, lookup again, adopts the monitor recreated elsewhere or creates one |
 | 44 | Cluster rebuilt from Git with `adopt-or-create` (CRs recreated without `status.id`) | Every monitor adopted by tag. No duplicates. |
 | 45 | `spec.id` and `adoptionPolicy` both set | `spec.id` wins. No tag lookup, no fallback. |
-| 46 | Operator-wide default `adopt-or-create`, CR without the field | Uses the default |
+| 46 | Operator-wide default `adopt-or-create`, CR without a per-resource setting | Uses the Operator-wide default |
+| 47 | Operator-wide default `adopt-or-create`, CR explicitly set to `fail` | Uses `fail`: the explicit per-resource setting wins |
 
 </details>
 
@@ -679,5 +684,8 @@ Still unsupported: both controllers active at the same time. They overwrite each
 4. Should the **safety-net annotation** on migrated DDGRs stay on by default? It protects against reverts and accidental prunes, but a user who never runs `--finalize` keeps orphan-on-delete forever. An alternative: on by default for the `-o` outputs only, since reverts are a GitOps risk.
 5. The recovery after a reverted migration relies on the monitor API rejecting an identical monitor. If the recreated `DatadogMonitor` differs in any field, it creates a second monitor instead. That's acceptable for an unsupported rollback, but worth confirming the duplicate rules with the monitors team.
 6. **Follow-up, naming:** `adoptionPolicy` or `duplicatePolicy`? `adoptionPolicy` describes what it controls, which is more than the duplicate error.
-7. **Follow-up, identity tag:** is `datadog_operator_adoption_key:<namespace>/<name>` the right name and default value? Is `<namespace>/<name>` stable enough across clusters, or should the annotation be required?
-8. **Follow-up, for the monitors team:** which fields make two monitors duplicates? Is the duplicate message format stable? Is `ListMonitors` with `monitor_tags` consistent right after a create?
+7. **Follow-up, per-resource setting as a field or an annotation?**
+   - **CRD field (`spec.adoptionPolicy`):** typed, visible in the schema and in `kubectl explain`, and the allowed values can be checked at admission with a plain OpenAPI enum (no CEL needed). Needs a CRD change.
+   - **Annotation (for example `datadoghq.com/adoption-policy`):** no CRD change, and consistent with the other adoption controls, which are already annotations (`datadoghq.com/deletion-policy`, `datadoghq.com/adoption-key`). Values are only checked by the controller: a typo is reported as a permanent error on the CR instead of being rejected at admission.
+8. **Follow-up, identity tag:** is `datadog_operator_adoption_key:<namespace>/<name>` the right name and default value? Is `<namespace>/<name>` stable enough across clusters, or should the annotation be required?
+9. **Follow-up, for the monitors team:** which fields make two monitors duplicates? Is the duplicate message format stable? Is `ListMonitors` with `monitor_tags` consistent right after a create?
