@@ -14,6 +14,7 @@ This brief proposes:
 2. **A `datadoghq.com/deletion-policy: orphan` annotation**, handled in the shared finalizer package. It works for DDGR, `DatadogMonitor`, `DatadogDashboard` and `DatadogSLO`. Deleting an annotated CR removes the CR but leaves the Datadog object in place. This is the safe handoff that migration needs.
 3. **A blocking check against legacy CRs.** A DDGR can't adopt an ID that a `DatadogMonitor`, `DatadogDashboard` or `DatadogSLO` still manages. Two controllers never manage the same object.
 4. **A `kubectl datadog monitor migrate` command** that converts a `DatadogMonitor` into an adopting DDGR in the safe order. It's the priority tool. A manual workflow is documented for the other legacy CRDs and for resources created outside Kubernetes.
+5. **Follow-up: an opt-in `spec.adoptionPolicy` for monitors** (`fail` by default, `adopt`, `adopt-or-create`), similar to other controllers' adoption policies. It finds the monitor without an ID, through an identity tag the Operator adds, with the API's duplicate error as a best-effort fallback. It's for manifests that can't contain IDs, and ships after the first phase.
 
 ## Current behavior (baseline)
 
@@ -121,7 +122,9 @@ flowchart TD
   start([Reconcile DDGR]) --> del{Being deleted?}
   del -- yes --> fin[[Finalizer: see deletion flow]]
   del -- no --> sid{spec.id set?}
-  sid -- no --> legacy[Existing behavior based on status.id<br/>create if empty, recreate on 404]
+  sid -- no --> pol{adoptionPolicy?<br/>monitors only}
+  pol -- fail --> legacy[Existing behavior based on status.id<br/>create if empty, recreate on 404]
+  pol -- "adopt / adopt-or-create" --> byTag[[Follow-up: adoption by identity tag<br/>see adoptionPolicy section]]
   sid -- yes --> stid{status.id?}
   stid -- empty --> adopt[[Adoption: see first-reconcile flow]]
   stid -- "== spec.id" --> normal[Update / force sync as today<br/>404 → AdoptedResourceNotFound, NO recreate]
@@ -403,6 +406,95 @@ The annotation needs the new Operator version on the legacy controllers. On olde
 
 </details>
 
+## Follow-up: adoption without an ID (`adoptionPolicy`, monitors only)
+
+> **Status: follow-up phase.** It ships after adoption with `spec.id` and reuses the same adoption path. Nothing in the first phase depends on it.
+
+`spec.id` needs the ID in the manifest, and manifests often can't contain one:
+
+- They're written before the object exists.
+- The same manifest is deployed to several clusters.
+- A cluster is rebuilt from Git, which loses the CRs and the `status.id` they held.
+
+Other controllers handle this with an adoption policy. [AWS Controllers for Kubernetes](https://aws-controllers-k8s.github.io/docs/guides/adoption/) (ACK) offers `adopt` and `adopt-or-create`. Crossplane identifies existing resources by an external name. This follow-up brings the same model to DDGR, starting with monitors, as raised in review.
+
+### Proposal
+
+A new optional field, `spec.adoptionPolicy`. It only applies when `spec.id` isn't set. An explicit ID always wins and never falls back to a lookup.
+
+| Policy | Behavior when the DDGR has no `status.id` |
+| --- | --- |
+| `fail` (default, or unset) | Today's behavior: create a new monitor. If the API rejects it as a duplicate, the CR stays in error. |
+| `adopt` | Find the existing monitor by its identity tag and adopt it. If none is found, **don't create one**: set an error condition and retry. |
+| `adopt-or-create` | Same as `adopt`, but create the monitor when none is found. |
+
+- **Operator-wide default:** `--datadogGenericResourceAdoptionPolicy` / `DD_GENERIC_RESOURCE_ADOPTION_POLICY`, default `fail`. Users can then turn the policy on without editing every manifest.
+- **Identity tag:** with `adopt` or `adopt-or-create`, the Operator adds a Datadog monitor tag that identifies the CR, for example `datadog_operator_adoption_key:<namespace>/<name>`. The `datadoghq.com/adoption-key` annotation overrides the value.
+- **Same safety checks as `spec.id`:** a conflicting DDGR in the cluster, a legacy CR with that ID, the `Adopted` condition and event, then a first update that writes `jsonSpec`.
+
+**Why monitors only:** a lookup without an ID needs a way to find exactly one object. Monitors can be listed by tag, and their API rejects exact duplicates. Dashboards, SLOs and the other types accept duplicates and have no equivalent lookup, so `adopt` and `adopt-or-create` on them give a permanent `AdoptionUnsupportedType` error. The controller checks this, since we can't use CEL.
+
+```mermaid
+flowchart TD
+  s([No spec.id, no status.id]) --> pol{adoptionPolicy}
+  pol -- fail --> create[Create the monitor<br/>duplicate error → CR in error]
+  pol -- "adopt / adopt-or-create" --> list{List monitors with<br/>the identity tag}
+  list -- "exactly 1" --> adopt[[Adopt that ID<br/>conflict + legacy checks, Adopted=True,<br/>first update writes jsonSpec + tag]]
+  list -- "2 or more" --> many[AdoptionAmbiguous<br/>lists the IDs, no action]
+  list -- "0, policy adopt" --> none[AdoptionTargetNotFound<br/>retry, no create]
+  list -- "0, policy adopt-or-create" --> create2{Create the monitor<br/>with the identity tag}
+  create2 -- ok --> created[Created]
+  create2 -- "400 Duplicate of an existing monitor_id:N" --> adopt
+```
+
+<details>
+<summary>Show details</summary>
+
+#### Identity tag
+
+- The tag value must be **the same wherever the manifest is applied**, so it never includes a cluster name or UID. `<namespace>/<name>` works when the namespaces are the same everywhere. Otherwise users set `datadoghq.com/adoption-key`.
+- Datadog lowercases tags and limits them to 200 characters. The controller lowercases the key and rejects keys that are too long or use characters a tag can't hold, with a permanent `AdoptionInvalidKey` error.
+- The tag is added to the payload of **every create and update**, so an edit in the UI that removes it is undone on the next sync. Users don't write it in `jsonSpec`.
+- **It doesn't cause drift.** An injected tag could look like a difference on every force sync. It doesn't: `status.remoteDefinitionHash` is computed from the monitor Datadog returns after each write, not from `jsonSpec`, and that monitor already includes the tag. To confirm in the POC.
+- The tag is only added with `adopt` and `adopt-or-create`. With `fail`, existing monitors don't change, so enabling the policy on some resources doesn't trigger a wave of updates for all of them.
+
+#### Lookup
+
+- `ListMonitors` with `monitor_tags=<identity tag>` returns the monitors that carry the tag. It filters on an exact tag, unlike `SearchMonitors`, which goes through the search index and its query syntax. Whether the list is consistent right after a create is unknown; we need to check with the monitors team.
+- **Exactly one match:** adopt it.
+- **Two or more:** don't guess. `AdoptionAmbiguous`, with the IDs in the message, and no remote action.
+- **None:** `adopt` reports `AdoptionTargetNotFound` and retries at `forceSyncPeriod`. `adopt-or-create` creates the monitor.
+
+#### Duplicate-error fallback (best effort)
+
+When `adopt-or-create` creates the monitor and the API answers `400 Duplicate of an existing monitor_id:<id>`, the controller adopts `<id>`, after the same checks as any adoption. Adopting automatically on a duplicate error only happens under this opt-in policy, never by default.
+
+It's a safety net, not a guarantee:
+
+- **The error text isn't an API contract.** The controller extracts the ID from the message. If the message changes, the fallback stops working and the CR stays in error, which is today's behavior. It never adopts the wrong monitor because of a format change.
+- **We don't know the duplicate rules.** Only an "identical" monitor triggers the error, and which fields count is undocumented.
+- **It mostly covers races, not old monitors.** The create payload includes the identity tag. An existing monitor without the tag therefore probably differs in its tags and isn't a duplicate, so a second monitor gets created. The fallback catches two creates of the same manifest at the same time, or a list that hasn't caught up yet. Existing monitors without the tag must be adopted once by ID (see below).
+- **Monitor-only.** The other types accept duplicates, so no equivalent exists.
+
+#### Deleted monitor (404)
+
+- With `adopt` or `adopt-or-create`, a 404 on a monitor tracked in `status.id` clears `status.id` and runs the lookup again, instead of recreating straight away. The monitor may have been recreated elsewhere under a new ID.
+- With `fail`, the behavior stays as today (recreate). With `spec.id`, it's an error with no recreate, as described above.
+
+#### Getting existing monitors tagged
+
+Monitors created before the policy is enabled don't have the identity tag:
+
+1. Adopt them once by ID, with `spec.id` and the policy set. The first update adds the identity tag. For `DatadogMonitor` users, `kubectl datadog monitor migrate --adoption-policy adopt-or-create` generates these manifests.
+2. Once a monitor is tagged, `spec.id` can be removed from its manifest. From then on, applying the manifest anywhere finds the monitor by its tag.
+
+#### What stays unsupported
+
+- **Two controllers managing the same manifest at once.** The tag says which monitor belongs to a manifest, not whether another Operator still manages it. If two clusters run the controller on the same manifests, both write to the same monitor, as with `spec.id`.
+- **Other resource types**, for the reasons above.
+
+</details>
+
 ## Tooling
 
 <details>
@@ -419,7 +511,7 @@ The annotation needs the new Operator version on the legacy controllers. On olde
 It's a new subcommand of the existing plugin (`cmd/kubectl-datadog`).
 
 ```shell
-kubectl datadog monitor migrate <name> [-n <namespace>] [--dry-run] [-o yaml|json]
+kubectl datadog monitor migrate <name> [-n <namespace>] [--dry-run] [-o yaml|json] [--adoption-policy adopt-or-create]
 kubectl datadog monitor migrate <name> --annotate-only   # GitOps option (b)
 kubectl datadog monitor migrate <name> --check           # is the live CR annotated? is the DDGR adopted?
 kubectl datadog monitor migrate <name> --finalize        # drop the safety-net annotation from the DDGR
@@ -439,6 +531,7 @@ kubectl datadog monitor migrate <name> --finalize        # drop the safety-net a
    - User labels and annotations are copied over. GitOps tracking metadata (`argocd.argoproj.io/*`, `kustomize.toolkit.fluxcd.io/*`, `kubectl.kubernetes.io/last-applied-configuration`) is not.
    - `type: monitor`, `id: <status.id>`.
    - `datadoghq.com/deletion-policy: orphan`, the [migration safety net](#migration-safety-net).
+   - Follow-up: with `--adoption-policy`, the policy too, so the first update also adds the identity tag (see [Getting existing monitors tagged](#getting-existing-monitors-tagged)).
 4. **Apply** (skipped with `--dry-run` and with `-o`):
    1. Annotate the old CR with `deletion-policy=orphan`.
    2. Delete it and wait until it's gone.
@@ -464,7 +557,7 @@ Adoption doesn't depend on the type: it's a GET by ID followed by the existing u
 
 | Type | Initial support | Notes |
 | --- | --- | --- |
-| `monitor` | Yes, priority | Integer ID. Monitor `type` changes are limited by the API. `restriction_policy` disables the hash skip. |
+| `monitor` | Yes, priority | Integer ID. Monitor `type` changes are limited by the API. `restriction_policy` disables the hash skip. The only type that supports `adoptionPolicy`. |
 | `dashboard` | Yes, priority | The update replaces the whole dashboard (PUT). Check layout constraints in the POC. |
 | `slo` | Yes, priority | Keeps `monitor_ids` references, which is a main reason for adoption. Check type immutability in the POC. |
 | `notebook`, `synthetics_api_test`, `synthetics_browser_test`, `downtime`, `monitor_notification_rule` | Yes | Generic path. Light test coverage. |
@@ -473,7 +566,8 @@ Adoption doesn't depend on the type: it's a GET by ID followed by the existing u
 
 ## Non-goals
 
-- Adopting by name or definition matching, and adopt-on-duplicate. The monitor API rejects identical monitors with `Duplicate of an existing monitor_id:<id>`. Using that ID implicitly would be monitor-only, rely on undocumented matching rules, and could take over an object owned by someone else.
+- Implicit adoption. Adopting by identity tag or on a duplicate error only happens with an explicit `adopt` or `adopt-or-create` policy, and `fail` stays the default.
+- Adoption without an ID for types other than monitors. They accept duplicates and have no reliable lookup.
 - Detecting owners across clusters or tools, and multiple active owners.
 - Adoption in legacy CRDs.
 - Bulk discovery or import of every resource in an org.
@@ -484,20 +578,33 @@ Adoption doesn't depend on the type: it's a GET by ID followed by the existing u
 <details>
 <summary>Show details</summary>
 
-Supporting DR isn't a goal. Even so, `spec.id` plus the orphan policy give the customer's active/passive setup a reasonable pattern without any DR-specific code:
+Some users run several clusters per environment in an active/passive setup:
 
-1. Create the resources once in the active cluster, then write each `status.id` back into the manifests as `spec.id`.
-2. Deploy **identical manifests to both clusters**. Run the DDGR controller only in the active one: in the passive cluster, set `-datadogGenericResourceEnabled=false` or scale the Operator to 0.
-3. **Failover:** enable the controller in the new active cluster. It adopts the existing objects by ID, so there's no duplicate, no new ID and no lost history.
+- Every cluster deploys the same manifests from Git, with no IDs.
+- Only the active cluster runs the controller. Passive clusters have it turned off.
+- When a passive cluster becomes active, it can't take over the monitors the old active cluster created: creates fail as duplicates, and every failover means fixing ownership by hand, for thousands of monitors.
+
+Supporting DR isn't a goal. Even so, `spec.id`, the orphan policy and, in the follow-up, `adoptionPolicy` give this setup a reasonable pattern without any DR-specific code.
+
+**With the first phase (`spec.id`):** write each monitor's ID into the manifests. In this setup only the active cluster creates monitors, so the ID is the same on every cluster. Failover then adopts by ID.
+
+**With the follow-up (`adoptionPolicy`)**, no IDs to copy:
+
+1. Deploy **identical manifests to every cluster**, with `adoptionPolicy: adopt-or-create` (or the operator-wide default) and no IDs. Monitors that existed before get their identity tag once, through adoption by ID (see [Getting existing monitors tagged](#getting-existing-monitors-tagged)).
+2. Run the DDGR controller only in the active cluster: in passive clusters, set `-datadogGenericResourceEnabled=false` or scale the Operator to 0.
+3. **Failover, or a cluster rebuilt from Git:** enable the controller in the new active cluster. It finds each monitor by its identity tag and adopts it, so there's no duplicate, no new ID and no lost history. Nobody has to copy IDs between clusters.
 4. **Retire the old cluster:** stop its controller, or annotate its CRs with `orphan` and delete them.
 
-Still unsupported: both controllers active at the same time (they overwrite each other on force sync, and this isn't detected), and recovering from an out-of-band delete. With `spec.id` set, an out-of-band delete produces an error instead of a recreate. That's what keeps the two clusters from splitting into two monitors.
+For types other than monitors, the first-phase pattern with `spec.id` still applies.
+
+Still unsupported: both controllers active at the same time. They overwrite each other on force sync, and this isn't detected. With `spec.id`, an out-of-band delete produces an error instead of a recreate. With `adoptionPolicy`, it triggers a new lookup first, so a monitor recreated by another cluster is found again.
 
 </details>
 
 ## Compatibility
 
 - `spec.id` is optional. Without it, nothing changes for existing CRs.
+- `adoptionPolicy` defaults to `fail`, which is today's behavior. The identity tag is only added with `adopt` or `adopt-or-create`, so existing monitors aren't touched.
 - No CEL or webhook, so the CRD keeps working on every Kubernetes version we support.
 - The annotation is opt-in. Without it, finalizer behavior doesn't change.
 - **Downgrade risk:** an older CRD prunes `spec.id`. An *already adopted* CR keeps `status.id` and keeps working. A CR that was *not yet adopted* (empty `status.id`) would be **created as a new object** by an older Operator. Document this: finish adoptions before downgrading.
@@ -548,6 +655,19 @@ Still unsupported: both controllers active at the same time (they overwrite each
 | 31 | Same `DatadogMonitor` manifest in 2 clusters, `migrate -o yaml` run per cluster | Each output has that cluster's `spec.id`. Each DDGR adopts its own cluster's monitor. |
 | 32 | Revert of the step-2 commit with the safety-net annotation | DDGR pruned, monitor kept. Recreated `DatadogMonitor` fails as a duplicate. Reapplying step 2 adopts again. |
 | 33 | `--finalize` | Annotation removed. Deleting the DDGR afterwards deletes the monitor. |
+| 34 | `adopt`, exactly one monitor with the identity tag | Adopted, `reason=MatchedIdentityTag`, first update keeps the tag |
+| 35 | `adopt`, no monitor with the tag | `AdoptionTargetNotFound`, no create |
+| 36 | `adopt-or-create`, no monitor with the tag | Monitor created with the tag |
+| 37 | `adopt` or `adopt-or-create`, two monitors with the tag | `AdoptionAmbiguous` listing both IDs, no action |
+| 38 | `adopt-or-create`, create returns `Duplicate of an existing monitor_id:N` | Adopts N after the conflict and legacy checks, `reason=DuplicateError` |
+| 39 | Duplicate error with an unexpected message format | CR stays in error (today's behavior), nothing adopted |
+| 40 | `adopt` or `adopt-or-create` on a non-monitor type | `AdoptionUnsupportedType`, no API call |
+| 41 | Identity tag removed in the UI | Added back on the next sync |
+| 42 | Force sync after adoption with the tag | No update while the monitor is unchanged (tag doesn't count as drift) |
+| 43 | 404 on a tracked monitor with `adopt-or-create` | `status.id` cleared, lookup again, adopts the monitor recreated elsewhere or creates one |
+| 44 | Cluster rebuilt from Git with `adopt-or-create` (CRs recreated without `status.id`) | Every monitor adopted by tag. No duplicates. |
+| 45 | `spec.id` and `adoptionPolicy` both set | `spec.id` wins. No tag lookup, no fallback. |
+| 46 | Operator-wide default `adopt-or-create`, CR without the field | Uses the default |
 
 </details>
 
@@ -558,3 +678,6 @@ Still unsupported: both controllers active at the same time (they overwrite each
 3. Is a **per-object pause annotation** (for example `datadoghq.com/reconcile: paused`) worth adding? It would make the passive-cluster pattern work without disabling a whole controller. It's a separate feature, deferred unless reviewers disagree.
 4. Should the **safety-net annotation** on migrated DDGRs stay on by default? It protects against reverts and accidental prunes, but a user who never runs `--finalize` keeps orphan-on-delete forever. An alternative: on by default for the `-o` outputs only, since reverts are a GitOps risk.
 5. The recovery after a reverted migration relies on the monitor API rejecting an identical monitor. If the recreated `DatadogMonitor` differs in any field, it creates a second monitor instead. That's acceptable for an unsupported rollback, but worth confirming the duplicate rules with the monitors team.
+6. **Follow-up, naming:** `adoptionPolicy` or `duplicatePolicy`? `adoptionPolicy` describes what it controls, which is more than the duplicate error.
+7. **Follow-up, identity tag:** is `datadog_operator_adoption_key:<namespace>/<name>` the right name and default value? Is `<namespace>/<name>` stable enough across clusters, or should the annotation be required?
+8. **Follow-up, for the monitors team:** which fields make two monitors duplicates? Is the duplicate message format stable? Is `ListMonitors` with `monitor_tags` consistent right after a create?
