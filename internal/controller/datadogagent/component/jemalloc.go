@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -33,10 +32,7 @@ func JemallocEnvVars(dda metav1.Object, image *v2alpha1.AgentImageConfig) []core
 	if dda.GetLabels()[constants.ProfileLabelKey] != "" && dda.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider {
 		return nil
 	}
-	version := images.AgentLatestVersion
-	if image != nil {
-		version = common.GetAgentVersionFromImage(*image)
-	}
+	version := images.FromString(images.OverrideAgentImage(images.GetLatestAgentImage(), image)).Version()
 	if !utils.IsAboveMinVersion(version, "7.87.0-0", new(true)) {
 		return nil
 	}

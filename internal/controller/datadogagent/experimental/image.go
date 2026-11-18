@@ -11,7 +11,9 @@ import (
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
@@ -78,11 +80,17 @@ func ResolveImageOverride(dda metav1.Object, containerName, currentImg string) (
 	return currentImg, nil
 }
 
+// ResolveComponentContainerVersion returns the component's Agent version after
+// applying the experimental image override for the given container.
+func ResolveComponentContainerVersion(dda metav1.Object, spec *v2alpha1.DatadogAgentSpec, component v2alpha1.ComponentName, container apicommon.AgentContainerName) string {
+	image := common.ResolveComponentImage(spec, component)
+	image, _ = ResolveImageOverride(dda, string(container), image)
+	return images.FromString(image).Version()
+}
+
 func applyExperimentalImageOverrides(logger logr.Logger, dda metav1.Object, manager feature.PodTemplateManagers) {
-	// We support overriding the image used for any non-init container in the Agent's pod spec.
-	//
-	// We grab the image override configuration from the `image-override-config` experimental annotation, and for each
-	// container defined in the pod template's spec, we see if there is a defined override. If so, we apply it.
+	// The image-override-config annotation replaces images for individual non-init
+	// containers after the Node Agent pod template has its feature settings and startup commands.
 	imageOverrides, err := getImageOverrideConfig(dda)
 	if err != nil {
 		logger.Error(err, "Failed to deserialize image override config")

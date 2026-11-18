@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -34,10 +33,10 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			Value: "host",
 		})
 
-		agentVersion := images.AgentLatestVersion
-		if override, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && override.Image != nil {
-			agentVersion = common.GetAgentVersionFromImage(*override.Image)
-		}
+		// The experimental per-container image override runs later. It can pin a
+		// Remote Agent Registry consumer below this minimum after the component image
+		// passed the version check.
+		agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
 		if !utils.IsAboveMinVersion(agentVersion, remoteAgentRegistryVSockMinVersion, new(false)) {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDRemoteAgentRegistryEnabled,

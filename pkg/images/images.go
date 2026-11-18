@@ -31,7 +31,7 @@ const (
 	CSILatestImageVersion = "1.4.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	// renovate: datasource=github-releases depName=kubernetes-csi/node-driver-registrar
-	DefaultRegistrarImageVersion = "v2.0.1"
+	DefaultRegistrarImageVersion = "v2.18.0"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -212,6 +212,9 @@ func AssembleImage(imageSpec *v2alpha1.AgentImageConfig, registry string) string
 
 // OverrideAgentImage takes an existing image reference and potentially overrides portions of it based on the provided image configuration
 func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentImageConfig) string {
+	if overrideImageSpec == nil {
+		return currentImage
+	}
 	image := FromString(currentImage)
 	overrideImage := fromImageConfig(overrideImageSpec)
 
@@ -228,6 +231,11 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 	}
 
 	return image.ToString()
+}
+
+// Version returns the Agent tag without image variant suffixes.
+func (i *Image) Version() string {
+	return strings.TrimSuffix(i.tag, WindowsServerCoreTagSuffix)
 }
 
 // ToString returns the string representation of an image.
@@ -289,15 +297,11 @@ func IsJMXImage(imageConfig *v2alpha1.AgentImageConfig) bool {
 
 // FromString translates a string Image in the format registry/name:tag to an Image object
 func FromString(stringImage string) *Image {
-	splitImg := strings.Split(stringImage, "/")
-	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
+	slash := strings.LastIndexByte(stringImage, '/')
+	name, tag, _ := strings.Cut(stringImage[slash+1:], ":")
+	tag, isJMX, isFIPS, isFull := parseTagSuffixes(tag)
 
-	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
-
-	name := splitName[0]
-	tag, isJMX, isFIPS, isFull := parseTagSuffixes(splitName[1])
-
-	return newImage(registry, name, tag, isJMX, isFIPS, isFull)
+	return newImage(stringImage[:max(slash, 0)], name, tag, isJMX, isFIPS, isFull)
 }
 
 // fromImageConfig creates an Image instance from the AgentImageConfig spec object
@@ -305,15 +309,22 @@ func FromString(stringImage string) *Image {
 // - name
 // - name:tag
 // - registry/name:tag
-// (Notably, we do not accept "registry/name".)
+// - registry:port/name
 // Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
 func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
-	if strings.Contains(imageConfig.Name, ":") {
+	if imageNameContainsTag(imageConfig.Name) {
 		return FromString(imageConfig.Name)
+	}
+
+	var registry string
+	name := imageConfig.Name
+	// A port belongs to the registry even when the image name has no tag.
+	if slash := strings.LastIndexByte(name, '/'); slash >= 0 && strings.Contains(name[:slash], ":") {
+		registry, name = name[:slash], name[slash+1:]
 	}
 
 	imageTag, isJMX, isFIPS, isFull := parseTagSuffixes(imageConfig.Tag)
 	isJMX = isJMX || imageConfig.JMXEnabled
 
-	return newImage("", imageConfig.Name, imageTag, isJMX, isFIPS, isFull)
+	return newImage(registry, name, imageTag, isJMX, isFIPS, isFull)
 }

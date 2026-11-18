@@ -29,7 +29,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -482,13 +481,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 const minInstrumentationTargetsVersion = "7.64.0-0"
 
 func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	// Agent version must >= 7.64.0 to run feature in core agent
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion, nil)
-		}
-	}
-	return utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minInstrumentationTargetsVersion, nil)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), minInstrumentationTargetsVersion, nil)
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
