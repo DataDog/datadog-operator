@@ -948,3 +948,91 @@ func TestStartupTimestampRangeRetainsOtherProfilesOnRevisionChange(t *testing.T)
 	assert.Equal(t, int64(50), c.oldestPod.Unix())
 	assert.Equal(t, int64(100), c.newestPod.Unix())
 }
+
+func TestStartupIdentityUsesObservedPodConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name, hash, wantVariant       string
+		initConfig, blockedAnnotation bool
+	}{
+		{name: "baseline", hash: "basehash", initConfig: true, wantVariant: "baseline"},
+		{name: "blocked annotation still baseline", hash: "basehash", initConfig: true, blockedAnnotation: true, wantVariant: "baseline"},
+		{name: "removed init config", hash: "newhash", wantVariant: "without-init-config"},
+		{name: "rollback", hash: "basehash", initConfig: true, wantVariant: "baseline"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, out := testCollector(t)
+			c.options.startupVariant = "caller-supplied-wrong-variant"
+			c.options.startupExperiment = "old-fixed-experiment"
+			pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "agent-pod", Namespace: "test", UID: "p", CreationTimestamp: metav1.NewTime(time.Unix(100, 0)), Labels: map[string]string{appsv1.DefaultDaemonSetUniqueLabelKey: tc.hash}}}
+			if tc.initConfig {
+				pod.Spec.InitContainers = []corev1.Container{{Name: "init-config"}}
+			}
+			if tc.blockedAnnotation {
+				pod.Annotations = map[string]string{"experimental.datadoghq.com/without-init-config": "true"}
+			}
+			pod.Status.InitContainerStatuses = []corev1.ContainerStatus{{Name: "init-volume", State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{StartedAt: metav1.NewTime(time.Unix(101, 0)), FinishedAt: metav1.NewTime(time.Unix(102, 0))}}}}
+			for _, kind := range []corev1.PodConditionType{corev1.PodScheduled, corev1.PodInitialized, corev1.PodReady} {
+				pod.Status.Conditions = append(pod.Status.Conditions, corev1.PodCondition{Type: kind, Status: corev1.ConditionTrue, LastTransitionTime: metav1.NewTime(time.Unix(110, 0))})
+			}
+			rev := testStartupRevision()
+			rev.Hash = tc.hash
+			require.NoError(t, c.collectPod(pod, "agent", rev))
+			records := readStartupRecords(t, out)
+			require.Len(t, records, 5)
+			for _, r := range records {
+				assert.Equal(t, tc.wantVariant, r.Variant)
+				assert.Equal(t, tc.wantVariant+"-"+tc.hash, r.Experiment)
+				assert.Equal(t, tc.hash, r.PodRevisionHash)
+				assert.False(t, r.ObservedAt.IsZero())
+			}
+			// A later checker run intentionally reuses the configuration identifier.
+			again, againOut := testCollector(t)
+			require.NoError(t, again.collectPod(pod, "agent", rev))
+			assert.Equal(t, records[0].Experiment, readStartupRecords(t, againOut)[0].Experiment)
+		})
+	}
+}
+
+func TestStartupOldPodIdentityDoesNotUseDesiredRevision(t *testing.T) {
+	c, out := testCollector(t)
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{UID: "old", CreationTimestamp: metav1.NewTime(time.Unix(100, 0)), Labels: map[string]string{appsv1.DefaultDaemonSetUniqueLabelKey: "oldhash"}}, Spec: corev1.PodSpec{InitContainers: []corev1.Container{{Name: "init-config"}}}}
+	require.NoError(t, c.collectPod(pod, "agent", testStartupRevision()))
+	records := readStartupRecords(t, out)
+	require.Len(t, records, 1)
+	assert.Equal(t, "baseline-oldhash", records[0].Experiment)
+	assert.Nil(t, records[0].Revision, "current desired revision metadata does not describe this old pod")
+	assert.False(t, records[0].MeasurementsEnabled)
+}
+
+func TestStartupSummaryHasPerDaemonSetConfigurations(t *testing.T) {
+	c, out := testCollector(t)
+	for _, name := range []string{"agent", "profile"} {
+		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, UID: types.UID(name), CreationTimestamp: metav1.NewTime(time.Unix(100, 0)), Labels: map[string]string{appsv1.DefaultDaemonSetUniqueLabelKey: name + "hash"}}}
+		if name == "agent" {
+			pod.Spec.InitContainers = []corev1.Container{{Name: "init-config"}}
+		}
+		rev := testStartupRevision()
+		rev.Hash = name + "hash"
+		require.NoError(t, c.collectPod(pod, name, rev))
+	}
+	c.emitSummary(false)
+	records := readStartupRecords(t, out)
+	summary := records[len(records)-1]
+	assert.Empty(t, summary.Variant, "mixed configurations have no single global variant")
+	assert.Empty(t, summary.Experiment)
+	require.Len(t, summary.Configurations["agent"], 1)
+	assert.Equal(t, "baseline-agenthash", summary.Configurations["agent"][0].Experiment)
+	require.Len(t, summary.Configurations["profile"], 1)
+	assert.Equal(t, "without-init-config-profilehash", summary.Configurations["profile"][0].Experiment)
+}
+
+func TestStartupMissingRevisionDoesNotInventConfigurationID(t *testing.T) {
+	c, out := testCollector(t)
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{UID: "p", CreationTimestamp: metav1.NewTime(time.Unix(100, 0))}, Spec: corev1.PodSpec{InitContainers: []corev1.Container{{Name: "init-config"}}}}
+	require.NoError(t, c.collectPod(pod, "agent", nil))
+	records := readStartupRecords(t, out)
+	require.Len(t, records, 1)
+	assert.Equal(t, "baseline", records[0].Variant)
+	assert.Empty(t, records[0].Experiment)
+	assert.False(t, records[0].MeasurementsEnabled)
+}

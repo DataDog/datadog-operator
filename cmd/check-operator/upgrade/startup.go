@@ -48,6 +48,12 @@ type startupRevision struct {
 	CreatedAt metav1.Time `json:"created_at"`
 }
 
+type startupConfiguration struct {
+	Variant      string `json:"variant"`
+	Experiment   string `json:"experiment_id,omitempty"`
+	RevisionHash string `json:"revision_hash,omitempty"`
+}
+
 type startupPodOutcome struct {
 	daemonset      string
 	terminal       bool
@@ -55,6 +61,7 @@ type startupPodOutcome struct {
 	nodeName       string
 	currentlyReady bool
 	createdAt      metav1.Time
+	configuration  startupConfiguration
 }
 
 // startupCollector reads status without changing the upgrade result. Optional
@@ -79,47 +86,49 @@ type startupCollector struct {
 }
 
 type startupRecord struct {
-	Image               string                      `json:"image,omitempty"`
-	ImageID             string                      `json:"image_id,omitempty"`
-	Event               string                      `json:"event"`
-	ObservedAt          time.Time                   `json:"observed_at"`
-	Namespace           string                      `json:"namespace"`
-	DatadogAgent        string                      `json:"datadogagent"`
-	Experiment          string                      `json:"experiment_id,omitempty"`
-	Variant             string                      `json:"variant,omitempty"`
-	PodName             string                      `json:"pod_name,omitempty"`
-	PodUID              types.UID                   `json:"pod_uid,omitempty"`
-	NodeName            string                      `json:"node_name,omitempty"`
-	DaemonSet           string                      `json:"daemonset,omitempty"`
-	CreationTimestamp   *metav1.Time                `json:"creation_timestamp,omitempty"`
-	StartTime           *metav1.Time                `json:"start_time,omitempty"`
-	PodPhase            corev1.PodPhase             `json:"pod_phase,omitempty"`
-	Conditions          []startupCondition          `json:"conditions,omitempty"`
-	InitContainers      []startupContainer          `json:"init_container_statuses,omitempty"`
-	Containers          []startupContainer          `json:"container_statuses,omitempty"`
-	Phase               string                      `json:"phase,omitempty"`
-	ContainerName       string                      `json:"container_name,omitempty"`
-	StartedAt           *metav1.Time                `json:"started_at,omitempty"`
-	FinishedAt          *metav1.Time                `json:"finished_at,omitempty"`
-	DurationSeconds     *float64                    `json:"duration_seconds,omitempty"`
-	RestartCount        int32                       `json:"restart_count"`
-	ExitCode            *int32                      `json:"exit_code,omitempty"`
-	Reason              string                      `json:"reason,omitempty"`
-	Error               string                      `json:"error,omitempty"`
-	MeasurementsEnabled bool                        `json:"measurements_enabled"`
-	Revision            *startupRevision            `json:"revision,omitempty"`
-	Revisions           map[string]*startupRevision `json:"revisions,omitempty"`
-	OldestPodCreatedAt  *metav1.Time                `json:"oldest_pod_created_at,omitempty"`
-	NewestPodCreatedAt  *metav1.Time                `json:"newest_pod_created_at,omitempty"`
-	ExpectedPods        int                         `json:"expected_pods,omitempty"`
-	SelectedPods        int                         `json:"selected_pods,omitempty"`
-	ReadyPods           int                         `json:"ready_pods,omitempty"`
-	TerminalPods        int                         `json:"terminal_pods,omitempty"`
-	MissingPods         int                         `json:"missing_pods,omitempty"`
-	UnfinishedPods      int                         `json:"unfinished_pods,omitempty"`
-	CollectionComplete  bool                        `json:"collection_complete,omitempty"`
-	RolloutComplete     bool                        `json:"rollout_complete"`
-	TimedOut            bool                        `json:"timed_out,omitempty"`
+	Image               string                            `json:"image,omitempty"`
+	ImageID             string                            `json:"image_id,omitempty"`
+	Event               string                            `json:"event"`
+	ObservedAt          time.Time                         `json:"observed_at"`
+	Namespace           string                            `json:"namespace"`
+	DatadogAgent        string                            `json:"datadogagent"`
+	Experiment          string                            `json:"experiment_id,omitempty"`
+	Variant             string                            `json:"variant,omitempty"`
+	PodName             string                            `json:"pod_name,omitempty"`
+	PodUID              types.UID                         `json:"pod_uid,omitempty"`
+	NodeName            string                            `json:"node_name,omitempty"`
+	DaemonSet           string                            `json:"daemonset,omitempty"`
+	CreationTimestamp   *metav1.Time                      `json:"creation_timestamp,omitempty"`
+	StartTime           *metav1.Time                      `json:"start_time,omitempty"`
+	PodPhase            corev1.PodPhase                   `json:"pod_phase,omitempty"`
+	Conditions          []startupCondition                `json:"conditions,omitempty"`
+	InitContainers      []startupContainer                `json:"init_container_statuses,omitempty"`
+	Containers          []startupContainer                `json:"container_statuses,omitempty"`
+	Phase               string                            `json:"phase,omitempty"`
+	ContainerName       string                            `json:"container_name,omitempty"`
+	StartedAt           *metav1.Time                      `json:"started_at,omitempty"`
+	FinishedAt          *metav1.Time                      `json:"finished_at,omitempty"`
+	DurationSeconds     *float64                          `json:"duration_seconds,omitempty"`
+	RestartCount        int32                             `json:"restart_count"`
+	ExitCode            *int32                            `json:"exit_code,omitempty"`
+	Reason              string                            `json:"reason,omitempty"`
+	Error               string                            `json:"error,omitempty"`
+	MeasurementsEnabled bool                              `json:"measurements_enabled"`
+	Revision            *startupRevision                  `json:"revision,omitempty"`
+	Revisions           map[string]*startupRevision       `json:"revisions,omitempty"`
+	Configurations      map[string][]startupConfiguration `json:"configurations,omitempty"`
+	PodRevisionHash     string                            `json:"pod_revision_hash,omitempty"`
+	OldestPodCreatedAt  *metav1.Time                      `json:"oldest_pod_created_at,omitempty"`
+	NewestPodCreatedAt  *metav1.Time                      `json:"newest_pod_created_at,omitempty"`
+	ExpectedPods        int                               `json:"expected_pods,omitempty"`
+	SelectedPods        int                               `json:"selected_pods,omitempty"`
+	ReadyPods           int                               `json:"ready_pods,omitempty"`
+	TerminalPods        int                               `json:"terminal_pods,omitempty"`
+	MissingPods         int                               `json:"missing_pods,omitempty"`
+	UnfinishedPods      int                               `json:"unfinished_pods,omitempty"`
+	CollectionComplete  bool                              `json:"collection_complete,omitempty"`
+	RolloutComplete     bool                              `json:"rollout_complete"`
+	TimedOut            bool                              `json:"timed_out,omitempty"`
 }
 
 // Keep only fields needed to interpret startup timing and retries.
@@ -169,7 +178,30 @@ func startupContainers(statuses []corev1.ContainerStatus, allowed []apicommon.Ag
 
 func (c *startupCollector) record(event string) startupRecord {
 	return startupRecord{Event: event, ObservedAt: time.Now().UTC(), Namespace: c.options.UserNamespace,
-		DatadogAgent: c.options.datadogAgentName, Experiment: c.options.startupExperiment, Variant: c.options.startupVariant}
+		DatadogAgent: c.options.datadogAgentName}
+}
+
+// startupPodConfiguration uses the observed pod, including admission changes.
+// A requested DDA annotation does not establish which configuration ran.
+func startupPodConfiguration(pod *corev1.Pod) startupConfiguration {
+	configuration := startupConfiguration{Variant: "without-init-config", RevisionHash: pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey]}
+	for _, container := range pod.Spec.InitContainers {
+		if container.Name == string(apicommon.InitConfigContainerName) {
+			configuration.Variant = "baseline"
+			break
+		}
+	}
+	if configuration.RevisionHash != "" {
+		configuration.Experiment = configuration.Variant + "-" + configuration.RevisionHash
+	}
+	return configuration
+}
+
+func (c *startupCollector) podRecord(event string, pod *corev1.Pod) startupRecord {
+	record := c.record(event)
+	configuration := startupPodConfiguration(pod)
+	record.Experiment, record.Variant, record.PodRevisionHash = configuration.Experiment, configuration.Variant, configuration.RevisionHash
+	return record
 }
 
 func (c *startupCollector) emit(record startupRecord) error {
@@ -333,7 +365,20 @@ func (c *startupCollector) emitSummary(timedOut bool) {
 	if c.collectionComplete && len(c.expectedByDS) == 0 {
 		record.Reason = "node_agent_disabled"
 	}
+	seenConfigurations := make(map[string]map[string]bool)
 	for _, outcome := range c.outcomes {
+		if outcome.configuration.Variant != "" {
+			if seenConfigurations[outcome.daemonset] == nil {
+				seenConfigurations[outcome.daemonset] = make(map[string]bool)
+			}
+			if !seenConfigurations[outcome.daemonset][outcome.configuration.Experiment] {
+				if record.Configurations == nil {
+					record.Configurations = make(map[string][]startupConfiguration)
+				}
+				record.Configurations[outcome.daemonset] = append(record.Configurations[outcome.daemonset], outcome.configuration)
+				seenConfigurations[outcome.daemonset][outcome.configuration.Experiment] = true
+			}
+		}
 		switch {
 
 		case outcome.terminal:
@@ -346,6 +391,11 @@ func (c *startupCollector) emitSummary(timedOut bool) {
 		default:
 			record.UnfinishedPods++
 		}
+	}
+	for name := range record.Configurations {
+		slices.SortFunc(record.Configurations[name], func(a, b startupConfiguration) int {
+			return strings.Compare(a.Experiment, b.Experiment)
+		})
 	}
 	_ = c.emit(record)
 }
@@ -520,9 +570,12 @@ func (c *startupCollector) collect(ctx context.Context) error {
 }
 
 func (c *startupCollector) collectPod(pod *corev1.Pod, daemonset string, revision *startupRevision) error {
-	record := c.record("agent_startup_snapshot")
+	record := c.podRecord("agent_startup_snapshot", pod)
 	selected := revision != nil && !pod.CreationTimestamp.IsZero() && pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == revision.Hash && !pod.CreationTimestamp.Before(&revision.CreatedAt)
 	record.Revision, record.MeasurementsEnabled = revision, selected && c.measurementsStarted
+	if revision != nil && record.PodRevisionHash != revision.Hash {
+		record.Revision = nil
+	}
 	record.PodName, record.PodUID, record.NodeName, record.DaemonSet = pod.Name, pod.UID, pod.Spec.NodeName, daemonset
 	record.CreationTimestamp, record.StartTime = &pod.CreationTimestamp, pod.Status.StartTime
 	record.PodPhase = pod.Status.Phase
@@ -564,6 +617,7 @@ func (c *startupCollector) collectPod(pod *corev1.Pod, daemonset string, revisio
 	outcome := c.outcomes[pod.UID]
 	outcome.daemonset = daemonset
 	outcome.createdAt = pod.CreationTimestamp
+	outcome.configuration = startupPodConfiguration(pod)
 	outcome.nodeName = pod.Spec.NodeName
 	outcome.currentlyReady = false
 	outcome.missing = false
@@ -606,7 +660,7 @@ func (c *startupCollector) collectPod(pod *corev1.Pod, daemonset string, revisio
 		if _, ok := c.attempts[key]; ok {
 			continue
 		}
-		measurement := c.record("agent_startup_measurement")
+		measurement := c.podRecord("agent_startup_measurement", pod)
 		measurement.Revision, measurement.MeasurementsEnabled = revision, true
 		measurement.PodName, measurement.PodUID, measurement.NodeName, measurement.DaemonSet = pod.Name, pod.UID, pod.Spec.NodeName, daemonset
 		measurement.Phase, measurement.ContainerName = "init_execution", status.Name
@@ -649,7 +703,7 @@ func (c *startupCollector) emitPodDuration(pod *corev1.Pod, daemonset, phase str
 		return nil
 	}
 	seconds := finish.Sub(start.Time).Seconds()
-	record := c.record("agent_startup_measurement")
+	record := c.podRecord("agent_startup_measurement", pod)
 	record.Revision, record.MeasurementsEnabled = revision, true
 	record.PodName, record.PodUID, record.NodeName, record.DaemonSet = pod.Name, pod.UID, pod.Spec.NodeName, daemonset
 	record.Phase, record.StartedAt, record.FinishedAt, record.DurationSeconds = phase, &start, &finish, &seconds

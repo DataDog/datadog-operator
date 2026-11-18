@@ -234,3 +234,10 @@ func TestRunTelemetryWriteFailurePreservesSuccess(t *testing.T) {
 	o.checkTimeout = 10 * time.Millisecond
 	require.NoError(t, o.Run())
 }
+
+func TestManualStartupIdentityFlagsRemainAcceptedButDeprecated(t *testing.T) {
+	cmd := NewCmdUpgrade(genericclioptions.IOStreams{Out: io.Discard, ErrOut: io.Discard})
+	require.NoError(t, cmd.ParseFlags([]string{"--startup-experiment=old", "--startup-variant=wrong"}))
+	assert.NotEmpty(t, cmd.Flags().Lookup("startup-experiment").Deprecated)
+	assert.NotEmpty(t, cmd.Flags().Lookup("startup-variant").Deprecated)
+}

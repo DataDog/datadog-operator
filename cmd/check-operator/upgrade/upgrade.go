@@ -112,8 +112,11 @@ func NewCmdUpgrade(streams genericclioptions.IOStreams) *cobra.Command {
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 	cmd.Flags().BoolVar(&o.collectStartupTimings, "collect-startup-timings", false, "Log node Agent pod timings without affecting the upgrade result")
-	cmd.Flags().StringVar(&o.startupExperiment, "startup-experiment", "", "Experiment identifier for startup timing logs")
-	cmd.Flags().StringVar(&o.startupVariant, "startup-variant", "", "Variant identifier for startup timing logs")
+	cmd.Flags().StringVar(&o.startupExperiment, "startup-experiment", "", "Deprecated: startup configuration identifiers are derived from observed pods")
+	cmd.Flags().StringVar(&o.startupVariant, "startup-variant", "", "Deprecated: startup variants are derived from observed pods")
+
+	_ = cmd.Flags().MarkDeprecated("startup-experiment", "configuration identifiers are derived from observed pods")
+	_ = cmd.Flags().MarkDeprecated("startup-variant", "variants are derived from observed pods")
 
 	return cmd
 }
