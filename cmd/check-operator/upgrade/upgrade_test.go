@@ -287,6 +287,13 @@ func TestComputeNotReadyNodeDiscount(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 4, skipped)
 
+	// Misscheduled nodes reduce the discount of their DaemonSet, never below 0: 3 from agent-agent.
+	daemonSets[1].Status.NumberMisscheduled = 5
+	skipped, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, 3, skipped)
+	daemonSets[1].Status.NumberMisscheduled = 0
+
 	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 5, 100)
 	require.ErrorIs(t, err, errNoDiscount, "below minSkipped")
 	_, err = computeNotReadyNodeDiscount(daemonSets, pods, nodes, 1, 3)
@@ -378,7 +385,10 @@ func TestRunSkipsNotReadyNodes(t *testing.T) {
 		{name: "DaemonSet status behind its spec", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.ObservedGeneration = 1 }, wantPass: false},
 		{name: "live DaemonSet status behind the DatadogAgent status", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.UpdatedNumberScheduled = 10 }, wantPass: false},
 		// For example, a not-Ready node with a taint that the Agent does not tolerate: it is not in Current.
-		{name: "misscheduled node", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.NumberMisscheduled = 1 }, wantPass: false},
+		// For example, a dead node that a DatadogAgentProfile change moved to another DaemonSet: it
+		// is not in Current. 2 of the 3 nodes are still skipped: 37/38 passes.
+		{name: "misscheduled node reduces the discount", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.NumberMisscheduled = 1 }, wantPass: true},
+		{name: "misscheduled nodes cancel the discount", skip: true, dsStatus: func(s *appsv1.DaemonSetStatus) { s.NumberMisscheduled = 3 }, wantPass: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

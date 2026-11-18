@@ -23,7 +23,7 @@ The setting only helps if the Agent tolerates the `node.kubernetes.io/not-ready:
 
 The DatadogAgent status is copied from the Agent DaemonSets when the Operator reconciles, so it can lag behind them. When the check skips nodes, it uses the live status of the Agent DaemonSets instead, and skips none while a DaemonSet status does not match its spec yet.
 
-The check skips no node while an Agent DaemonSet has misscheduled nodes (`status.numberMisscheduled`): nodes that run an Agent pod but that the status does not count, for example a not-Ready node with a taint that the Agent does not tolerate, or a node that the new Agent template no longer targets.
+For each misscheduled node of an Agent DaemonSet (`status.numberMisscheduled`), the check skips one node fewer for that DaemonSet. A misscheduled node runs an Agent pod but the status does not count it, for example a not-Ready node with a taint that the Agent does not tolerate, or a node that a DatadogAgentProfile change moved to another DaemonSet.
 
 The skip adds to the `AGENT_COMPLETION_PCT` tolerance. With the defaults, the check can pass with up to about 14.5% of the Agent nodes out of date: up to 10% skipped as not Ready, plus up to 5% of the remaining nodes, which can be Ready.
 

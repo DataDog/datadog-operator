@@ -362,7 +362,7 @@ func (o *Options) getSkipBounds(current, upToDate int) (minSkipped, maxSkipped i
 }
 
 // getAgentDaemonSets returns the Agent DaemonSets of the DatadogAgent, if all their statuses match
-// their spec and count every node that runs one of their pods.
+// their spec.
 func (o *Options) getAgentDaemonSets(ctx context.Context) ([]appsv1.DaemonSet, error) {
 	dsList := &appsv1.DaemonSetList{}
 	if err := o.Client.List(ctx, dsList, client.InNamespace(o.UserNamespace), o.agentLabels()); err != nil {
@@ -372,11 +372,6 @@ func (o *Options) getAgentDaemonSets(ctx context.Context) ([]appsv1.DaemonSet, e
 		ds := &dsList.Items[i]
 		if ds.DeletionTimestamp != nil || ds.Status.ObservedGeneration != ds.Generation {
 			return nil, fmt.Errorf("%w: the status of DaemonSet %s does not match its spec yet", errNoDiscount, ds.Name)
-		}
-		// A misscheduled node runs a pod but is not in Current, for example a not-Ready node with a
-		// taint that the Agent does not tolerate. It must not be removed from Current again.
-		if ds.Status.NumberMisscheduled > 0 {
-			return nil, fmt.Errorf("%w: DaemonSet %s has %d misscheduled nodes", errNoDiscount, ds.Name, ds.Status.NumberMisscheduled)
 		}
 	}
 	return dsList.Items, nil
@@ -443,7 +438,7 @@ func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Po
 		}
 	}
 
-	skipped := 0
+	skippedByDS := map[*appsv1.DaemonSet]int{}
 	for key, nodePods := range podsByDSNode {
 		currentHash := currentHashes[key.ds]
 		switch {
@@ -457,9 +452,18 @@ func computeNotReadyNodeDiscount(daemonSets []appsv1.DaemonSet, pods []corev1.Po
 		// Ready and deleted nodes.
 		case !notReadyNodes[key.node]:
 		default:
-			skipped++
+			skippedByDS[key.ds]++
 		}
 	}
+	// A misscheduled node runs a pod but is not in Current, for example a not-Ready node with a taint
+	// that the Agent does not tolerate, or one that a DatadogAgentProfile change moved to another
+	// DaemonSet. At most numberMisscheduled of the skipped nodes can be such nodes, so remove that
+	// many from the discount of the DaemonSet.
+	skipped := 0
+	for ds, n := range skippedByDS {
+		skipped += max(0, n-int(ds.Status.NumberMisscheduled))
+	}
+
 	if skipped < minSkipped {
 		return 0, fmt.Errorf("%w: %d not-Ready nodes with an out-of-date Agent pod, %d needed", errNoDiscount, skipped, minSkipped)
 	}
