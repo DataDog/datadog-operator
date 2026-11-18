@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -111,17 +110,6 @@ func (f *gpuFeature) nvidiaNodes() bool {
 	return f.vendor == "" || f.vendor == v2alpha1.GPUVendorNVIDIA
 }
 
-// nodeAgentVersion returns the core Agent version for the AMD gate, from the image the operator
-// will run: the bundled image with the component and experimental image overrides applied.
-func nodeAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	image := images.GetLatestAgentImage()
-	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
-		image = images.OverrideAgentImage(image, override.Image)
-	}
-	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.CoreAgentContainerName), image)
-	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
-}
-
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
@@ -179,7 +167,7 @@ func nodeVendor(dda metav1.Object, gpu *v2alpha1.GPUFeatureConfig) v2alpha1.GPUV
 // vendorSupportedByAgent reports whether the node Agent is recent enough for the vendor's check.
 // Non-semver tags are assumed recent enough.
 func (f *gpuFeature) vendorSupportedByAgent(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	version := nodeAgentVersion(dda, ddaSpec)
+	version := experimental.ResolveComponentContainerVersion(dda, ddaSpec, v2alpha1.NodeAgentComponentName, apicommon.CoreAgentContainerName)
 	minVersion := vendorMinAgentVersion[f.vendor]
 	if !utils.IsAboveMinVersion(version, minVersion, nil) {
 		f.logger.V(1).Info("features.gpu.vendor check needs a newer Agent; not enabling it", "vendor", f.vendor, "version", version, "minVersion", minVersion)

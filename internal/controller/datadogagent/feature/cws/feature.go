@@ -99,7 +99,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
 		if cwsConfig.DirectSendFromSystemProbe == nil {
-			cwsConfig.DirectSendFromSystemProbe = new(agentSupportsDirectSendFromSystemProbe(dda))
+			cwsConfig.DirectSendFromSystemProbe = new(agentSupportsDirectSendFromSystemProbe(ddaSpec))
 		}
 		f.directSendFromSystemProbe = *cwsConfig.DirectSendFromSystemProbe
 
@@ -167,9 +167,9 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // agentSupportsDirectSendFromSystemProbe reports whether the node Agent is recent enough to send the
 // events from the system-probe. A version the Operator cannot parse is assumed recent enough.
-func agentSupportsDirectSendFromSystemProbe(dda metav1.Object) bool {
+func agentSupportsDirectSendFromSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	defaultIfVersionUnknown := true
-	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendFromSystemProbeMinVersion, &defaultIfVersionUnknown)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), directSendFromSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

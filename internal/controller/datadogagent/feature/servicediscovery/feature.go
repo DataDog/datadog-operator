@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -74,13 +73,7 @@ func resolveEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 }
 
 func shouldEnableServiceDiscoveryByDefault(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	// Agent version must be >= 7.78.0 to enable service discovery by default.
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent != nil && nodeAgent.Image != nil {
-			return pkgutils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), serviceDiscoveryAutoEnableMinVersion, new(true))
-		}
-	}
-	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, serviceDiscoveryAutoEnableMinVersion, nil)
+	return pkgutils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), serviceDiscoveryAutoEnableMinVersion, new(true))
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
