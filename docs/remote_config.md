@@ -14,13 +14,14 @@ You can create a policy on the Fleet Automation page to enable a feature for an 
 
 ## Enabling Remote Configuration
 
-Remote Configuration is disabled by default. To enable it using the latest [datadog-operator Helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), create a Kubernetes Secret that contains your API and application keys:
+Remote Configuration is disabled by default. It authenticates with an API key only; the API key must have Remote Configuration enabled. An application key is not required.
+
+To enable it using the latest [datadog-operator Helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), create a Kubernetes Secret that contains your API key:
 
 ```shell
 export DD_API_KEY=<YOUR_API_KEY>
-export DD_APP_KEY=<YOUR_APP_KEY>
 
-kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
+kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY
 ```
 
 Then modify your `values.yaml` file with the following:
@@ -30,8 +31,9 @@ clusterName: example-cluster-name
 remoteConfiguration:
   enabled: true
 apiKeyExistingSecret: datadog-operator-secret
-appKeyExistingSecret: datadog-operator-secret
 ```
+
+**Note**: Earlier Operator versions also require an application key (`appKey` or `appKeyExistingSecret`) for Remote Configuration to start. Controllers that manage Datadog resources through the Datadog API (`DatadogMonitor`, `DatadogDashboard`, `DatadogSLO`, `DatadogGenericResource`) still require an application key.
 
 Then install the Datadog Operator:
 
