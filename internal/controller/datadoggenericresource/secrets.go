@@ -31,17 +31,6 @@ type SecretResolver interface {
 	ResolveJSON(jsonSpec, origin, namespace string) (resolver.Result, error)
 }
 
-// secretResolutionError marks a failure to resolve references, before any API call.
-type secretResolutionError struct{ err error }
-
-func (e *secretResolutionError) Error() string { return e.err.Error() }
-func (e *secretResolutionError) Unwrap() error { return e.err }
-
-func isSecretResolutionError(err error) bool {
-	_, ok := errors.AsType[*secretResolutionError](err)
-	return ok
-}
-
 func secretOrigin(instance *v1alpha1.DatadogGenericResource) string {
 	return fmt.Sprintf("datadoggenericresource/%s/%s", instance.Namespace, instance.Name)
 }
@@ -53,7 +42,7 @@ func (r *Reconciler) resolveSecrets(ctx context.Context, instance *v1alpha1.Data
 	}
 	res, err := r.secretResolver.ResolveJSON(instance.Spec.JsonSpec, secretOrigin(instance), instance.Namespace)
 	if err != nil {
-		return nil, nil, &secretResolutionError{err: err}
+		return nil, nil, err
 	}
 	if res.NoBackend {
 		ctrl.LoggerFrom(ctx).Info(noSecretBackendMsg)

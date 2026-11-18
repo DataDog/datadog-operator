@@ -41,6 +41,8 @@ const (
 	unresolvedMsg = "unable to resolve secret references: ns/client;tls.key"
 )
 
+var errUnresolved = fmt.Errorf("%w: ns/client;tls.key", resolver.ErrUnresolved)
+
 // apiError builds an error like a handler does for a Datadog API error response.
 func apiError(code int, body string) error {
 	return translateClientError(
@@ -178,7 +180,7 @@ func TestSecretsCreateResolvesCopy(t *testing.T) {
 
 func TestSecretsCreateResolutionFailure(t *testing.T) {
 	env := newSecretsTestEnv(t, specWithRef)
-	env.resolver.err = errors.New(unresolvedMsg)
+	env.resolver.err = errUnresolved
 
 	result := env.reconcile(t)
 	assert.Zero(t, mockCreateCalls, "nothing must be created")
@@ -205,7 +207,7 @@ func TestSecretsUpdateResolutionFailure(t *testing.T) {
 	obj := env.get(t)
 	obj.Spec.JsonSpec = specWithRef
 	require.NoError(t, env.r.client.Update(env.ctx, obj))
-	env.resolver.err = errors.New(unresolvedMsg)
+	env.resolver.err = errUnresolved
 
 	result := env.reconcile(t)
 	assert.Zero(t, mockUpdateCalls, "the remote resource must be left unchanged")
@@ -272,7 +274,7 @@ func TestSecretsDeleteDoesNotResolve(t *testing.T) {
 	env.reconcile(t)
 	calls := env.resolver.calls
 
-	env.resolver.err = errors.New(unresolvedMsg)
+	env.resolver.err = errUnresolved
 	require.NoError(t, env.r.client.Delete(env.ctx, env.get(t)))
 	env.reconcile(t)
 

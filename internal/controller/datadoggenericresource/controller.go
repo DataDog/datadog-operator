@@ -226,7 +226,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		if err != nil {
 			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
 			// Secret resolution retries at the requeue period to limit backend calls.
-			if isSecretResolutionError(err) {
+			if errors.Is(err, resolver.ErrUnresolved) {
 				result.RequeueAfter = r.requeuePeriod
 			} else if ctrutils.IsPermanentAPIError(err) {
 				result.RequeueAfter = r.forceSyncPeriod
