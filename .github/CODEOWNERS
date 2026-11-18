@@ -37,7 +37,7 @@ README.md                                       @DataDog/container-platform
 /internal/controller/datadogagent/feature/eventcollection           @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/externalmetrics           @DataDog/container-autoscaling  @DataDog/container-platform
 /internal/controller/datadogagent/feature/fake                      @DataDog/container-platform
-/internal/controller/datadogagent/feature/gpu                       @DataDog/ebpf-platform          @DataDog/container-platform
+/internal/controller/datadogagent/feature/gpu                       @DataDog/accelerator-telemetry  @DataDog/container-platform
 /internal/controller/datadogagent/feature/helmcheck                 @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/hostprofiler              @DataDog/profiling-full-host    @DataDog/container-platform
 /internal/controller/datadogagent/feature/kaischeduler              @DataDog/accelerator-telemetry  @DataDog/container-platform

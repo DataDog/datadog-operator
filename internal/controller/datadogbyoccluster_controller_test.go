@@ -10,6 +10,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
@@ -25,12 +26,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
 )
 
 const (
@@ -260,6 +264,30 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(resource), resource)).Should(Succeed())
 			}
 			Expect(metav1.IsControlledBy(worker, cluster)).To(BeTrue())
+		})
+
+		It("does not update the managed resources once they match the desired state", func() {
+			By("waiting for the cluster and its worker to be reconciled")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-pipeline-logs", Namespace: namespace.Name}, worker)).To(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(worker.Status.Conditions, "Reconciled")).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			want, err := byocTestResourceVersions(namespace.Name)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("running a reconcile of the cluster to completion")
+			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
+			Expect(reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})).To(Equal(ctrl.Result{}))
+
+			By("verifying that the reconcile did not update any object")
+			got, err := byocTestResourceVersions(namespace.Name)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cmp.Diff(want, got)).To(BeEmpty())
 		})
 
 		It("becomes available only when both workers are available", func() {
@@ -826,6 +854,36 @@ func waitForBYOCTestDeletion(object client.Object) {
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object.DeepCopyObject().(client.Object))
 		return apierrors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
+}
+
+// byocTestResourceVersions returns the resource version of every object of the kinds that the BYOC controllers manage in
+// the namespace, keyed by kind and name.
+func byocTestResourceVersions(namespace string) (map[string]string, error) {
+	lists := []client.ObjectList{
+		&datadoghqv1alpha1.DatadogBYOCClusterList{},
+		&datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerList{},
+		&corev1.ConfigMapList{},
+		&corev1.ServiceAccountList{},
+		&corev1.ServiceList{},
+		&appsv1.DeploymentList{},
+		&appsv1.StatefulSetList{},
+		&autoscalingv2.HorizontalPodAutoscalerList{},
+		&policyv1.PodDisruptionBudgetList{},
+	}
+	versions := map[string]string{}
+	for _, list := range lists {
+		if err := k8sClient.List(context.Background(), list, client.InNamespace(namespace)); err != nil {
+			return nil, err
+		}
+		if err := meta.EachListItem(list, func(item runtime.Object) error {
+			object := item.(client.Object)
+			versions[fmt.Sprintf("%T %s", object, object.GetName())] = object.GetResourceVersion()
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return versions, nil
 }
 
 // terminalReconcileErrors returns the number of reconcile errors of the controller that controller-runtime did not retry.

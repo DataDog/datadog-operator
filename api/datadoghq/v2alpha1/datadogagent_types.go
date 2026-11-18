@@ -992,13 +992,14 @@ type GPUFeatureConfig struct {
 	// probes are disabled; privileged mode is retained for cgroup permission patching.
 	// To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
 	// core agent and system-probe containers via spec.override.nodeAgent.containers.
+	// Applies to NVIDIA GPUs only.
 	// Default: false
 	// +optional
 	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Default: nvidia
+	// Default: nvidia, or unset when vendor is amd
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
@@ -1007,7 +1008,23 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+
+	// Vendor selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings,
+	// sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot.
+	// +optional
+	Vendor *GPUVendor `json:"vendor,omitempty"`
 }
+
+// GPUVendor is the vendor of the GPUs on the nodes.
+// +kubebuilder:validation:Enum=nvidia;amd
+type GPUVendor string
+
+const (
+	// GPUVendorNVIDIA is the NVIDIA GPU vendor.
+	GPUVendorNVIDIA GPUVendor = "nvidia"
+	// GPUVendorAMD is the AMD GPU vendor.
+	GPUVendorAMD GPUVendor = "amd"
+)
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
 // Data Plane runs as a sidecar container alongside the Core Agent.

@@ -112,7 +112,7 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 		if cspmConfig.RunInSystemProbe == nil {
 			// Written back to the spec, as the system-probe seccomp profile reads it from there.
-			cspmConfig.RunInSystemProbe = new(agentSupportsRunInSystemProbe(dda))
+			cspmConfig.RunInSystemProbe = new(agentSupportsRunInSystemProbe(ddaSpec))
 		}
 		f.runInSystemProbe = *cspmConfig.RunInSystemProbe
 
@@ -160,9 +160,9 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // agentSupportsRunInSystemProbe reports whether the node Agent is recent enough to run the compliance
 // checks in the system-probe. A version the Operator cannot parse is assumed recent enough.
-func agentSupportsRunInSystemProbe(dda metav1.Object) bool {
+func agentSupportsRunInSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	defaultIfVersionUnknown := true
-	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), runInSystemProbeMinVersion, &defaultIfVersionUnknown)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), runInSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
