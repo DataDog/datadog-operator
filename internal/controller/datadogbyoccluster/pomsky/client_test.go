@@ -199,6 +199,85 @@ func TestClient(t *testing.T) {
 			},
 		},
 		{
+			name:      "list indexes fails",
+			responses: map[string]string{},
+			call:      func(c Client) (any, error) { return c.ListIndexes(context.Background()) },
+			want:      []Index(nil),
+			wantErr:   true,
+			wantReqs:  []recordedRequest{{Method: "GET", Path: "/api/v1/indexes"}},
+		},
+		{
+			name:      "undecodable response",
+			responses: map[string]string{"GET /api/v1/index-routing-table": `{`},
+			call:      func(c Client) (any, error) { return c.GetRoutingTable(context.Background()) },
+			want:      []RoutingRule(nil),
+			wantErr:   true,
+			wantReqs:  []recordedRequest{{Method: "GET", Path: "/api/v1/index-routing-table"}},
+		},
+		{
+			name: "create index fails",
+			responses: map[string]string{
+				"GET /api/v1/indexes/datadog": mainIndexMetadata,
+			},
+			call: func(c Client) (any, error) {
+				return nil, c.CreateIndex(context.Background(), "datadog-payment", "90 days")
+			},
+			wantErr: true,
+			wantReqs: []recordedRequest{
+				{Method: "GET", Path: "/api/v1/indexes/datadog"},
+				{Method: "POST", Path: "/api/v1/indexes", Body: map[string]any{
+					"version":     "0.8",
+					"index_id":    "datadog-payment",
+					"doc_mapping": map[string]any{"mode": "dynamic"},
+					"retention":   map[string]any{"period": "90 days", "schedule": "hourly"},
+				}},
+			},
+		},
+		{
+			name:      "update retention of a missing index",
+			responses: map[string]string{},
+			call: func(c Client) (any, error) {
+				return nil, c.UpdateIndexRetention(context.Background(), "datadog-payment", "7 days")
+			},
+			wantErr:  true,
+			wantReqs: []recordedRequest{{Method: "GET", Path: "/api/v1/indexes/datadog-payment"}},
+		},
+		{
+			name: "update retention fails",
+			responses: map[string]string{
+				"GET /api/v1/indexes/datadog-payment": `{"index_config": {"index_id": "datadog-payment"}}`,
+			},
+			call: func(c Client) (any, error) {
+				return nil, c.UpdateIndexRetention(context.Background(), "datadog-payment", "7 days")
+			},
+			wantErr: true,
+			wantReqs: []recordedRequest{
+				{Method: "GET", Path: "/api/v1/indexes/datadog-payment"},
+				{Method: "PUT", Path: "/api/v1/indexes/datadog-payment", Body: map[string]any{
+					"index_id":  "datadog-payment",
+					"retention": map[string]any{"period": "7 days"},
+				}},
+			},
+		},
+		{
+			name:      "delete index fails",
+			responses: map[string]string{},
+			call:      func(c Client) (any, error) { return nil, c.DeleteIndex(context.Background(), "datadog-payment") },
+			wantErr:   true,
+			wantReqs:  []recordedRequest{{Method: "DELETE", Path: "/api/v1/indexes/datadog-payment"}},
+		},
+		{
+			name:      "set routing table fails",
+			responses: map[string]string{},
+			call: func(c Client) (any, error) {
+				return nil, c.SetRoutingTable(context.Background(), []RoutingRule{{Filter: "*", IndexID: "datadog"}})
+			},
+			wantErr: true,
+			wantReqs: []recordedRequest{
+				{Method: "PUT", Path: "/api/v1/index-routing-table", Body: []any{map[string]any{"filter": "*", "index_id": "datadog"}}},
+			},
+		},
+		{
 			name:      "unsuccessful status",
 			responses: map[string]string{},
 			call:      func(c Client) (any, error) { return c.GetRoutingTable(context.Background()) },
@@ -240,5 +319,21 @@ func TestClient(t *testing.T) {
 				t.Errorf("requests mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestClientInvalidBaseURL(t *testing.T) {
+	if _, err := NewClient("http://[::1").GetRoutingTable(context.Background()); err == nil {
+		t.Error("GetRoutingTable() error = nil, want an error")
+	}
+}
+
+func TestClientUnreachable(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	url := server.URL
+	server.Close()
+
+	if _, err := NewClient(url).GetRoutingTable(context.Background()); err == nil {
+		t.Error("GetRoutingTable() error = nil, want an error")
 	}
 }

@@ -7,6 +7,7 @@ package indexes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -144,38 +145,49 @@ func TestBuildPlan(t *testing.T) {
 	}
 }
 
+var errFake = errors.New("fake error")
+
+// fakeClient records the writes and fails the call named by failOn.
 type fakeClient struct {
 	indexes      []pomsky.Index
 	routingTable []pomsky.RoutingRule
+	failOn       string
 	calls        []string
 }
 
+func (f *fakeClient) fail(call string) error {
+	if f.failOn == call {
+		return errFake
+	}
+	return nil
+}
+
 func (f *fakeClient) ListIndexes(context.Context) ([]pomsky.Index, error) {
-	return f.indexes, nil
+	return f.indexes, f.fail("list indexes")
 }
 
 func (f *fakeClient) CreateIndex(_ context.Context, id, retention string) error {
 	f.calls = append(f.calls, fmt.Sprintf("create %s %s", id, retention))
-	return nil
+	return f.fail("create index")
 }
 
 func (f *fakeClient) UpdateIndexRetention(_ context.Context, id, retention string) error {
 	f.calls = append(f.calls, fmt.Sprintf("update %s %s", id, retention))
-	return nil
+	return f.fail("update index")
 }
 
 func (f *fakeClient) DeleteIndex(_ context.Context, id string) error {
 	f.calls = append(f.calls, "delete "+id)
-	return nil
+	return f.fail("delete index")
 }
 
 func (f *fakeClient) GetRoutingTable(context.Context) ([]pomsky.RoutingRule, error) {
-	return f.routingTable, nil
+	return f.routingTable, f.fail("get routing table")
 }
 
 func (f *fakeClient) SetRoutingTable(_ context.Context, rules []pomsky.RoutingRule) error {
 	f.calls = append(f.calls, fmt.Sprintf("set routing table %v", rules))
-	return nil
+	return f.fail("set routing table")
 }
 
 func TestSync(t *testing.T) {
@@ -212,6 +224,61 @@ func TestSync(t *testing.T) {
 				t.Fatalf("Sync() error = %v", err)
 			}
 			if diff := cmp.Diff(tt.want, tt.client.calls); diff != "" {
+				t.Errorf("calls mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSyncFailure(t *testing.T) {
+	desired := []indexSpec{{Name: "new", Filter: "service:new", Retention: "7 days"}, {Name: "kept", Filter: "service:kept", Retention: "7 days"}}
+	tests := []struct {
+		name   string
+		failOn string
+		want   []string
+	}{
+		{name: "list indexes", failOn: "list indexes", want: nil},
+		{name: "get routing table", failOn: "get routing table", want: nil},
+		{name: "create index", failOn: "create index", want: []string{"create datadog-new 7 days"}},
+		{
+			name:   "set routing table",
+			failOn: "set routing table",
+			want: []string{
+				"create datadog-new 7 days",
+				"set routing table [{service:new datadog-new} {service:kept datadog-kept} {* datadog}]",
+			},
+		},
+		{
+			name:   "update index",
+			failOn: "update index",
+			want: []string{
+				"create datadog-new 7 days",
+				"set routing table [{service:new datadog-new} {service:kept datadog-kept} {* datadog}]",
+				"update datadog-kept 7 days",
+			},
+		},
+		{
+			name:   "delete index",
+			failOn: "delete index",
+			want: []string{
+				"create datadog-new 7 days",
+				"set routing table [{service:new datadog-new} {service:kept datadog-kept} {* datadog}]",
+				"update datadog-kept 7 days",
+				"delete datadog-old",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &fakeClient{
+				indexes:      []pomsky.Index{{ID: "datadog", Retention: "30 days"}, {ID: "datadog-kept", Retention: "30 days"}, {ID: "datadog-old", Retention: "30 days"}},
+				routingTable: []pomsky.RoutingRule{{Filter: "*", IndexID: "datadog"}},
+				failOn:       tt.failOn,
+			}
+			if err := Sync(context.Background(), client, desired); !errors.Is(err, errFake) {
+				t.Errorf("Sync() error = %v, want %v", err, errFake)
+			}
+			if diff := cmp.Diff(tt.want, client.calls); diff != "" {
 				t.Errorf("calls mismatch (-want +got):\n%s", diff)
 			}
 		})
