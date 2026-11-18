@@ -232,7 +232,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		return reconcile.Result{}, nil
 	}
 
-	if err := experimental.ApplyWithoutInitConfig(ddai, &daemonset.Spec.Template); err != nil {
+	if err := experimental.ApplyWithoutInitConfig(ctx, r.client, ddai, &daemonset.Spec.Template); err != nil {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, metav1.NewTime(time.Now()),
 			common.AgentReconcileConditionType, metav1.ConditionFalse, "InvalidStartupExperiment", err.Error(), true)
 		return result, err

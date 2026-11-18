@@ -6,6 +6,7 @@
 package experimental_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -13,6 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -52,7 +56,7 @@ func TestWithoutInitConfigMounts(t *testing.T) {
 	template.Spec.Containers = append(template.Spec.Containers, corev1.Container{Name: "unrelated-sidecar"})
 	template.Spec.InitContainers = append(template.Spec.InitContainers, corev1.Container{Name: "host-profiler-seccomp-setup"})
 	original := template.DeepCopy()
-	require.NoError(t, experimental.ApplyWithoutInitConfig(ddai, template))
+	require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template))
 	var names []string
 	for _, container := range template.Spec.InitContainers {
 		names = append(names, container.Name)
@@ -75,7 +79,7 @@ func TestWithoutInitConfigMounts(t *testing.T) {
 	assert.Equal(t, original.Spec.Volumes, template.Spec.Volumes)
 	// Applying it twice must preserve mount ordering and avoid duplicate mounts.
 	after := template.DeepCopy()
-	require.NoError(t, experimental.ApplyWithoutInitConfig(ddai, template))
+	require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template))
 	assert.Equal(t, after, template)
 }
 
@@ -85,7 +89,7 @@ func TestWithoutInitConfigDisabled(t *testing.T) {
 			ddai, template := startupTemplate()
 			ddai.Annotations[startupAnnotation] = value
 			original := template.DeepCopy()
-			require.NoError(t, experimental.ApplyWithoutInitConfig(ddai, template))
+			require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template))
 			assert.Equal(t, original, template)
 		})
 	}
@@ -110,7 +114,7 @@ func TestWithoutInitConfigInvalid(t *testing.T) {
 					p.Spec.Volumes[i].ConfigMap.Items = nil
 				}
 			}
-		}, "requires explicit items"},
+		}, "not found"},
 		{"path traversal", func(_ *v1alpha1.DatadogAgentInternal, p *corev1.PodTemplateSpec) {
 			for i := range p.Spec.Volumes {
 				if p.Spec.Volumes[i].Name == "confd" {
@@ -137,7 +141,7 @@ func TestWithoutInitConfigInvalid(t *testing.T) {
 			ddai, template := startupTemplate()
 			tt.change(ddai, template)
 			before := template.DeepCopy()
-			require.ErrorContains(t, experimental.ApplyWithoutInitConfig(ddai, template), tt.errorText)
+			require.ErrorContains(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template), tt.errorText)
 			assert.Equal(t, before, template, "invalid experiment must leave the template untouched")
 		})
 	}
@@ -152,11 +156,155 @@ func TestWithoutInitConfigInlineFiles(t *testing.T) {
 	}}
 	settings.ExtraChecksd = &v2alpha1.MultiCustomConfig{ConfigDataMap: map[string]string{"check.py": "from datadog_checks.base import AgentCheck\nclass Check(AgentCheck):\n    pass\n"}}
 	override.PodTemplateSpec(logr.Discard(), feature.NewPodTemplateManagers(template), settings, v2alpha1.NodeAgentComponentName, ddai.Name)
-	require.NoError(t, experimental.ApplyWithoutInitConfig(ddai, template))
+	require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template))
 	for _, container := range template.Spec.Containers {
 		for _, file := range []string{"redis-cache.yaml", "redis-queue.yaml"} {
 			assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/" + file, SubPath: file, ReadOnly: true})
 		}
 		assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{Name: "checksd", MountPath: "/etc/datadog-agent/checks.d/check.py", SubPath: "check.py", ReadOnly: true})
+	}
+}
+
+func TestWithoutInitConfigExternalConfigMaps(t *testing.T) {
+	for _, volume := range []string{"confd", "checksd"} {
+		for _, tc := range []struct {
+			name     string
+			data     map[string]string
+			binary   map[string][]byte
+			missing  bool
+			optional bool
+			want     []string
+		}{
+			{name: "all files", data: map[string]string{"z.yaml": "", "b.py": "", "notes.txt": "ignored"}, binary: map[string][]byte{"a.yaml": {}, "a.py": {}}, want: []string{"a.yaml", "z.yaml"}},
+			{name: "empty ConfigMap"},
+			{name: "missing ConfigMap", missing: true},
+			{name: "optional missing ConfigMap", missing: true, optional: true},
+		} {
+			t.Run(volume+"/"+tc.name, func(t *testing.T) {
+				ddai, template := startupTemplate()
+				ddai.Namespace = "test"
+				for i := range template.Spec.Volumes {
+					v := &template.Spec.Volumes[i]
+					if v.Name == volume || v.Name == "confd" {
+						*v = corev1.Volume{Name: v.Name, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}
+					}
+					if v.Name == volume {
+						v.EmptyDir = nil
+						v.ConfigMap = &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "files"}, Optional: ptr.To(tc.optional)}
+					}
+				}
+				cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "files", Namespace: "test"}, Data: tc.data, BinaryData: tc.binary}
+				builder := fake.NewClientBuilder()
+				if !tc.missing {
+					builder.WithObjects(cm)
+				}
+				reader := builder.Build()
+				before := template.DeepCopy()
+				err := experimental.ApplyWithoutInitConfig(context.Background(), reader, ddai, template)
+				if tc.missing && !tc.optional {
+					require.ErrorContains(t, err, "read ConfigMap test/files")
+					assert.Equal(t, before, template)
+					return
+				}
+				require.NoError(t, err)
+				want := tc.want
+				if volume == "checksd" && len(want) > 0 {
+					want = []string{"a.py", "b.py"}
+				}
+				for _, container := range template.Spec.Containers {
+					var paths []string
+					for _, mount := range container.VolumeMounts {
+						if mount.Name == volume && mount.SubPath != "" {
+							paths = append(paths, mount.SubPath)
+							assert.True(t, mount.ReadOnly)
+						}
+					}
+					assert.Equal(t, want, paths, container.Name)
+				}
+			})
+		}
+	}
+}
+
+func TestWithoutInitConfigExternalConfigMapUpdates(t *testing.T) {
+	ddai, template := startupTemplate()
+	ddai.Namespace = "test"
+	for i := range template.Spec.Volumes {
+		if v := &template.Spec.Volumes[i]; v.Name == "confd" {
+			v.ConfigMap.Items = nil
+		}
+	}
+	ctx := context.Background()
+	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "redis", Namespace: "test"}, Data: map[string]string{"old.yaml": ""}}
+	reader := fake.NewClientBuilder().WithObjects(cm).Build()
+	for _, filename := range []string{"old.yaml", "new.yaml"} {
+		cm.Data = map[string]string{filename: ""}
+		require.NoError(t, reader.Update(ctx, cm))
+		updated := template.DeepCopy()
+		require.NoError(t, experimental.ApplyWithoutInitConfig(ctx, reader, ddai, updated))
+		for _, container := range updated.Spec.Containers {
+			var files []string
+			for _, m := range container.VolumeMounts {
+				if m.Name == "confd" && m.SubPath != "" {
+					files = append(files, m.SubPath)
+				}
+			}
+			assert.Equal(t, []string{filename}, files)
+		}
+	}
+	// Removing the ConfigMap must preserve the last template on a failed read.
+	require.NoError(t, reader.Delete(ctx, cm))
+	before := template.DeepCopy()
+	require.ErrorContains(t, experimental.ApplyWithoutInitConfig(ctx, reader, ddai, template), "not found")
+	assert.Equal(t, before, template)
+}
+
+func TestWithoutInitConfigExplicitItemsDoNotRequireConfigMapRead(t *testing.T) {
+	ddai, template := startupTemplate()
+	ddai.Namespace = "test"
+	cm := &corev1.ConfigMap{}
+	reader := fake.NewClientBuilder().Build()
+	require.Error(t, reader.Get(context.Background(), types.NamespacedName{Namespace: "test", Name: "redis"}, cm))
+	// Explicit nested mappings are sufficient even before the ConfigMap exists.
+	require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), reader, ddai, template))
+}
+
+func TestWithoutInitConfigOptionalItems(t *testing.T) {
+	ddai, template := startupTemplate()
+	ddai.Namespace = "test"
+	for i := range template.Spec.Volumes {
+		if v := &template.Spec.Volumes[i]; v.Name == "confd" {
+			v.ConfigMap.Optional = ptr.To(true)
+		}
+	}
+	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "redis", Namespace: "test"}, Data: map[string]string{"cache": ""}}
+	reader := fake.NewClientBuilder().WithObjects(cm).Build()
+	require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), reader, ddai, template))
+	for _, c := range template.Spec.Containers {
+		var paths []string
+		for _, m := range c.VolumeMounts {
+			if m.Name == "confd" && m.SubPath != "" {
+				paths = append(paths, m.SubPath)
+			}
+		}
+		assert.Equal(t, []string{"redisdb.d/cache.yaml"}, paths)
+	}
+}
+
+func TestWithoutInitConfigEmptyInlineFiles(t *testing.T) {
+	ddai, template := startupTemplate()
+	settings := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+	settings.ExtraConfd = &v2alpha1.MultiCustomConfig{ConfigDataMap: map[string]string{}}
+	settings.ExtraChecksd = &v2alpha1.MultiCustomConfig{ConfigDataMap: map[string]string{}}
+	ds := componentagent.NewDefaultAgentDaemonset(ddai, feature.RequiredComponent{Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}}, "test-agent")
+	template = &ds.Spec.Template
+	override.PodTemplateSpec(logr.Discard(), feature.NewPodTemplateManagers(template), settings, v2alpha1.NodeAgentComponentName, ddai.Name)
+	require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template))
+	for _, c := range template.Spec.Containers {
+		for _, m := range c.VolumeMounts {
+			if m.Name == "confd" || m.Name == "checksd" {
+				assert.Empty(t, m.SubPath)
+			}
+		}
 	}
 }

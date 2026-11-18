@@ -276,11 +276,15 @@ func TestReconcileV2AgentWithoutInitConfig(t *testing.T) {
 	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 		datadoghqv2alpha1.NodeAgentComponentName: {
 			CustomConfigurations: map[datadoghqv2alpha1.AgentConfigFileName]datadoghqv2alpha1.CustomConfig{datadoghqv2alpha1.AgentGeneralConfigFile: {ConfigData: &mainConfig}},
-			ExtraConfd:           &datadoghqv2alpha1.MultiCustomConfig{ConfigMap: &datadoghqv2alpha1.ConfigMapConfig{Name: "redis", Items: []corev1.KeyToPath{{Key: "cache", Path: "redisdb.d/cache.yaml"}, {Key: "queue", Path: "redisdb.d/queue.yaml"}}}},
+			ExtraConfd:           &datadoghqv2alpha1.MultiCustomConfig{ConfigMap: &datadoghqv2alpha1.ConfigMapConfig{Name: "redis"}},
+			ExtraChecksd:         &datadoghqv2alpha1.MultiCustomConfig{ConfigMap: &datadoghqv2alpha1.ConfigMapConfig{Name: "python"}},
 		},
 	}
 	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
 	r := newRolloutTestReconciler(false)
+	confd := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "redis", Namespace: ddai.Namespace}, Data: map[string]string{"cache.yaml": "instances: []", "queue.yaml": ""}}
+	require.NoError(t, r.client.Create(ctx, confd))
+	require.NoError(t, r.client.Create(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "python", Namespace: ddai.Namespace}, Data: map[string]string{"helper.py": ""}}))
 	_, managers := r.setupDependencies(ctx, ddai)
 	required := feature.RequiredComponents{Agent: feature.RequiredComponent{IsRequired: ptr.To(true), Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.TraceAgentContainerName, apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName}}}
 	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
@@ -307,9 +311,28 @@ func TestReconcileV2AgentWithoutInitConfig(t *testing.T) {
 		assert.True(t, hasInit(ds, "init-volume"))
 		assert.True(t, hasInit(ds, "seccomp-setup"))
 		for _, c := range ds.Spec.Template.Spec.Containers {
-			assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml", SubPath: "redisdb.d/cache.yaml", ReadOnly: true})
+			assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/cache.yaml", SubPath: "cache.yaml", ReadOnly: true})
 		}
 	}
+	// ConfigMap key changes update direct mounts on the next reconciliation.
+	confd.Data = map[string]string{"new.yaml": "instances: []"}
+	require.NoError(t, r.client.Update(ctx, confd))
+	_, err = r.reconcileV2Agent(ctx, required, nil, ddai, managers, status, "")
+	require.NoError(t, err)
+	for _, c := range getDS().Spec.Template.Spec.Containers {
+		assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/new.yaml", SubPath: "new.yaml", ReadOnly: true})
+		assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "checksd", MountPath: "/etc/datadog-agent/checks.d/helper.py", SubPath: "helper.py", ReadOnly: true})
+		for _, m := range c.VolumeMounts {
+			assert.NotEqual(t, "cache.yaml", m.SubPath)
+		}
+	}
+	beforeMissing := getDS()
+	require.NoError(t, r.client.Delete(ctx, confd))
+	_, err = r.reconcileV2Agent(ctx, required, nil, ddai, managers, status, "")
+	require.ErrorContains(t, err, "read ConfigMap")
+	assert.Equal(t, beforeMissing.Spec.Template, getDS().Spec.Template)
+	confd.ResourceVersion = ""
+	require.NoError(t, r.client.Create(ctx, confd))
 	// An invalid experiment must return an error without changing the live DaemonSet.
 	before := getDS()
 	ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName].CustomConfigurations = nil
@@ -324,7 +347,7 @@ func TestReconcileV2AgentWithoutInitConfig(t *testing.T) {
 	assert.True(t, hasInit(ds, "init-config"))
 	for _, c := range ds.Spec.Template.Spec.Containers {
 		for _, m := range c.VolumeMounts {
-			assert.NotEqual(t, "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml", m.MountPath)
+			assert.NotEqual(t, "/etc/datadog-agent/conf.d/new.yaml", m.MountPath)
 		}
 	}
 }

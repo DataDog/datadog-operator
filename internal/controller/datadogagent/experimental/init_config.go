@@ -6,6 +6,7 @@
 package experimental
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"slices"
@@ -13,6 +14,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -25,7 +29,7 @@ const ExperimentalWithoutInitConfigSubkey = "without-init-config"
 
 // ApplyWithoutInitConfig replaces init-config's file copies with per-file mounts.
 // Validation runs on a copy so an invalid configuration cannot partially change the template.
-func ApplyWithoutInitConfig(ddai *v1alpha1.DatadogAgentInternal, template *corev1.PodTemplateSpec) error {
+func ApplyWithoutInitConfig(ctx context.Context, reader client.Reader, ddai *v1alpha1.DatadogAgentInternal, template *corev1.PodTemplateSpec) error {
 	switch getExperimentalAnnotation(ddai, ExperimentalWithoutInitConfigSubkey) {
 	case "", "false":
 		return nil
@@ -34,14 +38,14 @@ func ApplyWithoutInitConfig(ddai *v1alpha1.DatadogAgentInternal, template *corev
 		return fmt.Errorf("%s must be true or false", getExperimentalAnnotationKey(ExperimentalWithoutInitConfigSubkey))
 	}
 	updated := template.DeepCopy()
-	if err := mountWithoutInitConfig(ddai, &updated.Spec); err != nil {
+	if err := mountWithoutInitConfig(ctx, reader, ddai, &updated.Spec); err != nil {
 		return fmt.Errorf("without-init-config: %w", err)
 	}
 	*template = *updated
 	return nil
 }
 
-func mountWithoutInitConfig(ddai *v1alpha1.DatadogAgentInternal, spec *corev1.PodSpec) error {
+func mountWithoutInitConfig(ctx context.Context, reader client.Reader, ddai *v1alpha1.DatadogAgentInternal, spec *corev1.PodSpec) error {
 	if spec.OS != nil && spec.OS.Name != corev1.Linux {
 		return fmt.Errorf("requires a Linux node Agent pod")
 	}
@@ -71,24 +75,11 @@ func mountWithoutInitConfig(ddai *v1alpha1.DatadogAgentInternal, spec *corev1.Po
 			continue
 		}
 		if volume.ConfigMap == nil {
-			return fmt.Errorf("volume %s must use a ConfigMap with explicit items", volume.Name)
+			return fmt.Errorf("volume %s must use a ConfigMap", volume.Name)
 		}
-		items := volume.ConfigMap.Items
-		if len(items) == 0 {
-			// Inline Python files can produce an unfiltered ConfigMap volume. Their keys
-			// are known from the spec, unlike externally supplied ConfigMaps.
-			if custom == nil || custom.ConfigMap != nil || len(custom.ConfigDataMap) == 0 ||
-				volume.ConfigMap.Name != strings.ToLower(string(v2alpha1.NodeAgentComponentName))+"-extra-"+volume.Name {
-				return fmt.Errorf("ConfigMap volume %s requires explicit items to enumerate its files", volume.Name)
-			}
-			var keys []string
-			for key := range custom.ConfigDataMap {
-				keys = append(keys, key)
-			}
-			slices.Sort(keys)
-			for _, key := range keys {
-				items = append(items, corev1.KeyToPath{Key: key, Path: key})
-			}
+		items, err := configMapItems(ctx, reader, ddai.Namespace, volume, custom)
+		if err != nil {
+			return err
 		}
 		paths := map[string]bool{}
 		for _, item := range items {
@@ -151,6 +142,57 @@ func mountWithoutInitConfig(ddai *v1alpha1.DatadogAgentInternal, spec *corev1.Po
 	}
 	spec.InitContainers = slices.DeleteFunc(spec.InitContainers, func(c corev1.Container) bool { return c.Name == "init-config" })
 	return nil
+}
+
+// configMapItems preserves explicit mappings. Without them, Kubernetes projects
+// all ConfigMap keys as filenames, so discover the same keys for direct mounts.
+func configMapItems(ctx context.Context, reader client.Reader, namespace string, volume corev1.Volume, custom *v2alpha1.MultiCustomConfig) ([]corev1.KeyToPath, error) {
+	if len(volume.ConfigMap.Items) > 0 && (volume.ConfigMap.Optional == nil || !*volume.ConfigMap.Optional) {
+		return volume.ConfigMap.Items, nil
+	}
+	keys := map[string]struct{}{}
+	if custom != nil && custom.ConfigMap == nil && volume.ConfigMap.Name == strings.ToLower(string(v2alpha1.NodeAgentComponentName))+"-extra-"+volume.Name {
+		// Inline ConfigMaps may not have been persisted yet. Their keys, including
+		// an empty map, are already known from the desired configuration.
+		for key := range custom.ConfigDataMap {
+			keys[key] = struct{}{}
+		}
+	} else {
+		cm := &corev1.ConfigMap{}
+		if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: volume.ConfigMap.Name}, cm); err != nil {
+			if apierrors.IsNotFound(err) && volume.ConfigMap.Optional != nil && *volume.ConfigMap.Optional {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("read ConfigMap %s/%s for volume %s: %w", namespace, volume.ConfigMap.Name, volume.Name, err)
+		}
+		for key := range cm.Data {
+			keys[key] = struct{}{}
+		}
+		for key := range cm.BinaryData {
+			keys[key] = struct{}{}
+		}
+	}
+	if len(volume.ConfigMap.Items) > 0 {
+		// Optional projections omit absent keys. Do not create a subPath mount
+		// for a file that Kubernetes will not project.
+		var items []corev1.KeyToPath
+		for _, item := range volume.ConfigMap.Items {
+			if _, exists := keys[item.Key]; exists {
+				items = append(items, item)
+			}
+		}
+		return items, nil
+	}
+	ordered := make([]string, 0, len(keys))
+	for key := range keys {
+		ordered = append(ordered, key)
+	}
+	slices.Sort(ordered)
+	items := make([]corev1.KeyToPath, 0, len(ordered))
+	for _, key := range ordered {
+		items = append(items, corev1.KeyToPath{Key: key, Path: key})
+	}
+	return items, nil
 }
 
 func safeConfigPath(file string) bool {
