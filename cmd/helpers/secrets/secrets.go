@@ -128,11 +128,11 @@ func resolveInside(dir, name string) string {
 	if err != nil {
 		return name
 	}
-	real, err := filepath.EvalSymlinks(filepath.Join(dir, name))
+	resolved, err := filepath.EvalSymlinks(filepath.Join(dir, name))
 	if err != nil {
 		return name
 	}
-	rel, err := filepath.Rel(realDir, real)
+	rel, err := filepath.Rel(realDir, resolved)
 	if err != nil || !filepath.IsLocal(rel) {
 		return name
 	}
