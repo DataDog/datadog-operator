@@ -293,14 +293,14 @@ func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []cor
 		},
 	}
 
-	if images.IsJMXImage(component.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName)) {
+	if images.IsJMXImage(common.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName)) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  common.DDJMXUseContainerSupport,
 			Value: "true",
 		})
 	}
 
-	return append(envVars, component.JemallocEnvVars(dda, component.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName))...)
+	return append(envVars, component.JemallocEnvVars(dda, common.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName))...)
 }
 
 // DefaultAffinity returns the pod anti affinity of the cluster checks runners

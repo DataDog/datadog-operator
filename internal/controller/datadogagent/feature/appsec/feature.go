@@ -22,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -56,22 +55,6 @@ type appsecFeature struct {
 // ID returns the ID of the Feature
 func (f *appsecFeature) ID() feature.IDType {
 	return feature.AppsecIDType
-}
-
-func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	if ddaSpec == nil {
-		return images.AgentLatestVersion
-	}
-	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-		if clusterAgent.Image != nil {
-			return common.GetAgentVersionFromImage(*clusterAgent.Image)
-		}
-	}
-	return images.AgentLatestVersion
-}
-
-func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	return utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil)
 }
 
 // appsecAnnotationPrefix is the shared prefix of every AppSec annotation in const.go.
@@ -139,7 +122,8 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 	}
 	f.config = cfg
 
-	if !isAboveMinVersion(ddaSpec) {
+	clusterAgentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
+	if !utils.IsAboveMinVersion(clusterAgentVersion, ClusterAgentMinVersion, nil) {
 		f.logger.V(1).Info("agent version is too low")
 		return feature.RequiredComponents{}
 	}
@@ -149,12 +133,12 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 		return feature.RequiredComponents{}
 	}
 
-	if f.config.requiresNginxSupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentNginxMinVersion, nil) {
+	if f.config.requiresNginxSupport() && !utils.IsAboveMinVersion(clusterAgentVersion, ClusterAgentNginxMinVersion, nil) {
 		f.logger.Info("ingress-nginx injection requires cluster-agent >= " + ClusterAgentNginxMinVersion)
 		return feature.RequiredComponents{}
 	}
 
-	if f.config.requiresGKESupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentGKEMinVersion, nil) {
+	if f.config.requiresGKESupport() && !utils.IsAboveMinVersion(clusterAgentVersion, ClusterAgentGKEMinVersion, nil) {
 		f.logger.Info("gke-gateway injection requires cluster-agent >= " + ClusterAgentGKEMinVersion)
 		return feature.RequiredComponents{}
 	}

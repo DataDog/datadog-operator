@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -61,23 +60,8 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 		return feature.RequiredComponents{}
 	}
 
-	// If the cluster agent version is explicitly set and below the minimum, skip enabling.
-	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
-		version := common.GetAgentVersionFromImage(*clusterAgent.Image)
-		if !utils.IsAboveMinVersion(version, minVersion, nil) {
-			return feature.RequiredComponents{}
-		}
-	} else if !utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minVersion, nil) {
-		return feature.RequiredComponents{}
-	}
-
-	// If the node agent version is explicitly set and below the minimum, skip enabling.
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
-		version := common.GetAgentVersionFromImage(*nodeAgent.Image)
-		if !utils.IsAboveMinVersion(version, minVersion, nil) {
-			return feature.RequiredComponents{}
-		}
-	} else if !utils.IsAboveMinVersion(images.AgentLatestVersion, minVersion, nil) {
+	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), minVersion, nil) ||
+		!utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), minVersion, nil) {
 		return feature.RequiredComponents{}
 	}
 
