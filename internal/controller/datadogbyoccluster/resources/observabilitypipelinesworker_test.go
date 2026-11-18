@@ -38,6 +38,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							Replicas: ptr.To[int32](2),
 							Env: []corev1.EnvVar{
 								{Name: envPipelineDestinationEndpoint, Value: "http://byoc-indexer:7280"},
+								{Name: envPipelineDestinationMaxPayloadBytes, Value: "10380903"},
 							},
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
@@ -271,9 +272,79 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 				want.Spec.Env = []corev1.EnvVar{
 					{Name: "INDEXER_HOST", Value: "byoc-indexer.testing.svc.cluster.local"},
 					{Name: envPipelineDestinationEndpoint, Value: "http://$(INDEXER_HOST):7280"},
+					{Name: envPipelineDestinationMaxPayloadBytes, Value: "10380903"},
 				}
 				return want
 			}(),
+		},
+		{
+			name:                "max payload follows a max_body_size override with a unit",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"ingest_api":{"max_body_size":"20MiB"}}`)},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env[1].Value = "20761805"
+				return want
+			}(),
+		},
+		{
+			name: "max payload follows a content_length_limit override in bytes",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`ingest_api:
+  content_length_limit: 20000000
+`)},
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env[1].Value = "19800000"
+				return want
+			}(),
+		},
+		{
+			name:                "max payload follows a lower max_decompressed_body_size override",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"ingest_api":{"max_decompressed_body_size":"8 mb"}}`)},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env[1].Value = "7920000"
+				return want
+			}(),
+		},
+		{
+			name:                "no max payload below the Worker minimum",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"ingest_api":{"max_body_size":"4.5M"}}`)},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = want.Spec.Env[:1]
+				return want
+			}(),
+		},
+		{
+			name:     "user-set max payload is kept",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationMaxPayloadBytes, Value: "6000000"}},
+			},
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{
+					{Name: envPipelineDestinationMaxPayloadBytes, Value: "6000000"},
+					{Name: envPipelineDestinationEndpoint, Value: "http://byoc-indexer:7280"},
+				}
+				return want
+			}(),
+		},
+		{
+			name:                "invalid max_body_size override",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"ingest_api":{"max_body_size":"10 parsecs"}}`)},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
+			wantErr:             "decode spec.nodeConfigOverrides ingest_api.max_body_size:",
 		},
 		{
 			name: "gRPC TLS only",
@@ -308,6 +379,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 								Replicas: ptr.To[int32](2),
 								Env: []corev1.EnvVar{
 									{Name: envPipelineDestinationEndpoint, Value: "http://byoc-indexer:7280"},
+									{Name: envPipelineDestinationMaxPayloadBytes, Value: "10380903"},
 								},
 								Resources: &corev1.ResourceRequirements{
 									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
@@ -420,6 +492,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									{Name: envPipelineDestinationEndpoint, Value: "replaced"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
+									{Name: envPipelineDestinationMaxPayloadBytes, Value: "10380903"},
 								},
 								Volumes: []corev1.Volume{
 									{Name: "shared", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "pipeline"}}},
