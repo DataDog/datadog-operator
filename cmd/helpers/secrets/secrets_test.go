@@ -35,6 +35,8 @@ func TestReadSecretsDirectoryBoundary(t *testing.T) {
 		"absolute":  filepath.Join(base, "outside"),
 		"absinside": filepath.Join(dir, "..data", "key"),
 		"abschain":  filepath.Join(dir, "absinside"),
+		"absdata":   filepath.Join(dir, "..2026"),
+		"viaabs":    "absdata/key",
 	} {
 		require.NoError(t, os.Symlink(target, filepath.Join(dir, name)))
 	}
@@ -53,6 +55,8 @@ func TestReadSecretsDirectoryBoundary(t *testing.T) {
 		{name: "absolute"},
 		{name: "absinside", want: "inside\n"},
 		{name: "abschain", want: "inside\n"},
+		{name: "viaabs", want: "inside\n"},
+		{name: "absdata/key", want: "inside\n"},
 		{name: "large"},
 		{name: "missing"},
 	} {

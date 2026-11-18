@@ -21,8 +21,6 @@ import (
 
 const (
 	maxSecretFileSize = 8192
-	// maxSymlinkHops bounds chains of absolute symlinks.
-	maxSymlinkHops = 8
 )
 
 // NewCmd implements reading secrets from a directory/volume mount
@@ -106,7 +104,7 @@ func readSecret(root *os.Root, rootErr error, name string) s.Secret {
 
 // readSecretFile follows symlinks only within the configured directory.
 func readSecretFile(root *os.Root, name string) (string, error) {
-	file, err := root.Open(insideAbsoluteLinks(root, name))
+	file, err := root.Open(resolveInside(root.Name(), name))
 	if err != nil {
 		return "", err
 	}
@@ -122,23 +120,21 @@ func readSecretFile(root *os.Root, name string) (string, error) {
 	return string(value), nil
 }
 
-// insideAbsoluteLinks replaces absolute symlinks that point inside root with their
-// relative target, since root only follows relative ones. Other names are unchanged.
-func insideAbsoluteLinks(root *os.Root, name string) string {
-	dir, err := filepath.Abs(root.Name())
+// resolveInside returns name with its symlinks resolved when the result stays inside
+// dir, so absolute symlinks work too (root only follows relative ones). Otherwise it
+// returns name unchanged, and root rejects escapes.
+func resolveInside(dir, name string) string {
+	realDir, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		return name
 	}
-	for range maxSymlinkHops {
-		target, err := root.Readlink(name)
-		if err != nil || !filepath.IsAbs(target) {
-			return name
-		}
-		rel, err := filepath.Rel(dir, target)
-		if err != nil || !filepath.IsLocal(rel) {
-			return name // root rejects it
-		}
-		name = rel
+	real, err := filepath.EvalSymlinks(filepath.Join(dir, name))
+	if err != nil {
+		return name
 	}
-	return name
+	rel, err := filepath.Rel(realDir, real)
+	if err != nil || !filepath.IsLocal(rel) {
+		return name
+	}
+	return rel
 }
