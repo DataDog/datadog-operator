@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/secrets/resolver"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -201,6 +203,19 @@ func TestConfigureSecretBackend(t *testing.T) {
 	}))
 	_, err := secrets.NewSecretBackend().Decrypt([]string{"ENC[vault://test]"})
 	require.EqualError(t, err, "secret backend command not configured")
+}
+
+func TestNewGenericResourceSecretResolver(t *testing.T) {
+	require.Nil(t, newGenericResourceSecretResolver(&options{}, nil), "nil when the controller is disabled")
+
+	enabled := &options{datadogGenericResourceEnabled: true, secretBackendCommand: "/readsecret.sh"}
+	res, err := newGenericResourceSecretResolver(enabled, errors.New("invalid config")).ResolveJSON(`{"v": "ENC[a]"}`)
+	require.ErrorIs(t, err, resolver.ErrUnresolved)
+	require.Empty(t, res.JSON)
+
+	res, err = newGenericResourceSecretResolver(&options{datadogGenericResourceEnabled: true}, nil).ResolveJSON(`{"v": "ENC[a]"}`)
+	require.NoError(t, err)
+	require.True(t, res.NoBackend)
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
