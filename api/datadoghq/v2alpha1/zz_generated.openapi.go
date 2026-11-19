@@ -17,7 +17,6 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentCustomConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_AgentCustomConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIAPMConfig":                               schema_datadog_operator_api_datadoghq_v2alpha1_CSIAPMConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIImageConfig":                             schema_datadog_operator_api_datadoghq_v2alpha1_CSIImageConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMDatabaseBenchmarksConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_CSPMDatabaseBenchmarksConfig(ref),
@@ -59,6 +58,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelAgentGatewayFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig":         schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerComponentConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerFeatureConfig":           schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration":                  schema_datadog_operator_api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
@@ -66,56 +66,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendRolesConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.UnixDomainSocketConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
-	}
-}
-
-func schema_datadog_operator_api_datadoghq_v2alpha1_AgentCustomConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "AgentCustomConfig provides a component configuration file and typed Private Action Runner overrides. Typed PAR settings apply only to the Node Agent datadog.yaml and Cluster Agent datadog-cluster.yaml files. The configuration file content uses ConfigData or ConfigMap, following CustomConfig semantics.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enabled overrides features.privateActionRunner.enabled for this component. Only used for override.nodeAgent.customConfigurations[\"datadog.yaml\"] and override.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"]. Takes precedence over private_action_runner.enabled in ConfigData or ConfigMap.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"actionsAllowlist": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist overrides features.privateActionRunner.actionsAllowlist for this component. Only used for override.nodeAgent.customConfigurations[\"datadog.yaml\"] and override.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"]. Takes precedence over private_action_runner.actions_allowlist in ConfigData or ConfigMap. An explicit empty list clears the inherited additional action patterns.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"configData": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConfigData corresponds to the configuration file content, including advanced private_action_runner settings.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"configMap": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConfigMap references an existing ConfigMap with the configuration file content. ConfigMap takes precedence when both ConfigMap and ConfigData are set.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ConfigMapConfig"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ConfigMapConfig"},
 	}
 }
 
@@ -2498,23 +2448,23 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerComponentConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PrivateActionRunnerFeatureConfig contains Private Action Runner configuration. When present, this block replaces the legacy enable and configdata annotations. Advanced settings use override.nodeAgent.customConfigurations[\"datadog.yaml\"] and override.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"]. Split mode and host systemd access remain configured through annotations.",
+				Description: "PrivateActionRunnerComponentConfig configures Private Action Runner for one component. Advanced settings use the component's customConfigurations without changing their file-mount semantics.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Component customConfigurations.enabled overrides this setting. Advanced options use private_action_runner in configData. Default: false",
+							Description: "Enabled overrides the shared Private Action Runner enablement for this component. Takes precedence over private_action_runner.enabled in customConfigurations.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"actionsAllowlist": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ActionsAllowlist contains additional action patterns allowed on both agents. Component customConfigurations.actionsAllowlist replaces this list when set. An explicit empty list clears the additional action patterns; built-in actions remain controlled by private_action_runner.default_actions_enabled.",
+							Description: "ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2530,6 +2480,55 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureCo
 				},
 			},
 		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrivateActionRunnerFeatureConfig contains Private Action Runner configuration. When present, this block replaces the legacy enable and configdata annotations. Advanced settings use override.nodeAgent.customConfigurations[\"datadog.yaml\"] and override.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"]. Split mode and host systemd access remain configured through annotations.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Per-component Enabled takes precedence. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"actionsAllowlist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ActionsAllowlist contains additional action patterns allowed on both agents. Per-component ActionsAllowlist replaces this list when set, including an empty list. Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations. Built-in actions remain controlled by private_action_runner.default_actions_enabled.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"nodeAgent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeAgent configures Private Action Runner on the Node Agent. Omitted settings inherit the shared feature settings.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig"),
+						},
+					},
+					"clusterAgent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterAgent configures Private Action Runner on the Cluster Agent. Omitted settings inherit the shared feature settings.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig"},
 	}
 }
 

@@ -8,7 +8,6 @@ package privateactionrunner
 import (
 	"context"
 	"fmt"
-	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -66,64 +65,62 @@ func legacyConfiguration(dda metav1.Object) (node, cluster componentConfig) {
 	return
 }
 
-// configurationFromOverride resolves typed settings over the component's raw YAML.
-// The extra PAR file supplies typed overrides; advanced settings stay
-// in the main configuration file. The effective settings determine identity RBAC.
-func configurationFromOverride(owner metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, fileName v2alpha1.AgentConfigFileName, spec *v2alpha1.PrivateActionRunnerFeatureConfig, reader client.Reader) (result componentConfig, err error) {
-	custom := v2alpha1.AgentCustomConfig{}
-	if override != nil {
-		custom = override.CustomConfigurations[fileName]
-	}
+// configurationFromFeature resolves shared and per-component typed PAR settings.
+// Advanced configuration stays in the main file mounted by the generic overrides.
+func configurationFromFeature(spec *v2alpha1.PrivateActionRunnerFeatureConfig, component *v2alpha1.PrivateActionRunnerComponentConfig) (result componentConfig, err error) {
 	result.enabled = apiutils.BoolValue(spec.Enabled)
-	if custom.Enabled != nil {
-		result.enabled = *custom.Enabled
+	allowlist := spec.ActionsAllowlist
+	if component != nil {
+		if component.Enabled != nil {
+			result.enabled = *component.Enabled
+		}
+		if component.ActionsAllowlist != nil {
+			allowlist = component.ActionsAllowlist
+		}
 	}
 	if !result.enabled {
 		return result, nil
 	}
-	// Leave omitted enrollment settings to the Agent, including its identity secret name.
 	extra := map[string]any{"enabled": true}
-	effective := map[string]any{"enabled": true}
-	data, err := customConfigurationData(owner, custom, fileName, reader)
-	if err != nil {
-		return result, err
-	}
-	var root map[string]any
-	if err = yaml.Unmarshal([]byte(data), &root); err != nil {
-		return result, fmt.Errorf("invalid %s configuration: %w", fileName, err)
-	}
-	if raw := root[privateActionRunnerConfigKey]; raw != nil {
-		settings, ok := raw.(map[string]any)
-		if !ok {
-			return result, fmt.Errorf("%s in %s must be a YAML mapping", privateActionRunnerConfigKey, fileName)
-		}
-		maps.Copy(effective, settings)
-	}
-	// Activation and the typed allowlist are authoritative over raw YAML.
-	effective[privateActionRunnerEnabledKey] = true
-	allowlist := spec.ActionsAllowlist
-	if custom.ActionsAllowlist != nil {
-		allowlist = custom.ActionsAllowlist
-	}
 	if allowlist != nil {
-		actions := append([]string{}, (*allowlist)...)
-		effective["actions_allowlist"] = actions
-		extra["actions_allowlist"] = actions
+		extra["actions_allowlist"] = append([]string{}, (*allowlist)...)
 	}
-	effectiveYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: effective})
+	data, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: extra})
 	if err != nil {
 		return result, err
 	}
-	result.settings, err = parsePrivateActionRunnerConfig(string(effectiveYAML))
-	if err != nil {
-		return result, err
-	}
-	extraYAML, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: extra})
-	result.configData = string(extraYAML)
+	result.configData = string(data)
+	result.settings, err = parsePrivateActionRunnerConfig(result.configData)
 	return result, err
 }
 
-func customConfigurationData(owner metav1.Object, custom v2alpha1.AgentCustomConfig, fileName v2alpha1.AgentConfigFileName, reader client.Reader) (string, error) {
+// readClusterEnrollmentSettings reads only the settings needed to provision identity RBAC.
+// Other raw Agent settings are consumed by the Agent, not interpreted as feature configuration.
+func readClusterEnrollmentSettings(owner metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, reader client.Reader, settings *PrivateActionRunnerConfig) error {
+	if override == nil {
+		return nil
+	}
+	data, err := customConfigurationData(owner, override.CustomConfigurations[v2alpha1.ClusterAgentConfigFile], v2alpha1.ClusterAgentConfigFile, reader)
+	if err != nil {
+		return err
+	}
+	var config struct {
+		PrivateActionRunner struct {
+			SelfEnroll           *bool  `yaml:"self_enroll"`
+			IdentityUseK8sSecret *bool  `yaml:"identity_use_k8s_secret"`
+			IdentitySecretName   string `yaml:"identity_secret_name"`
+		} `yaml:"private_action_runner"`
+	}
+	if err := yaml.Unmarshal([]byte(data), &config); err != nil {
+		return fmt.Errorf("invalid %s configuration: %w", v2alpha1.ClusterAgentConfigFile, err)
+	}
+	settings.SelfEnroll = config.PrivateActionRunner.SelfEnroll
+	settings.IdentityUseK8sSecret = config.PrivateActionRunner.IdentityUseK8sSecret
+	settings.IdentitySecretName = config.PrivateActionRunner.IdentitySecretName
+	return nil
+}
+
+func customConfigurationData(owner metav1.Object, custom v2alpha1.CustomConfig, fileName v2alpha1.AgentConfigFileName, reader client.Reader) (string, error) {
 	if custom.ConfigMap == nil {
 		if custom.ConfigData != nil {
 			return *custom.ConfigData, nil

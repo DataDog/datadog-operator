@@ -48,6 +48,7 @@ type privateActionRunnerFeature struct {
 	logger                    logr.Logger
 	reader                    client.Reader
 	nodeEnabled               bool
+	configuredFromSpec        bool
 	nodeConfigData            string
 	splitEnabled              bool
 	systemdConfig             systemdHostConfig
@@ -82,9 +83,16 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	}
 	node, cluster := legacyConfiguration(dda)
 	if spec != nil {
+		f.configuredFromSpec = true
+		// Disabled PAR still configures existing agents, without requiring them or a runner container.
+		reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		var nodeErr, clusterErr error
-		node, nodeErr = configurationFromOverride(dda, ddaSpec.Override[v2alpha1.NodeAgentComponentName], v2alpha1.AgentGeneralConfigFile, spec, f.reader)
-		cluster, clusterErr = configurationFromOverride(dda, ddaSpec.Override[v2alpha1.ClusterAgentComponentName], v2alpha1.ClusterAgentConfigFile, spec, f.reader)
+		node, nodeErr = configurationFromFeature(spec, spec.NodeAgent)
+		cluster, clusterErr = configurationFromFeature(spec, spec.ClusterAgent)
+		if clusterErr == nil && cluster.enabled {
+			clusterErr = readClusterEnrollmentSettings(dda, ddaSpec.Override[v2alpha1.ClusterAgentComponentName], f.reader, cluster.settings)
+		}
 		f.configErr = errors.Join(nodeErr, clusterErr)
 	}
 	// Explicit PAR spec configuration takes precedence over automatic configuration
@@ -96,7 +104,10 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			if override := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; override != nil {
 				if _, custom := override.CustomConfigurations[v2alpha1.ClusterAgentConfigFile]; custom {
 					var err error
-					cluster, err = configurationFromOverride(dda, override, v2alpha1.ClusterAgentConfigFile, &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, f.reader)
+					cluster, err = configurationFromFeature(&v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, nil)
+					if err == nil {
+						err = readClusterEnrollmentSettings(dda, override, f.reader, cluster.settings)
+					}
 					f.configErr = errors.Join(f.configErr, err)
 				}
 			}
@@ -279,6 +290,9 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 		return fmt.Errorf("invalid Private Action Runner configuration: %w", f.configErr)
 	}
 	if f.clusterConfig == nil || !f.clusterConfig.Enabled {
+		if f.configuredFromSpec {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{Name: DDPAREnabled, Value: "false"})
+		}
 		return nil
 	}
 
@@ -322,6 +336,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		return fmt.Errorf("invalid Private Action Runner configuration: %w", f.configErr)
 	}
 	if !f.nodeEnabled {
+		if f.configuredFromSpec {
+			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName, apicommon.PrivateActionRunnerContainerName}, &corev1.EnvVar{Name: DDPAREnabled, Value: "false"})
+		}
 		return nil
 	}
 	if f.systemdConfigErr != nil {
@@ -439,7 +456,10 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	// Private Action Runner requires separate container, not compatible with single-container mode
+	// Private Action Runner requires a separate container. Still apply explicit disablement.
+	if !f.nodeEnabled {
+		return f.ManageNodeAgent(managers)
+	}
 	return nil
 }
 

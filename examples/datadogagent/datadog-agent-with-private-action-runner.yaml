@@ -23,8 +23,8 @@ spec:
         - com.datadoghq.script.runPredefinedScript
 
 ---
-# Example 2: Optional component settings override the feature settings.
-# Typed enabled/actionsAllowlist take precedence over the same keys in raw YAML.
+# Example 2: Per-component feature settings override the shared settings.
+# Typed enabled/actionsAllowlist take precedence over the same keys in customConfigurations.
 # Omit actionsAllowlist to inherit the common list, or use [] to clear it.
 # Set enabled: false on either component to disable its PAR.
 apiVersion: datadoghq.com/v2alpha1
@@ -53,22 +53,23 @@ spec:
       enabled: true
       actionsAllowlist:
         - com.datadoghq.script.runPredefinedScript
+      nodeAgent:
+        enabled: true
+        actionsAllowlist:
+          - com.datadoghq.http.request
+      clusterAgent:
+        enabled: true
+        actionsAllowlist: []
   override:
     nodeAgent:
       customConfigurations:
         datadog.yaml:
-          enabled: true
-          actionsAllowlist:
-            - com.datadoghq.script.runPredefinedScript
           configData: |
             private_action_runner:
               task_concurrency: 3
     clusterAgent:
       customConfigurations:
         datadog-cluster.yaml:
-          enabled: true
-          actionsAllowlist:
-            - com.datadoghq.script.runPredefinedScript
           configData: |
             private_action_runner:
               task_concurrency: 5

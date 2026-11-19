@@ -139,9 +139,7 @@ func TestPacketCaptureWithTypedPrivateActionRunner(t *testing.T) {
 				Enabled:          new(true),
 				ActionsAllowlist: new([]string{"com.datadoghq.script.runPredefinedScript"}),
 			}}
-			spec.Override[v2alpha1.NodeAgentComponentName].CustomConfigurations = map[v2alpha1.AgentConfigFileName]v2alpha1.AgentCustomConfig{
-				v2alpha1.AgentGeneralConfigFile: {Enabled: new(enabled)},
-			}
+			spec.Features.PrivateActionRunner.NodeAgent = &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(enabled)}
 			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
 			reqComp := f.Configure(dda, spec, nil)
 

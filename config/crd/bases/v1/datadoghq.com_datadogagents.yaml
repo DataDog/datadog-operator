@@ -2867,19 +2867,56 @@ spec:
                         actionsAllowlist:
                           description: |-
                             ActionsAllowlist contains additional action patterns allowed on both agents.
-                            Component customConfigurations.actionsAllowlist replaces this list when set.
-                            An explicit empty list clears the additional action patterns; built-in actions
-                            remain controlled by private_action_runner.default_actions_enabled.
+                            Per-component ActionsAllowlist replaces this list when set, including an empty list.
+                            Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.
+                            Built-in actions remain controlled by private_action_runner.default_actions_enabled.
                           items:
                             type: string
                           type: array
+                        clusterAgent:
+                          description: |-
+                            ClusterAgent configures Private Action Runner on the Cluster Agent.
+                            Omitted settings inherit the shared feature settings.
+                          properties:
+                            actionsAllowlist:
+                              description: |-
+                                ActionsAllowlist replaces the shared additional action patterns for this component.
+                                An explicit empty list clears inherited additional action patterns.
+                                Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+                              items:
+                                type: string
+                              type: array
+                            enabled:
+                              description: |-
+                                Enabled overrides the shared Private Action Runner enablement for this component.
+                                Takes precedence over private_action_runner.enabled in customConfigurations.
+                              type: boolean
+                          type: object
                         enabled:
                           description: |-
                             Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,
-                            with self-enrollment by default. Component customConfigurations.enabled
-                            overrides this setting. Advanced options use private_action_runner in configData.
+                            with self-enrollment by default. Per-component Enabled takes precedence.
                             Default: false
                           type: boolean
+                        nodeAgent:
+                          description: |-
+                            NodeAgent configures Private Action Runner on the Node Agent.
+                            Omitted settings inherit the shared feature settings.
+                          properties:
+                            actionsAllowlist:
+                              description: |-
+                                ActionsAllowlist replaces the shared additional action patterns for this component.
+                                An explicit empty list clears inherited additional action patterns.
+                                Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+                              items:
+                                type: string
+                              type: array
+                            enabled:
+                              description: |-
+                                Enabled overrides the shared Private Action Runner enablement for this component.
+                                Takes precedence over private_action_runner.enabled in customConfigurations.
+                              type: boolean
+                          type: object
                       type: object
                     processDiscovery:
                       description: ProcessDiscovery configuration.
@@ -6295,27 +6332,16 @@ spec:
                       customConfigurations:
                         additionalProperties:
                           description: |-
-                            AgentCustomConfig provides a component configuration file and typed Private Action Runner overrides.
-                            Typed PAR settings apply only to the Node Agent datadog.yaml and Cluster Agent datadog-cluster.yaml files.
-                            The configuration file content uses ConfigData or ConfigMap, following CustomConfig semantics.
+                            CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
+                            system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
+                            The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
+                            Note: `ConfigData` and `ConfigMap` cannot be set together.
                           properties:
-                            actionsAllowlist:
-                              description: |-
-                                ActionsAllowlist overrides features.privateActionRunner.actionsAllowlist for this component.
-                                Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and
-                                override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
-                                Takes precedence over private_action_runner.actions_allowlist in ConfigData or ConfigMap.
-                                An explicit empty list clears the inherited additional action patterns.
-                              items:
-                                type: string
-                              type: array
                             configData:
-                              description: ConfigData corresponds to the configuration file content, including advanced private_action_runner settings.
+                              description: ConfigData corresponds to the configuration file content.
                               type: string
                             configMap:
-                              description: |-
-                                ConfigMap references an existing ConfigMap with the configuration file content.
-                                ConfigMap takes precedence when both ConfigMap and ConfigData are set.
+                              description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
                                   description: Items maps a ConfigMap data `key` to a file `path` mount.
@@ -6361,13 +6387,6 @@ spec:
                                   description: Name is the name of the ConfigMap.
                                   type: string
                               type: object
-                            enabled:
-                              description: |-
-                                Enabled overrides features.privateActionRunner.enabled for this component.
-                                Only used for override.nodeAgent.customConfigurations["datadog.yaml"] and
-                                override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
-                                Takes precedence over private_action_runner.enabled in ConfigData or ConfigMap.
-                              type: boolean
                           type: object
                         description: |-
                           CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
@@ -12456,19 +12475,56 @@ spec:
                             actionsAllowlist:
                               description: |-
                                 ActionsAllowlist contains additional action patterns allowed on both agents.
-                                Component customConfigurations.actionsAllowlist replaces this list when set.
-                                An explicit empty list clears the additional action patterns; built-in actions
-                                remain controlled by private_action_runner.default_actions_enabled.
+                                Per-component ActionsAllowlist replaces this list when set, including an empty list.
+                                Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.
+                                Built-in actions remain controlled by private_action_runner.default_actions_enabled.
                               items:
                                 type: string
                               type: array
+                            clusterAgent:
+                              description: |-
+                                ClusterAgent configures Private Action Runner on the Cluster Agent.
+                                Omitted settings inherit the shared feature settings.
+                              properties:
+                                actionsAllowlist:
+                                  description: |-
+                                    ActionsAllowlist replaces the shared additional action patterns for this component.
+                                    An explicit empty list clears inherited additional action patterns.
+                                    Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+                                  items:
+                                    type: string
+                                  type: array
+                                enabled:
+                                  description: |-
+                                    Enabled overrides the shared Private Action Runner enablement for this component.
+                                    Takes precedence over private_action_runner.enabled in customConfigurations.
+                                  type: boolean
+                              type: object
                             enabled:
                               description: |-
                                 Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,
-                                with self-enrollment by default. Component customConfigurations.enabled
-                                overrides this setting. Advanced options use private_action_runner in configData.
+                                with self-enrollment by default. Per-component Enabled takes precedence.
                                 Default: false
                               type: boolean
+                            nodeAgent:
+                              description: |-
+                                NodeAgent configures Private Action Runner on the Node Agent.
+                                Omitted settings inherit the shared feature settings.
+                              properties:
+                                actionsAllowlist:
+                                  description: |-
+                                    ActionsAllowlist replaces the shared additional action patterns for this component.
+                                    An explicit empty list clears inherited additional action patterns.
+                                    Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+                                  items:
+                                    type: string
+                                  type: array
+                                enabled:
+                                  description: |-
+                                    Enabled overrides the shared Private Action Runner enablement for this component.
+                                    Takes precedence over private_action_runner.enabled in customConfigurations.
+                                  type: boolean
+                              type: object
                           type: object
                         processDiscovery:
                           description: ProcessDiscovery configuration.
