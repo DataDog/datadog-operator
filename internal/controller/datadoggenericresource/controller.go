@@ -148,7 +148,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	}
 
 	status := instance.Status.DeepCopy()
-	secretRefs := resolver.HasReferences(instance.Spec.JsonSpec)
 	statusSpecHash := instance.Status.CurrentHash
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
@@ -179,7 +178,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			}
 			if err != nil {
 				notFound := isResourceNotFound(err)
-				if secretRefs {
+				if resolver.HasReferences(instance.Spec.JsonSpec) {
 					err = hideDecodeErrorBody(err)
 				}
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
@@ -238,7 +237,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
 		state, refreshErr := handler.refreshState(auth, instance)
 		if refreshErr != nil {
-			if secretRefs {
+			if resolver.HasReferences(instance.Spec.JsonSpec) {
 				refreshErr = hideDecodeErrorBody(refreshErr)
 			}
 			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
