@@ -2250,7 +2250,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: ecf83bd6de00637996dc95f99073702d
+    agent.datadoghq.com/agentspechash: 22544129f96d3c6085e66a40789558d5
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2376,7 +2376,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.85.4
+        image: gcr.io/datadoghq/agent:7.85.5
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2431,7 +2431,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.85.4
+        image: gcr.io/datadoghq/agent:7.85.5
         name: init-config
         resources: {}
         volumeMounts:
@@ -2460,7 +2460,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.85.4
+        image: gcr.io/datadoghq/agent:7.85.5
         name: init-copy-check-assets
         resources: {}
         securityContext:
