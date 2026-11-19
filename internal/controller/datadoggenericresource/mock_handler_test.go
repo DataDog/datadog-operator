@@ -57,6 +57,8 @@ func (h *MockHandler) deleteResource(context.Context, *v1alpha1.DatadogGenericRe
 	return mockDeleteErr
 }
 
+func (h *MockHandler) exposesLiveState() {}
+
 func (h *MockHandler) refreshState(context.Context, *v1alpha1.DatadogGenericResource) (*string, error) {
 	mockRefreshStateCalls++
 	if mockRefreshStateErr != nil {

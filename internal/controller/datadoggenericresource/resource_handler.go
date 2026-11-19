@@ -45,3 +45,9 @@ type remoteDefinitionHasher interface {
 	// updateResource, and returns the hash of the definition it now has.
 	updateResourceWithHash(auth context.Context, instance *v1alpha1.DatadogGenericResource) (string, error)
 }
+
+// liveStateHandler marks handlers whose refreshState polls live Datadog state.
+// Only these get the PollingDisabled state when state polling is disabled.
+type liveStateHandler interface {
+	exposesLiveState()
+}

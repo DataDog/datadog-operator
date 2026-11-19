@@ -58,6 +58,8 @@ func (h *SLOHandler) deleteResource(auth context.Context, instance *v1alpha1.Dat
 	return deleteSLO(auth, h.client, instance.Status.Id)
 }
 
+func (h *SLOHandler) exposesLiveState() {}
+
 func (h *SLOHandler) refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error) {
 	sloName, err := getSLONameFromSpec(instance)
 	if err != nil {

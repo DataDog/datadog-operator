@@ -80,6 +80,8 @@ type Reconciler struct {
 	operatorMetricsEnabled bool
 	forwarders             pkgutils.MetricsForwardersManager
 	requeuePeriod          time.Duration
+	// statePollingDisabled is inverted so the zero value keeps polling on.
+	statePollingDisabled bool
 }
 
 type ReconcilerOptions struct {
@@ -110,6 +112,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
 		requeuePeriod:          requeuePeriod(log, options.RequeuePeriod),
+		statePollingDisabled:   !ctrutils.StatePollingEnabledFromEnv(log),
 	}
 }
 
@@ -236,6 +239,15 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
+	// State polling can be disabled with DD_MONITOR_STATE_POLLING_ENABLED.
+	// Lifecycle and force-sync work above still run; only the refresh is skipped.
+	if r.statePollingDisabled {
+		shouldRefreshState = false
+		setStatePollingDisabled(now, newStatus)
+	} else {
+		removeMonitorCondition(newStatus, datadoghqv1alpha1.DatadogMonitorConditionTypeStateSynced)
+	}
+
 	if shouldRefreshState {
 		// State polling is eventual-consistency work, so its scheduled follow-up
 		// stays behind lifecycle and specification changes in the work queue.
@@ -331,7 +343,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	// default priority and can overtake this background work. Preserve a delay
 	// already set by an error path so lifecycle failures keep their short retry.
 	if result.RequeueAfter == 0 {
-		result.RequeueAfter = nextRequeueAfter(newStatus, now, r.requeuePeriod, forceSyncPeriod)
+		statePollingPeriod := r.requeuePeriod
+		if r.statePollingDisabled {
+			// Only force sync is scheduled, so wake up at its deadline.
+			statePollingPeriod = forceSyncPeriod
+		}
+		result.RequeueAfter = nextRequeueAfter(newStatus, now, statePollingPeriod, forceSyncPeriod)
 		if err == nil {
 			result.Priority = ptr.To(ctrlhandler.LowPriority)
 		}
@@ -457,6 +474,33 @@ func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv
 	convertStateToStatus(m, status, now)
 	status.MonitorStateLastUpdateTime = &now
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+}
+
+// setStatePollingDisabled replaces polled state with a sentinel so consumers
+// expecting a Datadog state notice that polling is off.
+func setStatePollingDisabled(now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
+	if status.MonitorState != ctrutils.StatePollingDisabledState {
+		status.MonitorStateLastTransitionTime = &now
+	}
+	status.MonitorState = ctrutils.StatePollingDisabledState
+	status.MonitorStateLastUpdateTime = nil
+	status.TriggeredState = nil
+	status.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
+
+	t := datadoghqv1alpha1.DatadogMonitorConditionTypeStateSynced
+	msg := fmt.Sprintf("Monitor state polling is disabled by %s", ctrutils.StatePollingEnabledEnvVar)
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == t {
+			condition.SetDatadogMonitorCondition(&status.Conditions[i], now, corev1.ConditionFalse, msg)
+			status.Conditions[i].Reason = ctrutils.StatePollingDisabledState
+			return
+		}
+	}
+	status.Conditions = append(status.Conditions, condition.NewDatadogMonitorCondition(t, corev1.ConditionFalse, now, ctrutils.StatePollingDisabledState, msg))
+}
+
+func removeMonitorCondition(status *datadoghqv1alpha1.DatadogMonitorStatus, t datadoghqv1alpha1.DatadogMonitorConditionType) {
+	status.Conditions = slices.DeleteFunc(status.Conditions, func(c datadoghqv1alpha1.DatadogMonitorCondition) bool { return c.Type == t })
 }
 
 func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, currentErr error, result ctrl.Result) (ctrl.Result, error) {

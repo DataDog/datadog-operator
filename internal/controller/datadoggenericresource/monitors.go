@@ -99,6 +99,8 @@ func (h *MonitorHandler) deleteResource(auth context.Context, instance *v1alpha1
 	return deleteMonitor(auth, h.client, instance.Status.Id)
 }
 
+func (h *MonitorHandler) exposesLiveState() {}
+
 // refreshState fetches the live Datadog-side state of the monitor.
 // The returned value mirrors the overall state reported by Datadog
 // (OK, Alert, Warn, No Data, Skipped, Ignored, Unknown). Per-group TriggeredState

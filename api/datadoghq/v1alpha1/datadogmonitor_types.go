@@ -310,6 +310,8 @@ const (
 	DatadogMonitorConditionTypeUpdated DatadogMonitorConditionType = "Updated"
 	// DatadogMonitorConditionTypeError means the DatadogMonitor has an error
 	DatadogMonitorConditionTypeError DatadogMonitorConditionType = "Error"
+	// DatadogMonitorConditionTypeStateSynced reports why the monitor state is not being polled
+	DatadogMonitorConditionTypeStateSynced DatadogMonitorConditionType = "StateSynced"
 )
 
 // DatadogMonitorState represents the overall DatadogMonitor state
