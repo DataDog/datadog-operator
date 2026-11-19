@@ -125,7 +125,8 @@ func claimingGroup(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkN
 // User groups are taken in list order, and a group is skipped on its own when its name can't name a Deployment, it
 // declares no checks, its name is taken, its runner image is older than 7.86, or it claims a check an earlier group
 // already claims. The core group claims the checks of its enabled features that no user group claims, and isn't
-// returned when none are left. A group named core in the annotation only sets the core group's override.
+// returned when none are left. A group named core in the annotation only sets the core group's override. A group whose
+// override sets disabled is left out, and its checks run where they would without it.
 func declaredGroups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Group, error) {
 	declared, err := annotationGroups(obj)
 	errs := []error{err}
@@ -143,6 +144,12 @@ func declaredGroups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Gr
 	names := map[string]struct{}{}
 	claimedBy := map[string]string{}
 	for _, group := range declared {
+		if group.Override != nil && apiutils.BoolValue(group.Override.Disabled) {
+			if group.Name == CoreGroupName {
+				coreEnabled = false
+			}
+			continue
+		}
 		if group.Name == CoreGroupName {
 			if !coreEnabled {
 				skip(group, "core is reserved for the built-in group, which is disabled")

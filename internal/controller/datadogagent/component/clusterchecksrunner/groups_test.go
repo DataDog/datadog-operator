@@ -138,6 +138,16 @@ func TestDeclaredGroups(t *testing.T) {
 			wantErr:     true,
 		},
 		{
+			name:        "a disabled group is left out and its checks fall back to core",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"ksm","checks":["kubernetes_state_core"],"override":{"disabled":true}},{"name":"kafka","checks":["kafka_consumer"]}]`},
+			want:        []Group{core(), kafka},
+		},
+		{
+			name:        "a disabled core entry turns off the built-in group",
+			annotations: map[string]string{coreKey: "true", groupsKey: `[{"name":"core","override":{"disabled":true}},{"name":"kafka","checks":["kafka_consumer"]}]`},
+			want:        []Group{kafka},
+		},
+		{
 			// "datadog-cluster-checks-runner-" is 30 characters, leaving 33 for the group name.
 			name:        "a name at the 63-character limit is kept",
 			annotations: map[string]string{groupsKey: `[{"name":"` + strings.Repeat("a", 33) + `","checks":["http_check"]}]`},
