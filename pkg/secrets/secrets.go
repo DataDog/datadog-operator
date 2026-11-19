@@ -30,10 +30,8 @@ var (
 )
 
 const (
-	// DefaultCmdOutputMaxSize is the maximum size of the secret backend output.
 	DefaultCmdOutputMaxSize = 1024 * 1024
-	// DefaultCmdTimeout is the secret backend command timeout.
-	DefaultCmdTimeout = 30 * time.Second
+	DefaultCmdTimeout       = 30 * time.Second
 
 	// PayloadVersion represents the version of the SB API
 	PayloadVersion = "1.0"
