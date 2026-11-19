@@ -7,7 +7,6 @@ package kubernetesstatecore
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -114,9 +112,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.useAPIServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
-		// Determine CollectControllerRevisions setting
-		// Default to true, then check version requirements
-		f.collectControllerRevisions = true
+		clusterCheckComponent := v2alpha1.ClusterAgentComponentName
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
@@ -125,43 +121,15 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
 			output.ClusterChecksRunner.IsRequired = new(true)
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
-
-			if ccrOverride, ok := ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
-				if ccrOverride.Image != nil {
-					agentVersion := common.GetAgentVersionFromImage(*ccrOverride.Image)
-
-					// CRD and APIService version checks
-					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion, nil) {
-						f.collectAPIServiceMetrics = false
-						f.collectCRDMetrics = false
-					}
-
-					// ControllerRevisions version check - enable if version supports it
-					fallback := false
-					if !utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-						f.collectControllerRevisions = false
-					}
-				}
-			}
-		} else {
-			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-				if clusterAgentOverride.Image != nil {
-					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
-
-					// CRD and APIService version checks
-					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion, nil) {
-						f.collectAPIServiceMetrics = false
-						f.collectCRDMetrics = false
-					}
-
-					// ControllerRevisions version check - enable if version supports it
-					fallback := false
-					if !utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-						f.collectControllerRevisions = false
-					}
-				}
-			}
+			clusterCheckComponent = v2alpha1.ClusterChecksRunnerComponentName
 		}
+
+		clusterCheckVersion := common.GetComponentVersionFromSpec(ddaSpec, clusterCheckComponent)
+		if !utils.IsAboveMinVersion(clusterCheckVersion, crdAPIServiceCollectionMinVersion, nil) {
+			f.collectAPIServiceMetrics = false
+			f.collectCRDMetrics = false
+		}
+		f.collectControllerRevisions = utils.IsAboveMinVersion(clusterCheckVersion, controllerRevisionsCollectionMinVersion, new(false))
 
 		// Capture the user-supplied custom config (if any) so PodCollectionMode
 		// resolution below can decide whether to mutate the cluster-side YAML.
@@ -190,18 +158,8 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			// Unparseable tags (`:dev`, custom registries, etc.) are assumed
 			// compatible — matches the existing pattern for the apiservices/CRD
 			// checks above.
-			componentsToCheck := []v2alpha1.ComponentName{v2alpha1.NodeAgentComponentName}
-			if f.runInClusterChecksRunner {
-				componentsToCheck = append(componentsToCheck, v2alpha1.ClusterChecksRunnerComponentName)
-			} else {
-				componentsToCheck = append(componentsToCheck, v2alpha1.ClusterAgentComponentName)
-			}
-			for _, comp := range componentsToCheck {
-				ovr, ok := ddaSpec.Override[comp]
-				if !ok || ovr == nil || ovr.Image == nil {
-					continue
-				}
-				agentVersion := common.GetAgentVersionFromImage(*ovr.Image)
+			for _, comp := range []v2alpha1.ComponentName{v2alpha1.NodeAgentComponentName, clusterCheckComponent} {
+				agentVersion := common.GetComponentVersionFromSpec(ddaSpec, comp)
 				if !utils.IsAboveMinVersion(agentVersion, podCollectionOnNodeMinVersion, nil) {
 					f.logger.Info(
 						"PodCollectionMode=node_kubelet requires agent >= 7.82; falling back to default",
@@ -237,17 +195,13 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				f.shardingEnabled = false
 			}
 
-			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgentOverride != nil {
-				if clusterAgentOverride.Image != nil {
-					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
-					if !utils.IsAboveMinVersion(agentVersion, ksmShardingMinVersion, nil) {
-						f.logger.Info(
-							"ShardingEnabled requires agent >= 7.83; falling back to default",
-							"version", agentVersion,
-						)
-						f.shardingEnabled = false
-					}
-				}
+			agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
+			if !utils.IsAboveMinVersion(agentVersion, ksmShardingMinVersion, nil) {
+				f.logger.Info(
+					"ShardingEnabled requires agent >= 7.83; falling back to default",
+					"version", agentVersion,
+				)
+				f.shardingEnabled = false
 			}
 		}
 
@@ -255,38 +209,12 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		// resourceslices and devicetaintrules collectors in a custom config.
 		// Fail closed: older or unparseable versions of the component running the check
 		// (Cluster Agent or Cluster Checks Runners) do not get the rule.
-		draComponent := v2alpha1.ClusterAgentComponentName
-		if f.runInClusterChecksRunner {
-			draComponent = v2alpha1.ClusterChecksRunnerComponentName
-		}
-		draFallback := false
-		f.draRBAC = utils.IsAboveMinVersion(draComponentVersion(dda, ddaSpec, draComponent), draCollectorsMinVersion, &draFallback)
+		f.draRBAC = utils.IsAboveMinVersion(clusterCheckVersion, draCollectorsMinVersion, new(false))
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
 
 	return output
-}
-
-// draComponentVersion returns the version of the image that runs the KSM check. An image
-// override that sets no tag, neither in the name nor in the tag field (for example one that
-// only sets pullPolicy or pullSecrets), keeps the bundled image tag when the image is
-// rendered (images.OverrideAgentImage), so it resolves to the component's bundled version.
-// An explicit tag is used as is, so an unparseable one still fails closed.
-func draComponentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, component v2alpha1.ComponentName) string {
-	if override, ok := ddaSpec.Override[component]; ok && override != nil && override.Image != nil && !imageSetsTag(*override.Image) {
-		if component == v2alpha1.ClusterAgentComponentName {
-			return images.ClusterAgentLatestVersion
-		}
-		return images.AgentLatestVersion
-	}
-	return common.GetComponentVersion(dda, component)
-}
-
-// imageSetsTag reports whether an image override sets a tag, in the name or in the tag
-// field. A registry port in the name does not count as a tag.
-func imageSetsTag(image v2alpha1.AgentImageConfig) bool {
-	return image.Tag != "" || strings.LastIndex(image.Name, ":") > strings.LastIndex(image.Name, "/")
 }
 
 type collectorOptions struct {

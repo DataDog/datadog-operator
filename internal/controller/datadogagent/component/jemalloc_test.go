@@ -13,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func TestJemallocEnvVarsAnnotation(t *testing.T) {
@@ -32,6 +34,7 @@ func TestJemallocEnvVarsAnnotation(t *testing.T) {
 }
 
 func TestJemallocEnvVarsVersionGate(t *testing.T) {
+	bundledImageSupported := utils.IsAboveMinVersion(images.AgentLatestVersion, "7.87.0-0", nil)
 	tests := []struct {
 		name        string
 		nodeImage   *v2alpha1.AgentImageConfig
@@ -39,8 +42,8 @@ func TestJemallocEnvVarsVersionGate(t *testing.T) {
 		wantNode    bool
 		wantRunner  bool
 	}{
-		{name: "default images"},
-		{name: "empty image configuration", nodeImage: &v2alpha1.AgentImageConfig{}, runnerImage: &v2alpha1.AgentImageConfig{}, wantNode: true, wantRunner: true},
+		{name: "default images", wantNode: bundledImageSupported, wantRunner: bundledImageSupported},
+		{name: "empty image configuration inherits bundled version", nodeImage: &v2alpha1.AgentImageConfig{}, runnerImage: &v2alpha1.AgentImageConfig{}, wantNode: bundledImageSupported, wantRunner: bundledImageSupported},
 		{name: "both too old", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.86.9"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.86.9"}},
 		{name: "minimum version", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}, wantNode: true, wantRunner: true},
 		{name: "minimum prerelease", nodeImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0-rc.1"}, runnerImage: &v2alpha1.AgentImageConfig{Tag: "7.87.0-rc.1"}, wantNode: true, wantRunner: true},
