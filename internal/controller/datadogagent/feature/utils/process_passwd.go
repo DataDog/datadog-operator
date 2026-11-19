@@ -23,17 +23,11 @@ const (
 	processHostPasswdMinVersion = "7.86.0-0"
 )
 
-// ProcessPasswdMountPath selects a process-specific destination without changing
-// shared security mounts or eligibility.
-// Like other version-gated features, the Agent version comes from the node Agent
-// image selected by the DatadogAgent (the shared common.GetComponentVersion: the node Agent
-// image override applied on top of the Operator's default Agent image).
-// Experimental per-container image annotations and container renames are not considered,
-// so in rare cases the mount can disagree with the running Agent in either direction.
-// The impact is limited to process usernames since an older Agent given /host/etc/passwd
-// falls back to image-local users, and a 7.86+ Agent given /etc/passwd behaves as before this change.
-// Windows needs no special case: the Windows pod transformation (stripLinuxMounts in
-// component/agent/windows.go) drops this mount whichever path is returned.
+// ProcessPasswdMountPath returns where process containers mount the host's /etc/passwd:
+// /host/etc/passwd for node Agent 7.86+, /etc/passwd otherwise. Like other version-gated
+// features, the version comes from common.GetComponentVersion, which ignores experimental
+// per-container image annotations and container renames. A mismatch only affects process
+// usernames. Windows needs no special case because stripLinuxMounts drops this mount.
 func ProcessPasswdMountPath(dda metav1.Object) string {
 	// TODO: GKE Autopilot keeps /etc/passwd until a published WorkloadAllowlist permits /host/etc/passwd.
 	if experimental.IsAutopilotEnabled(dda) {

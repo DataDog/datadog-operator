@@ -681,7 +681,7 @@ func (s *k8sSuite) assertProcessHostPasswd(c *assert.CollectT, pod corev1.Pod) {
 		return
 	}
 	assert.NotEmpty(c, status.HostInfo.Platform, "platform")
-	// The platform cannot tell the two files apart when the node runs the image's OS.
+	// The platform cannot tell the two files apart when the node's os-release ID matches the Agent image's.
 	if hostID != imageID {
 		assert.NotEqual(c, imageID, status.HostInfo.Platform, "platform from /host/etc/os-release, not the Agent image")
 	}
