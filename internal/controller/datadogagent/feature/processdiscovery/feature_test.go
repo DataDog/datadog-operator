@@ -28,9 +28,13 @@ import (
 )
 
 func Test_processDiscoveryFeature_Configure(t *testing.T) {
+	// Pin a pre-7.86 Agent so the expected passwd path does not change when the Operator's
+	// default Agent version is bumped.
+	preHostPasswdAgent := v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.85.0"}}
 	windowsProfile := testutils.NewDatadogAgentBuilder().
 		WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}).
 		WithProcessDiscoveryEnabled(true).
+		WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 		Build()
 	windowsProfile.Labels = map[string]string{constants.ProfileLabelKey: "windows"}
 
@@ -39,6 +43,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Name: "process discovery enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.PasswdMountPath),
@@ -53,6 +58,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		{
 			Name: "process discovery config missing",
 			DDA: testutils.NewDatadogAgentBuilder().
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.PasswdMountPath),
@@ -76,6 +82,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, common.PasswdMountPath),

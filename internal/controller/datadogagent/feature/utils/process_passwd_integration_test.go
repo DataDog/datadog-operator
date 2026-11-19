@@ -208,7 +208,10 @@ func assertProcessPasswdMounts(t *testing.T, pod *corev1.PodTemplateSpec, expect
 					assert.Equal(t, expectedPath, mount.MountPath)
 				}
 			case common.OSReleaseFileVolumeName:
-				osReleaseMounts++
+				// CWS mounts os-release in system-probe; only count the process containers.
+				if container.Name != string(apicommon.SystemProbeContainerName) {
+					osReleaseMounts++
+				}
 				assert.True(t, mount.ReadOnly)
 				assert.Equal(t, common.OSReleaseFileMountPath, mount.MountPath)
 			case common.GroupVolumeName:

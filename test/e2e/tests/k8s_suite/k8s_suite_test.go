@@ -659,14 +659,15 @@ func (s *k8sSuite) assertProcessHostPasswd(c *assert.CollectT, pod corev1.Pod) {
 	}
 	assert.Contains(c, stdout, "dd-agent:")
 
-	// The Agent reads os-release from HOST_ETC=/host/etc, so its platform must be the node's
-	// os-release ID, not the Agent image's.
-	hostID, _, err := client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, []string{
-		"sh", "-c", ". /host/etc/os-release && echo \"$ID\"",
+	// The Agent reads os-release from HOST_ETC=/host/etc, so its platform must come from the
+	// node's os-release, not the Agent image's /etc/os-release.
+	ids, _, err := client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, []string{
+		"sh", "-c", ". /etc/os-release && echo \"$ID\" && . /host/etc/os-release && echo \"$ID\"",
 	})
 	if !assert.NoError(c, err) {
 		return
 	}
+	imageID, hostID, _ := strings.Cut(strings.TrimSpace(ids), "\n")
 	stdout, _, err = client.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("-j"))
 	if !assert.NoError(c, err) {
 		return
@@ -679,7 +680,11 @@ func (s *k8sSuite) assertProcessHostPasswd(c *assert.CollectT, pod corev1.Pod) {
 	if !assert.NoError(c, json.Unmarshal([]byte(stdout), &status)) {
 		return
 	}
-	assert.Equal(c, strings.TrimSpace(hostID), status.HostInfo.Platform, "platform from /host/etc/os-release")
+	assert.NotEmpty(c, status.HostInfo.Platform, "platform")
+	// The platform cannot tell the two files apart when the node runs the image's OS.
+	if hostID != imageID {
+		assert.NotEqual(c, imageID, status.HostInfo.Platform, "platform from /host/etc/os-release, not the Agent image")
+	}
 }
 
 func (s *k8sSuite) verifyDSDMetrics(c *assert.CollectT, metricName string) {

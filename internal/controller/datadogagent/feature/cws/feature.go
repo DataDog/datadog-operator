@@ -349,7 +349,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	volMgr.AddVolume(&groupVol)
 
 	// osRelease volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := common.GetVolumeForOSRelease(), common.GetVolumeMountForOSRelease()
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 

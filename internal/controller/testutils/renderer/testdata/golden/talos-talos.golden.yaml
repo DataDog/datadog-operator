@@ -1407,7 +1407,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 38c872171d95bdb8b014531abdeefb4d
+    agent.datadoghq.com/agentspechash: b401c721dbf4c26083effef0087503bf
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1885,7 +1885,7 @@ spec:
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
         - mountPath: /host/etc/os-release
-          name: host-osrelease
+          name: os-release-file
           readOnly: true
         - mountPath: /sys/kernel/tracing
           name: tracefs
@@ -2131,9 +2131,6 @@ spec:
         name: debugfs
       - emptyDir: {}
         name: sysprobe-socket-dir
-      - hostPath:
-          path: /etc/os-release
-        name: host-osrelease
       - hostPath:
           path: /sys/kernel/tracing
         name: tracefs

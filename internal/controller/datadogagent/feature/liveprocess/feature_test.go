@@ -28,9 +28,13 @@ import (
 )
 
 func Test_liveProcessFeature_Configure(t *testing.T) {
+	// Pin a pre-7.86 Agent so the expected passwd path does not change when the Operator's
+	// default Agent version is bumped.
+	preHostPasswdAgent := v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.85.0"}}
 	windowsProfile := testutils.NewDatadogAgentBuilder().
 		WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}).
 		WithLiveProcessEnabled(true).
+		WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 		Build()
 	windowsProfile.Labels = map[string]string{constants.ProfileLabelKey: "windows"}
 
@@ -46,6 +50,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Name: "live process collection enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false, common.PasswdMountPath),
@@ -55,6 +60,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithLiveProcessScrubStrip(true, true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, true, common.PasswdMountPath),
@@ -78,6 +84,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, false, common.PasswdMountPath),
