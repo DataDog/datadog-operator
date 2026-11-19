@@ -4,10 +4,14 @@ core,dario.cat/mergo,BSD-3-Clause
 core,github.com/Azure/go-ansiterm,MIT
 core,github.com/BurntSushi/toml,MIT
 core,github.com/DataDog/agent-payload/v5/healthplatform,BSD-3-Clause
+core,github.com/DataDog/datadog-agent/comp/api/api/def,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/core/delegatedauth,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/core/flare/builder,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/core/flare/types,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/core/secrets/def,Apache-2.0
+core,github.com/DataDog/datadog-agent/comp/core/secrets/impl,Apache-2.0
+core,github.com/DataDog/datadog-agent/comp/core/secrets/utils,Apache-2.0
+core,github.com/DataDog/datadog-agent/comp/core/status,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/core/tagger/origindetection,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/core/telemetry,Apache-2.0
 core,github.com/DataDog/datadog-agent/comp/def,Apache-2.0
@@ -28,6 +32,7 @@ core,github.com/DataDog/datadog-agent/pkg/obfuscate,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/opentelemetry-mapping-go/otlp/attributes,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/proto,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/remoteconfig/state,Apache-2.0
+core,github.com/DataDog/datadog-agent/pkg/template,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/trace,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/trace/log,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/trace/stats,Apache-2.0
@@ -37,6 +42,7 @@ core,github.com/DataDog/datadog-agent/pkg/util/cache,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/defaultpaths,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/executable,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/filesystem,Apache-2.0
+core,github.com/DataDog/datadog-agent/pkg/util/flavor,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/grpc,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/http,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/log,Apache-2.0

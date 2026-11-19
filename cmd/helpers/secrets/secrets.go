@@ -64,9 +64,15 @@ func readSecrets(r io.Reader, w io.Writer, dir string) error {
 		return errors.New("no secrets listed in input")
 	}
 
+	// A missing directory is reported per secret, like a missing file.
+	root, rootErr := os.OpenRoot(dir)
+	if rootErr == nil {
+		defer root.Close()
+	}
+
 	response := map[string]s.Secret{}
 	for _, name := range request.Secrets {
-		response[name] = readSecret(filepath.Join(dir, name))
+		response[name] = readSecret(root, rootErr, name)
 	}
 
 	out, err := json.Marshal(response)
@@ -81,8 +87,14 @@ func splitVersion(ver string) []string {
 	return strings.SplitN(ver, ".", 2)
 }
 
-func readSecret(path string) s.Secret {
-	value, err := readSecretFile(path)
+func readSecret(root *os.Root, rootErr error, name string) s.Secret {
+	value, err := "", rootErr
+	if err == nil {
+		value, err = readSecretFile(root, name)
+	}
+	if os.IsNotExist(err) {
+		err = errors.New("secret does not exist")
+	}
 	var errMsg string
 	if err != nil {
 		errMsg = err.Error()
@@ -90,60 +102,39 @@ func readSecret(path string) s.Secret {
 	return s.Secret{Value: value, ErrorMsg: errMsg}
 }
 
-func readSecretFile(path string) (string, error) {
-	fi, err := os.Lstat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", errors.New("secret does not exist")
-		}
-		return "", err
-	}
-
-	if fi.Mode()&os.ModeSymlink != 0 {
-		// Ensure that the symlink is in the same dir
-		var target string
-		target, err = os.Readlink(path)
-		if err != nil {
-			return "", fmt.Errorf("failed to read symlink target: %w", err)
-		}
-
-		dir := filepath.Dir(path)
-		if !filepath.IsAbs(target) {
-			target, err = filepath.Abs(filepath.Join(dir, target))
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve symlink absolute path: %w", err)
-			}
-		}
-
-		var dirAbs string
-		dirAbs, err = filepath.Abs(dir)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve absolute path of directory: %w", err)
-		}
-
-		if !strings.HasPrefix(target, dirAbs) {
-			return "", fmt.Errorf("not following symlink %q outside of %q", target, dir)
-		}
-	}
-	fi, err = os.Stat(path)
+// readSecretFile follows symlinks only within the configured directory.
+func readSecretFile(root *os.Root, name string) (string, error) {
+	file, err := root.Open(resolveInside(root.Name(), name))
 	if err != nil {
 		return "", err
 	}
+	defer file.Close()
 
-	if fi.Size() > maxSecretFileSize {
+	value, err := io.ReadAll(io.LimitReader(file, maxSecretFileSize+1))
+	if err != nil {
+		return "", err
+	}
+	if len(value) > maxSecretFileSize {
 		return "", errors.New("secret exceeds max allowed size")
 	}
+	return string(value), nil
+}
 
-	var file *os.File
-	file, err = os.Open(path)
+// resolveInside returns name with its symlinks resolved when the result stays inside
+// dir, so absolute symlinks work too (root only follows relative ones). Otherwise it
+// returns name unchanged, and root rejects escapes.
+func resolveInside(dir, name string) string {
+	realDir, err := filepath.EvalSymlinks(dir)
 	if err != nil {
-		return "", err
+		return name
 	}
-
-	var bytes []byte
-	bytes, err = io.ReadAll(file)
+	resolved, err := filepath.EvalSymlinks(filepath.Join(dir, name))
 	if err != nil {
-		return "", err
+		return name
 	}
-	return string(bytes), nil
+	rel, err := filepath.Rel(realDir, resolved)
+	if err != nil || !filepath.IsLocal(rel) {
+		return name
+	}
+	return rel
 }
