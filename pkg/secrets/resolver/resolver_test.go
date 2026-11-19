@@ -130,6 +130,15 @@ func TestResolveJSONTopLevelArray(t *testing.T) {
 	assert.JSONEq(t, `["DUMMYPASSWORD", 1]`, res.JSON)
 }
 
+func TestResolveJSONEscapedReference(t *testing.T) {
+	in := `{"p": "\u0045NC[prod/password]"}`
+	assert.True(t, HasReferences(in))
+	r, _ := newTestResolver(t)
+	res, err := r.ResolveJSON(in, "origin", "ns")
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"p": "DUMMYPASSWORD"}`, res.JSON)
+}
+
 func TestResolveJSONValueLooksLikeReference(t *testing.T) {
 	r, _ := newTestResolver(t)
 	res, err := r.ResolveJSON(`{"v": "ENC[ns/looks;enc]"}`, "origin", "ns")

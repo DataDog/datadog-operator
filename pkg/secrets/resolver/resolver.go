@@ -82,9 +82,6 @@ func New(params secrets.ConfigParams, configErr error) *Resolver {
 
 // HasReferences reports whether jsonSpec contains whole-string secret references.
 func HasReferences(jsonSpec string) bool {
-	if !strings.Contains(jsonSpec, "ENC[") {
-		return false
-	}
 	tree, ok := decode(jsonSpec)
 	return ok && len(findHandles(tree)) > 0
 }
@@ -92,9 +89,6 @@ func HasReferences(jsonSpec string) bool {
 // ResolveJSON replaces references in jsonSpec with their values. Errors name handles, never values.
 func (r *Resolver) ResolveJSON(jsonSpec, origin, namespace string) (Result, error) {
 	unchanged := Result{JSON: jsonSpec}
-	if !strings.Contains(jsonSpec, "ENC[") {
-		return unchanged, nil
-	}
 	// Invalid JSON is left for the caller to report.
 	tree, ok := decode(jsonSpec)
 	if !ok {
