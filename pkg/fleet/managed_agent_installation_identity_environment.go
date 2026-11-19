@@ -11,6 +11,7 @@ type managedAgentInstallationIdentityLoader func() (ManagedAgentInstallationIden
 
 var managedAgentInstallationIdentityLoaders = []managedAgentInstallationIdentityLoader{
 	loadEKSManagedAgentInstallationIdentity,
+	loadGenericManagedAgentInstallationIdentity,
 }
 
 func ManagedAgentInstallationIdentityFromEnvironment() (ManagedAgentInstallationIdentity, error) {

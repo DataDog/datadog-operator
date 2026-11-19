@@ -49,6 +49,7 @@ func HasDeprecatedAnnotations(annotations map[string]string) bool {
 
 type hostProfilerFeature struct {
 	owner                   metav1.Object
+	spec                    *v2alpha1.DatadogAgentSpec
 	hostPIDDisabledManually bool
 	seccompEnabled          bool
 	loggingSeccomp          bool
@@ -81,6 +82,7 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
+	o.spec = ddaSpec
 
 	// Warn before the early return below, so that users who disabled the feature through the
 	// spec still hear about annotations that are left over.
@@ -274,7 +276,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	// agent_ipc env vars for config sync with the core agent, required to fetch
 	// the API key when a secrets backend is used.
-	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(common.GetComponentVersion(o.owner, v2alpha1.NodeAgentComponentName))
+	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(o.spec)
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
 		for _, envVar := range agentIpcEnvVars {
 			managers.EnvVar().AddEnvVarToContainer(container, envVar)

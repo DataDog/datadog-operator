@@ -40,6 +40,7 @@ type expectedEnvVars struct {
 	extensionTimeout     expectedEnvVar
 	extensionURL         expectedEnvVar
 	converter_features   expectedEnvVar
+	gateway_daemonset    expectedEnvVar
 	installation_method  expectedEnvVar
 }
 
@@ -271,7 +272,11 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					extensionURL:     expectedEnvVar{},
 					converter_features: expectedEnvVar{
 						present: true,
-						value:   "health_check,zpages,pprof,ddflare",
+						value:   "health_check,zpages,pprof,ddflare,cumulativetodelta",
+					},
+					gateway_daemonset: expectedEnvVar{
+						present: true,
+						value:   "true",
 					},
 					installation_method: expectedEnvVar{
 						present: true,
@@ -311,7 +316,11 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					extensionURL:     expectedEnvVar{},
 					converter_features: expectedEnvVar{
 						present: true,
-						value:   "health_check,zpages,pprof,ddflare",
+						value:   "health_check,zpages,pprof,ddflare,cumulativetodelta",
+					},
+					gateway_daemonset: expectedEnvVar{
+						present: true,
+						value:   "true",
 					},
 					installation_method: expectedEnvVar{
 						present: true,
@@ -702,6 +711,13 @@ func testExpectedAgent(
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
 					Name:  DDOtelCollectorConverterFeatures,
 					Value: expectedEnvVars.converter_features.value,
+				})
+			}
+
+			if expectedEnvVars.gateway_daemonset.present {
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDOtelCollectorGatewayDaemonSet,
+					Value: expectedEnvVars.gateway_daemonset.value,
 				})
 			}
 

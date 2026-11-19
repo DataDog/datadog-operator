@@ -21,7 +21,6 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -64,16 +63,6 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
-// runnerAgentVersion returns the Agent version the node runner container runs.
-func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	image := images.GetLatestAgentImage()
-	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
-		image = images.OverrideAgentImage(image, override.Image)
-	}
-	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
-	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
-}
-
 // kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
 // because Kubernetes Actions communicates through it. Leave the identity secret name to the
 // Agent so switching between Kubernetes Actions and annotation-based config reuses the identity.
@@ -88,7 +77,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
-		version := runnerAgentVersion(dda, ddaSpec)
+		version := experimental.ResolveComponentContainerVersion(dda, ddaSpec, v2alpha1.NodeAgentComponentName, apicommon.PrivateActionRunnerContainerName)
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
 		f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
 		if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
@@ -376,7 +365,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// os-release volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := common.GetVolumeForOSRelease(), common.GetVolumeMountForOSRelease()
 	managers.Volume().AddVolume(&osReleaseVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
 

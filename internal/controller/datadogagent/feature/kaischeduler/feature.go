@@ -64,7 +64,7 @@ func (f *kaiSchedulerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 		return reqComp
 	}
 
-	if utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.ClusterAgentComponentName), kaiSchedulerMinVersion, nil) {
+	if utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), kaiSchedulerMinVersion, nil) {
 		f.clusterAgentEnabled = true
 		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
@@ -74,7 +74,7 @@ func (f *kaiSchedulerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 
 	if ddaSpec.Features != nil && ddaSpec.Features.GPU != nil && apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
-		if utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), kaiSchedulerMinVersion, nil) {
+		if utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), kaiSchedulerMinVersion, nil) {
 			f.gpuEnabled = true
 			reqComp.Agent.IsRequired = new(true)
 			reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}

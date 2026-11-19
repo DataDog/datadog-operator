@@ -51,6 +51,7 @@ func buildCSPMFeature(options *feature.Options) feature.Feature {
 
 type cspmFeature struct {
 	enable                    bool
+	spec                      *v2alpha1.DatadogAgentSpec
 	serviceAccountName        string
 	checkInterval             string
 	hostBenchmarksEnabled     bool
@@ -83,6 +84,7 @@ func (f *cspmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapab
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+	f.spec = ddaSpec
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(ddaSpec, ddaRCStatus)
@@ -112,7 +114,7 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 		if cspmConfig.RunInSystemProbe == nil {
 			// Written back to the spec, as the system-probe seccomp profile reads it from there.
-			cspmConfig.RunInSystemProbe = new(agentSupportsRunInSystemProbe(dda))
+			cspmConfig.RunInSystemProbe = new(agentSupportsRunInSystemProbe(ddaSpec))
 		}
 		f.runInSystemProbe = *cspmConfig.RunInSystemProbe
 
@@ -160,9 +162,9 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // agentSupportsRunInSystemProbe reports whether the node Agent is recent enough to run the compliance
 // checks in the system-probe. A version the Operator cannot parse is assumed recent enough.
-func agentSupportsRunInSystemProbe(dda metav1.Object) bool {
+func agentSupportsRunInSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	defaultIfVersionUnknown := true
-	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), runInSystemProbeMinVersion, &defaultIfVersionUnknown)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), runInSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -388,7 +390,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	if f.runInSystemProbe {
 		// The system-probe submits the compliance payloads itself and cannot resolve a
 		// secret-backed api_key on its own, so it needs config sync to get the resolved value.
-		featureutils.EnableConfigSyncForDirectSend(managers, f.owner, []apicommon.AgentContainerName{
+		featureutils.EnableConfigSyncForDirectSend(managers, f.spec, []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		})

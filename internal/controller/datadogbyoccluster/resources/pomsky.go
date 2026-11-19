@@ -93,6 +93,10 @@ const (
 	envQuickwitLogFormat                    = "QW_LOG_FORMAT"
 	envQuickwitRandomSplitPrefix            = "QW_RANDOM_SPLIT_PREFIX"
 	envQuickwitOpenTelemetryExporter        = "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER"
+	envQuickwitLocalityAwareScheduling      = "QW_ENABLE_LOCALITY_AWARE_SCHEDULING"
+	envQuickwitInMemoryIndexing             = "QW_ENABLE_IN_MEMORY_INDEXING"
+	envQuickwitIndexingMaxWriteThroughput   = "QW_INDEXING_MAX_WRITE_THROUGHPUT"
+	envQuickwitDisableLoadEstimation        = "QW_DISABLE_LOAD_ESTIMATION"
 
 	envCloudPremDogstatsdHost     = "CP_DOGSTATSD_SERVER_HOST"
 	envCloudPremDogstatsdPort     = "CP_DOGSTATSD_SERVER_PORT"
@@ -116,7 +120,12 @@ const (
 	envImageName                      = "IMAGE_NAME"
 	envImageTag                       = "IMAGE_TAG"
 
-	envPipelineDestinationEndpoint = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
+	envPipelineDestinationEndpoint       = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
+	envPipelineDestinationTracesEndpoint = "DD_OP_DESTINATION_DATADOG_BYOC_TRACES_ENDPOINT_URL"
+
+	// byocTracesPath is the BYOC indexer's traces route;
+	// the OPW destination uses the env value verbatim as its sink URI.
+	byocTracesPath = "/api/datadog/v1/byoc/traces"
 )
 
 const (
@@ -127,6 +136,8 @@ const (
 	telemetryMetricsTemporality = "delta"
 	telemetryTracesSampler      = "parentbased_traceidratio"
 	telemetryTracesSamplerRatio = "0.2"
+	// The CloudPrem Helm chart sizing map caps the indexer write throughput at 12.5MiB/s per core.
+	indexingMaxWriteThroughputMiBPerCore = 12.5
 )
 
 // defaultNodeConfig returns the node configuration defaults that do not depend on the cluster spec.
@@ -151,6 +162,7 @@ func defaultNodeConfig() map[string]any {
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 		},
+		quickwitMetastoreConfigKey:  map[string]any{quickwitPostgresConfigKey: map[string]any{"min_connections": 10}},
 		quickwitIndexerServiceName:  map[string]any{"split_store_max_num_splits": 10000},
 		quickwitSearcherServiceName: map[string]any{"aggregation_memory_limit": "500M"},
 	}

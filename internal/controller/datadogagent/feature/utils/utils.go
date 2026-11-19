@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -91,13 +90,7 @@ const (
 )
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	// Agent version must >= 7.60.0 to run feature in core agent
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessConfigRunInCoreAgentMinVersion, nil)
-		}
-	}
-	return utils.IsAboveMinVersion(images.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion, nil)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), ProcessConfigRunInCoreAgentMinVersion, nil)
 }
 
 // ShouldRunProcessChecksInCoreAgent determines whether process checks should run in the core agent
@@ -139,12 +132,7 @@ func GetFeatureConfigAnnotation(dda metav1.Object, annotation string) (string, b
 // natively disables Core DogStatsD when data_plane.enabled + data_plane.dogstatsd.enabled are true.
 // For older agents the Operator must set DD_USE_DOGSTATSD=false explicitly.
 func AgentSupportsADPDogstatsdDelegation(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ADPDogstatsdDelegationMinVersion, nil)
-		}
-	}
-	return utils.IsAboveMinVersion(images.AgentLatestVersion, ADPDogstatsdDelegationMinVersion, nil)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), ADPDogstatsdDelegationMinVersion, nil)
 }
 
 // IsDataPlaneEnabled returns true if the Data Plane is enabled.
@@ -166,15 +154,13 @@ func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, d
 	return defaultEnabled && AgentSupportsDefaultDataPlane(ddaSpec)
 }
 
-// AgentSupportsDefaultDataPlane returns whether the selected Agent image supports the Operator-level Data Plane default.
+// AgentSupportsDefaultDataPlane checks the Agent image selected by the spec.
+// The experimental per-container image override can later replace that image.
 // Unlike other version checks in this file, an unparseable version defaults to false: this gates an
 // implicit, Operator-level default rather than an explicit user opt-in, so an unknown Agent version
 // must not silently enable the Data Plane.
 func AgentSupportsDefaultDataPlane(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent != nil && nodeAgent.Image != nil {
-		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), DefaultDataPlaneMinAgentVersion, new(bool))
-	}
-	return utils.IsAboveMinVersion(images.AgentLatestVersion, DefaultDataPlaneMinAgentVersion, new(bool))
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), DefaultDataPlaneMinAgentVersion, new(false))
 }
 
 // IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
@@ -199,12 +185,12 @@ func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, platformI
 // AgentIPCConfigSyncEnvVars returns the agent_ipc env vars that config sync
 // requires: the unix socket transport on agents that support it, the TCP port
 // otherwise.
-func AgentIPCConfigSyncEnvVars(agentVersion string) []*corev1.EnvVar {
+func AgentIPCConfigSyncEnvVars(ddaSpec *v2alpha1.DatadogAgentSpec) []*corev1.EnvVar {
 	transportEnvVar := &corev1.EnvVar{
 		Name:  common.DDAgentIpcPort,
 		Value: DefaultAgentIpcPort,
 	}
-	if utils.IsAboveMinVersion(agentVersion, AgentIPCUnixSocketMinVersion, nil) {
+	if utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), AgentIPCUnixSocketMinVersion, nil) {
 		transportEnvVar = &corev1.EnvVar{
 			Name:  common.DDAgentIpcUseSocket,
 			Value: "true",
@@ -220,9 +206,9 @@ func AgentIPCConfigSyncEnvVars(agentVersion string) []*corev1.EnvVar {
 // on the given containers: with direct send, system-probe cannot resolve an ENC[...]
 // api_key itself and needs the value resolved by the core agent. Values match the
 // otelcollector and hostprofiler features; user-provided values win.
-func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, dda metav1.Object, containers []apicommon.AgentContainerName) {
+func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, containers []apicommon.AgentContainerName) {
 	keepCurrent := func(current, _ *corev1.EnvVar) (*corev1.EnvVar, error) { return current, nil }
-	for _, envVar := range AgentIPCConfigSyncEnvVars(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)) {
+	for _, envVar := range AgentIPCConfigSyncEnvVars(ddaSpec) {
 		for _, container := range containers {
 			managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, envVar, keepCurrent)
 		}
@@ -249,18 +235,6 @@ func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // Actions feature, through both Remote Configuration and the Private Action Runner.
 const KubernetesActionsMinVersion = "7.84.0-0"
 
-// ClusterAgentVersion returns the Cluster Agent version from the image override, or the
-// latest supported version when the image is not overridden.
-func ClusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	if ddaSpec == nil {
-		return images.AgentLatestVersion
-	}
-	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
-		return common.GetAgentVersionFromImage(*clusterAgent.Image)
-	}
-	return images.AgentLatestVersion
-}
-
 // IsKubernetesActionsPARRequested returns whether the DatadogAgent asks for Kubernetes Actions to be
 // delivered through the Cluster Agent Private Action Runner, regardless of the Cluster Agent version.
 // Defaults to true when unset.
@@ -283,5 +257,5 @@ func IsKubernetesActionsPARRequested(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // Agent supports Kubernetes Actions.
 func IsKubernetesActionsPAREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return IsKubernetesActionsPARRequested(ddaSpec) &&
-		utils.IsAboveMinVersion(ClusterAgentVersion(ddaSpec), KubernetesActionsMinVersion, nil)
+		utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), KubernetesActionsMinVersion, nil)
 }

@@ -60,7 +60,7 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 		return reqComp
 	}
 
-	dcaVersion := featureutils.ClusterAgentVersion(ddaSpec)
+	dcaVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
 	if !utils.IsAboveMinVersion(dcaVersion, featureutils.KubernetesActionsMinVersion, nil) {
 		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", featureutils.KubernetesActionsMinVersion)
 		return reqComp

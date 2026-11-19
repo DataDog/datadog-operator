@@ -23,14 +23,11 @@ import (
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-func newDatadogAgentWithNodeAgentVersion(tag string) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{Name: "dda"},
-		Spec: v2alpha1.DatadogAgentSpec{
-			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Tag: tag},
-				},
+func newDatadogAgentSpecWithNodeAgentVersion(tag string) *v2alpha1.DatadogAgentSpec {
+	return &v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {
+				Image: &v2alpha1.AgentImageConfig{Tag: tag},
 			},
 		},
 	}
@@ -103,6 +100,16 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 	}{
 		{name: "runtime default disabled", spec: &v2alpha1.DatadogAgentSpec{}},
 		{name: "runtime default enables current default Agent image at or above minimum version", spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true, want: true},
+		{
+			name: "pull policy override inherits the compatible bundled Agent version",
+			spec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)}},
+				},
+			},
+			defaultEnabled: true,
+			want:           true,
+		},
 		{name: "runtime default does not enable older pinned Agent image", spec: withNodeAgentImage("7.83.0"), defaultEnabled: true},
 		{name: "runtime default enables compatible pinned Agent image", spec: withNodeAgentImage("7.84.0"), defaultEnabled: true, want: true},
 		{name: "runtime default enables compatible pinned Agent RC image", spec: withNodeAgentImage("7.84.0-rc.1"), defaultEnabled: true, want: true},
@@ -142,7 +149,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	t.Run("sets both env vars on every container", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		EnableConfigSyncForDirectSend(managers, &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "dda"}}, containers)
+		EnableConfigSyncForDirectSend(managers, &v2alpha1.DatadogAgentSpec{}, containers)
 
 		want := []*corev1.EnvVar{
 			defaultAgentIPCEnvVars(),
@@ -156,7 +163,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	t.Run("uses the unix socket on agents that support it", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.87.0"), containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentSpecWithNodeAgentVersion("7.87.0"), containers)
 
 		want := []*corev1.EnvVar{
 			{Name: common.DDAgentIpcUseSocket, Value: "true"},
@@ -170,7 +177,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	t.Run("falls back to the port on agents without unix socket support", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.86.0"), containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentSpecWithNodeAgentVersion("7.86.0"), containers)
 
 		want := []*corev1.EnvVar{
 			{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
@@ -186,7 +193,7 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 		userSocket := &corev1.EnvVar{Name: common.DDAgentIpcUseSocket, Value: "false"}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, userSocket)
 
-		EnableConfigSyncForDirectSend(managers, newDatadogAgentWithNodeAgentVersion("7.87.0"), containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentSpecWithNodeAgentVersion("7.87.0"), containers)
 
 		want := []*corev1.EnvVar{
 			userSocket,
@@ -211,12 +218,6 @@ func kubernetesActionsSpec(enabled bool, communication *v2alpha1.KubernetesActio
 		}
 	}
 	return spec
-}
-
-func TestClusterAgentVersion(t *testing.T) {
-	assert.Equal(t, images.AgentLatestVersion, ClusterAgentVersion(nil))
-	assert.Equal(t, images.AgentLatestVersion, ClusterAgentVersion(&v2alpha1.DatadogAgentSpec{}))
-	assert.Equal(t, "7.82.0", ClusterAgentVersion(kubernetesActionsSpec(true, nil, "7.82.0")))
 }
 
 func TestIsKubernetesActionsRCEnabled(t *testing.T) {
