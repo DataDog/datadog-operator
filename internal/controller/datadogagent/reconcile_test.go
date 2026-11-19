@@ -1371,7 +1371,9 @@ func Test_otelImageTags(t *testing.T) {
 
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
+				// A Name override is agent-specific and must not switch the otel-agent off its
+				// ddot-collector image; it stays on the default collector image.
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1396,7 +1398,9 @@ func Test_otelImageTags(t *testing.T) {
 
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
+				// A Name override (even one that embeds a tag) is agent-specific; the otel-agent
+				// stays on the default ddot-collector image.
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1412,17 +1416,22 @@ func Test_otelImageTags(t *testing.T) {
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantFunc: func(t *testing.T, c client.Client) {
+				// The name's latest tag takes precedence, so service discovery defaults to enabled.
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
+					string(apicommon.SystemProbeContainerName),
 				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.OtelAgent].Image)
+				// Fully-qualified Name override is agent-specific; the otel-agent stays on the
+				// default ddot-collector image.
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.SystemProbeContainerName].Image)
 
 			},
 		},

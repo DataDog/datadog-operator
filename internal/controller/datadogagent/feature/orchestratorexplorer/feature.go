@@ -136,11 +136,9 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 	reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	// Process Agent is not required as of agent version 7.51.0
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion, nil) {
-			f.processAgentRequired = true
-			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
-		}
+	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), NoProcessAgentMinVersion, nil) {
+		f.processAgentRequired = true
+		reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
 	}
 	reqComp.Agent.Containers = reqContainers
 

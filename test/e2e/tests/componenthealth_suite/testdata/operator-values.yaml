@@ -20,5 +20,10 @@ env:
     value: "true"
   - name: DD_COMPONENT_HEALTH_SNAPSHOT_INTERVAL
     value: "30s"
+  # Shorten the resolve grace period (default 5m) so the RESOLVED assertion fits
+  # within resolveTimeout; the suite remediates to a stable healthy state, so a
+  # short debounce is sufficient here.
+  - name: DD_COMPONENT_HEALTH_RESOLVE_GRACE_PERIOD
+    value: "30s"
   - name: DD_AGENT_WATCH_NAMESPACE
     value: "${NAMESPACE}"

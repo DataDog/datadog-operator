@@ -25,78 +25,8 @@ func TestValidateClusterSpec(t *testing.T) {
 		want []string
 	}{
 		{
-			name: "release tag",
+			name: "no image overrides",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: nil,
-		},
-
-		{
-			name: "release digest",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Digest: ptr.To("sha512:custom"),
-				},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: nil,
-		},
-
-		{
-			name: "no release or overrides",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: []string{
-				"spec: release or imageOverrides must be specified",
-			},
-		},
-
-		{
-			name: "release with neither version",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: []string{
-				"spec.release: exactly one of tag or digest must be specified",
-			},
-		},
-
-		{
-			name: "release with both versions",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag:    ptr.To("v1"),
-					Digest: ptr.To("sha256:custom"),
-				},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: []string{
-				"spec.release: exactly one of tag or digest must be specified",
-			},
-		},
-
-		{
-			name: "release uses field presence",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To(""),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -106,11 +36,7 @@ func TestValidateClusterSpec(t *testing.T) {
 
 		{
 			name: "missing provider",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
-			},
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{},
 			want: []string{
 				"spec.provider.aws: at least one provider must be specified",
 			},
@@ -119,9 +45,6 @@ func TestValidateClusterSpec(t *testing.T) {
 		{
 			name: "empty provider",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{},
 			},
 			want: []string{
@@ -130,43 +53,8 @@ func TestValidateClusterSpec(t *testing.T) {
 		},
 
 		{
-			name: "empty overrides without release are rejected",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				ImageOverrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: []string{
-				"spec.imageOverrides.byoc: image must be fully specified when release is omitted",
-				"spec.imageOverrides.observabilityPipelinesWorker: image must be fully specified when release is omitted",
-			},
-		},
-
-		{
-			name: "partial override without release is rejected",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				ImageOverrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
-					BYOC: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-						Repository: ptr.To("registry.example/byoc"),
-					},
-				},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-			},
-			want: []string{
-				"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted",
-				"spec.imageOverrides.observabilityPipelinesWorker: image must be fully specified when release is omitted",
-			},
-		},
-
-		{
 			name: "tag and digest in both overrides",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -188,11 +76,8 @@ func TestValidateClusterSpec(t *testing.T) {
 		},
 
 		{
-			name: "partial overrides with release",
+			name: "partial overrides",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -209,54 +94,8 @@ func TestValidateClusterSpec(t *testing.T) {
 		},
 
 		{
-			name: "fully specified images without release",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-				ImageOverrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
-					BYOC: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-						Repository: ptr.To("mirror/byoc"),
-						Tag:        ptr.To("v1"),
-					},
-					ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-						Repository: ptr.To("mirror/worker"),
-						Digest:     ptr.To("sha512:custom"),
-					},
-				},
-			},
-			want: nil,
-		},
-
-		{
-			name: "unused release is still validated",
-			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{},
-				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
-					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
-				},
-				ImageOverrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
-					BYOC: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-						Repository: ptr.To("mirror/byoc"),
-						Tag:        ptr.To("v1"),
-					},
-					ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-						Repository: ptr.To("mirror/worker"),
-						Tag:        ptr.To("v1"),
-					},
-				},
-			},
-			want: []string{
-				"spec.release: exactly one of tag or digest must be specified",
-			},
-		},
-
-		{
 			name: "searcher resources without memory limit",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -283,9 +122,6 @@ func TestValidateClusterSpec(t *testing.T) {
 		{
 			name: "zero memory limit is present",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -308,9 +144,6 @@ func TestValidateClusterSpec(t *testing.T) {
 		{
 			name: "CPU request satisfies the CPU requirement",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -331,9 +164,6 @@ func TestValidateClusterSpec(t *testing.T) {
 			name: "all component paths are validated and errors are aggregated",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -483,9 +313,6 @@ func TestValidateClusterSpec(t *testing.T) {
 		{
 			name: "additional volumes and mounts",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -506,9 +333,6 @@ func TestValidateClusterSpec(t *testing.T) {
 		{
 			name: "reserved volumes and mounts",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
-				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-					Tag: ptr.To("v1"),
-				},
 				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
 					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
 				},
@@ -568,112 +392,6 @@ func TestValidateClusterSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if diff := cmp.Diff(tt.want, validationMessages(ValidateClusterSpec(&tt.spec))); diff != "" {
-				t.Errorf("validation mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestValidateImageOverride(t *testing.T) {
-	tests := []struct {
-		name            string
-		image           *datadoghqv1alpha1.DatadogBYOCImageSpec
-		requireComplete bool
-		want            []string
-	}{
-		{
-			name:            "missing image without release",
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc: image must be fully specified when release is omitted"},
-		},
-		{
-			name:            "empty image without release",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{},
-			requireComplete: true,
-			want: []string{
-				"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted",
-				"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted",
-			},
-		},
-		{
-			name: "secrets alone cannot resolve an image",
-			image: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-				ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
-			},
-			requireComplete: true,
-			want: []string{
-				"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted",
-				"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted",
-			},
-		},
-		{
-			name:            "missing repository",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Tag: ptr.To("v1")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted"},
-		},
-		{
-			name:            "empty repository",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To(""), Tag: ptr.To("v1")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted"},
-		},
-		{
-			name:            "missing version",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted"},
-		},
-		{
-			name:            "empty tag",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc"), Tag: ptr.To("")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.tag: tag must be non-empty when release is omitted"},
-		},
-		{
-			name:            "empty digest",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc"), Digest: ptr.To("")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.digest: digest must be non-empty when release is omitted"},
-		},
-		{
-			name: "tag and digest together",
-			image: &datadoghqv1alpha1.DatadogBYOCImageSpec{
-				Repository: ptr.To("registry.example/byoc"), Tag: ptr.To("v1"), Digest: ptr.To("sha256:custom"),
-			},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc: tag and digest are mutually exclusive"},
-		},
-		{
-			name:            "complete tag reference",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc"), Tag: ptr.To("v1")},
-			requireComplete: true,
-		},
-		{
-			name:            "complete digest reference",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc"), Digest: ptr.To("sha512:custom")},
-			requireComplete: true,
-		},
-		{
-			name: "release supplies both images",
-		},
-		{
-			name:  "release supplies repository for a tag override",
-			image: &datadoghqv1alpha1.DatadogBYOCImageSpec{Tag: ptr.To("v1")},
-		},
-		{
-			name:  "release supplies version for a repository override",
-			image: &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("mirror/byoc")},
-		},
-		{
-			name:  "empty override with release",
-			image: &datadoghqv1alpha1.DatadogBYOCImageSpec{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := validateImageOverride(tt.image, tt.requireComplete, field.NewPath("spec", "imageOverrides", "byoc"))
-			if diff := cmp.Diff(tt.want, validationMessages(got)); diff != "" {
 				t.Errorf("validation mismatch (-want +got):\n%s", diff)
 			}
 		})

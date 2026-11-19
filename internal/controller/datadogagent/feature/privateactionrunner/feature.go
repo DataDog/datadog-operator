@@ -23,7 +23,6 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -69,16 +68,6 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 
 const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
-// runnerAgentVersion returns the Agent version the node runner container runs.
-func runnerAgentVersion(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	image := images.GetLatestAgentImage()
-	if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
-		image = images.OverrideAgentImage(image, override.Image)
-	}
-	image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
-	return common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
-}
-
 // kubernetesActionsDefaultConfigData is used for the Cluster Agent when the runner is only enabled
 // because Kubernetes Actions communicates through it. Leave the identity secret name to the
 // Agent so switching between Kubernetes Actions and annotation-based config reuses the identity.
@@ -121,10 +110,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.nodeConfigData = node.configData
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
-		version := runnerAgentVersion(dda, ddaSpec)
+		version := experimental.ResolveComponentContainerVersion(dda, ddaSpec, v2alpha1.NodeAgentComponentName, apicommon.PrivateActionRunnerContainerName)
 		// Split mode is the default unless explicitly disabled or the image is known to be too old.
-		if !featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
-			f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
+		f.splitEnabled = pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true))
+		if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
+			f.splitEnabled = false
 		}
 		// An older Agent does not serve the capture socket, so the runner would
 		// dial a socket that never exists.

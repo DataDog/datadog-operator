@@ -6,6 +6,8 @@
 package datadog
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/helm2dda"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/validate"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 // options provides information required by datadog command
@@ -36,8 +39,12 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 // NewCmd provides a cobra command wrapping options for "datadog" command
 func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "datadog [subcommand] [flags]",
+		Use:     "datadog [subcommand] [flags]",
+		Version: version.GetVersion(),
 	}
+	cmd.SetOut(streams.Out)
+	cmd.SetErr(streams.ErrOut)
+	cmd.SetVersionTemplate(fmt.Sprintf("Version: {{.Version}}\nGit Commit: %s\nBuild time: %s\n", version.Commit, version.BuildTime))
 
 	// Operator commands
 	cmd.AddCommand(get.New(streams))

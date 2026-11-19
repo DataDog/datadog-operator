@@ -418,7 +418,7 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			container := &managers.PodTemplateSpec().Spec.Containers[0]
 			container.Image = images.OverrideAgentImage(container.Image, &tt.image)
 			experimental.ApplyExperimentalOverrides(logr.Discard(), dda, managers)
-			assert.Equal(t, tt.wantVersion, common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: container.Image}))
+			assert.Equal(t, tt.wantVersion, images.FromString(container.Image).Version())
 		})
 	}
 }

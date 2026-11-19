@@ -45,6 +45,7 @@ func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = datadogdashboard.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), dashboardControllerName)).
 		For(&v1alpha1.DatadogDashboard{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 

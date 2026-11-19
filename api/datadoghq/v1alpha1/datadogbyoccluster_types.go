@@ -34,13 +34,8 @@ type DatadogBYOCClusterSpec struct {
 	// +kubebuilder:validation:Enum=logs;traces
 	Signal *DatadogBYOCClusterSignal `json:"signal,omitempty"`
 
-	// Release identifies the BYOC release artifact.
-	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
-	// +optional
-	Release *DatadogBYOCClusterReleaseSpec `json:"release,omitempty"`
-
-	// ImageOverrides overrides the images selected by the release.
-	// Removing an override restores the image selected by the current release.
+	// ImageOverrides overrides the default images.
+	// Removing an override restores the default image.
 	// +optional
 	ImageOverrides *DatadogBYOCClusterImageOverrides `json:"imageOverrides,omitempty"`
 
@@ -53,6 +48,7 @@ type DatadogBYOCClusterSpec struct {
 	Provider *DatadogBYOCClusterProviderSpec `json:"provider,omitempty"`
 
 	// Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipelines.
+	// Pipelines use their own identity setting.
 	// When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.
 	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
@@ -71,24 +67,7 @@ type DatadogBYOCClusterSpec struct {
 	NodeConfigOverrides *runtime.RawExtension `json:"nodeConfigOverrides,omitempty"`
 }
 
-// DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.
-// +k8s:openapi-gen=true
-type DatadogBYOCClusterReleaseSpec struct {
-	// Repository is the OCI repository containing BYOC release artifacts.
-	// The public Datadog BYOC release repository is used when this field is omitted.
-	// +optional
-	Repository *string `json:"repository,omitempty"`
-
-	// Tag is the OCI tag of the BYOC release artifact.
-	// +optional
-	Tag *string `json:"tag,omitempty"`
-
-	// Digest is the OCI digest of the BYOC release artifact.
-	// +optional
-	Digest *string `json:"digest,omitempty"`
-}
-
-// DatadogBYOCClusterImageOverrides defines overrides for the images selected by a BYOC release.
+// DatadogBYOCClusterImageOverrides defines overrides for the default BYOC images.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterImageOverrides struct {
 	// BYOC overrides the image used by all enabled BYOC components.
@@ -104,7 +83,7 @@ type DatadogBYOCClusterImageOverrides struct {
 }
 
 // DatadogBYOCImageSpec defines common BYOC workload image settings.
-// For an image override, omitted repository and version fields retain values from the release.
+// For an image override, omitted repository and version fields retain the default values.
 // +k8s:openapi-gen=true
 type DatadogBYOCImageSpec struct {
 	// Repository is the complete image repository, including the image name.
@@ -119,6 +98,7 @@ type DatadogBYOCImageSpec struct {
 
 	// Digest is the image digest.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Digest *string `json:"digest,omitempty"`
 
 	// PullPolicy is the image pull policy used by the workload container.
@@ -128,7 +108,7 @@ type DatadogBYOCImageSpec struct {
 	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image.
-	// They are added only to Pods using this image and are not used to fetch the release artifact.
+	// They are added only to Pods using this image.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
@@ -291,8 +271,7 @@ type DatadogBYOCClusterComponentsSpec struct {
 	// Pipelines configures the named Observability Pipelines Worker workloads.
 	// Each entry creates a DatadogObservabilityPipelinesWorker owned by this cluster; direct edits are reverted,
 	// and a same-name worker not owned by this cluster is reported as a conflict.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinItems=1
+	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Pipelines []DatadogBYOCClusterPipelineSpec `json:"pipelines,omitempty"`
@@ -316,11 +295,28 @@ type DatadogBYOCClusterPipelineSpec struct {
 	// Name identifies the pipeline within the cluster and is used in the worker resource name.
 	// Changing Name creates a new worker and deletes the previous one.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=10
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 
+	// Identity configures an existing ServiceAccount used by the worker.
+	// When ServiceAccountName is omitted, the worker controller creates and owns a ServiceAccount named after the worker.
+	// +optional
+	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
+
+	// Datadog overrides the cluster connection settings for this pipeline.
+	// +optional
+	Datadog *DatadogBYOCClusterPipelineDatadogSpec `json:"datadog,omitempty"`
+
 	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
+}
+
+// DatadogBYOCClusterPipelineDatadogSpec defines the per-pipeline overrides of the Datadog connection.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterPipelineDatadogSpec struct {
+	// APIKeySecretRef references the Kubernetes Secret containing the Datadog API key used by this pipeline.
+	// When omitted, the cluster API key Secret is used.
+	// +optional
+	APIKeySecretRef *corev1.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
 }
 
 // DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.
@@ -406,6 +402,21 @@ type DatadogBYOCClusterComponentSpec struct {
 	// +listMapKey=topologyKey
 	// +listMapKey=whenUnsatisfiable
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+
+	// PodSecurityContext is the security context of the component Pods.
+	// When set, it replaces the Operator default entirely.
+	// The default sets fsGroup to the user of the component image: 1005 for BYOC components and 1000 for the
+	// Observability Pipelines Worker. The fsGroup must match the group expected by mounted volumes, such as the data
+	// directory.
+	// +optional
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// SecurityContext is the security context of the component container.
+	// When set, it replaces the Operator default entirely.
+	// The default runs the container as the non-root user of the component image. BYOC components run as user 1005
+	// with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
 	// PodDisruptionBudget configures the component Pod disruption budget.
 	// When omitted, the global setting or Operator default is used.
@@ -653,6 +664,11 @@ type DatadogBYOCClusterDeploymentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogbyocclusters,scope=Namespaced,shortName=ddbyoc
+// +kubebuilder:printcolumn:name="Signal",type="string",JSONPath=".spec.signal"
+// +kubebuilder:printcolumn:name="Available",type="string",JSONPath=".status.conditions[?(@.type=='Available')].status"
+// +kubebuilder:printcolumn:name="Reconciled",type="string",JSONPath=".status.conditions[?(@.type=='Reconciled')].status"
+// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[?(@.type=='Available')].reason",priority=1
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 type DatadogBYOCCluster struct {
 	metav1.TypeMeta   `json:",inline"`

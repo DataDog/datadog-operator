@@ -4,10 +4,7 @@ metadata:
   name: datadogbyoccluster-sample
   namespace: byoc
 spec:
-  release:
-    repository: public.ecr.aws/datadog/byoc-release
-    tag: "0.1.32"
-  # Optional: mirror workload images while retaining release-selected versions.
+  # Optional: mirror workload images while retaining the default versions.
   # imageOverrides:
   #   byoc:
   #     repository: registry.example.com/datadog/byoc

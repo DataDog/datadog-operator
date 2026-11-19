@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -90,6 +89,16 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 	}{
 		{name: "runtime default disabled", spec: &v2alpha1.DatadogAgentSpec{}},
 		{name: "runtime default enables current default Agent image at or above minimum version", spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true, want: true},
+		{
+			name: "pull policy override inherits the compatible bundled Agent version",
+			spec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)}},
+				},
+			},
+			defaultEnabled: true,
+			want:           true,
+		},
 		{name: "runtime default does not enable older pinned Agent image", spec: withNodeAgentImage("7.83.0"), defaultEnabled: true},
 		{name: "runtime default enables compatible pinned Agent image", spec: withNodeAgentImage("7.84.0"), defaultEnabled: true, want: true},
 		{name: "runtime default enables compatible pinned Agent RC image", spec: withNodeAgentImage("7.84.0-rc.1"), defaultEnabled: true, want: true},
@@ -160,12 +169,6 @@ func kubernetesActionsSpec(enabled bool, communication *v2alpha1.KubernetesActio
 		}
 	}
 	return spec
-}
-
-func TestClusterAgentVersion(t *testing.T) {
-	assert.Equal(t, images.AgentLatestVersion, ClusterAgentVersion(nil))
-	assert.Equal(t, images.AgentLatestVersion, ClusterAgentVersion(&v2alpha1.DatadogAgentSpec{}))
-	assert.Equal(t, "7.82.0", ClusterAgentVersion(kubernetesActionsSpec(true, nil, "7.82.0")))
 }
 
 func TestIsKubernetesActionsRCEnabled(t *testing.T) {

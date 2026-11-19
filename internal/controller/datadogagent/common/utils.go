@@ -8,7 +8,6 @@ package common
 import (
 	"fmt"
 	"maps"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -88,43 +87,60 @@ func GetAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
-// GetComponentVersion returns the component version based on the DDA spec.
-// It returns the default latest version if no override is specified.
-func GetComponentVersion(dda metav1.Object, componentName v2alpha1.ComponentName) string {
-	var spec *v2alpha1.DatadogAgentSpec
+func agentSpec(dda metav1.Object) *v2alpha1.DatadogAgentSpec {
 	switch d := dda.(type) {
 	case *v2alpha1.DatadogAgent:
-		spec = &d.Spec
+		if d != nil {
+			return &d.Spec
+		}
 	case *v1alpha1.DatadogAgentInternal:
-		spec = &d.Spec
-	default:
-		return images.AgentLatestVersion
-	}
-
-	if componentOverride, ok := spec.Override[componentName]; ok {
-		if componentOverride.Image != nil {
-			return GetAgentVersionFromImage(*componentOverride.Image)
+		if d != nil {
+			return &d.Spec
 		}
 	}
-	return images.AgentLatestVersion
+	return nil
+}
+
+// AgentImageConfigForComponent returns the image override for a component.
+func AgentImageConfigForComponent(dda metav1.Object, componentName v2alpha1.ComponentName) *v2alpha1.AgentImageConfig {
+	return AgentImageConfigForComponentSpec(agentSpec(dda), componentName)
+}
+
+// AgentImageConfigForComponentSpec returns the image override for a component in spec.
+func AgentImageConfigForComponentSpec(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) *v2alpha1.AgentImageConfig {
+	if spec != nil {
+		if override := spec.Override[componentName]; override != nil {
+			return override.Image
+		}
+	}
+	return nil
+}
+
+// GetComponentVersion returns the version selected by the DDA spec for a component.
+func GetComponentVersion(dda metav1.Object, componentName v2alpha1.ComponentName) string {
+	return GetComponentVersionFromSpec(agentSpec(dda), componentName)
+}
+
+// GetComponentVersionFromSpec returns the version of the Agent image selected by the spec.
+// The experimental.agent.datadoghq.com/image-override-config annotation can replace
+// individual Node Agent container images after the component override is applied.
+func GetComponentVersionFromSpec(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) string {
+	return images.FromString(ResolveComponentImage(spec, componentName)).Version()
+}
+
+// ResolveComponentImage applies the spec's image override to the bundled image for
+// the Node Agent, Cluster Agent, or Cluster Checks Runner.
+func ResolveComponentImage(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) string {
+	image := images.GetLatestAgentImage()
+	if componentName == v2alpha1.ClusterAgentComponentName {
+		image = images.GetLatestClusterAgentImage()
+	}
+	return images.OverrideAgentImage(image, AgentImageConfigForComponentSpec(spec, componentName))
 }
 
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
 func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), SystemProbeAgentSecurityConfigMapSuffixName)
-}
-
-// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
-func GetAgentVersionFromImage(imageConfig v2alpha1.AgentImageConfig) string {
-	version := ""
-	if imageConfig.Name != "" {
-		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
-	}
-	// Give priority to image Tag setting
-	if imageConfig.Tag != "" {
-		version = imageConfig.Tag
-	}
-	return version
 }
 
 // BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource

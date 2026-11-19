@@ -37,6 +37,12 @@ func nodeWithOSImage(name string, osImage string) *corev1.Node {
 	return n
 }
 
+func nodeWithProviderID(name string, providerID string) *corev1.Node {
+	n := node(name, nil)
+	n.Spec.ProviderID = providerID
+	return n
+}
+
 func clientWith(objs ...client.Object) client.Client {
 	return fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(objs...).Build()
 }
@@ -71,6 +77,14 @@ func TestDetector_detect(t *testing.T) {
 			wantSource:   sourceOwnNode,
 		},
 		{
+			name:         "stage 1 operator-node Nebius is authoritative",
+			nodeName:     "self",
+			apiReader:    clientWith(nodeWithProviderID("self", "nebius://computeinstance-x")),
+			nodeClient:   clientWith(node("n1", eksLabels)),
+			wantProvider: kubernetes.NebiusProvider,
+			wantSource:   sourceOwnNode,
+		},
+		{
 			name:         "stage 1 operator-node default published even when unlabeled",
 			nodeName:     "self",
 			apiReader:    clientWith(node("self", nil)),
@@ -91,6 +105,14 @@ func TestDetector_detect(t *testing.T) {
 			apiReader:    clientWith(), // own node absent -> Get NotFound
 			nodeClient:   clientWith(nodeWithOSImage("n1", "Talos (abcdef0)")),
 			wantProvider: kubernetes.TalosProvider,
+			wantSource:   sourceNodeList,
+		},
+		{
+			name:         "stage 2 fallback detects Nebius when operator-node read fails",
+			nodeName:     "missing",
+			apiReader:    clientWith(), // own node absent -> Get NotFound
+			nodeClient:   clientWith(nodeWithProviderID("n1", "nebius://computeinstance-x")),
+			wantProvider: kubernetes.NebiusProvider,
 			wantSource:   sourceNodeList,
 		},
 		{

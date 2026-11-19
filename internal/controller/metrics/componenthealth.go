@@ -15,8 +15,9 @@ var (
 	// first appear on the managed cluster-level components (cluster-agent,
 	// cluster-checks-runner), labeled by component and issue type. It increments
 	// once per component-level issue instance (an issue type going from absent to
-	// present on a component) so it measures the rate
-	// at which new problems surface.
+	// present on a component) so it measures the rate at which new problems surface.
+	// A flap (the issue re-activating while its resolve is still within the grace
+	// window) is not re-counted, so a crash-looping component does not inflate it.
 	ComponentHealthIssuesDetected = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem: componentHealthSubsystem,
@@ -40,10 +41,46 @@ var (
 		},
 		[]string{"component", "issue_type"},
 	)
+
+	// ComponentHealthSnapshotsSent counts health-platform snapshots the operator
+	// successfully delivered to the agenthealth intake (a 2xx response).
+	ComponentHealthSnapshotsSent = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Subsystem: componentHealthSubsystem,
+			Name:      "snapshots_sent_total",
+			Help:      "Number of component health snapshots successfully delivered to the agenthealth intake.",
+		},
+	)
+
+	// ComponentHealthSnapshotSendErrors counts failed snapshot deliveries, labeled
+	// by reason (no_credentials, build_request, transport, http_status) so a stuck
+	// delivery (e.g. a 403 from a wrong-site key) is both visible and diagnosable.
+	ComponentHealthSnapshotSendErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: componentHealthSubsystem,
+			Name:      "snapshot_send_errors_total",
+			Help:      "Number of component health snapshot deliveries that failed, by reason.",
+		},
+		[]string{"reason"},
+	)
+
+	// ComponentHealthLastSuccessfulSendTimestamp is the Unix time of the most recent
+	// successful snapshot delivery. Alert on staleness (now - value) to catch a
+	// delivery pipeline that has silently stopped reporting.
+	ComponentHealthLastSuccessfulSendTimestamp = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Subsystem: componentHealthSubsystem,
+			Name:      "last_successful_send_timestamp_seconds",
+			Help:      "Unix timestamp of the last component health snapshot successfully delivered to the agenthealth intake.",
+		},
+	)
 )
 
 func init() {
 	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(ComponentHealthIssuesDetected)
 	metrics.Registry.MustRegister(ComponentHealthIssuesActive)
+	metrics.Registry.MustRegister(ComponentHealthSnapshotsSent)
+	metrics.Registry.MustRegister(ComponentHealthSnapshotSendErrors)
+	metrics.Registry.MustRegister(ComponentHealthLastSuccessfulSendTimestamp)
 }

@@ -209,6 +209,23 @@ func (d dummyTelemetryReporter) IncConfigSubscriptionsDisconnectedCounter()    {
 func (d dummyTelemetryReporter) SetConfigSubscriptionsActive(value int)        {}
 func (d dummyTelemetryReporter) SetConfigSubscriptionClientsTracked(value int) {}
 
+// APIKeyCredentialsGetter returns Datadog credentials that are only required to
+// contain an API key. *config.CredentialManager implements it.
+type APIKeyCredentialsGetter interface {
+	GetAPIKeyCredentials() (config.Creds, error)
+}
+
+// SetupWithCredentials loads credentials and sets up Remote Configuration.
+// Remote Configuration authenticates with the API key only, so an App key is
+// not required.
+func (r *RemoteConfigUpdater) SetupWithCredentials(credsGetter APIKeyCredentialsGetter) error {
+	creds, err := credsGetter.GetAPIKeyCredentials()
+	if err != nil {
+		return fmt.Errorf("unable to get API key for Remote Configuration: %w", err)
+	}
+	return r.Setup(creds)
+}
+
 func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	apiKey := creds.APIKey
 	if apiKey == "" {
@@ -396,6 +413,9 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	cfg.SetDefault("site", site)
 	cfg.SetDefault("remote_configuration.config_root", configRoot)
 	cfg.SetDefault("remote_configuration.director_root", directorRoot)
+	// The config must be built before it is read: an unbuilt config returns
+	// empty values, so the Remote Configuration service would get an empty
+	// site and verify every site against the prod TUF roots.
 	cfg.BuildSchema()
 	hostname, _ := os.Hostname()
 

@@ -29,17 +29,9 @@ import (
 func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.ErrorList {
 	path := field.NewPath("spec")
 	var errs field.ErrorList
-	if spec.Release == nil && spec.ImageOverrides == nil {
-		errs = append(errs, field.Required(path, "release or imageOverrides must be specified"))
-	}
-	if release := spec.Release; release != nil && (release.Tag == nil) == (release.Digest == nil) {
-		errs = append(errs, field.Invalid(path.Child("release"), nil, "exactly one of tag or digest must be specified"))
-	}
 	if overrides := spec.ImageOverrides; overrides != nil {
-		// Without a release, neither image can inherit a repository or version.
-		requireComplete := spec.Release == nil
-		errs = append(errs, validateImageOverride(overrides.BYOC, requireComplete, path.Child("imageOverrides", "byoc"))...)
-		errs = append(errs, validateImageOverride(overrides.ObservabilityPipelinesWorker, requireComplete, path.Child("imageOverrides", "observabilityPipelinesWorker"))...)
+		errs = append(errs, validateImageOverride(overrides.BYOC, path.Child("imageOverrides", "byoc"))...)
+		errs = append(errs, validateImageOverride(overrides.ObservabilityPipelinesWorker, path.Child("imageOverrides", "observabilityPipelinesWorker"))...)
 	}
 	if spec.Provider == nil || spec.Provider.AWS == nil {
 		errs = append(errs, field.Required(path.Child("provider", "aws"), "at least one provider must be specified"))
@@ -71,32 +63,11 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 	return errs
 }
 
-func validateImageOverride(image *datadoghqv1alpha1.DatadogBYOCImageSpec, requireComplete bool, path *field.Path) field.ErrorList {
-	if image == nil {
-		if requireComplete {
-			return field.ErrorList{field.Required(path, "image must be fully specified when release is omitted")}
-		}
-		return nil
+func validateImageOverride(image *datadoghqv1alpha1.DatadogBYOCImageSpec, path *field.Path) field.ErrorList {
+	if image != nil && image.Tag != nil && image.Digest != nil {
+		return field.ErrorList{field.Forbidden(path, "tag and digest are mutually exclusive")}
 	}
-	var errs field.ErrorList
-	if image.Tag != nil && image.Digest != nil {
-		errs = append(errs, field.Forbidden(path, "tag and digest are mutually exclusive"))
-	}
-	if requireComplete {
-		if image.Repository == nil || *image.Repository == "" {
-			errs = append(errs, field.Required(path.Child("repository"), "repository must be non-empty when release is omitted"))
-		}
-		if image.Tag == nil && image.Digest == nil {
-			errs = append(errs, field.Required(path, "tag or digest must be specified when release is omitted"))
-		}
-		if image.Tag != nil && *image.Tag == "" {
-			errs = append(errs, field.Required(path.Child("tag"), "tag must be non-empty when release is omitted"))
-		}
-		if image.Digest != nil && *image.Digest == "" {
-			errs = append(errs, field.Required(path.Child("digest"), "digest must be non-empty when release is omitted"))
-		}
-	}
-	return errs
+	return nil
 }
 
 // ValidateStatefulComponent is shared by BYOC components and standalone Workers.

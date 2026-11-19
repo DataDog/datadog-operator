@@ -23,15 +23,15 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
-func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
+func TestJemallocOptOutRemovalReconcilesDaemonSet(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
 		removed  bool
 		override bool
 	}{
-		{name: "disabled"},
+		{name: "false"},
 		{name: "removed", removed: true},
-		{name: "disabled preserves overrides", override: true},
+		{name: "false preserves overrides", override: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
@@ -40,15 +40,14 @@ func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
 			ddai.Spec.Global = &v2alpha1.GlobalConfig{Credentials: &v2alpha1.DatadogCredentials{
 				APISecret: &v2alpha1.SecretConfig{SecretName: "datadog-secret", KeyName: "api-key"},
 			}}
-			ddai.Annotations = map[string]string{component.EnableJemallocAnnotation: "true"}
+			ddai.Annotations = map[string]string{component.DisableJemallocAnnotation: "true"}
+			ddai.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.87.0"}},
+			}
 			if tt.override {
-				ddai.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Env: []corev1.EnvVar{
-							{Name: "LD_PRELOAD", Value: "/custom/allocator.so"},
-							{Name: "MALLOC_CONF", Value: "dirty_decay_ms:1000"},
-						},
-					},
+				ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Env = []corev1.EnvVar{
+					{Name: "LD_PRELOAD", Value: "/custom/allocator.so"},
+					{Name: "MALLOC_CONF", Value: "dirty_decay_ms:1000"},
 				}
 			}
 			defaults.DefaultDatadogAgentSpec(&ddai.Spec)
@@ -64,12 +63,16 @@ func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
 			}
 			before := reconcile()
 			for _, c := range before.Spec.Template.Spec.Containers {
-				require.Len(t, allocatorEnv(c.Env), 2, c.Name)
+				if tt.override {
+					require.Equal(t, ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Env, allocatorEnv(c.Env), c.Name)
+				} else {
+					require.Equal(t, []corev1.EnvVar{{Name: "LD_PRELOAD", Value: "/opt/lib/nosys.so"}}, allocatorEnv(c.Env), c.Name)
+				}
 			}
 			if tt.removed {
-				delete(ddai.Annotations, component.EnableJemallocAnnotation)
+				delete(ddai.Annotations, component.DisableJemallocAnnotation)
 			} else {
-				ddai.Annotations[component.EnableJemallocAnnotation] = "false"
+				ddai.Annotations[component.DisableJemallocAnnotation] = "false"
 			}
 			after := reconcile()
 			for _, c := range after.Spec.Template.Spec.Containers {
@@ -80,7 +83,7 @@ func TestJemallocDisableReconcilesDaemonSet(t *testing.T) {
 				}
 			}
 			if !tt.override {
-				assert.NotEqual(t, before.ResourceVersion, after.ResourceVersion, "disabling jemalloc must update the existing workload")
+				assert.NotEqual(t, before.ResourceVersion, after.ResourceVersion, "removing the jemalloc opt-out must update the existing workload")
 			}
 		})
 	}

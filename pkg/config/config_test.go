@@ -62,14 +62,15 @@ func Test_CacheConfig(t *testing.T) {
 				dashboardWatchNamespaceEnvVar:       "dashboardNs",
 				genericResourceWatchNamespaceEnvVar: "genericNs",
 				csiDriverWatchNamespaceEnvVar:       "csiDriverNs",
+				byocClusterWatchNamespaceEnvVar:     "byocNs",
 			},
 
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:              {configured: true, namespaces: []string{"agentNs"}},
-				byocClusterObj:        {configured: true, namespaces: []string{"datadog"}},
-				workerObj:             {configured: true, namespaces: []string{"datadog"}},
+				byocClusterObj:        {configured: true, namespaces: []string{"byocNs"}},
+				workerObj:             {configured: true, namespaces: []string{"byocNs"}},
 				dashboardObj:          {configured: true, namespaces: []string{"dashboardNs"}},
 				genericResourceObj:    {configured: true, namespaces: []string{"genericNs"}},
 				monitorObj:            {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
@@ -79,11 +80,11 @@ func Test_CacheConfig(t *testing.T) {
 				nodeObj:               {configured: true, namespaces: nil},
 				csiDriverObj:          {configured: true, namespaces: []string{"csiDriverNs"}},
 				csiDaemonSetObj:       {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
-				&appsv1.StatefulSet{}: {configured: true, namespaces: []string{"datadog", "agentNs"}},
+				&appsv1.StatefulSet{}: {configured: true, namespaces: []string{"byocNs", "agentNs"}},
 			},
 		},
 		{
-			name: "BYOCCluster in different namespace than Agent; owned resources cached in both",
+			name: "BYOCCluster in different namespace than Agent; falls back to WATCH_NAMESPACE and owned resources cached in both",
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:       true,
 				DatadogBYOCClusterEnabled: true,
@@ -107,6 +108,33 @@ func Test_CacheConfig(t *testing.T) {
 				&appsv1.StatefulSet{}:                    {configured: true, namespaces: []string{"agentNs", "byocNs"}},
 				&autoscalingv2.HorizontalPodAutoscaler{}: {configured: true, namespaces: []string{"agentNs", "byocNs"}},
 				&policyv1.PodDisruptionBudget{}:          {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+			},
+		},
+		{
+			name: "BYOCCluster disabled; BYOC CR entries and owned-type caches are absent for non-BYOC users",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:       true,
+				DatadogBYOCClusterEnabled: false,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:      "byocNs",
+				AgentWatchNamespaceEnvVar: "agentNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:                                 {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:                           {configured: false},
+				workerObj:                                {configured: false},
+				&corev1.ConfigMap{}:                      {configured: false},
+				&corev1.ServiceAccount{}:                 {configured: false},
+				&corev1.Service{}:                        {configured: false},
+				&appsv1.Deployment{}:                     {configured: false},
+				&appsv1.StatefulSet{}:                    {configured: false},
+				&autoscalingv2.HorizontalPodAutoscaler{}: {configured: false},
+				&policyv1.PodDisruptionBudget{}:          {configured: false},
 			},
 		},
 		{
@@ -392,6 +420,7 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 	node := func() *corev1.Node {
 		return &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{"kubernetes.io/os": "linux"}},
+			Spec:       corev1.NodeSpec{ProviderID: "nebius://computeinstance-x"},
 			Status:     corev1.NodeStatus{NodeInfo: corev1.NodeSystemInfo{OSImage: "Talos (v1.13.7)"}},
 		}
 	}
@@ -407,9 +436,10 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 		return transformed.(*corev1.Node)
 	}
 
-	// Provider detection identifies Talos from osImage alone, and its node-list
-	// fallback is wired whenever this cache exists — for any of the three options
-	// below, not just introspection. So every one of them must keep osImage.
+	// Provider detection identifies Talos from osImage alone and Nebius from
+	// providerID alone, and its node-list fallback is wired whenever this cache
+	// exists — for any of the three options below, not just introspection. So every
+	// one of them must keep both fields.
 	for name, opts := range map[string]WatchOptions{
 		"introspection":      {IntrospectionEnabled: true},
 		"profiles":           {DatadogAgentProfileEnabled: true},
@@ -422,6 +452,13 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 			}
 			assert.Equal(t, "Talos (v1.13.7)", got.Status.NodeInfo.OSImage)
 			assert.Equal(t, kubernetes.TalosProvider, kubernetes.ClusterProviderFromNode(got))
+		})
+		t.Run(name+" keeps Spec.ProviderID", func(t *testing.T) {
+			got := transformNode(t, opts)
+			if got == nil {
+				return
+			}
+			assert.Equal(t, "nebius://computeinstance-x", got.Spec.ProviderID)
 		})
 	}
 }

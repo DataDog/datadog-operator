@@ -430,6 +430,35 @@ func TestClusterProviderFromNode(t *testing.T) {
 			node: providerNode(map[string]string{EKSProviderLabel: "ami-x"}, "Talos (v1.13.7)"),
 			want: TalosProvider,
 		},
+		{
+			// The providerID ECI observed on a Nebius Managed Kubernetes node.
+			name: "nebius provider id",
+			node: withProviderID(providerNode(nil, "Ubuntu 22.04.5 LTS"), "nebius://computeinstance-e00abcdef0123456789"),
+			want: NebiusProvider,
+		},
+		{
+			name: "other cloud provider id",
+			node: withProviderID(providerNode(nil, "Ubuntu 22.04.5 LTS"), "aws:///us-east-1a/i-0123456789abcdef0"),
+			want: DefaultProvider,
+		},
+		{
+			// Guards the "://" in the prefix test.
+			name: "provider id merely sharing the nebius prefix",
+			node: withProviderID(providerNode(nil, ""), "nebiusfoo://x"),
+			want: DefaultProvider,
+		},
+		{
+			// The distribution's provider carries more configuration than the
+			// infrastructure's, so it wins.
+			name: "openshift label takes precedence over nebius provider id",
+			node: withProviderID(providerNode(map[string]string{OpenShiftProviderLabel: "rhcos"}, ""), "nebius://computeinstance-x"),
+			want: "openshift-rhcos",
+		},
+		{
+			name: "talos os image takes precedence over nebius provider id",
+			node: withProviderID(providerNode(nil, "Talos (v1.13.7)"), "nebius://computeinstance-x"),
+			want: TalosProvider,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -460,6 +489,14 @@ func TestGetClusterProviderFromNodeListDetectsTalos(t *testing.T) {
 			},
 			want: DefaultProvider,
 		},
+		{
+			name: "first match nebius",
+			nodes: []corev1.Node{
+				*providerNode(nil, "Debian GNU/Linux 12 (bookworm)"),
+				*withProviderID(providerNode(nil, "Ubuntu 22.04.5 LTS"), "nebius://computeinstance-x"),
+			},
+			want: NebiusProvider,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -475,6 +512,11 @@ func providerNode(labels map[string]string, osImage string) *corev1.Node {
 			NodeInfo: corev1.NodeSystemInfo{OSImage: osImage},
 		},
 	}
+}
+
+func withProviderID(node *corev1.Node, providerID string) *corev1.Node {
+	node.Spec.ProviderID = providerID
+	return node
 }
 
 func Test_ProviderFamily(t *testing.T) {
