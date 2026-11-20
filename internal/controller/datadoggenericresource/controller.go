@@ -205,9 +205,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 	// State polling can be disabled with DD_STATE_POLLING_ENABLED.
 	// Lifecycle and force-sync work above still run; only the refresh is skipped.
+	refresher, hasLiveState := handler.(liveStateRefresher)
 	if r.statePollingDisabled {
 		shouldRefreshStatus = false
-		if _, ok := handler.(liveStateHandler); ok {
+		if hasLiveState {
 			setStatePollingDisabled(status, now)
 		}
 	} else {
@@ -247,18 +248,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 	} else if shouldRefreshStatus {
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
-		state, refreshErr := handler.refreshState(auth, instance)
-		if refreshErr != nil {
-			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
-			// Preserve last-known state and surface the failure via the StateSynced condition.
-			// Do not fail reconcile.
-			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
-		} else if state != nil {
-			// Resource type exposes live state — merge it into status.
-			applyResourceState(*state, status, now)
-			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+		if hasLiveState {
+			state, refreshErr := refresher.refreshState(auth, instance)
+			if refreshErr != nil {
+				logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				// Preserve last-known state and surface the failure via the StateSynced condition.
+				// Do not fail reconcile.
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
+			} else if state != nil {
+				applyResourceState(*state, status, now)
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+			}
 		}
-		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
 	// If reconcile was successful and uneventful, requeue with the configured period.

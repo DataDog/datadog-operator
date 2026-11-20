@@ -25,9 +25,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
-// statelessMockHandler hides MockHandler's liveStateHandler marker.
+// statelessMockHandler exposes only ResourceHandler, hiding MockHandler.refreshState.
 type statelessMockHandler struct{ ResourceHandler }
 
 func newStatePollingTestReconciler(t *testing.T, h ResourceHandler) *Reconciler {
@@ -171,4 +172,11 @@ func TestReconcileGenericResource_StatePollingReenabledRefreshDeferred(t *testin
 	obj = getGenericResource(t, r)
 	assert.Empty(t, obj.Status.State, "stale PollingDisabled must be cleared once polling is re-enabled")
 	assert.Nil(t, meta.FindStatusCondition(obj.Status.Conditions, string(condition.DatadogConditionTypeStateSynced)))
+}
+
+func TestLiveStateRefresherHandlers(t *testing.T) {
+	for typ, h := range buildHandlers(&datadogclient.GenericClients{}) {
+		_, ok := h.(liveStateRefresher)
+		assert.Equal(t, typ == datadoghqv1alpha1.Monitor || typ == datadoghqv1alpha1.SLO, ok, "resource type %s", typ)
+	}
 }
