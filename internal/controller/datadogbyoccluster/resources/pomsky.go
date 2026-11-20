@@ -120,8 +120,9 @@ const (
 	envImageName                      = "IMAGE_NAME"
 	envImageTag                       = "IMAGE_TAG"
 
-	envPipelineDestinationEndpoint       = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
-	envPipelineDestinationTracesEndpoint = "DD_OP_DESTINATION_DATADOG_BYOC_TRACES_ENDPOINT_URL"
+	envPipelineDestinationEndpoint        = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
+	envPipelineDestinationTracesEndpoint  = "DD_OP_DESTINATION_DATADOG_BYOC_TRACES_ENDPOINT_URL"
+	envPipelineDestinationMaxPayloadBytes = "DD_OP_DESTINATION_CLOUDPREM_MAX_PAYLOAD_BYTES"
 
 	// byocTracesPath is the BYOC indexer's traces route;
 	// the OPW destination uses the env value verbatim as its sink URI.
