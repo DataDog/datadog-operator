@@ -64,7 +64,12 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, r.reconcilerOptionsToFeatureOptions(ctx, instance))
+	featureOptions := r.reconcilerOptionsToFeatureOptions(ctx, instance)
+	// Profile DDAIs don't manage the runner groups or the Cluster Agent.
+	if !isDDAILabeledWithProfile(instance) {
+		featureOptions.ActivatedClusterChecksRunnerGroups = r.activateClusterChecksRunnerGroups(ctx, instance, newStatus, now)
+	}
+	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, featureOptions)
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 

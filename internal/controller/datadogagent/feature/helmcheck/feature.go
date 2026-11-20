@@ -37,11 +37,13 @@ func buildHelmCheckFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		helmCheckFeat.logger = options.Logger
+		helmCheckFeat.activatedRunnerGroups = options.ActivatedClusterChecksRunnerGroups
 	}
 	return helmCheckFeat
 }
 
 type helmCheckFeature struct {
+	activatedRunnerGroups    []string
 	runInClusterChecksRunner bool
 	collectEvents            bool
 	valuesAsTags             map[string]string
@@ -77,7 +79,7 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 		f.valuesAsTags = helmCheck.ValuesAsTags
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
-		if componentccr.RunsOnRunners(dda, ddaSpec, constants.HelmCheckName) {
+		if componentccr.RunsOnRunners(dda, ddaSpec, f.activatedRunnerGroups, constants.HelmCheckName) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)

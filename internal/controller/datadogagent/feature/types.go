@@ -189,6 +189,8 @@ type Options struct {
 	// code that needs cluster capabilities while configuring pod templates.
 	PlatformInfo            kubernetes.PlatformInfo
 	DefaultDataPlaneEnabled bool
+	// ActivatedClusterChecksRunnerGroups lists the runner groups that need activation and have had an available runner.
+	ActivatedClusterChecksRunnerGroups []string
 }
 
 // BuildFunc function type used by each Feature during its factory registration.
