@@ -492,8 +492,12 @@ func validateCanonicalUUID(field, value string) error {
 
 func validateManagedAgentInstallationProgress(current *managedAgentInstallationPersistedState, intent managedAgentInstallationIntent, digest string) error {
 	if current == nil {
-		if intent.DesiredState != managedAgentInstallationDesiredStateInstalled || intent.AcknowledgedOperationID != "" {
-			return fmt.Errorf("the first managed Agent installation request must be an unacknowledged install")
+		if intent.AcknowledgedOperationID != "" {
+			return fmt.Errorf("the first managed Agent installation request cannot retain an install acknowledgement")
+		}
+		if intent.DesiredState != managedAgentInstallationDesiredStateInstalled &&
+			intent.DesiredState != managedAgentInstallationDesiredStateAbsent {
+			return fmt.Errorf("the first managed Agent installation request has unsupported desired state %q", intent.DesiredState)
 		}
 		return nil
 	}

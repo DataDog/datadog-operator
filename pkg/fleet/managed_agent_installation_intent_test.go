@@ -985,6 +985,68 @@ func TestManagedAgentInstallationResultCannotOverwriteNewerOperation(t *testing.
 	assert.Equal(t, pbgo.TaskState_RUNNING, persisted.TaskState)
 }
 
+func TestManagedAgentInstallationAbsentIntentCanBeFirstObservedIntent(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+	)
+	uninstall := managedAgentInstallationIntentSnapshot{raw: testManagedAgentInstallationIntent(
+		t,
+		testAddonUninstallOperationID,
+		managedAgentInstallationDesiredStateAbsent,
+	)}
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstall.raw)
+
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, uninstall))
+	persisted, err := daemon.readManagedAgentInstallationState(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, persisted)
+	assert.Equal(t, testAddonUninstallOperationID, persisted.OperationID)
+	assert.Equal(t, managedAgentInstallationDesiredStateAbsent, persisted.DesiredState)
+	assert.Equal(t, pbgo.TaskState_DONE, persisted.TaskState)
+	require.Len(t, rcClient.state, 1)
+	assert.Empty(t, rcClient.state[0].GetStableConfigVersion())
+	require.NotNil(t, rcClient.state[0].GetTask())
+	assert.Equal(t, testAddonUninstallOperationID, rcClient.state[0].GetTask().GetId())
+	assert.Equal(t, pbgo.TaskState_DONE, rcClient.state[0].GetTask().GetState())
+
+	beforeRestart := *persisted
+	restarted := testRestartedManagedAgentInstallationDaemon(kubeClient)
+	require.NoError(t, restarted.handleManagedAgentInstallationIntent(ctx, uninstall))
+	persisted, err = restarted.readManagedAgentInstallationState(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, persisted)
+	assert.Equal(t, beforeRestart, *persisted)
+}
+
+func TestManagedAgentInstallationFirstObservedAbsentRejectsForeignTarget(t *testing.T) {
+	ctx := context.Background()
+	foreign := testDDAObject("")
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		foreign,
+	)
+	uninstall := managedAgentInstallationIntentSnapshot{raw: testManagedAgentInstallationIntent(
+		t,
+		testAddonUninstallOperationID,
+		managedAgentInstallationDesiredStateAbsent,
+	)}
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstall.raw)
+
+	err := daemon.handleManagedAgentInstallationIntent(ctx, uninstall)
+	require.ErrorContains(t, err, "is not owned by Fleet Automation")
+	require.NoError(t, kubeClient.Get(ctx, client.ObjectKeyFromObject(foreign), &v2alpha1.DatadogAgent{}))
+	persisted, readErr := daemon.readManagedAgentInstallationState(ctx)
+	require.NoError(t, readErr)
+	require.NotNil(t, persisted)
+	assert.Equal(t, testAddonUninstallOperationID, persisted.OperationID)
+	assert.Equal(t, managedAgentInstallationDesiredStateAbsent, persisted.DesiredState)
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, persisted.TaskState)
+	require.Len(t, rcClient.state, 1)
+	require.NotNil(t, rcClient.state[0].GetTask())
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, rcClient.state[0].GetTask().GetState())
+}
+
 func TestValidateManagedAgentInstallationProgress(t *testing.T) {
 	install := managedAgentInstallationIntent{
 		Version:        managedAgentInstallationVersion,
@@ -1024,9 +1086,14 @@ func TestValidateManagedAgentInstallationProgress(t *testing.T) {
 		AcknowledgedOperationID: testAddonInstallOperationID,
 	}
 	require.NoError(t, validateManagedAgentInstallationProgress(current, uninstall, "uninstall-digest"))
+	require.Error(t, validateManagedAgentInstallationProgress(nil, uninstall, "uninstall-digest"))
 	uninstall.AcknowledgedOperationID = ""
 	require.Error(t, validateManagedAgentInstallationProgress(current, uninstall, "uninstall-digest"))
-	require.Error(t, validateManagedAgentInstallationProgress(nil, uninstall, "uninstall-digest"))
+	require.NoError(t, validateManagedAgentInstallationProgress(nil, uninstall, "uninstall-digest"))
+
+	unsupported := uninstall
+	unsupported.DesiredState = "unsupported"
+	require.Error(t, validateManagedAgentInstallationProgress(nil, unsupported, "unsupported-digest"))
 
 	current.OperationID = testAddonUninstallOperationID
 	current.Digest = "uninstall-digest"
