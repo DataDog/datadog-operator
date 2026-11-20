@@ -6,6 +6,7 @@
 package otlp
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -266,10 +268,15 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers) erro
 	return nil
 }
 
-func applyOTLPDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
-	ports, err := otlpLocalAgentServicePorts(ddaiSpec)
-	if err != nil {
-		return err
+// applyOTLPDDASharedDependencies reconciles shared dependencies for the effective node configurations.
+func applyOTLPDDASharedDependencies(_ context.Context, dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddais []*v1alpha1.DatadogAgentInternal, _ *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	var ports []corev1.ServicePort
+	for _, ddai := range ddais {
+		ddaiPorts, err := otlpLocalAgentServicePorts(&ddai.Spec)
+		if err != nil {
+			return fmt.Errorf("%s/%s DDA shared dependencies failed: %w", ddai.Namespace, ddai.Name, err)
+		}
+		ports = append(ports, ddaiPorts...)
 	}
 	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
