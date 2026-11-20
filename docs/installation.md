@@ -169,6 +169,7 @@ default applies.
 | DatadogGenericResource  | `--datadogGenericResourceEnabled` | `DD_GENERIC_RESOURCE_CONTROLLER_ENABLED` | `false` |
 | DatadogCSIDriver        | `--datadogCSIDriverEnabled`       | `DD_CSI_DRIVER_CONTROLLER_ENABLED`       | `false` |
 | DatadogAgentProfile     | `--datadogAgentProfileEnabled`    | `DD_AGENT_PROFILE_CONTROLLER_ENABLED`    | `false` |
+| DatadogBYOCCluster      | `--datadogBYOCClusterEnabled`     | `DD_BYOC_CLUSTER_CONTROLLER_ENABLED`     | `false` |
 | Introspection           | `--introspectionEnabled`          | `DD_INTROSPECTION_ENABLED`               | `false` |
 | RemoteConfig            | `--remoteConfigEnabled`           | `DD_REMOTE_CONFIG_ENABLED`               | `false` |
 | RemoteUpdates           | `--remoteUpdatesEnabled`          | `DD_REMOTE_UPDATES_ENABLED`              | `false` |

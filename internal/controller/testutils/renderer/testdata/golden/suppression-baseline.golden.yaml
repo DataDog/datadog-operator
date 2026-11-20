@@ -1294,7 +1294,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7c3ba75ac8a4f52e97174e16d83693ba
+    agent.datadoghq.com/agentspechash: 538637bef7e9a2429c79dcd67bd08a28
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1363,6 +1363,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1496,6 +1498,9 @@ spec:
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
           readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
+          readOnly: true
         - mountPath: /var/run/datadog
           name: dsdsocket
         - mountPath: /host/var/run
@@ -1509,6 +1514,9 @@ spec:
           name: kubelet-pod-resources
         - mountPath: /var/run/nvidia-container-devices/all
           name: nvidia-devices
+          readOnly: true
+        - mountPath: /host/var/run/cdi
+          name: cdi
           readOnly: true
         - mountPath: /etc/passwd
           name: passwd
@@ -1562,6 +1570,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1661,6 +1671,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1892,6 +1904,9 @@ spec:
           path: /sys/fs/cgroup
         name: cgroups
       - hostPath:
+          path: /etc/os-release
+        name: os-release-file
+      - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate
         name: dsdsocket
@@ -1924,6 +1939,10 @@ spec:
       - hostPath:
           path: /dev/null
         name: nvidia-devices
+      - hostPath:
+          path: /var/run/cdi
+          type: DirectoryOrCreate
+        name: cdi
       - hostPath:
           path: /etc/passwd
         name: passwd

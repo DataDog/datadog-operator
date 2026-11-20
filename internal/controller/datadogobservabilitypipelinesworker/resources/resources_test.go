@@ -51,7 +51,7 @@ func TestResources_Objects(t *testing.T) {
 		{
 			name:     "existing ServiceAccount without ports",
 			identity: &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing-worker")},
-			want:     []string{"*v1.StatefulSet/byoc-pipeline"},
+			want:     []string{"*v1.Service/byoc-pipeline", "*v1.StatefulSet/byoc-pipeline"},
 		},
 	}
 
@@ -108,10 +108,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			identity:    &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing-worker")},
 			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
 			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
-			want: []client.Object{
-				&corev1.Service{ObjectMeta: metadata},
-				&corev1.ServiceAccount{ObjectMeta: metadata},
-			},
+			want:        []client.Object{&corev1.ServiceAccount{ObjectMeta: metadata}},
 		},
 		{
 			name:        "existing ServiceAccount named after the Worker",
@@ -222,6 +219,7 @@ func TestBuildResources_Services(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4317)},
 						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4318)},
+						{Name: "api", Port: 8686, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(8686)},
 					},
 				},
 			},
@@ -235,6 +233,28 @@ func TestBuildResources_Services(t *testing.T) {
 			name: "no exposed ports",
 			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
 				worker.Spec.Ports = nil
+			},
+			wantService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "byoc-pipeline",
+					Namespace: "testing",
+					Labels: map[string]string{
+						"app.kubernetes.io/name":       "observability-pipelines-worker",
+						"app.kubernetes.io/instance":   "byoc-pipeline",
+						"app.kubernetes.io/managed-by": "datadog-operator",
+						"app.kubernetes.io/component":  "pipeline",
+						"team":                         "logs",
+					},
+					Annotations: map[string]string{"example.com/owner": "operator"},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeClusterIP,
+					Selector: map[string]string{
+						"app.kubernetes.io/name":     "observability-pipelines-worker",
+						"app.kubernetes.io/instance": "byoc-pipeline",
+					},
+					Ports: []corev1.ServicePort{{Name: "api", Port: 8686, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(8686)}},
+				},
 			},
 			wantContainerPorts: []corev1.ContainerPort{{Name: "api", ContainerPort: 8686, Protocol: corev1.ProtocolTCP}},
 		},

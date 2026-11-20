@@ -1407,7 +1407,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 3ac6df187b4a8ad1547fd6628d11a6ca
+    agent.datadoghq.com/agentspechash: b401c721dbf4c26083effef0087503bf
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1475,6 +1475,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1607,6 +1609,9 @@ spec:
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
           readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
+          readOnly: true
         - mountPath: /var/run/datadog
           name: dsdsocket
         - mountPath: /host/var/run
@@ -1662,6 +1667,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1753,6 +1760,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1876,7 +1885,7 @@ spec:
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
         - mountPath: /host/etc/os-release
-          name: host-osrelease
+          name: os-release-file
           readOnly: true
         - mountPath: /sys/kernel/tracing
           name: tracefs
@@ -1901,6 +1910,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1964,6 +1975,9 @@ spec:
           readOnly: true
         - mountPath: /host/proc
           name: procdir
+          readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
           readOnly: true
         - mountPath: /opt/datadog-agent/run
           name: datadogrun
@@ -2080,6 +2094,9 @@ spec:
           path: /sys/fs/cgroup
         name: cgroups
       - hostPath:
+          path: /etc/os-release
+        name: os-release-file
+      - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate
         name: dsdsocket
@@ -2114,9 +2131,6 @@ spec:
         name: debugfs
       - emptyDir: {}
         name: sysprobe-socket-dir
-      - hostPath:
-          path: /etc/os-release
-        name: host-osrelease
       - hostPath:
           path: /sys/kernel/tracing
         name: tracefs

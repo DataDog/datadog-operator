@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
@@ -97,10 +96,7 @@ func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 		case "", collectionModePoll:
 			// Does not require any change, this is the default behavior
 		case collectionModeWatch:
-			clusterAgentVersion := images.ClusterAgentLatestVersion
-			if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent != nil && clusterAgent.Image != nil {
-				clusterAgentVersion = common.GetAgentVersionFromImage(*clusterAgent.Image)
-			}
+			clusterAgentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
 			if !pkgutils.IsAboveMinVersion(clusterAgentVersion, collectionModeWatchMinVersion, nil) {
 				f.logger.Info("features.eventCollection.collectionMode watch requires a newer Cluster Agent, ignoring and using the Cluster Agent default", "version", clusterAgentVersion, "minVersion", collectionModeWatchMinVersion)
 				break

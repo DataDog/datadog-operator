@@ -272,8 +272,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 					ReadOnly:  true,
 				},
 				{
-					Name:      common.SystemProbeOSReleaseDirVolumeName,
-					MountPath: common.SystemProbeOSReleaseDirMountPath,
+					Name:      common.OSReleaseFileVolumeName,
+					MountPath: common.OSReleaseFileMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -343,10 +343,10 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 					},
 				},
 				{
-					Name: common.SystemProbeOSReleaseDirVolumeName,
+					Name: common.OSReleaseFileVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.SystemProbeOSReleaseDirVolumePath,
+							Path: common.OSReleaseFileHostPath,
 						},
 					},
 				},

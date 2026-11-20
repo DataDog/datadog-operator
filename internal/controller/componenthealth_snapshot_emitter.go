@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/componenthealth"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -123,6 +124,11 @@ type snapshotEmitter struct {
 	// tests to target a local server; empty in production (the URL is derived from
 	// the site).
 	intakeURL string
+
+	// lastSendOK memoizes the previous send outcome so delivery-state transitions
+	// (the first send, and every healthy<->failing flip) can be logged at Info while
+	// the steady state stays at V(1).
+	lastSendOK *bool
 }
 
 var _ componentHealthEmitter = &snapshotEmitter{}
@@ -149,40 +155,73 @@ func newSnapshotEmitter(log logr.Logger, k8sClient client.Reader, credsManager *
 func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []componenthealth.ComponentIssue) error {
 	creds, err := e.credsManager.GetCredsWithDDAFallback(e.getDDA)
 	if err != nil {
-		e.log.V(1).Info("skipping component health snapshot: no credentials", "error", err)
+		e.recordSendFailure("no_credentials", "skipping component health snapshot: no credentials", "error", err)
 		return err
 	}
 
 	report := buildHealthReport(active, resolved, e.clusterID(ctx), e.clusterName())
 	payload, err := json.Marshal(report)
 	if err != nil {
+		// A marshal failure is a code bug, not a delivery-state change, so it is not
+		// routed through the delivery metrics/transition logging.
 		e.log.Error(err, "failed to marshal component health report")
 		return err
 	}
 
-	req, err := e.newRequest(ctx, creds, payload)
+	target := e.intakeURL
+	if target == "" {
+		target = agenthealthURL(creds)
+	}
+
+	req, err := e.newRequest(ctx, target, creds, payload)
 	if err != nil {
-		e.log.V(1).Info("failed to build component health request", "error", err)
+		e.recordSendFailure("build_request", "failed to build component health request", "url", target, "error", err)
 		return err
 	}
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		e.log.V(1).Info("failed to send component health snapshot", "error", err)
+		e.recordSendFailure("transport", "failed to send component health snapshot", "url", target, "error", err)
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		e.log.V(1).Info("component health intake returned non-success status",
-			"status", resp.StatusCode, "body", string(body))
+		e.recordSendFailure("http_status", "component health intake returned non-success status",
+			"url", target, "status", resp.StatusCode, "body", string(body))
 		return fmt.Errorf("agenthealth intake returned status %d", resp.StatusCode)
 	}
 
-	e.log.V(2).Info("sent component health snapshot",
-		"active", len(active), "resolved", len(resolved), "status", resp.StatusCode)
+	e.recordSendSuccess("url", target, "active", len(active), "resolved", len(resolved), "status", resp.StatusCode)
 	return nil
+}
+
+// recordSendSuccess bumps the delivery metrics and logs a successful send.
+func (e *snapshotEmitter) recordSendSuccess(kv ...any) {
+	metrics.ComponentHealthSnapshotsSent.Inc()
+	metrics.ComponentHealthLastSuccessfulSendTimestamp.SetToCurrentTime()
+	e.logDelivery(true, "sent component health snapshot", kv...)
+}
+
+// recordSendFailure bumps the delivery error metric (by reason) and logs the failure.
+func (e *snapshotEmitter) recordSendFailure(reason, msg string, kv ...any) {
+	metrics.ComponentHealthSnapshotSendErrors.WithLabelValues(reason).Inc()
+	e.logDelivery(false, msg, kv...)
+}
+
+// logDelivery logs a send outcome so delivery state is traceable. Delivery-state
+// transitions — the first send, and every healthy<->failing flip — are logged at
+// Info so they surface at the default log level.
+// The steady state logs at V(1) to avoid per-tick noise.
+func (e *snapshotEmitter) logDelivery(ok bool, msg string, kv ...any) {
+	transition := e.lastSendOK == nil || *e.lastSendOK != ok
+	e.lastSendOK = &ok
+	if transition {
+		e.log.Info(msg, kv...)
+		return
+	}
+	e.log.V(1).Info(msg, kv...)
 }
 
 // clusterID resolves the cluster's stable identity: the UID of the kube-system
@@ -221,13 +260,9 @@ func (e *snapshotEmitter) clusterName() string {
 	return ""
 }
 
-// newRequest builds the POST request to the agenthealth intake for the given
-// payload.
-func (e *snapshotEmitter) newRequest(ctx context.Context, creds config.Creds, payload []byte) (*http.Request, error) {
-	target := e.intakeURL
-	if target == "" {
-		target = agenthealthURL(creds)
-	}
+// newRequest builds the POST request to the given agenthealth intake target for
+// the supplied payload.
+func (e *snapshotEmitter) newRequest(ctx context.Context, target string, creds config.Creds, payload []byte) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err

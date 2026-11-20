@@ -61,10 +61,7 @@ func assertEnv(envVars ...envVar) *test.ComponentTest {
 // happy and the unset case share it so that they are mechanically identical except for
 // gatewayClasses itself.
 //
-// The 7.82.0 cluster-agent tag is load-bearing: a non-empty gatewayClasses makes
-// requiresGKESupport() true, and the default cluster-agent version
-// (images.AgentLatestVersion) is below ClusterAgentGKEMinVersion, so an unpinned fixture is
-// gated off, emits no env var whatsoever, and makes every env assertion meaningless.
+// Pin the cluster-agent tag so the fixture stays above ClusterAgentGKEMinVersion.
 func gkeGatewayClassesDDA(gatewayClasses []string) *v2alpha1.DatadogAgent {
 	dda := testutils.NewDatadogAgentBuilder().
 		WithClusterAgentTag("7.82.0").
@@ -1121,7 +1118,7 @@ func TestConfigureDoesNotWarnForCRDOnlyConfiguration(t *testing.T) {
 }
 
 // TestConfigureNilSpecDoesNotPanic pins the nil-spec guard. Without it, an *enabled*
-// appsec annotation walks past every version gate (clusterAgentVersion is nil-safe and
+// appsec annotation walks past every version gate (the version helper is nil-safe and
 // falls back to the latest agent version) and reaches
 // constants.GetClusterAgentServiceAccount, which dereferences ddaSpec.Override and
 // panics. The guard is load-bearing, not decorative.
@@ -1557,12 +1554,8 @@ func TestConfigureGKEVersionGate(t *testing.T) {
 	}
 }
 
-// TestConfigureGKEGateUsesDefaultClusterAgentVersion pins the reality of an unpinned
-// cluster-agent: clusterAgentVersion falls back to images.AgentLatestVersion, which is now
-// at or above ClusterAgentGKEMinVersion, so a GKE configuration with no image override
-// clears the version gate by default. This is intended behavior, not a bug.
 func TestConfigureGKEGateUsesDefaultClusterAgentVersion(t *testing.T) {
-	require.True(t, utils.IsAboveMinVersion(images.AgentLatestVersion, ClusterAgentGKEMinVersion, nil),
+	require.True(t, utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, ClusterAgentGKEMinVersion, nil),
 		"this test only means something while the default agent version is at or above %s", ClusterAgentGKEMinVersion)
 
 	dda := testutils.NewDatadogAgentBuilder().

@@ -1493,6 +1493,7 @@
           "additionalProperties": false,
           "properties": {
             "digest": {
+              "minLength": 1,
               "type": "string"
             },
             "imagePullSecrets": {

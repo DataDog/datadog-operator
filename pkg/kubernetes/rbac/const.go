@@ -27,7 +27,6 @@ const (
 	CoreAPIGroup                  = ""
 	DatadogAPIGroup               = "datadoghq.com"
 	DiscoveryAPIGroup             = "discovery.k8s.io"
-	ExtensionsAPIGroup            = "extensions"
 	ExternalMetricsAPIGroup       = "external.metrics.k8s.io"
 	GatewayAPIGroup               = "gateway.networking.k8s.io"
 	InferenceAPIGroup             = "inference.networking.k8s.io"
@@ -38,6 +37,7 @@ const (
 	PolicyAPIGroup                = "policy"
 	RbacAPIGroup                  = "rbac.authorization.k8s.io"
 	RegistrationAPIGroup          = "apiregistration.k8s.io"
+	ResourceAPIGroup              = "resource.k8s.io"
 	StorageAPIGroup               = "storage.k8s.io"
 	EKSMetricsAPIGroup            = "metrics.eks.amazonaws.com"
 	EKSAPIGroup                   = "eks.amazonaws.com"
@@ -49,6 +49,7 @@ const (
 	DynamoAPIGroup                = "nvidia.com"
 	KServeAPIGroup                = "serving.kserve.io"
 	KueueAPIGroup                 = "kueue.x-k8s.io"
+	KAIAPIGroup                   = "scheduling.run.ai"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -81,7 +82,6 @@ const (
 	CustomResourceDefinitionsResource                 = "customresourcedefinitions"
 	DaemonsetsResource                                = "daemonsets"
 	DatadogAgentsResource                             = "datadogagents"
-	DatadogAgentInternalsResource                     = "datadogagentinternals"
 	DatadogInstrumentationsResource                   = "datadoginstrumentations"
 	DatadogInstrumentationsStatusResource             = "datadoginstrumentations/status"
 	DatadogMetricsResource                            = "datadogmetrics"
@@ -121,7 +121,10 @@ const (
 	PodsResource                                      = "pods"
 	ReplicasetsResource                               = "replicasets"
 	ReplicationControllersResource                    = "replicationcontrollers"
+	ResourceClaimsResource                            = "resourceclaims"
 	ResourceQuotasResource                            = "resourcequotas"
+	ResourceSlicesResource                            = "resourceslices"
+	DeviceTaintRulesResource                          = "devicetaintrules"
 	RoleBindingResource                               = "rolebindings"
 	RoleResource                                      = "roles"
 	Rollout                                           = "rollouts"
@@ -162,6 +165,7 @@ const (
 	KueueLocalQueuesResource                          = "localqueues"
 	KueueResourceFlavorsResource                      = "resourceflavors"
 	KueueWorkloadsResource                            = "workloads"
+	KAIPodGroupsResource                              = "podgroups"
 
 	// GKE resources
 	GCPTrafficExtensionsResource = "gcptrafficextensions"

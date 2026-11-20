@@ -7,6 +7,7 @@ package resources
 
 import (
 	"fmt"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -53,7 +54,10 @@ func components(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []component {
 			workload:          statefulSetWorkload{spec: spec.Indexer, serviceName: headlessService},
 			quickwitService:   quickwitIndexerServiceName,
 			configVolumeMount: corev1.VolumeMount{Name: configVolumeName, MountPath: quickwitDirectory},
-			extraEnv:          []corev1.EnvVar{decommissionTimeoutEnv(envQuickwitIngestDecommissionTimeout, &spec.Indexer.DatadogBYOCClusterComponentSpec)},
+			extraEnv: append([]corev1.EnvVar{
+				decommissionTimeoutEnv(envQuickwitIngestDecommissionTimeout, &spec.Indexer.DatadogBYOCClusterComponentSpec),
+				{Name: envQuickwitInMemoryIndexing, Value: "true"},
+			}, indexingMaxWriteThroughputEnv(spec.Indexer.Resources)...),
 		},
 		{
 			name:              SearcherComponentName,
@@ -62,6 +66,7 @@ func components(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []component {
 			quickwitService:   quickwitSearcherServiceName,
 			configVolumeMount: configFileVolumeMount(),
 			extraServicePorts: []corev1.ServicePort{{Name: "cloudprem", Port: cloudpremPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("cloudprem")}},
+			extraEnv:          []corev1.EnvVar{{Name: envQuickwitDisableLoadEstimation, Value: "true"}},
 		},
 		{
 			name:              ControlPlaneComponentName,
@@ -115,6 +120,17 @@ func compactorComponent(spec *datadoghqv1alpha1.DatadogBYOCClusterCompactorCompo
 // decommissionTimeoutEnv leaves part of the termination grace period for the process to exit.
 func decommissionTimeoutEnv(name string, spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) corev1.EnvVar {
 	return corev1.EnvVar{Name: name, Value: fmt.Sprintf("%ds", *spec.TerminationGracePeriodSeconds*9/10)}
+}
+
+// indexingMaxWriteThroughputEnv scales the indexer write throughput cap with the cores. It leaves the cap
+// unset without a CPU resource.
+func indexingMaxWriteThroughputEnv(resources *corev1.ResourceRequirements) []corev1.EnvVar {
+	cores := cpuCores(resources)
+	if cores == 0 {
+		return nil
+	}
+	throughput := strconv.FormatFloat(float64(cores)*indexingMaxWriteThroughputMiBPerCore, 'f', -1, 64) + "MiB"
+	return []corev1.EnvVar{{Name: envQuickwitIndexingMaxWriteThroughput, Value: throughput}}
 }
 
 func (c component) enabled() bool {

@@ -58,7 +58,7 @@ curl -sS \
   | jq '.data | del(.id, .configured_alert_ids, .created_at, .creator, .modified_at, .monitor_tags)'
 ```
 
-Review the generated JSON before applying it. Remove any other fields that are returned by the API only for IDs, status, history, authorship, fields you do not desire to set. Keep configuration fields that are part of the create/update API payload, such as monitor `query`, `type`, `message`, `options`, and `tags`; dashboard `title`, `layout_type`, `widgets`, and template variables; and SLO `name`, `type`, `thresholds`, `query`, `sli_specification`, `monitor_ids`, `groups`, and `tags`.
+Review the generated JSON before applying it. Remove any other fields that are returned by the API only for IDs, status, history, authorship, fields you do not desire to set. For monitors, response-only fields left in `jsonSpec` also prevent the Operator from skipping periodic updates of unchanged monitors (see [Controller tuning](./datadog_generic_resource.md#controller-tuning)). Keep configuration fields that are part of the create/update API payload, such as monitor `query`, `type`, `message`, `options`, and `tags`; dashboard `title`, `layout_type`, `widgets`, and template variables; and SLO `name`, `type`, `thresholds`, `query`, `sli_specification`, `monitor_ids`, `groups`, and `tags`.
 
 ## Create the DDGR manifest
 

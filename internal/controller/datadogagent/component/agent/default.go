@@ -47,12 +47,16 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentSingleContainer(dda)
 	} else {
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
-		jemallocEnvs := component.JemallocEnvVars(dda, component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
-		for i := range agentContainers {
-			switch apicommon.AgentContainerName(agentContainers[i].Name) {
-			case apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName, apicommon.TraceAgentContainerName:
-				agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
-			}
+	}
+	jemallocEnvs := component.JemallocEnvVars(dda, common.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName))
+	for i := range agentContainers {
+		if agentContainers[i].Name != string(apicommon.OtelAgent) {
+			agentContainers[i].Env = append(agentContainers[i].Env, jemallocEnvs...)
+		}
+	}
+	for i := range agentContainers {
+		if isConfigStreamConsumerContainer(agentContainers[i].Name) {
+			agentContainers[i].Env = append(agentContainers[i].Env, configStreamConsumerEnvVar())
 		}
 	}
 
@@ -464,6 +468,30 @@ func envVarsForNodeAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envVarsForCoreAgent(dda), podNameEnvVar())
 }
 
+// isConfigStreamConsumerContainer reports whether the container reads the config stream consumer
+// switch; the core agent is included so its streamed snapshot reports the same value.
+func isConfigStreamConsumerContainer(name string) bool {
+	switch apicommon.AgentContainerName(name) {
+	case apicommon.CoreAgentContainerName,
+		apicommon.UnprivilegedSingleAgentContainerName,
+		apicommon.TraceAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SecurityAgentContainerName,
+		apicommon.SystemProbeContainerName:
+		return true
+	}
+	return false
+}
+
+// configStreamConsumerEnvVar disables config streaming by default: since Agent 7.85.0 consumers
+// drop their own environment, which loses per-container settings.
+func configStreamConsumerEnvVar() corev1.EnvVar {
+	return corev1.EnvVar{
+		Name:  DDRemoteAgentConfigStreamConsumerEnabled,
+		Value: "false",
+	}
+}
+
 func podNameEnvVar() corev1.EnvVar {
 	return corev1.EnvVar{
 		Name: DDPodName,
@@ -483,6 +511,8 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 
 	const traceAgentLoaderMinVersion = "7.75.0-0"
 	defaultIfVersionUnknown := false
+	// The experimental per-container image override can later select a trace-agent
+	// image older than the component image used here, after trace-loader was selected.
 	if utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), traceAgentLoaderMinVersion, &defaultIfVersionUnknown) {
 		command = append([]string{"trace-loader", agentCustomConfigVolumePath}, command...)
 	}
@@ -767,7 +797,7 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 		Value: "true",
 	})
 
-	if images.IsJMXImage(component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName)) {
+	if images.IsJMXImage(common.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName)) {
 		envs = append(envs, corev1.EnvVar{
 			Name:  common.DDJMXUseContainerSupport,
 			Value: "true",
@@ -849,6 +879,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForConfig(),
 		common.GetVolumeForProc(),
 		common.GetVolumeForCgroups(),
+		common.GetVolumeForOSRelease(),
 		common.GetVolumeForDogstatsd(),
 		common.GetVolumeForRuntimeSocket(),
 		common.GetVolumeForRunPath(),
@@ -876,6 +907,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForOSRelease(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForRunPath(),
@@ -905,6 +937,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForOSRelease(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}

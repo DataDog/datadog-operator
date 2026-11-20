@@ -959,6 +959,7 @@ spec:
                 image:
                   properties:
                     digest:
+                      minLength: 1
                       type: string
                     imagePullSecrets:
                       items:

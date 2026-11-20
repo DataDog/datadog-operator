@@ -6,6 +6,9 @@
 package testutils
 
 import (
+	"encoding/json"
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -769,6 +772,28 @@ func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners b
 	return builder
 }
 
+// WithClusterChecksRunnerGroups sets the experimental cluster checks runner groups annotation to groups encoded as JSON.
+func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups any) *DatadogAgentBuilder {
+	raw, err := json.Marshal(groups)
+	if err != nil {
+		panic(err)
+	}
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, string(raw))
+}
+
+// WithCoreChecksRunnerDefault enables the experimental built-in core runner group.
+func (builder *DatadogAgentBuilder) WithCoreChecksRunnerDefault() *DatadogAgentBuilder {
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalCoreChecksRunnerDefault, "true")
+}
+
+func (builder *DatadogAgentBuilder) withAnnotation(key, value string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = map[string]string{}
+	}
+	builder.datadogAgent.Annotations[key] = value
+	return builder
+}
+
 // Prometheus Scrape
 
 func (builder *DatadogAgentBuilder) initPrometheusScrape() {
@@ -1050,37 +1075,32 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 
 // Kueue
 
-func (builder *DatadogAgentBuilder) initKueue() {
-	if builder.datadogAgent.Spec.Features.Kueue == nil {
-		builder.datadogAgent.Spec.Features.Kueue = &v2alpha1.KueueFeatureConfig{}
+func (builder *DatadogAgentBuilder) withKueueConfigField(key string, value any) *DatadogAgentBuilder {
+	const annotation = "agent.datadoghq.com/kueue-config"
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = make(map[string]string)
 	}
+	config := make(map[string]any)
+	_ = json.Unmarshal([]byte(builder.datadogAgent.Annotations[annotation]), &config)
+	config[key] = value
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	builder.datadogAgent.Annotations[annotation] = string(data)
+	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithKueueEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initKueue()
-	builder.datadogAgent.Spec.Features.Kueue.Enabled = new(enabled)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) WithKueueCollectWorkloadEvents(enabled bool) *DatadogAgentBuilder {
-	builder.initKueue()
-	builder.datadogAgent.Spec.Features.Kueue.CollectWorkloadEvents = new(enabled)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) WithKueueMetricsService(name, namespace string) *DatadogAgentBuilder {
-	builder.initKueue()
-	builder.datadogAgent.Spec.Features.Kueue.MetricsService = &v2alpha1.KueueMetricsServiceConfig{
-		Name:      new(name),
-		Namespace: new(namespace),
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = make(map[string]string)
 	}
+	builder.datadogAgent.Annotations["agent.datadoghq.com/kueue-enabled"] = strconv.FormatBool(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithKueueCustomConf(conf *v2alpha1.CustomConfig) *DatadogAgentBuilder {
-	builder.initKueue()
-	builder.datadogAgent.Spec.Features.Kueue.Conf = conf
-	return builder
+	return builder.withKueueConfigField("conf", conf)
 }
 
 func (builder *DatadogAgentBuilder) initKubernetesActions() {

@@ -105,6 +105,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
+// KAI Scheduler
+// +kubebuilder:rbac:groups=scheduling.run.ai,resources=podgroups,verbs=list;watch
+
 // Kueue
 // +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=clusterqueues;localqueues;resourceflavors;workloads,verbs=get;list;watch
 
@@ -262,6 +265,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceclaims;resourceslices;devicetaintrules,verbs=list;watch
 
 // Profiles
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
