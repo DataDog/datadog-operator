@@ -131,6 +131,8 @@ lint_e2e:
 
 build_operator_image_amd64:
   stage: image
+  # Build images speculatively; E2E jobs still wait for build_and_test.
+  needs: []
   retry: 2
   timeout: 20m
   tags:
@@ -170,6 +172,7 @@ build_operator_image_fips_amd64:
 
 build_operator_image_arm64:
   stage: image
+  needs: []
   retry: 2
   timeout: 20m
   rules: !reference [.on_build_images]
@@ -209,6 +212,7 @@ build_operator_image_fips_arm64:
 
 build_operator_check_image_amd64:
   stage: image
+  needs: []
   retry: 2
   timeout: 20m
   rules: !reference [.on_build_images]
@@ -229,6 +233,7 @@ build_operator_check_image_amd64:
 
 build_operator_check_image_arm64:
   stage: image
+  needs: []
   retry: 2
   timeout: 20m
   rules: !reference [.on_build_images]
@@ -248,6 +253,7 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  needs: []
   retry: 2
   timeout: 20m
   rules: !reference [.on_build_images]
@@ -406,6 +412,9 @@ e2e:
   needs:
     - "trigger_e2e_operator_image"
     - "prepare_e2e_plugins"
+    # Images build without waiting for core checks; skip E2E if those checks fail.
+    - job: "build_and_test"
+      artifacts: false
   rules: !reference [.on_run_e2e]
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -523,6 +532,8 @@ e2e_gke_autopilot:
   needs:
     - "trigger_e2e_operator_image"
     - "prepare_e2e_plugins"
+    - job: "build_and_test"
+      artifacts: false
   timeout: 120m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -557,6 +568,8 @@ e2e_untaint:
     # Needs the operator image (unlike autoscaling, which exercises the CLI).
     - "trigger_e2e_operator_image"
     - "prepare_e2e_plugins"
+    - job: "build_and_test"
+      artifacts: false
   timeout: 100m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -616,6 +629,8 @@ e2e_componenthealth:
     # Needs the operator image (the suite deploys the operator and asserts its metrics).
     - "trigger_e2e_operator_image"
     - "prepare_e2e_plugins"
+    - job: "build_and_test"
+      artifacts: false
   timeout: 70m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
