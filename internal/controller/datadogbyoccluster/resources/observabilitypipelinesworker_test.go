@@ -101,6 +101,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		image               byocimage.ResolvedImage
 		want                *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 		wantErr             string
+		signal              *datadoghqv1alpha1.DatadogBYOCClusterSignal
 	}{
 		{
 			name: "single custom port without implicit OTLP ports",
@@ -179,6 +180,61 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 				want := wantDefaultWorker()
 				want.Spec.Env[0].Value = "https://byoc-indexer:7280"
+				return want
+			}(),
+		},
+		{
+			name:     "traces signal uses BYOC traces endpoint",
+			signal:   ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces),
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				// Pomsky serves BYOC traces on /api/datadog/v1/byoc/traces; OPW uses the value verbatim.
+				want.Spec.Env = []corev1.EnvVar{{Name: envPipelineDestinationTracesEndpoint, Value: "http://byoc-indexer:7280/api/datadog/v1/byoc/traces"}}
+				return want
+			}(),
+		},
+		{
+			name:                "traces signal with REST TLS uses HTTPS",
+			signal:              ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces),
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{{Name: envPipelineDestinationTracesEndpoint, Value: "https://byoc-indexer:7280/api/datadog/v1/byoc/traces"}}
+				return want
+			}(),
+		},
+		{
+			name:   "traces signal keeps user-set CloudPrem env",
+			signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces),
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationEndpoint, Value: "http://user-set:7280"}},
+			},
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{
+					{Name: envPipelineDestinationEndpoint, Value: "http://user-set:7280"},
+					{Name: envPipelineDestinationTracesEndpoint, Value: "http://byoc-indexer:7280/api/datadog/v1/byoc/traces"},
+				}
+				return want
+			}(),
+		},
+		{
+			name:   "traces signal: user-set traces endpoint overrides the indexer Service",
+			signal: ptr.To(datadoghqv1alpha1.DatadogBYOCClusterSignalTraces),
+			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+				Env: []corev1.EnvVar{{Name: envPipelineDestinationTracesEndpoint, Value: "http://user-set:7280/custom"}},
+			},
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:    defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Env = []corev1.EnvVar{{Name: envPipelineDestinationTracesEndpoint, Value: "http://user-set:7280/custom"}}
 				return want
 			}(),
 		},
@@ -448,6 +504,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							Key:                  "api-key",
 						},
 					},
+					Signal:              tt.signal,
 					NodeConfigOverrides: tt.nodeConfigOverrides,
 					Global:              tt.global,
 					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{

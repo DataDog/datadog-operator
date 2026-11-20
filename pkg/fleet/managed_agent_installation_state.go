@@ -91,7 +91,7 @@ func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Re
 			state.TaskState != pbgo.TaskState_DONE {
 			return nil, fmt.Errorf("managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
 		}
-		if _, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx); err != nil {
+		if _, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx, intent.AgentProfiles); err != nil {
 			return nil, fmt.Errorf("validate managed Agent installation acknowledgement for Remote Configuration updater tags: %w", err)
 		}
 		return append(tags, "operator_config_updates:ready"), nil

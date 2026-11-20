@@ -34,6 +34,16 @@ change or be removed; prefer the stable equivalent where one exists (for GKE
 Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
 They are documented with the features they control.
 
+### Process passwd mounts
+
+For eligible containers using Agent version 7.86.0 or later (including 7.86.0+ prereleases such as release candidates), live-process and process-discovery mount the host's `/etc/passwd` read-only at `/host/etc/passwd`, preserving image-local accounts in `/etc/passwd`. Like other version-gated features, the version comes from the node Agent image override (`spec.override.nodeAgent.image`), or the Operator's default Agent version when there is no override. Older versions, tags without a full version (such as `7`, `latest`, or `7.86`), custom tags, and digest-only images retain `/etc/passwd`. Experimental per-container image annotations and container renames are not considered, so they can make the mount disagree with the running image; the effect is limited to process usernames. The relocated mount still uses the `passwd` volume. Separately, the core agent and process-agent always mount host `/etc/os-release` read-only at `/host/etc/os-release` (volume `os-release-file`), like the Helm chart, because the Agent sets `HOST_ETC=/host/etc` whenever that directory exists and then reads the host OS from there. Existing Talos exclusions and security mounts are unchanged.
+
+On GKE Autopilot, process collection keeps `/etc/passwd` for now: the new destination needs a published WorkloadAllowlist that permits it.
+
+The Operator does not override `HOST_ETC` or `ignore_host_etc`. If you customize these settings, ensure `HOST_ETC=/host/etc` to resolve users through the new mount.
+
+**Known limitation:** the [process resolver change](https://github.com/DataDog/datadog-agent/pull/55789) does not cover Gohai. Moving the core Agent mount can cause Gohai process metadata to report numeric UIDs or image-local usernames instead of host usernames.
+
 ## Manifest Templates
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]
@@ -189,8 +199,9 @@ spec:
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.gpu.enabled | Enables GPU monitoring core check. Default: false |
 | features.gpu.patchCgroupPermissions | PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false |
-| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Default: false |
-| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
+| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Applies to NVIDIA GPUs only. Default: false |
+| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia, or unset when vendor is amd |
+| features.gpu.vendor | Selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings, sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot. |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |

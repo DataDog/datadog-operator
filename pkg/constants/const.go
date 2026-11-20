@@ -84,3 +84,10 @@ const (
 const (
 	DatadogAgentInternalFinalizer = "finalizer.datadoghq.com/datadogagentinternal"
 )
+
+// Names of the cluster checks the Operator configures.
+const (
+	KubeStateMetricsCoreCheckName = "kubernetes_state_core"
+	OrchestratorCheckName         = "orchestrator"
+	HelmCheckName                 = "helm"
+)

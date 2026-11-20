@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/agent-payload/v5/healthplatform"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/componenthealth"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -295,4 +297,48 @@ func TestSnapshotEmitter_SkipsWithoutCredentials(t *testing.T) {
 	err := emitter.Snapshot(context.Background(), nil, nil)
 	assert.Error(t, err, "must return an error when credentials are missing")
 	assert.False(t, posted, "must not POST when credentials are missing")
+}
+
+// TestSnapshotEmitter_DeliveryObservability verifies the delivery metrics move on
+// success and failure and that the emitter tracks delivery state.
+func TestSnapshotEmitter_DeliveryObservability(t *testing.T) {
+	t.Setenv(constants.DDAPIKey, "test-api-key")
+
+	kubeSystem := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "kube-system", UID: ktypes.UID("cluster-uid")},
+	}
+	fakeClient := fake.NewClientBuilder().WithObjects(kubeSystem).Build()
+	emitter := newSnapshotEmitter(logr.Discard(), fakeClient, config.NewCredentialManager(fakeClient))
+
+	// Successful delivery (2xx).
+	okSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer okSrv.Close()
+	emitter.httpClient = okSrv.Client()
+	emitter.intakeURL = okSrv.URL + "/" + agenthealthPath
+
+	sentBefore := testutil.ToFloat64(metrics.ComponentHealthSnapshotsSent)
+	require.NoError(t, emitter.Snapshot(context.Background(), nil, nil))
+	assert.Equal(t, sentBefore+1, testutil.ToFloat64(metrics.ComponentHealthSnapshotsSent),
+		"a 2xx send increments snapshots_sent_total")
+	assert.Positive(t, testutil.ToFloat64(metrics.ComponentHealthLastSuccessfulSendTimestamp),
+		"a 2xx send stamps last_successful_send_timestamp")
+	require.NotNil(t, emitter.lastSendOK)
+	assert.True(t, *emitter.lastSendOK, "delivery state is healthy after a 2xx send")
+
+	// Failed delivery (non-2xx) increments the error counter by reason.
+	failSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer failSrv.Close()
+	emitter.httpClient = failSrv.Client()
+	emitter.intakeURL = failSrv.URL + "/" + agenthealthPath
+
+	errBefore := testutil.ToFloat64(metrics.ComponentHealthSnapshotSendErrors.WithLabelValues("http_status"))
+	require.Error(t, emitter.Snapshot(context.Background(), nil, nil))
+	assert.Equal(t, errBefore+1, testutil.ToFloat64(metrics.ComponentHealthSnapshotSendErrors.WithLabelValues("http_status")),
+		"a non-2xx send increments snapshot_send_errors_total{reason=http_status}")
+	require.NotNil(t, emitter.lastSendOK)
+	assert.False(t, *emitter.lastSendOK, "delivery state is failing after a non-2xx send")
 }

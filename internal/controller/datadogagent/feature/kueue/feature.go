@@ -151,7 +151,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {
+	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {
 		f.logger.Info("Kueue feature requires Cluster Agent >= 7.82.0; not enabling it")
 		return reqComp
 	}
@@ -165,7 +165,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), kueueMinVersion, nil) {
+	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), kueueMinVersion, nil) {
 		f.logger.Info("Kueue check requires Agent >= 7.82.0; only Kueue metadata collection is enabled in the Cluster Agent")
 		return reqComp
 	}

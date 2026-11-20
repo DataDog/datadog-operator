@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -23,13 +24,11 @@ func TestGetComponentVersion(t *testing.T) {
 		want     string
 	}{
 		{
-			name: "no override",
-			want: images.AgentLatestVersion,
+			name: "null component override",
 		},
 		{
 			name:     "no image override",
 			override: &v2alpha1.DatadogAgentComponentOverride{},
-			want:     images.AgentLatestVersion,
 		},
 		{
 			name: "tagged full name takes precedence over tag",
@@ -95,38 +94,65 @@ func TestGetComponentVersion(t *testing.T) {
 			want: "7.85.0",
 		},
 		{
+			name: "combined image variant suffixes preserve the prerelease",
+			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
+				Tag: "7.86.0-rc.1-fips-full",
+			}},
+			want: "7.86.0-rc.1",
+		},
+		{
+			name: "Windows JMX image",
+			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
+				Name: "registry/agent:7.86.0-servercore-jmx",
+			}},
+			want: "7.86.0",
+		},
+		{
 			name: "untagged name only",
 			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
 				Name: "agent",
 			}},
-			want: "latest",
 		},
 		{
 			name:     "empty image override",
 			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{}},
-			want:     "",
+		},
+		{
+			name: "pull policy only",
+			override: &v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{
+				PullPolicy: new(corev1.PullAlways),
+			}},
 		},
 	}
 
+	defaultVersions := map[v2alpha1.ComponentName]string{
+		v2alpha1.NodeAgentComponentName:           images.AgentLatestVersion,
+		v2alpha1.ClusterAgentComponentName:        images.ClusterAgentLatestVersion,
+		v2alpha1.ClusterChecksRunnerComponentName: images.AgentLatestVersion,
+	}
+	for componentName, defaultVersion := range defaultVersions {
+		assert.Equal(t, defaultVersion, GetComponentVersionFromSpec(nil, componentName))
+		assert.Equal(t, defaultVersion, GetComponentVersionFromSpec(&v2alpha1.DatadogAgentSpec{}, componentName))
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, componentName := range []v2alpha1.ComponentName{
-				v2alpha1.NodeAgentComponentName,
-				v2alpha1.ClusterAgentComponentName,
-				v2alpha1.ClusterChecksRunnerComponentName,
-			} {
+			for componentName, defaultVersion := range defaultVersions {
 				t.Run(string(componentName), func(t *testing.T) {
-					spec := v2alpha1.DatadogAgentSpec{}
-					if tt.override != nil {
-						spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					spec := v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							componentName: tt.override,
-						}
+						},
 					}
+					want := tt.want
+					if want == "" {
+						want = defaultVersion
+					}
+					assert.Equal(t, want, GetComponentVersionFromSpec(&spec, componentName))
 					for _, dda := range []metav1.Object{
 						&v2alpha1.DatadogAgent{Spec: spec},
 						&v1alpha1.DatadogAgentInternal{Spec: spec},
 					} {
-						assert.Equal(t, tt.want, GetComponentVersion(dda, componentName), "%T", dda)
+						assert.Equal(t, want, GetComponentVersion(dda, componentName), "%T", dda)
 					}
 				})
 			}
