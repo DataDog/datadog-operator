@@ -99,6 +99,9 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 
 	provider := instance.GetAnnotations()[kubernetes.ProviderAnnotationKey]
 
+	var groupsResult reconcile.Result
+	var groupsErr error
+
 	// 2. Reconcile each component (DCA, CCR, OTel Gateway) using the component registry.
 	// Profile DDAIs only manage the Node Agent DaemonSet, so skip components to avoid cleanup of un-related components / running un-necessary operations.
 	if !isDDAILabeledWithProfile(instance) {
@@ -115,6 +118,10 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
 		}
+
+		// 2.a. Cluster Checks Runner groups: extra Deployments outside the ComponentRegistry.
+		// A failing group doesn't block the node Agent or cleanup; its error is returned at the end.
+		groupsResult, groupsErr = r.ReconcileClusterChecksRunnerGroups(ctx, params)
 	}
 
 	// 2.b. Node Agent. provider is read from the DDAI annotation above — the DDA
@@ -136,6 +143,10 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 		if cleanupErrs := depsStore.Cleanup(ctx, r.client, true); len(cleanupErrs) > 0 {
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, cleanupErrs[0], now)
 		}
+	}
+
+	if utils.ShouldReturn(groupsResult, groupsErr) {
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, groupsResult, groupsErr, now)
 	}
 
 	// Always requeue
