@@ -203,16 +203,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 	}
 
-	// State polling can be disabled with DD_MONITOR_STATE_POLLING_ENABLED.
+	// State polling can be disabled with DD_STATE_POLLING_ENABLED.
 	// Lifecycle and force-sync work above still run; only the refresh is skipped.
 	if r.statePollingDisabled {
 		shouldRefreshStatus = false
 		if _, ok := handler.(liveStateHandler); ok {
 			setStatePollingDisabled(status, now)
 		}
-	} else if c := meta.FindStatusCondition(status.Conditions, string(condition.DatadogConditionTypeStateSynced)); c != nil && c.Reason == ctrutils.StatePollingDisabledState {
-		// Polling was re-enabled; the next refresh sets the real state and condition.
-		condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeStateSynced)
+	} else {
+		// Polling was re-enabled; clear the sentinel in case lifecycle work defers the first refresh.
+		if c := meta.FindStatusCondition(status.Conditions, string(condition.DatadogConditionTypeStateSynced)); c != nil && c.Reason == ctrutils.StatePollingDisabledState {
+			condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeStateSynced)
+		}
+		if status.State == ctrutils.StatePollingDisabledState {
+			status.State = ""
+			status.StateLastTransitionTime = &now
+		}
 	}
 
 	if shouldCreate || shouldUpdate {

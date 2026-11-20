@@ -332,6 +332,8 @@ const (
 	DatadogMonitorStateIgnored DatadogMonitorState = "Ignored"
 	// DatadogMonitorStateUnknown means the DatadogMonitor is in an unknown state
 	DatadogMonitorStateUnknown DatadogMonitorState = "Unknown"
+	// DatadogMonitorStatePollingDisabled means the operator is not polling the monitor state
+	DatadogMonitorStatePollingDisabled DatadogMonitorState = "PollingDisabled"
 )
 
 // DatadogMonitorOptionsOnMissingData controls how groups or monitors are treated if an evaluation does not return any data points

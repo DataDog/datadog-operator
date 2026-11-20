@@ -10,28 +10,32 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 const (
 	// StatePollingEnabledEnvVar gates the periodic live-state polling of the
 	// DatadogMonitor and DatadogGenericResource controllers.
-	StatePollingEnabledEnvVar = "DD_MONITOR_STATE_POLLING_ENABLED"
+	StatePollingEnabledEnvVar = "DD_STATE_POLLING_ENABLED"
 	// StatePollingDisabledState is written to the state field and used as the
 	// StateSynced condition reason while state polling is disabled.
-	StatePollingDisabledState = "PollingDisabled"
+	StatePollingDisabledState = string(v1alpha1.DatadogMonitorStatePollingDisabled)
 )
 
 // StatePollingEnabledFromEnv returns whether state polling is enabled. It
 // defaults to true when the env var is unset or invalid.
 func StatePollingEnabledFromEnv(logger logr.Logger) bool {
-	enabled := true
-	if val, ok := os.LookupEnv(StatePollingEnabledEnvVar); ok {
-		parsed, err := strconv.ParseBool(val)
-		if err != nil {
-			logger.Error(err, "Invalid value for state polling enabled. Defaulting to true.", "envVar", StatePollingEnabledEnvVar)
-		} else {
-			enabled = parsed
-		}
+	val, ok := os.LookupEnv(StatePollingEnabledEnvVar)
+	if !ok {
+		// Unset is an error so non-Helm users set it before the default flips to false.
+		logger.Error(nil, "State polling env var is not set; set it explicitly to true or false. Defaulting to true; the default will change to false in a future release.", "envVar", StatePollingEnabledEnvVar)
+		return true
+	}
+	enabled, err := strconv.ParseBool(val)
+	if err != nil {
+		logger.Error(err, "Invalid value for state polling enabled. Defaulting to true.", "envVar", StatePollingEnabledEnvVar)
+		return true
 	}
 	logger.Info("Setting state polling", "enabled", enabled)
 	return enabled

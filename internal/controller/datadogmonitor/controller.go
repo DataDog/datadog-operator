@@ -152,6 +152,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
 		if err != nil {
 			logger.Error(err, "Invalid value for monitor force sync period. Defaulting to 60 minutes.")
+		} else if forceSyncPeriodInt < 1 {
+			logger.Error(fmt.Errorf("force sync period must be at least 1 minute"), "Invalid value for monitor force sync period. Defaulting to 60 minutes.")
 		} else {
 			logger.V(1).Info("Setting monitor force sync period", "minutes", forceSyncPeriodInt)
 			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
@@ -239,13 +241,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
-	// State polling can be disabled with DD_MONITOR_STATE_POLLING_ENABLED.
+	// State polling can be disabled with DD_STATE_POLLING_ENABLED.
 	// Lifecycle and force-sync work above still run; only the refresh is skipped.
 	if r.statePollingDisabled {
 		shouldRefreshState = false
 		setStatePollingDisabled(now, newStatus)
 	} else {
 		removeMonitorCondition(newStatus, datadoghqv1alpha1.DatadogMonitorConditionTypeStateSynced)
+		// Clear the sentinel in case lifecycle work defers the first refresh.
+		if newStatus.MonitorState == datadoghqv1alpha1.DatadogMonitorStatePollingDisabled {
+			newStatus.MonitorState = ""
+			newStatus.MonitorStateLastTransitionTime = &now
+		}
 	}
 
 	if shouldRefreshState {
@@ -479,10 +486,10 @@ func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv
 // setStatePollingDisabled replaces polled state with a sentinel so consumers
 // expecting a Datadog state notice that polling is off.
 func setStatePollingDisabled(now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
-	if status.MonitorState != ctrutils.StatePollingDisabledState {
+	if status.MonitorState != datadoghqv1alpha1.DatadogMonitorStatePollingDisabled {
 		status.MonitorStateLastTransitionTime = &now
 	}
-	status.MonitorState = ctrutils.StatePollingDisabledState
+	status.MonitorState = datadoghqv1alpha1.DatadogMonitorStatePollingDisabled
 	status.MonitorStateLastUpdateTime = nil
 	status.TriggeredState = nil
 	status.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}

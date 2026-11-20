@@ -146,3 +146,29 @@ func TestUntilForceSync(t *testing.T) {
 		})
 	}
 }
+
+func TestReconcileGenericResource_StatePollingReenabledRefreshDeferred(t *testing.T) {
+	resetMockHandlerState()
+	r := newStatePollingTestReconciler(t, &MockHandler{})
+	req := newRequest(resourcesNamespace, resourcesName)
+	for range 3 {
+		_, err := reconcileRequest(r, context.TODO(), req)
+		require.NoError(t, err)
+	}
+	require.Equal(t, ctrutils.StatePollingDisabledState, getGenericResource(t, r).Status.State)
+
+	// A recent update time stands in for any reconcile where the refresh is not run.
+	obj := getGenericResource(t, r)
+	now := metav1.Now()
+	obj.Status.StateLastUpdateTime = &now
+	require.NoError(t, r.client.Status().Update(context.TODO(), obj))
+
+	r.statePollingDisabled = false
+	_, err := reconcileRequest(r, context.TODO(), req)
+	require.NoError(t, err)
+	assert.Equal(t, 0, mockRefreshStateCalls)
+
+	obj = getGenericResource(t, r)
+	assert.Empty(t, obj.Status.State, "stale PollingDisabled must be cleared once polling is re-enabled")
+	assert.Nil(t, meta.FindStatusCondition(obj.Status.Conditions, string(condition.DatadogConditionTypeStateSynced)))
+}

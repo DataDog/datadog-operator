@@ -119,7 +119,7 @@ func TestReconcileDatadogMonitor_StatePollingDisabled(t *testing.T) {
 
 	got := &datadoghqv1alpha1.DatadogMonitor{}
 	require.NoError(t, r.client.Get(context.Background(), client.ObjectKeyFromObject(dm), got))
-	assert.Equal(t, datadoghqv1alpha1.DatadogMonitorState(ctrutils.StatePollingDisabledState), got.Status.MonitorState)
+	assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStatePollingDisabled, got.Status.MonitorState)
 	assert.Nil(t, got.Status.MonitorStateLastUpdateTime)
 	assert.NotNil(t, got.Status.MonitorStateLastTransitionTime)
 	assert.Empty(t, got.Status.TriggeredState)
@@ -132,7 +132,7 @@ func TestReconcileDatadogMonitor_StatePollingDisabled(t *testing.T) {
 func TestReconcileDatadogMonitor_StatePollingReenabled(t *testing.T) {
 	now := metav1.Now()
 	r, dm, gets := newStatePollingTestReconciler(t, datadoghqv1alpha1.DatadogMonitorStatus{
-		MonitorState: datadoghqv1alpha1.DatadogMonitorState(ctrutils.StatePollingDisabledState),
+		MonitorState: datadoghqv1alpha1.DatadogMonitorStatePollingDisabled,
 		Conditions: []datadoghqv1alpha1.DatadogMonitorCondition{{
 			Type:           datadoghqv1alpha1.DatadogMonitorConditionTypeStateSynced,
 			Status:         corev1.ConditionFalse,
@@ -151,4 +151,30 @@ func TestReconcileDatadogMonitor_StatePollingReenabled(t *testing.T) {
 	assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateOK, got.Status.MonitorState)
 	assert.NotNil(t, got.Status.MonitorStateLastUpdateTime)
 	assert.Nil(t, findMonitorCondition(got.Status, datadoghqv1alpha1.DatadogMonitorConditionTypeStateSynced))
+}
+
+func TestReconcileDatadogMonitor_StatePollingReenabledRefreshDeferred(t *testing.T) {
+	now := metav1.Now()
+	// A recent update time stands in for any reconcile where the refresh is not run.
+	r, dm, gets := newStatePollingTestReconciler(t, datadoghqv1alpha1.DatadogMonitorStatus{
+		MonitorState:               datadoghqv1alpha1.DatadogMonitorStatePollingDisabled,
+		MonitorStateLastUpdateTime: &now,
+	}, false)
+
+	_, err := r.Reconcile(context.Background(), dm)
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), gets.Load())
+
+	got := &datadoghqv1alpha1.DatadogMonitor{}
+	require.NoError(t, r.client.Get(context.Background(), client.ObjectKeyFromObject(dm), got))
+	assert.Empty(t, got.Status.MonitorState, "stale PollingDisabled must be cleared once polling is re-enabled")
+}
+
+func TestReconcileDatadogMonitor_StatePollingDisabledInvalidForceSyncPeriod(t *testing.T) {
+	t.Setenv(DDMonitorForceSyncPeriodEnvVar, "0")
+	r, dm, _ := newStatePollingTestReconciler(t, datadoghqv1alpha1.DatadogMonitorStatus{}, true)
+
+	result, err := r.Reconcile(context.Background(), dm)
+	require.NoError(t, err)
+	assert.Greater(t, result.RequeueAfter, defaultForceSyncPeriod-time.Minute, "an invalid force sync period must fall back to the default, not disable requeues")
 }
