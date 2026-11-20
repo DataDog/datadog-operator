@@ -16,3 +16,5 @@ spec:
         hostPort: 8125
       unixDomainSocketConfig:
         enabled: false
+    dataPlane:
+      enabled: false

@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -123,13 +124,11 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsClusterChecksEnabled(ddaSpec) {
-			if constants.IsCCREnabled(ddaSpec) {
-				f.runInClusterChecksRunner = true
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-				reqComp.ClusterChecksRunner.IsRequired = new(true)
-			}
+		if componentccr.RunsOnRunners(dda, ddaSpec, constants.OrchestratorCheckName) {
+			f.runInClusterChecksRunner = true
+			f.rbacSuffix = common.ChecksRunnerSuffix
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
+			reqComp.ClusterChecksRunner.IsRequired = new(true)
 		}
 	}
 

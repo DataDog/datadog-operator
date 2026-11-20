@@ -417,7 +417,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// os-release volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := common.GetVolumeForOSRelease(), common.GetVolumeMountForOSRelease()
 	managers.Volume().AddVolume(&osReleaseVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
 
