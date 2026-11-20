@@ -1,0 +1,151 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogBYOCCluster
+metadata:
+  name: cloudprem
+  namespace: logs
+spec:
+  components:
+    controlPlane:
+      podDisruptionBudget: {}
+      replicas: 1
+      resources:
+        limits:
+          memory: 4Gi
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+    indexer:
+      podDisruptionBudget: {}
+      podManagementPolicy: OrderedReady
+      replicas: 2
+      resources:
+        limits:
+          memory: 13100Mi
+        requests:
+          cpu: 3600m
+          memory: 13100Mi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+      storage:
+        emptyDir: {}
+      terminationGracePeriodSeconds: 300
+    janitor:
+      podDisruptionBudget: {}
+      replicas: 1
+      resources:
+        limits:
+          memory: 4Gi
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+    metastore:
+      database:
+        uriSecretRef:
+          key: QW_METASTORE_URI
+          name: cloudprem-metastore
+      envFrom:
+      - secretRef:
+          name: cloudprem-metastore
+      podDisruptionBudget:
+        maxUnavailable: 1
+      replicas: 2
+      resources:
+        limits:
+          memory: 4Gi
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+    pipelines:
+    - name: logs
+      pipelineID: pipeline-id
+      podDisruptionBudget: {}
+      podManagementPolicy: Parallel
+      ports:
+      - name: datadog-agent
+        port: 8282
+        protocol: TCP
+      replicas: 1
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+      storage:
+        emptyDir: {}
+      terminationGracePeriodSeconds: 70
+    searcher:
+      podDisruptionBudget: {}
+      podManagementPolicy: OrderedReady
+      replicas: 2
+      resources:
+        limits:
+          memory: 13100Mi
+        requests:
+          cpu: 3600m
+          memory: 13100Mi
+      startupProbe:
+        failureThreshold: 12
+        httpGet:
+          path: /health/readyz
+          port: health
+        periodSeconds: 5
+      storage:
+        emptyDir: {}
+  datadog:
+    apiKeySecretRef:
+      key: api-key
+      name: datadog-secret
+    byocTelemetry: true
+    dogstatsdServer:
+      port: 8125
+    site: datadoghq.com
+  global: {}
+  identity:
+    serviceAccountName: cloudprem-logs
+  imageOverrides:
+    byoc:
+      imagePullSecrets:
+      - name: registry
+      pullPolicy: Always
+      repository: registry.example.com:5000/datadog/cloudprem
+      tag: v0.1.0
+    observabilityPipelinesWorker:
+      pullPolicy: IfNotPresent
+      repository: gcr.io/datadoghq/observability-pipelines-worker
+      tag: 2.23.0
+  nodeConfigOverrides:
+    gossip_protocol_version: 0
+    indexer:
+      split_store_max_num_bytes: 200G
+    ingest_api:
+      max_queue_disk_usage: 7.2GiB
+      max_queue_memory_usage: 3.6GiB
+    searcher:
+      fast_field_cache_capacity: 4.875G
+      max_num_concurrent_split_searches: 40
+      partial_request_cache_capacity: 187.5M
+      split_footer_cache_capacity: 375M
+  provider:
+    aws:
+      region: us-east-1
