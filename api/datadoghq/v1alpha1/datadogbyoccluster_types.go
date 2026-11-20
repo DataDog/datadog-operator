@@ -65,6 +65,50 @@ type DatadogBYOCClusterSpec struct {
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	NodeConfigOverrides *runtime.RawExtension `json:"nodeConfigOverrides,omitempty"`
+
+	// Indexes declares the log indexes of the cluster and the order in which logs are routed to them.
+	// A log goes to the first index whose filter matches it, and logs that match no index are dropped.
+	// When the list contains no entry named main, the Operator appends a catch-all rule (filter *) that routes
+	// the remaining logs to main.
+	//
+	// When set, the Operator owns the routing table and the indexes it lists: it overwrites the routing table,
+	// reverts changes made in the Datadog UI to the listed indexes, and deletes indexes that are not listed.
+	// The Operator never creates or deletes main, which Pomsky creates for every cluster. When main is listed, its
+	// filter, position and retention follow the list.
+	// When empty, the Operator leaves the indexes and the routing table untouched so that they can be managed in the UI.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Indexes []DatadogBYOCClusterIndexSpec `json:"indexes,omitempty"`
+}
+
+// DatadogBYOCClusterIndexRetention is the retention period of a log index.
+// +kubebuilder:validation:Enum="3 days";"7 days";"15 days";"30 days";"45 days";"60 days";"90 days";"6 months";"1 year";"15 months";"2 years";"3 years";"4 years";"5 years";"6 years";"7 years"
+type DatadogBYOCClusterIndexRetention string
+
+// DatadogBYOCClusterIndexRetentionDefault is the retention period of an index that does not set one.
+const DatadogBYOCClusterIndexRetentionDefault DatadogBYOCClusterIndexRetention = "30 days"
+
+// DatadogBYOCClusterIndexSpec defines a log index.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterIndexSpec struct {
+	// Name is the name of the index as shown in the Datadog UI. Pomsky stores the index as datadog-<name>,
+	// except main, which it stores as datadog.
+	// It must not start or end with a hyphen, contain consecutive hyphens, or start with spans, metrics or sketches.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=246
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.]+(-[a-zA-Z0-9_.]+)*$`
+	Name string `json:"name"`
+
+	// Filter is the query that selects the logs routed to the index, for example service:payment.
+	// A filter of * matches every log.
+	// +kubebuilder:validation:MinLength=1
+	Filter string `json:"filter"`
+
+	// Retention is the period for which the index keeps its logs.
+	// +optional
+	// +kubebuilder:default="30 days"
+	Retention DatadogBYOCClusterIndexRetention `json:"retention,omitempty"`
 }
 
 // DatadogBYOCClusterImageOverrides defines overrides for the default BYOC images.
