@@ -476,6 +476,117 @@ func TestWaitForConfirmationRetriesListErrors(t *testing.T) {
 	}
 }
 
+func TestWaitForConfirmationGetsNamedObjects(t *testing.T) {
+	origInterval := waitInterval
+	waitInterval = 10 * time.Millisecond
+	t.Cleanup(func() { waitInterval = origInterval })
+	// RBAC limited to named objects: get and patch with resourceNames, no list.
+	forbidden := apierrors.NewForbidden(schema.GroupResource{Group: "datadoghq.com", Resource: "datadogpodautoscalers"}, "", errors.New(`User "u" cannot list resource "datadogpodautoscalers"`))
+	listForbidden := func(int32) error { return forbidden }
+	paused := withCondition(newDPA("ns", "a", nil, nil), active, corev1.ConditionFalse, LocallyPausedReason, pausedMsg)
+
+	t.Run("confirmed without list", func(t *testing.T) {
+		tt := newCommandTest(t, listErrClient(t, listForbidden, paused), pauseSpec, selection{names: []string{"a"}}, "")
+		tt.opts.timeout = time.Second
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), []change{{dpa: *newDPA("ns", "a", nil, nil), value: Set("true")}})
+		require.NoError(t, err)
+		assert.Zero(t, unconfirmed)
+		assert.Contains(t, tt.out.String(), "Confirmed by the Cluster Agent")
+	})
+
+	t.Run("deleted objects have nothing to confirm", func(t *testing.T) {
+		tt := newCommandTest(t, listErrClient(t, listForbidden), pauseSpec, selection{names: []string{"gone"}}, "")
+		tt.opts.timeout = time.Second
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), []change{{dpa: *newDPA("ns", "gone", nil, nil), value: Set("true")}})
+		require.NoError(t, err)
+		assert.Zero(t, unconfirmed)
+	})
+
+	t.Run("names with -A still list", func(t *testing.T) {
+		tt := newCommandTest(t, listErrClient(t, listForbidden, paused), pauseSpec, selection{names: []string{"a"}, allNamespaces: true}, "")
+		tt.opts.timeout = 50 * time.Millisecond
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), []change{{dpa: *newDPA("ns", "a", nil, nil), value: Set("true")}})
+		require.NoError(t, err)
+		assert.Equal(t, 1, unconfirmed)
+		assert.Contains(t, tt.errOut.String(), "Unable to read the DatadogPodAutoscaler status")
+	})
+}
+
+// getErrClient is a fake client whose Get fails with getErr(n, key) for the
+// n-th Get (from 1), or succeeds when it returns nil.
+func getErrClient(t *testing.T, getErr func(n int32, key client.ObjectKey) error, objs ...client.Object) client.Client {
+	t.Helper()
+	s := runtime.NewScheme()
+	require.NoError(t, v1alpha2.AddToScheme(s))
+	var calls atomic.Int32
+	return fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if err := getErr(calls.Add(1), key); err != nil {
+					return err
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).Build()
+}
+
+func TestWaitForConfirmationKeepsPartialReads(t *testing.T) {
+	origInterval := waitInterval
+	waitInterval = 10 * time.Millisecond
+	t.Cleanup(func() { waitInterval = origInterval })
+	paused := func(name string) *v1alpha2.DatadogPodAutoscaler {
+		return withCondition(newDPA("ns", name, nil, nil), active, corev1.ConditionFalse, LocallyPausedReason, pausedMsg)
+	}
+	changes := func(names ...string) []change {
+		var changes []change
+		for _, name := range names {
+			changes = append(changes, change{dpa: *newDPA("ns", name, nil, nil), value: Set("true")})
+		}
+		return changes
+	}
+
+	t.Run("a late error does not discard earlier reads", func(t *testing.T) {
+		// Every other Get fails, as the rate limiter near the poll deadline:
+		// no tick reads every object.
+		rateLimited := errors.New("client rate limiter Wait returned an error: rate: Wait(n=1) would exceed context deadline")
+		c := getErrClient(t, func(n int32, _ client.ObjectKey) error {
+			if n%2 == 0 {
+				return rateLimited
+			}
+			return nil
+		}, paused("a"), paused("b"), paused("c"))
+		tt := newCommandTest(t, c, pauseSpec, selection{names: []string{"a", "b", "c"}}, "")
+		tt.opts.timeout = time.Second
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), changes("a", "b", "c"))
+		require.NoError(t, err)
+		assert.Zero(t, unconfirmed)
+		assert.Contains(t, tt.out.String(), "Confirmed by the Cluster Agent for all 3")
+	})
+
+	t.Run("objects never read are reported as such", func(t *testing.T) {
+		forbidden := apierrors.NewForbidden(schema.GroupResource{Group: "datadoghq.com", Resource: "datadogpodautoscalers"}, "b", errors.New(`User "u" cannot get resource "datadogpodautoscalers"`))
+		c := getErrClient(t, func(_ int32, key client.ObjectKey) error {
+			if key.Name == "b" {
+				return forbidden
+			}
+			return nil
+		}, newDPA("ns", "a", nil, nil), paused("b"))
+		tt := newCommandTest(t, c, pauseSpec, selection{names: []string{"a", "b"}}, "")
+		tt.opts.timeout = 50 * time.Millisecond
+
+		unconfirmed, err := tt.opts.waitForConfirmation(context.Background(), changes("a", "b"))
+		require.NoError(t, err)
+		assert.Equal(t, 2, unconfirmed)
+		out := tt.errOut.String()
+		assert.Regexp(t, `Unable to read the DatadogPodAutoscaler status: .*cannot get.*\n.*\n  • ns/b\n`, out)
+		assert.Regexp(t, `  • ns/a\n.*is not reported: the Cluster Agent is older than`, out)
+	})
+}
+
 func TestWaitForConfirmationInterrupted(t *testing.T) {
 	tt := newCommandTest(t, newFakeClient(t, newDPA("ns", "a", nil, nil)), pauseSpec, selection{}, "")
 	tt.opts.timeout = time.Minute
