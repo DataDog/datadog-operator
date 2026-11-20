@@ -40,12 +40,14 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		ksmFeat.logger = options.Logger
+		ksmFeat.activatedRunnerGroups = options.ActivatedClusterChecksRunnerGroups
 	}
 
 	return ksmFeat
 }
 
 type ksmFeature struct {
+	activatedRunnerGroups      []string
 	runInClusterChecksRunner   bool
 	collectCRDMetrics          bool
 	collectCrMetrics           []v2alpha1.Resource
@@ -116,7 +118,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		clusterCheckComponent := v2alpha1.ClusterAgentComponentName
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
-		if componentccr.RunsOnRunners(dda, ddaSpec, constants.KubeStateMetricsCoreCheckName) {
+		if componentccr.RunsOnRunners(dda, ddaSpec, f.activatedRunnerGroups, constants.KubeStateMetricsCoreCheckName) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
@@ -128,7 +130,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		clusterCheckVersion := common.GetComponentVersionFromSpec(ddaSpec, clusterCheckComponent)
 		if f.runInClusterChecksRunner {
 			// A runner group claiming the check can run its own image.
-			clusterCheckVersion = componentccr.RunnerVersion(dda, ddaSpec, constants.KubeStateMetricsCoreCheckName)
+			clusterCheckVersion = componentccr.RunnerVersion(dda, ddaSpec, f.activatedRunnerGroups, constants.KubeStateMetricsCoreCheckName)
 		}
 		if !utils.IsAboveMinVersion(clusterCheckVersion, crdAPIServiceCollectionMinVersion, nil) {
 			f.collectAPIServiceMetrics = false

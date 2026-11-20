@@ -45,6 +45,7 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 
 	if options != nil {
 		orchestratorExplorerFeat.logger = options.Logger
+		orchestratorExplorerFeat.activatedRunnerGroups = options.ActivatedClusterChecksRunnerGroups
 	}
 
 	return orchestratorExplorerFeat
@@ -52,6 +53,7 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 
 type orchestratorExplorerFeature struct {
 	enabled                           bool
+	activatedRunnerGroups             []string
 	runInClusterChecksRunner          bool
 	scrubContainers                   bool
 	collectKubernetesNetworkResources bool
@@ -124,7 +126,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if componentccr.RunsOnRunners(dda, ddaSpec, constants.OrchestratorCheckName) {
+		if componentccr.RunsOnRunners(dda, ddaSpec, f.activatedRunnerGroups, constants.OrchestratorCheckName) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)

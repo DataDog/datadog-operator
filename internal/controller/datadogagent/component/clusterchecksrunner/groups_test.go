@@ -233,44 +233,71 @@ func TestRunnerVersion(t *testing.T) {
 	annotations := map[string]string{coreKey: "true", groupsKey: `[{"name":"http","checks":["http_check"],"override":{"image":{"tag":"7.87.0"}}}]`}
 	dda := newDDA(true, false, annotations, images786())
 
-	assert.Equal(t, "7.87.0", RunnerVersion(dda, &dda.Spec, "http_check"), "a group's own image")
-	assert.Equal(t, "7.86.0", RunnerVersion(dda, &dda.Spec, constants.KubeStateMetricsCoreCheckName), "core inherits the runner image")
-	assert.Equal(t, "7.86.0", RunnerVersion(dda, &dda.Spec, "redisdb"), "unclaimed checks use the default runners' image")
+	activated := []string{CoreGroupName}
+
+	assert.Equal(t, "7.87.0", RunnerVersion(dda, &dda.Spec, activated, "http_check"), "a group's own image")
+	assert.Equal(t, "7.86.0", RunnerVersion(dda, &dda.Spec, activated, constants.KubeStateMetricsCoreCheckName), "core inherits the runner image")
+	assert.Equal(t, "7.86.0", RunnerVersion(dda, &dda.Spec, activated, "redisdb"), "unclaimed checks use the default runners' image")
 
 	untagged := newDDA(true, false, nil, map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.ClusterChecksRunnerComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "registry.example.com/agent"}},
 	})
-	assert.Equal(t, images.AgentLatestVersion, RunnerVersion(untagged, &untagged.Spec, "redisdb"), "an image name without a tag keeps the default version")
+	assert.Equal(t, images.AgentLatestVersion, RunnerVersion(untagged, &untagged.Spec, nil, "redisdb"), "an image name without a tag keeps the default version")
 }
 
 func TestPlacement(t *testing.T) {
 	core := map[string]string{coreKey: "true"}
 	http := map[string]string{groupsKey: `[{"name":"http","checks":["http_check"]}]`}
+	activatedCore := []string{CoreGroupName}
 
 	tests := []struct {
 		name         string
 		dda          *v2alpha1.DatadogAgent
+		activated    []string
 		wantRequired bool
 		wantOnRunner map[string]bool
 	}{
-		{"cluster checks disabled, core on", newDDA(false, false, core, images786()), false, map[string]bool{constants.KubeStateMetricsCoreCheckName: false}},
-		{"runners off, no groups", newDDA(true, false, nil, images786()), false, map[string]bool{constants.KubeStateMetricsCoreCheckName: false}},
-		{"runners on, no groups", newDDA(true, true, nil, images786()), true, map[string]bool{constants.KubeStateMetricsCoreCheckName: true, constants.HelmCheckName: true}},
-		{"runners off, core on", newDDA(true, false, core, images786()), true, map[string]bool{
+		{"cluster checks disabled, core on", newDDA(false, false, core, images786()), activatedCore, false, map[string]bool{constants.KubeStateMetricsCoreCheckName: false}},
+		{"runners off, no groups", newDDA(true, false, nil, images786()), nil, false, map[string]bool{constants.KubeStateMetricsCoreCheckName: false}},
+		{"runners on, no groups", newDDA(true, true, nil, images786()), nil, true, map[string]bool{constants.KubeStateMetricsCoreCheckName: true, constants.HelmCheckName: true}},
+		{"runners off, core on and activated", newDDA(true, false, core, images786()), activatedCore, true, map[string]bool{
 			constants.KubeStateMetricsCoreCheckName: true,
 			constants.OrchestratorCheckName:         true,
 			constants.HelmCheckName:                 true,
 			"http_check":                            false,
 		}},
-		{"runners off, unrelated user group", newDDA(true, false, http, images786()), true, map[string]bool{constants.KubeStateMetricsCoreCheckName: false, "http_check": true}},
-		{"runners off, malformed groups", newDDA(true, false, map[string]string{groupsKey: "not-json"}, images786()), false, map[string]bool{constants.KubeStateMetricsCoreCheckName: false}},
+		{"runners off, core on but not activated: core is deployed, its checks stay put", newDDA(true, false, core, images786()), nil, true, map[string]bool{
+			constants.KubeStateMetricsCoreCheckName: false,
+			constants.OrchestratorCheckName:         false,
+			constants.HelmCheckName:                 false,
+		}},
+		{"runners on, core on but not activated: its checks stay on the default runners", newDDA(true, true, core, images786()), nil, true, map[string]bool{constants.KubeStateMetricsCoreCheckName: true}},
+		{"runners off, user group without activation", newDDA(true, false, http, images786()), nil, true, map[string]bool{constants.KubeStateMetricsCoreCheckName: false, "http_check": true}},
+		{"runners off, malformed groups", newDDA(true, false, map[string]string{groupsKey: "not-json"}, images786()), nil, false, map[string]bool{constants.KubeStateMetricsCoreCheckName: false}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.wantRequired, RunnersRequired(tt.dda, &tt.dda.Spec))
 			for check, want := range tt.wantOnRunner {
-				assert.Equal(t, want, RunsOnRunners(tt.dda, &tt.dda.Spec, check), check)
+				assert.Equal(t, want, RunsOnRunners(tt.dda, &tt.dda.Spec, tt.activated, check), check)
 			}
 		})
 	}
+}
+
+func TestActiveGroups(t *testing.T) {
+	annotations := map[string]string{coreKey: "true", groupsKey: `[{"name":"http","checks":["http_check"]}]`}
+	dda := newDDA(true, false, annotations, images786())
+
+	deployed, err := Groups(dda, &dda.Spec)
+	require.NoError(t, err)
+	assert.Equal(t, []string{CoreGroupName, "http"}, groupNames(deployed))
+
+	active, err := ActiveGroups(dda, &dda.Spec, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"http"}, groupNames(active), "core waits for activation, user groups don't")
+
+	active, err = ActiveGroups(dda, &dda.Spec, []string{CoreGroupName})
+	require.NoError(t, err)
+	assert.Equal(t, []string{CoreGroupName, "http"}, groupNames(active))
 }
