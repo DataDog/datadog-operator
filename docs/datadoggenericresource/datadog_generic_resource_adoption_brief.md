@@ -226,7 +226,7 @@ One limitation: the list covers the Operator's own cluster only, and legacy CRs 
 
 </details>
 
-### Deletion and retention
+### Management policy (orphan)
 
 New annotation: `datadoghq.com/management-policy: orphan`. `orphan` is the only value: without the annotation, the CR behaves as it does today.
 
