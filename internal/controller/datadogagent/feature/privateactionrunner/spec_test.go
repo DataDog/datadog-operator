@@ -7,8 +7,10 @@ package privateactionrunner
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
+	"github.com/go-logr/logr/funcr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -538,4 +541,59 @@ func TestPrivateActionRunnerDoesNotReadUnneededCustomConfigurations(t *testing.T
 	require.NoError(t, f.configErr)
 	assert.True(t, req.Agent.IsEnabled())
 	assert.False(t, req.ClusterAgent.IsEnabled())
+}
+
+func TestPrivateActionRunnerDisabledClusterAgentWarning(t *testing.T) {
+	const warning = "Warning: Private Action Runner is enabled on the Cluster Agent, but override.clusterAgent.disabled is true; the Cluster Agent will not be deployed"
+	enabled := &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}
+	disabledOverride := &v2alpha1.DatadogAgentComponentOverride{Disabled: new(true)}
+	for _, tt := range []struct {
+		name              string
+		par               *v2alpha1.PrivateActionRunnerFeatureConfig
+		annotations       map[string]string
+		kubernetesActions bool
+		override          *v2alpha1.DatadogAgentComponentOverride
+		wantWarning       bool
+	}{
+		{name: "feature enabled and Cluster Agent disabled", par: enabled, override: disabledOverride, wantWarning: true},
+		{name: "component enabled over shared disable", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(false), ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(true)}}, override: disabledOverride, wantWarning: true},
+		{name: "legacy annotation enabled and Cluster Agent disabled", annotations: map[string]string{featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true"}, override: disabledOverride, wantWarning: true},
+		{name: "Kubernetes Actions enabled and Cluster Agent disabled", kubernetesActions: true, override: disabledOverride, wantWarning: true},
+		{name: "feature enabled without component override", par: enabled},
+		{name: "component override leaves disablement unset", par: enabled, override: &v2alpha1.DatadogAgentComponentOverride{}},
+		{name: "Cluster Agent explicitly enabled", par: enabled, override: &v2alpha1.DatadogAgentComponentOverride{Disabled: new(false)}},
+		{name: "PAR disabled", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(false)}, override: disabledOverride},
+		{name: "PAR disabled on Cluster Agent only", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(false)}}, override: disabledOverride},
+		{name: "only node PAR enabled", annotations: map[string]string{featureutils.EnablePrivateActionRunnerAnnotation: "true"}, override: disabledOverride},
+		{name: "PAR absent", override: disabledOverride},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var warnings []string
+			logger := funcr.New(func(_, message string) {
+				if strings.Contains(message, warning) {
+					warnings = append(warnings, message)
+				}
+			}, funcr.Options{})
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Annotations: tt.annotations},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{PrivateActionRunner: tt.par},
+				},
+			}
+			if tt.kubernetesActions {
+				dda.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{Enabled: new(true)}
+			}
+			if tt.override != nil {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{v2alpha1.ClusterAgentComponentName: tt.override}
+			}
+			f := buildPrivateActionRunnerFeature(&feature.Options{Logger: logger})
+			req := f.Configure(dda, &dda.Spec, nil)
+			if tt.wantWarning {
+				assert.Len(t, warnings, 1)
+				assert.True(t, req.ClusterAgent.IsEnabled(), "the warning must preserve feature requirements; component overrides are applied later")
+			} else {
+				assert.Empty(t, warnings)
+			}
+		})
+	}
 }
