@@ -17,6 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -48,6 +50,19 @@ func Test_sbomFeature_Configure(t *testing.T) {
 	{
 		sbomEnabledContainerImageOverlayFSEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: ptr.To(true), UncompressedLayersSupport: true, OverlayFSDirectScan: true}
 	}
+
+	sbomEnabledContainerImageUncompressedLayers := sbomEnabled.DeepCopy()
+	{
+		sbomEnabledContainerImageUncompressedLayers.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: ptr.To(true), UncompressedLayersSupport: true}
+	}
+	withNodeAgentImage := func(dda *v2alpha1.DatadogAgent, image v2alpha1.AgentImageConfig) *v2alpha1.DatadogAgent {
+		dda = dda.DeepCopy()
+		dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {Image: &image},
+		}
+		return dda
+	}
+	defaultAgentUsesMount := !utils.IsAboveMinVersion(images.AgentLatestVersion, inPlaceScanMinVersion, nil)
 
 	sbomEnabledHostEnabled := sbomEnabled.DeepCopy()
 	{
@@ -130,6 +145,38 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantEnvVars), "Core agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantEnvVars))
+	}
+
+	sbomWithContainerImageUncompressedLayersWantFunc := func(useMount bool) func(testing.TB, feature.PodTemplateManagers) {
+		return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			wantEnvVars := []*corev1.EnvVar{
+				{
+					Name:  DDSBOMEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDSBOMContainerImageEnabled,
+					Value: "true",
+				},
+			}
+			if useMount {
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  DDSBOMContainerUseMount,
+					Value: "true",
+				})
+			}
+			wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+				Name:  DDSBOMHostEnabled,
+				Value: "false",
+			})
+
+			nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantEnvVars), "Core agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantEnvVars))
+			assert.Contains(t, mgr.SecurityContextMgr.CapabilitiesByC[apicommon.CoreAgentContainerName], corev1.Capability("SYS_ADMIN"))
+			assert.Equal(t, agentAppArmorAnnotationValue, mgr.AnnotationMgr.Annotations[agentAppArmorAnnotationKey])
+		}
 	}
 
 	sbomWithHostWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -242,6 +289,30 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			DDA:           sbomEnabledContainerImageOverlayFSEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageOverlayFSWantFunc),
+		},
+		{
+			Name:          "SBOM enabled, ContainerImage enabled, uncompressed layers, Agent 7.86",
+			DDA:           withNodeAgentImage(sbomEnabledContainerImageUncompressedLayers, v2alpha1.AgentImageConfig{Tag: "7.86.0"}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageUncompressedLayersWantFunc(true)),
+		},
+		{
+			Name:          "SBOM enabled, ContainerImage enabled, uncompressed layers, Agent 7.87 release candidate",
+			DDA:           withNodeAgentImage(sbomEnabledContainerImageUncompressedLayers, v2alpha1.AgentImageConfig{Tag: "7.87.0-rc.1"}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageUncompressedLayersWantFunc(false)),
+		},
+		{
+			Name:          "SBOM enabled, ContainerImage enabled, uncompressed layers, image override without a tag",
+			DDA:           withNodeAgentImage(sbomEnabledContainerImageUncompressedLayers, v2alpha1.AgentImageConfig{JMXEnabled: true}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageUncompressedLayersWantFunc(defaultAgentUsesMount)),
+		},
+		{
+			Name:          "SBOM enabled, ContainerImage enabled, uncompressed layers, Agent 7.87",
+			DDA:           withNodeAgentImage(sbomEnabledContainerImageUncompressedLayers, v2alpha1.AgentImageConfig{Tag: "7.87.0"}),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageUncompressedLayersWantFunc(false)),
 		},
 		{
 			Name:          "SBOM enabled, Host enabled",
