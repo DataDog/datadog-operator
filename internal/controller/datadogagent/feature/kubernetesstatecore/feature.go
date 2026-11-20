@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -115,7 +116,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		clusterCheckComponent := v2alpha1.ClusterAgentComponentName
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
-		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
+		if componentccr.RunsOnRunners(dda, ddaSpec, constants.KubeStateMetricsCoreCheckName) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
@@ -125,6 +126,10 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 
 		clusterCheckVersion := common.GetComponentVersionFromSpec(ddaSpec, clusterCheckComponent)
+		if f.runInClusterChecksRunner {
+			// A runner group claiming the check can run its own image.
+			clusterCheckVersion = componentccr.RunnerVersion(dda, ddaSpec, constants.KubeStateMetricsCoreCheckName)
+		}
 		if !utils.IsAboveMinVersion(clusterCheckVersion, crdAPIServiceCollectionMinVersion, nil) {
 			f.collectAPIServiceMetrics = false
 			f.collectCRDMetrics = false
@@ -158,13 +163,19 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			// Unparseable tags (`:dev`, custom registries, etc.) are assumed
 			// compatible — matches the existing pattern for the apiservices/CRD
 			// checks above.
-			for _, comp := range []v2alpha1.ComponentName{v2alpha1.NodeAgentComponentName, clusterCheckComponent} {
-				agentVersion := common.GetComponentVersionFromSpec(ddaSpec, comp)
-				if !utils.IsAboveMinVersion(agentVersion, podCollectionOnNodeMinVersion, nil) {
+			versions := []struct {
+				comp    v2alpha1.ComponentName
+				version string
+			}{
+				{v2alpha1.NodeAgentComponentName, common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)},
+				{clusterCheckComponent, clusterCheckVersion},
+			}
+			for _, cv := range versions {
+				if !utils.IsAboveMinVersion(cv.version, podCollectionOnNodeMinVersion, nil) {
 					f.logger.Info(
 						"PodCollectionMode=node_kubelet requires agent >= 7.82; falling back to default",
-						"component", string(comp),
-						"version", agentVersion,
+						"component", string(cv.comp),
+						"version", cv.version,
 					)
 					f.podCollectionOnNode = false
 					break
