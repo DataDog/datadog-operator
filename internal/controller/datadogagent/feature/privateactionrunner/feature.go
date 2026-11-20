@@ -110,7 +110,8 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			reqComp.ClusterAgent = clusterAgent
 		}
 	}
-	// Component overrides are applied after features and can disable a required Cluster Agent.
+	// override.clusterAgent.disabled takes precedence over PAR's request to enable
+	// the Cluster Agent, preventing its deployment.
 	if reqComp.ClusterAgent.IsEnabled() {
 		if override := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; override != nil && override.Disabled != nil && *override.Disabled {
 			f.logger.Info("Warning: Private Action Runner is enabled on the Cluster Agent, but override.clusterAgent.disabled is true; the Cluster Agent will not be deployed")
