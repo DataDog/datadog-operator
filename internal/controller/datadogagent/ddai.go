@@ -9,8 +9,10 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,7 +96,42 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 	ddai.Spec = *dda.Spec.DeepCopy()
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
+	applyFleetManagedInstallNodeAgentToleration(dda, &ddai.Spec)
 	return nil
+}
+
+// applyFleetManagedInstallNodeAgentToleration gives Fleet managed-install
+// node Agents a default NoSchedule toleration.
+func applyFleetManagedInstallNodeAgentToleration(
+	dda *v2alpha1.DatadogAgent,
+	spec *v2alpha1.DatadogAgentSpec,
+) {
+	if !isFleetManagedDatadogAgent(dda) {
+		return
+	}
+	toleration := fleetManagedInstallNoScheduleToleration()
+	if spec.Override == nil {
+		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+	nodeAgentOverride, ok := spec.Override[v2alpha1.NodeAgentComponentName]
+	if !ok {
+		nodeAgentOverride = &v2alpha1.DatadogAgentComponentOverride{}
+		spec.Override[v2alpha1.NodeAgentComponentName] = nodeAgentOverride
+	}
+	if !slices.Contains(nodeAgentOverride.Tolerations, toleration) {
+		nodeAgentOverride.Tolerations = append(nodeAgentOverride.Tolerations, toleration)
+	}
+}
+
+func isFleetManagedDatadogAgent(dda *v2alpha1.DatadogAgent) bool {
+	return dda != nil && dda.Labels[constants.FleetManagedByLabel] == constants.FleetManagedByValue
+}
+
+func fleetManagedInstallNoScheduleToleration() corev1.Toleration {
+	return corev1.Toleration{
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
 }
 
 // getDDAILabels adds the following labels to the DDAI:
