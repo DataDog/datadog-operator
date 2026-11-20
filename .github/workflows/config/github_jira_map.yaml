@@ -17,7 +17,7 @@
 '@datadog/documentation': DOCS
 '@datadog/ebpf-platform': EBPF
 '@datadog/fleet': FA
-'@datadog/kubernetes-experiences': CAP
+'@datadog/kubernetes-experiences': KXP
 '@datadog/opentelemetry-agent': OTAGENT
 '@datadog/profiling-full-host': PROF
 '@datadog/remote-config': RC
