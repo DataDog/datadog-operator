@@ -207,11 +207,11 @@ When `spec.id` is not set, behavior doesn't change, including recreating the obj
 
 A DDGR of type `monitor`, `dashboard` or `slo` doesn't adopt an ID while a CR of the matching legacy kind has the same `status.id`. The condition is `AdoptionLegacyOwner`, and its message names the CR and points to `kubectl datadog monitor migrate` or the orphan annotation. Adoption goes ahead on its own once the legacy CR is gone.
 
-The controller retries at `requeuePeriod` (60s by default), not at `forceSyncPeriod` (60 min). During a GitOps migration this state can be expected rather than an error: if the GitOps tool creates the DDGR before the old CR is gone, the DDGR waits. It then adopts on its first retry after the old CR's finalizer completes, so at most `requeuePeriod` later. A watch on legacy kinds would react faster, but it brings back the informer problem described below. The list is one uncached call per minute per waiting DDGR, and only while a migration is in progress. A legacy CR that is terminating still blocks until it's deleted, because its finalizer might still delete the object.
+The controller retries at `requeuePeriod` (60s by default), not at `forceSyncPeriod` (60 min). During a GitOps migration this state can be expected rather than an error: if the GitOps tool creates the DDGR before the old CR is gone, the DDGR waits. It then adopts on its first retry after the old CR's finalizer completes, so at most `requeuePeriod` later. A watch on legacy kinds would react faster, but it brings back the informer problem described below. Each retry is a `GET` of the one blocking CR, not a list (see the snapshot below). A legacy CR that is terminating still blocks until it's deleted, because its finalizer might still delete the object.
 
 **Feasibility.** The DDGR controller doesn't watch legacy kinds, and their informers only exist when the matching controller is enabled (`pkg/config/config.go`, `CacheOptions`). Relying on the shared cache would therefore miss legacy CRs whenever their controller is disabled. Those CRs still matter: they come back to life when someone re-enables the controller. Instead:
 
-- **Use an uncached `List` through `apiReader`, only during adoption.** Adoption runs once per CR, so a cluster-wide list of one kind per adoption is cheap. It needs no new informer, no field index and no watch, and it's independent of whether the legacy controller or its watch-namespace settings are enabled.
+- **List each legacy kind once at startup through `apiReader`** (uncached), and keep an index from `status.id` to the CR. It needs no new informer, no field index and no watch, and it's independent of whether the legacy controller or its watch-namespace settings are enabled. See the snapshot below for why it's built once.
 - **Match on `status.id`.** `DatadogMonitor.status.id` is an int and is compared as a string. `DatadogDashboard` and `DatadogSLO` use string IDs.
 - **CRD not installed** (`NoKindMatch`): there can't be a legacy owner, so the check passes.
 - **RBAC missing** (`Forbidden`): **fail closed** with an error naming the missing `list` permission. What each install grants today:
@@ -221,6 +221,20 @@ The controller retries at `requeuePeriod` (60s by default), not at `forceSyncPer
   - **Required chart change:** grant `get`/`list` on `datadogdashboards` whenever `datadogGenericResource.enabled` is set.
   - With `rbac.create=false`, users manage RBAC themselves and get the explicit error.
 - **Adoption is the only point where this needs checking.** Legacy CRDs can't adopt, so a legacy CR can't acquire an adopted ID later, except by setting `status.id` by hand, which isn't supported.
+
+**Snapshot at startup.** The check matches on `status.id`, and the API server can't filter on it:
+
+- Field selectors on custom resources only support `metadata.name` and `metadata.namespace`. CRD `selectableFields` would allow more, but needs Kubernetes 1.31 or later, which excludes versions we support.
+- A metadata-only list (`PartialObjectMetadataList`) doesn't return `status`.
+
+A list therefore fetches and decodes every CR of the legacy kind, with its full spec and status. Listing on every adoption doesn't scale: a GitOps commit that replaces N `DatadogMonitor`s at once means N lists of N objects, so N² objects in total, repeated every `requeuePeriod` for blocked DDGRs. With thousands of CRs, that loads the API server and etcd, and raises the Operator's memory with each concurrent reconcile.
+
+Instead, the Operator lists each legacy kind **once at startup**, page by page (`Limit`/`Continue`), and keeps only an index from `status.id` to the CR's namespace and name. The cost is one list per kind per Operator start: a one-off memory spike, and one-off API server load.
+
+- **Index hit:** the controller confirms with a `GET` of that CR. If it's gone, or its `status.id` no longer matches, the entry is dropped and adoption proceeds. Without this, a DDGR would stay blocked until the next restart after the old CR is deleted.
+- **Index miss:** no legacy owner, adoption proceeds.
+- **List fails at startup** (`Forbidden`, API errors): adoptions of that type fail closed, and the list is retried.
+- **Accepted risk:** a legacy CR created after startup, or one that only gets its `status.id` after startup, isn't in the index. To collide, a DDGR would have to adopt the new object that CR creates, which means copying an ID that didn't exist at startup. A restart refreshes the index.
 
 One limitation: the list covers the Operator's own cluster only, and legacy CRs in another cluster aren't visible. That falls under the cross-cluster row above.
 
@@ -635,14 +649,23 @@ Still unsupported: both controllers active at the same time. They overwrite each
 | 45 | `spec.id` and `adoptionPolicy` both set | `spec.id` wins. No tag lookup, no fallback. |
 | 46 | Operator-wide default `adopt-or-create`, CR without a per-resource setting | Uses the Operator-wide default |
 | 47 | Operator-wide default `adopt-or-create`, CR explicitly set to `fail` | Uses `fail`: the explicit per-resource setting wins |
+| 48 | Operator startup with 1,000, 5,000 and 10,000 `DatadogMonitor` CRs | Measure the startup list: latency and response size of `LIST datadogmonitors` (`apiserver_request_duration_seconds`, `apiserver_response_sizes`), API server CPU and memory, and the Operator's peak memory. |
+| 49 | Same sizes, as many adopting DDGRs applied at once | Every DDGR adopts, with one `GET` per index hit and no further list. Measure the total time until all are adopted. |
+| 50 | Legacy CR in the startup index deleted, DDGR waiting on it | The `GET` returns 404, the entry is dropped, the DDGR adopts on its next retry |
 
 </details>
 
 ## Open questions
 
-1. **Field name:** `spec.id` (mirrors `status.id`) or something more explicit (`spec.datadogID`, `spec.adoptID`)?
-2. **Deleting an adopted DDGR:** when a DDGR that adopted an existing object (with `spec.id`) is deleted later, should the Datadog object be deleted like for any other DDGR (recommended, uniform), or kept by default because this DDGR didn't create it (safer, like `DatadogMonitor`'s `primary`)?
-3. **Follow-up, naming:** `adoptionPolicy` or `duplicatePolicy`? `adoptionPolicy` describes what it controls, which is more than the duplicate error.
+1. ~~**Field name:** `spec.id` (mirrors `status.id`) or something more explicit (`spec.datadogID`, `spec.adoptID`)?~~
+   1. Start with `spec.id`. `spec.datadogID` was also suggested, and the name can still change until the CRD ships.
+2. ~~**Deleting an adopted DDGR:** when a DDGR that adopted an existing object (with `spec.id`) is deleted later, should the Datadog object be deleted like for any other DDGR (recommended, uniform), or kept by default because this DDGR didn't create it (safer, like `DatadogMonitor`'s `primary`)?~~
+   1. Deleted like for any other DDGR, with no special handling.
+
+---
+
+3. ~~**Follow-up, naming:** `adoptionPolicy` or `duplicatePolicy`? `adoptionPolicy` describes what it controls, which is more than the duplicate error.~~
+   1. `adoptionPolicy`.
 4. **Follow-up, per-resource setting as a field or an annotation?**
    - **CRD field (`spec.adoptionPolicy`):** typed, visible in the schema and in `kubectl explain`, and the allowed values can be checked at admission with a plain OpenAPI enum (no CEL needed). Needs a CRD change.
    - **Annotation (for example `datadoghq.com/adoption-policy`):** no CRD change, and consistent with the other adoption controls, which are already annotations (`datadoghq.com/management-policy`, `datadoghq.com/adoption-key`). Values are only checked by the controller: a typo is reported as a permanent error on the CR instead of being rejected at admission.
