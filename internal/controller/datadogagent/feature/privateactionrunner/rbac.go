@@ -52,17 +52,41 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{rbac.PodsResource, rbac.EventsResource, rbac.ConfigMapsResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
-		// Deployment patch
+		// Deployment patch and rollback (rollbackDeployment uses Update)
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.DeploymentsResource},
-			Verbs:     []string{rbac.PatchVerb},
+			Verbs:     []string{rbac.PatchVerb, rbac.UpdateVerb},
 		},
 		// StatefulSet patch
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.StatefulsetsResource},
 			Verbs:     []string{rbac.PatchVerb},
+		},
+		// Delete jobs
+		{
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.JobsResource},
+			Verbs:     []string{rbac.DeleteVerb},
+		},
+		// Update CronJob schedules
+		{
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.CronjobsResource},
+			Verbs:     []string{rbac.PatchVerb},
+		},
+		// Update HorizontalPodAutoscaler limits
+		{
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+			Verbs:     []string{rbac.PatchVerb},
+		},
+		// Update WatermarkPodAutoscaler limits; get is needed when only one bound is supplied.
+		{
+			APIGroups: []string{rbac.DatadogAPIGroup},
+			Resources: []string{rbac.WpaResource},
+			Verbs:     []string{rbac.GetVerb, rbac.PatchVerb},
 		},
 		// Patch and delete pods
 		{
