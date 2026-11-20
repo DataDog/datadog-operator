@@ -11,7 +11,7 @@ Today a `DatadogGenericResource` (DDGR) always creates a new Datadog object and 
 This brief proposes:
 
 1. **A new optional `spec.id` field on DDGR.** When it's set, the controller takes over the existing Datadog object with that ID instead of creating one. It **never creates a replacement** while `spec.id` is set. All validation happens in the controller, because CEL isn't available on every Kubernetes version we support.
-2. **A `datadoghq.com/deletion-policy: orphan` annotation**, handled in the shared finalizer package. It works for DDGR, `DatadogMonitor`, `DatadogDashboard` and `DatadogSLO`. Deleting an annotated CR removes the CR but leaves the Datadog object in place. This is the safe handoff that migration needs.
+2. **A `datadoghq.com/deletion-policy: orphan` annotation** for DDGR, `DatadogMonitor`, `DatadogDashboard` and `DatadogSLO`. The Operator stops managing an annotated CR: it no longer reconciles it, and deleting it leaves the Datadog object in place. This is the safe handoff that migration needs, and it also pauses a CR without disabling a whole controller.
 3. **A blocking check against legacy CRs.** A DDGR can't adopt an ID that a `DatadogMonitor`, `DatadogDashboard` or `DatadogSLO` still manages. Two controllers never manage the same object.
 4. **A `kubectl datadog monitor migrate` command** that converts a `DatadogMonitor` into an adopting DDGR in the safe order. It's the priority tool. A manual workflow is documented for the other legacy CRDs and for resources created outside Kubernetes.
 5. **Follow-up: an opt-in `spec.adoptionPolicy` for monitors** (`fail` by default, `adopt`, `adopt-or-create`), similar to other controllers' adoption policies. It finds the monitor without an ID, through an identity tag the Operator adds, with the API's duplicate error as a best-effort fallback. It's for manifests that can't contain IDs, and ships after the first phase.
@@ -121,7 +121,9 @@ How a reconcile is routed:
 flowchart TD
   start([Reconcile DDGR]) --> del{Being deleted?}
   del -- yes --> fin[[Finalizer: see deletion flow]]
-  del -- no --> sid{spec.id set?}
+  del -- no --> orph{orphan annotation?}
+  orph -- yes --> paused[Orphaned=True<br/>no Datadog API call]
+  orph -- no --> sid{spec.id set?}
   sid -- no --> pol{adoptionPolicy?<br/>monitors only}
   pol -- fail --> legacy[Existing behavior based on status.id<br/>create if empty, recreate on 404]
   pol -- "adopt / adopt-or-create" --> byTag[[Follow-up: adoption by identity tag<br/>see adoptionPolicy section]]
@@ -226,7 +228,15 @@ One limitation: the list covers the Operator's own cluster only, and legacy CRs 
 
 ### Deletion and retention
 
-New annotation: `datadoghq.com/deletion-policy: orphan`. `orphan` is the only value: without the annotation, deletion behaves as it does today, so a `delete` value would add nothing. A migration counts as completed once the orphan annotation is gone.
+New annotation: `datadoghq.com/deletion-policy: orphan`. `orphan` is the only value: without the annotation, the CR behaves as it does today.
+
+The Operator stops managing an annotated CR entirely:
+
+- **No reconciliation:** no create, update, force sync or state refresh, so no Datadog API call. The CR gets an `Orphaned=True` condition, and its other status fields keep their last values.
+- **Deletion:** the finalizer is removed without deleting the Datadog object.
+- **Removing the annotation** resumes normal reconciliation. The next sync applies `jsonSpec` again.
+
+This also covers pausing a single CR, for example on a passive cluster, without disabling a whole controller.
 
 ```mermaid
 flowchart TD
@@ -242,7 +252,7 @@ flowchart TD
   ok --> rm
 ```
 
-- It's handled in `finalizer.HandleFinalizer`. On deletion, if the annotation is `orphan`, the finalizer skips `deleteFunc`, records an `Orphaned` event and removes the finalizer.
+- It's handled in two shared places: a check at the start of each controller's reconcile, and `finalizer.HandleFinalizer`, which skips `deleteFunc` on deletion, records an `Orphaned` event and removes the finalizer.
 - One change covers DDGR and the three legacy CRDs.
 - It's an annotation rather than a spec field so that it works on the legacy CRDs without schema changes. Annotations are also outside the spec hash, so setting one doesn't trigger an update.
 - It fixes the race in today's workaround. Today, removing the finalizer and then deleting the CR can fail because the controller re-adds the finalizer in between. With the annotation, the user annotates and deletes while the controller is running, with no need to stop it.
@@ -275,7 +285,7 @@ Recovering from a partial migration:
 | DDGR applied before the old CR was deleted | `AdoptionLegacyOwner`. Nothing happens to the object. | Annotate and delete the old CR. The DDGR adopts on its next retry. |
 | Step 2 (annotation missing, object deleted) | Object lost. The DDGR shows `AdoptionTargetNotFound`. Nothing is recreated by surprise. | Same as today: create a new object (drop `spec.id`). The migrate tool exists to remove this mistake. |
 | Step 3 (bad `jsonSpec`, 403) | `status.id` is set, the update failed, and the remote object is untouched. | Fix `jsonSpec`. The controller retries. |
-| Rollback to the legacy CRD | Not possible with the same ID: legacy CRDs can't adopt. | Fix forward with DDGR. The [migration safety net](#migration-safety-net) makes sure an attempted rollback never deletes the object. |
+| Rollback to the legacy CRD | Not possible with the same ID: legacy CRDs can't adopt. | Fix forward with DDGR. To revert anyway, annotate the DDGR `orphan` first, so removing it doesn't delete the object. |
 
 ### GitOps (Argo CD, Flux)
 
@@ -339,51 +349,6 @@ sequenceDiagram
 - The migration guide gets a short Helm example that renders `jsonSpec` from values.
 
 **Drift goes away.** The `DatadogMonitor` controller writes `generated:kubernetes` into the CR spec, so GitOps tools often show these CRs as OutOfSync. The DDGR has no such problem: the tag is already in the committed `jsonSpec`, and the DDGR controller never writes to the spec.
-
-</details>
-
-### Migration safety net
-
-<details>
-<summary>Show details</summary>
-
-Reverting the step-2 commit is the natural GitOps rollback, and today it would be destructive:
-- The revert prunes the DDGR, whose finalizer deletes the adopted monitor.
-- The recreated `DatadogMonitor` has no ID, so it creates a new monitor.
-
-To prevent this, **the DDGR generated by `migrate` carries `datadoghq.com/deletion-policy: orphan`**. With it, a revert, or any accidental prune during the migration, never deletes the monitor:
-
-- The DDGR is pruned and the monitor is kept.
-- The recreated `DatadogMonitor` tries to create an identical monitor. The API rejects it as a duplicate, so it stays in error and creates nothing.
-- Recovery: reapply the step-2 commit. The legacy check doesn't block, because the recreated `DatadogMonitor` has no `status.id`, so the DDGR adopts the monitor again. The broken `DatadogMonitor` is removed in that same commit.
-
-```mermaid
-sequenceDiagram
-  actor U as User
-  participant G as GitOps tool
-  participant DG as DDGR controller
-  participant DM as DatadogMonitor controller
-  participant DD as Datadog API
-  Note over U,DD: DDGR generated by migrate carries deletion-policy orphan
-  U->>G: revert step-2 commit
-  G->>DG: prune DDGR
-  DG->>DG: orphan, monitor kept
-  G->>DM: recreate DatadogMonitor (no status.id)
-  DM->>DD: create identical monitor
-  DD-->>DM: 400 Duplicate of an existing monitor_id
-  Note over DM: stays in error, creates nothing
-  U->>G: reapply step-2 commit
-  G->>DM: prune broken DatadogMonitor (nothing to delete)
-  G->>DG: create DDGR, legacy check passes (no status.id)
-  DG->>DD: adopt again
-  Note over U,DD: once validated, migrate --finalize removes the orphan annotation
-```
-
-When the user has validated the migration, they drop the annotation from the DDGR manifest. From then on, the DDGR behaves like any other DDGR (deleting it deletes the monitor).
-- `migrate` prints this as the final step.
-- `kubectl datadog monitor migrate --finalize` removes it for users who apply manifests directly.
-
-Rollback stays unsupported: the safety net makes sure the object is never lost, not that the old CR works again.
 
 </details>
 
@@ -518,7 +483,6 @@ It's a new subcommand of the existing plugin (`cmd/kubectl-datadog`).
 kubectl datadog monitor migrate <name> [-n <namespace>] [--dry-run] [-o yaml|json] [--adoption-policy adopt-or-create]
 kubectl datadog monitor migrate <name> --annotate-only   # GitOps option (b)
 kubectl datadog monitor migrate <name> --check           # is the live CR annotated? is the DDGR adopted?
-kubectl datadog monitor migrate <name> --finalize        # drop the safety-net annotation from the DDGR
 ```
 
 1. **Preflight.** Read the `DatadogMonitor` and refuse to continue unless:
@@ -534,13 +498,11 @@ kubectl datadog monitor migrate <name> --finalize        # drop the safety-net a
    - Same name and namespace (it's a different kind, so they don't clash).
    - User labels and annotations are copied over. GitOps tracking metadata (`argocd.argoproj.io/*`, `kustomize.toolkit.fluxcd.io/*`, `kubectl.kubernetes.io/last-applied-configuration`) is not.
    - `type: monitor`, `id: <status.id>`.
-   - `datadoghq.com/deletion-policy: orphan`, the [migration safety net](#migration-safety-net).
    - Follow-up: with `--adoption-policy`, the policy too, so the first update also adds the identity tag (see [Getting existing monitors tagged](#getting-existing-monitors-tagged)).
 4. **Apply** (skipped with `--dry-run` and with `-o`):
    1. Annotate the old CR with `deletion-policy=orphan`.
    2. Delete it and wait until it's gone.
    3. Create the DDGR and wait for `Adopted=True` and `Updated=True`.
-   4. Print the `--finalize` step.
 5. **Resumable.** Rerunning the command after a failure detects where it stopped and continues from there. The possible states are: old CR annotated, old CR gone with no DDGR, and DDGR created but not yet adopted.
 6. **Output modes for GitOps.** With any of these, the tool changes nothing in the cluster:
 
@@ -595,7 +557,7 @@ Supporting DR isn't a goal. Even so, `spec.id`, the orphan policy and, in the fo
 **With the follow-up (`adoptionPolicy`)**, no IDs to copy:
 
 1. Deploy **identical manifests to every cluster**, with `adoptionPolicy: adopt-or-create` (or the operator-wide default) and no IDs. Monitors that existed before get their identity tag once, through adoption by ID (see [Getting existing monitors tagged](#getting-existing-monitors-tagged)).
-2. Run the DDGR controller only in the active cluster: in passive clusters, set `-datadogGenericResourceEnabled=false` or scale the Operator to 0.
+2. Run the DDGR controller only in the active cluster: in passive clusters, set `-datadogGenericResourceEnabled=false`, scale the Operator to 0, or annotate the CRs `orphan` (for example through a per-cluster overlay).
 3. **Failover, or a cluster rebuilt from Git:** enable the controller in the new active cluster. It finds each monitor by its identity tag and adopts it, so there's no duplicate, no new ID and no lost history. Nobody has to copy IDs between clusters.
 4. **Retire the old cluster:** stop its controller, or annotate its CRs with `orphan` and delete them.
 
@@ -610,7 +572,7 @@ Still unsupported: both controllers active at the same time. They overwrite each
 - `spec.id` is optional. Without it, nothing changes for existing CRs.
 - `adoptionPolicy` defaults to `fail`, which is today's behavior. The identity tag is only added with `adopt` or `adopt-or-create`, so existing monitors aren't touched.
 - No CEL or webhook, so the CRD keeps working on every Kubernetes version we support.
-- The annotation is opt-in. Without it, finalizer behavior doesn't change.
+- The annotation is opt-in. Without it, reconciliation and deletion don't change.
 - **Downgrade risk:** an older CRD prunes `spec.id`. An *already adopted* CR keeps `status.id` and keeps working. A CR that was *not yet adopted* (empty `status.id`) would be **created as a new object** by an older Operator. Document this: finish adoptions before downgrading.
 - The migration guide needs updating: remove "DDGR does not adopt an existing object" and describe the new workflow (CONTP-2283).
 
@@ -657,8 +619,8 @@ Still unsupported: both controllers active at the same time. They overwrite each
 | 29 | `--annotate-only`, then Argo CD self-heal / Flux reconcile (client-side and server-side apply) | Annotation survives |
 | 30 | No auto-prune | DDGR blocked until the old CR is deleted by hand, with an explicit message |
 | 31 | Same `DatadogMonitor` manifest in 2 clusters, `migrate -o yaml` run per cluster | Each output has that cluster's `spec.id`. Each DDGR adopts its own cluster's monitor. |
-| 32 | Revert of the step-2 commit with the safety-net annotation | DDGR pruned, monitor kept. Recreated `DatadogMonitor` fails as a duplicate. Reapplying step 2 adopts again. |
-| 33 | `--finalize` | Annotation removed. Deleting the DDGR afterwards deletes the monitor. |
+| 32 | Orphaned DDGR: spec change, force sync and state refresh | No Datadog API call, `Orphaned=True` |
+| 33 | Orphan annotation removed | Normal reconciliation resumes, the next sync applies `jsonSpec` |
 | 34 | `adopt`, exactly one monitor with the identity tag | Adopted, `reason=MatchedIdentityTag`, first update keeps the tag |
 | 35 | `adopt`, no monitor with the tag | `AdoptionTargetNotFound`, no create |
 | 36 | `adopt-or-create`, no monitor with the tag | Monitor created with the tag |
@@ -679,13 +641,10 @@ Still unsupported: both controllers active at the same time. They overwrite each
 ## Open questions
 
 1. **Field name:** `spec.id` (mirrors `status.id`) or something more explicit (`spec.datadogID`, `spec.adoptID`)?
-2. **Deleting an adopted DDGR:** when a DDGR that adopted an existing object (with `spec.id`) is deleted later, should the Datadog object be deleted like for any other DDGR (recommended, uniform), or kept by default because this DDGR didn't create it (safer, like `DatadogMonitor`'s `primary`)? This is separate from the temporary safety-net annotation that `migrate` adds (question 4).
-3. Is a **per-object pause annotation** (for example `datadoghq.com/reconcile: paused`) worth adding? It would make the passive-cluster pattern work without disabling a whole controller. It's a separate feature, deferred unless reviewers disagree.
-4. Should the **safety-net annotation** on migrated DDGRs stay on by default? It protects against reverts and accidental prunes, but a user who never runs `--finalize` keeps orphan-on-delete forever. An alternative: on by default for the `-o` outputs only, since reverts are a GitOps risk.
-5. The recovery after a reverted migration relies on the monitor API rejecting an identical monitor. If the recreated `DatadogMonitor` differs in any field, it creates a second monitor instead. That's acceptable for an unsupported rollback, but worth confirming the duplicate rules with the monitors team.
-6. **Follow-up, naming:** `adoptionPolicy` or `duplicatePolicy`? `adoptionPolicy` describes what it controls, which is more than the duplicate error.
-7. **Follow-up, per-resource setting as a field or an annotation?**
+2. **Deleting an adopted DDGR:** when a DDGR that adopted an existing object (with `spec.id`) is deleted later, should the Datadog object be deleted like for any other DDGR (recommended, uniform), or kept by default because this DDGR didn't create it (safer, like `DatadogMonitor`'s `primary`)?
+3. **Follow-up, naming:** `adoptionPolicy` or `duplicatePolicy`? `adoptionPolicy` describes what it controls, which is more than the duplicate error.
+4. **Follow-up, per-resource setting as a field or an annotation?**
    - **CRD field (`spec.adoptionPolicy`):** typed, visible in the schema and in `kubectl explain`, and the allowed values can be checked at admission with a plain OpenAPI enum (no CEL needed). Needs a CRD change.
    - **Annotation (for example `datadoghq.com/adoption-policy`):** no CRD change, and consistent with the other adoption controls, which are already annotations (`datadoghq.com/deletion-policy`, `datadoghq.com/adoption-key`). Values are only checked by the controller: a typo is reported as a permanent error on the CR instead of being rejected at admission.
-8. **Follow-up, identity tag:** is `datadog_operator_adoption_key:<namespace>/<name>` the right name and default value? Is `<namespace>/<name>` stable enough across clusters, or should the annotation be required?
-9. **Follow-up, for the monitors team:** which fields make two monitors duplicates? Is the duplicate message format stable? Is `ListMonitors` with `monitor_tags` consistent right after a create?
+5. **Follow-up, identity tag:** is `datadog_operator_adoption_key:<namespace>/<name>` the right name and default value? Is `<namespace>/<name>` stable enough across clusters, or should the annotation be required?
+6. **Follow-up, for the monitors team:** which fields make two monitors duplicates? Is the duplicate message format stable? Is `ListMonitors` with `monitor_tags` consistent right after a create?
