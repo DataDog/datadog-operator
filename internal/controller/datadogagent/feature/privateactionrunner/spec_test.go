@@ -105,6 +105,13 @@ override:
 			require.NoError(t, f.configErr)
 			assert.Equal(t, tt.wantNode, req.Agent.IsEnabled())
 			assert.Equal(t, tt.wantCluster, req.ClusterAgent.IsEnabled())
+			// A disabled agent must not veto components required by other features.
+			if !tt.wantNode {
+				assert.Nil(t, req.Agent.IsRequired)
+			}
+			if !tt.wantCluster {
+				assert.Nil(t, req.ClusterAgent.IsRequired)
+			}
 			assert.Equal(t, tt.wantSplit, f.splitEnabled)
 			assert.Equal(t, before.Spec, dda.Spec)
 			if tt.wantCluster {
@@ -345,6 +352,28 @@ override:
 	req = f.Configure(dda, &dda.Spec, nil)
 	assert.True(t, req.ClusterAgent.IsEnabled())
 	require.Error(t, f.ManageDependencies(nil))
+}
+
+func TestKubernetesActionsLegacyConfigurationSkipsCustomConfiguration(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default", Annotations: map[string]string{
+		"cluster-agent.datadoghq.com/private-action-runner-configdata": "private_action_runner:\n  identity_secret_name: legacy-identity\n",
+	}}}
+	require.NoError(t, yaml.UnmarshalStrict([]byte(`features:
+  kubernetesActions:
+    enabled: true
+override:
+  clusterAgent:
+    customConfigurations:
+      datadog-cluster.yaml:
+        configMap:
+          name: cluster-config
+`), &dda.Spec))
+	// No Kubernetes reader: legacy config data takes precedence over the custom configuration.
+	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+	req := f.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, f.configErr)
+	assert.True(t, req.ClusterAgent.IsEnabled())
+	assert.Equal(t, "legacy-identity", f.clusterConfig.IdentitySecretName)
 }
 
 func TestPrivateActionRunnerTypedSettings(t *testing.T) {

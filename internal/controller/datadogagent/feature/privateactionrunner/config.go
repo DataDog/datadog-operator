@@ -65,6 +65,28 @@ func legacyConfiguration(dda metav1.Object) (node, cluster componentConfig) {
 	return
 }
 
+// kubernetesActionsConfiguration enables the Cluster Agent runner for Kubernetes Actions
+// unless the legacy annotations already configure it.
+func kubernetesActionsConfiguration(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, legacy componentConfig, reader client.Reader) (componentConfig, error) {
+	if _, configured := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); legacy.enabled || configured {
+		// Legacy config data enables the runner even without the enable annotation.
+		legacy.enabled = true
+		return legacy, nil
+	}
+	override := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]
+	if override == nil {
+		return componentConfig{enabled: true, configData: kubernetesActionsDefaultConfigData}, nil
+	}
+	if _, custom := override.CustomConfigurations[v2alpha1.ClusterAgentConfigFile]; !custom {
+		return componentConfig{enabled: true, configData: kubernetesActionsDefaultConfigData}, nil
+	}
+	cluster, err := configurationFromFeature(&v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, nil)
+	if err == nil {
+		err = readClusterEnrollmentSettings(dda, override, reader, cluster.settings)
+	}
+	return cluster, err
+}
+
 // configurationFromFeature resolves shared and per-component typed PAR settings.
 // Advanced configuration stays in the main file mounted by the generic overrides.
 func configurationFromFeature(spec *v2alpha1.PrivateActionRunnerFeatureConfig, component *v2alpha1.PrivateActionRunnerComponentConfig) (result componentConfig, err error) {

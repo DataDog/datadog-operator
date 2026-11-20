@@ -742,6 +742,35 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
 		},
 		{
+			name: "invalid annotation config data leaves cluster agent unconfigured",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":    "true",
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": "private_action_runner: [",
+			},
+			wantClusterAgentEnabled: false,
+		},
+		{
+			name: "kubernetes actions keeps annotation-enabled default config data",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+			},
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled: new(true),
+			},
+			wantClusterAgentEnabled:   true,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "kubernetes actions with invalid annotation config data leaves cluster agent unconfigured",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": "private_action_runner: [",
+			},
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled: new(true),
+			},
+			wantClusterAgentEnabled: false,
+		},
+		{
 			name: "kubernetes actions PAR communication ignored when feature disabled",
 			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
 				Enabled:       new(false),
@@ -774,6 +803,11 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 
 			parFeat, ok := f.(*privateActionRunnerFeature)
 			require.True(t, ok)
+			// Legacy configuration errors are logged, not surfaced to dependency management.
+			require.NoError(t, parFeat.configErr)
+			if !tt.wantClusterAgentEnabled {
+				assert.Nil(t, reqComp.ClusterAgent.IsRequired)
+			}
 
 			// Check if cluster config is set correctly
 			if tt.wantClusterAgentEnabled {
