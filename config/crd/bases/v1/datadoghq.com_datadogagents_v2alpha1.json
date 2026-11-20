@@ -2337,7 +2337,7 @@
                       "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
                       "properties": {
                         "enabled": {
-                          "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
+                          "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
                           "type": "boolean"
                         }
                       },
@@ -2877,6 +2877,60 @@
                         }
                       },
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
+            "privateActionRunner": {
+              "additionalProperties": false,
+              "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
+              "properties": {
+                "actionsAllowlist": {
+                  "description": "ActionsAllowlist contains additional action patterns allowed on both agents.\nPer-component ActionsAllowlist replaces this list when set, including an empty list.\nTyped allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.\nBuilt-in actions remain controlled by private_action_runner.default_actions_enabled.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "clusterAgent": {
+                  "additionalProperties": false,
+                  "description": "ClusterAgent configures Private Action Runner on the Cluster Agent.\nOmitted settings inherit the shared feature settings.",
+                  "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist replaces the shared additional action patterns for this component.\nAn explicit empty list clears inherited additional action patterns.\nTakes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "enabled": {
+                      "description": "Enabled overrides the shared Private Action Runner enablement for this component.\nTakes precedence over private_action_runner.enabled in customConfigurations.",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "enabled": {
+                  "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,\nwith self-enrollment by default. Per-component Enabled takes precedence.\nDefault: false",
+                  "type": "boolean"
+                },
+                "nodeAgent": {
+                  "additionalProperties": false,
+                  "description": "NodeAgent configures Private Action Runner on the Node Agent.\nOmitted settings inherit the shared feature settings.",
+                  "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist replaces the shared additional action patterns for this component.\nAn explicit empty list clears inherited additional action patterns.\nTakes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "enabled": {
+                      "description": "Enabled overrides the shared Private Action Runner enablement for this component.\nTakes precedence over private_action_runner.enabled in customConfigurations.",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
@@ -11480,7 +11534,7 @@
                           "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
                           "properties": {
                             "enabled": {
-                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
+                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
                               "type": "boolean"
                             }
                           },
@@ -12020,6 +12074,60 @@
                             }
                           },
                           "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "privateActionRunner": {
+                  "additionalProperties": false,
+                  "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
+                  "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist contains additional action patterns allowed on both agents.\nPer-component ActionsAllowlist replaces this list when set, including an empty list.\nTyped allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.\nBuilt-in actions remain controlled by private_action_runner.default_actions_enabled.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "clusterAgent": {
+                      "additionalProperties": false,
+                      "description": "ClusterAgent configures Private Action Runner on the Cluster Agent.\nOmitted settings inherit the shared feature settings.",
+                      "properties": {
+                        "actionsAllowlist": {
+                          "description": "ActionsAllowlist replaces the shared additional action patterns for this component.\nAn explicit empty list clears inherited additional action patterns.\nTakes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "enabled": {
+                          "description": "Enabled overrides the shared Private Action Runner enablement for this component.\nTakes precedence over private_action_runner.enabled in customConfigurations.",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,\nwith self-enrollment by default. Per-component Enabled takes precedence.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "nodeAgent": {
+                      "additionalProperties": false,
+                      "description": "NodeAgent configures Private Action Runner on the Node Agent.\nOmitted settings inherit the shared feature settings.",
+                      "properties": {
+                        "actionsAllowlist": {
+                          "description": "ActionsAllowlist replaces the shared additional action patterns for this component.\nAn explicit empty list clears inherited additional action patterns.\nTakes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "enabled": {
+                          "description": "Enabled overrides the shared Private Action Runner enablement for this component.\nTakes precedence over private_action_runner.enabled in customConfigurations.",
+                          "type": "boolean"
                         }
                       },
                       "type": "object"
