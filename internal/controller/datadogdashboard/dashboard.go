@@ -102,6 +102,11 @@ func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dash
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
+		// Deletion is idempotent for finalization: if the dashboard was already removed
+		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
+		if httpResp != nil && httpResp.StatusCode == http.StatusNotFound {
+			return nil
+		}
 		return translateClientError(err, httpResp, "error deleting Dashboard")
 	}
 
