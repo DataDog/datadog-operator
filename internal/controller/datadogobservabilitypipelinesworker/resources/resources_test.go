@@ -547,6 +547,30 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 			}
 		})
 	}
+
+	argsTests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{name: "default run", want: []string{"run"}},
+		{name: "empty args falls back to default", args: []string{}, want: []string{"run"}},
+		{name: "args set", args: []string{"run", "--config", "/etc/x.yaml"}, want: []string{"run", "--config", "/etc/x.yaml"}},
+	}
+	for _, tt := range argsTests {
+		t.Run(tt.name, func(t *testing.T) {
+			worker := testWorker()
+			worker.Spec.Args = tt.args
+			resources, err := BuildResources(worker)
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			got := resources.StatefulSet.Spec.Template.Spec.Containers[0].Args
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("args mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestBuildResources_HPA(t *testing.T) {

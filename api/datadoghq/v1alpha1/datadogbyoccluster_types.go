@@ -418,6 +418,13 @@ type DatadogBYOCClusterComponentSpec struct {
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
+	// Args are the arguments of the component container.
+	// When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>.
+	// The default is "run --service <service>" for BYOC components and "run" for the Observability Pipelines Worker.
+	// +optional
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
+
 	// PodDisruptionBudget configures the component Pod disruption budget.
 	// When omitted, the global setting or Operator default is used.
 	// Set this field to an empty object to disable the budget for this component.

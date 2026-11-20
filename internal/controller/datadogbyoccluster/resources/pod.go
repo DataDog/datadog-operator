@@ -71,6 +71,11 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 		controllerutils.MergeVolumeMounts(global.VolumeMounts, spec.VolumeMounts),
 	)
 
+	args := spec.Args
+	if len(args) == 0 {
+		args = []string{"run", "--service", c.quickwitService}
+	}
+
 	return corev1.PodSpec{
 		ServiceAccountName: serviceAccountName,
 		ImagePullSecrets:   slices.Clone(in.image.ImagePullSecrets),
@@ -81,7 +86,7 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 			Name:            appName,
 			Image:           in.image.GetImageReference(),
 			ImagePullPolicy: in.image.GetImagePullPolicy(),
-			Args:            []string{"run", "--service", c.quickwitService},
+			Args:            args,
 			Env:             newEnvironment(in, c),
 			EnvFrom:         append(slices.Clone(global.EnvFrom), spec.EnvFrom...),
 			Ports: []corev1.ContainerPort{

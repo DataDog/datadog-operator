@@ -693,6 +693,13 @@
           },
           "type": "object"
         },
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "x-kubernetes-list-type": "atomic"
+        },
         "autoscaling": {
           "additionalProperties": false,
           "properties": {
