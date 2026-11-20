@@ -49,6 +49,7 @@ type GenericClients struct {
 	DowntimesClient                *datadogV2.DowntimesApi
 	MonitorNotificationRulesClient *datadogV2.MonitorsApi
 	SoftwareCatalogClient          *datadogV2.SoftwareCatalogApi
+	OnCallClient                   *datadogV2.OnCallApi
 }
 
 // InitGenericClients creates stateless Datadog API clients for generic resource operations.
@@ -64,5 +65,6 @@ func InitGenericClients() *GenericClients {
 		DowntimesClient:                datadogV2.NewDowntimesApi(apiClient),
 		MonitorNotificationRulesClient: datadogV2.NewMonitorsApi(apiClient),
 		SoftwareCatalogClient:          datadogV2.NewSoftwareCatalogApi(apiClient),
+		OnCallClient:                   datadogV2.NewOnCallApi(apiClient),
 	}
 }
