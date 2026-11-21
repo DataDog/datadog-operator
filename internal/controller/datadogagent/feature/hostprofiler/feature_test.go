@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -27,6 +28,13 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func withNodeAgentVersion(dda *v2alpha1.DatadogAgent, tag string) *v2alpha1.DatadogAgent {
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tag}},
+	}
+	return dda
+}
+
 var (
 	tracingfsVolumeMount = corev1.VolumeMount{
 		Name:      "tracingfs",
@@ -34,11 +42,24 @@ var (
 		ReadOnly:  true,
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{tracingfsVolumeMount}
-	wantIpcEnvVars      = []*corev1.EnvVar{
+	wantIpcPortEnvVars  = []*corev1.EnvVar{
 		{Name: common.DDAgentIpcPort, Value: "5009"},
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
 	}
+	wantIpcSocketEnvVars = []*corev1.EnvVar{
+		{Name: common.DDAgentIpcUseSocket, Value: "true"},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
+	}
 )
+
+// wantIpcEnvVarsForDefaultAgent follows the default agent version so the
+// expectation does not break when it crosses the socket gate.
+func wantIpcEnvVarsForDefaultAgent() []*corev1.EnvVar {
+	if pkgutils.IsAboveMinVersion(images.AgentLatestVersion, featureutils.AgentIPCUnixSocketMinVersion, nil) {
+		return wantIpcSocketEnvVars
+	}
+	return wantIpcPortEnvVars
+}
 
 func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -55,7 +76,15 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcEnvVarsForDefaultAgent()),
+		},
+		{
+			Name: "host profiler enabled with an agent supporting the unix socket",
+			DDA: withNodeAgentVersion(testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
+				Build(), "7.87.0"),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcSocketEnvVars),
 		},
 		{
 			Name: "host profiler enabled via spec",
@@ -63,7 +92,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithHostProfilerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcEnvVarsForDefaultAgent()),
 		},
 		{
 			Name: "host profiler disabled via spec takes precedence over annotation",
@@ -80,7 +109,7 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 				WithHostProfilerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, wantIpcEnvVarsForDefaultAgent()),
 		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
@@ -375,7 +404,7 @@ func Test_hostProfilerFeature_SELinuxTypeAnnotation(t *testing.T) {
 	assert.Equal(t, "custom_t", setupContainer.SecurityContext.SELinuxOptions.Type)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount, wantIpcEnvVars []*corev1.EnvVar) *test.ComponentTest {
 	// Pre-populate both containers so ManageNodeAgent can find and mutate the host-profiler SecurityContext.
 	// This mirrors the real flow where default.go's hostProfilerContainer() runs before features.
 	hostProfilerImage := "gcr.io/datadoghq/agent:7.99.0-fips"
