@@ -26,10 +26,10 @@ func extractHandles(encData []string) ([]string, error) {
 	return handles, nil
 }
 
-// parseEnc returns the handle of an ENC[<handle>] reference, ignoring
+// ParseEnc returns the handle of an ENC[<handle>] reference, ignoring
 // leading/trailing spaces and tabs. Mirrors IsEnc in the Agent's
 // comp/core/secrets/utils package; keep the two in sync.
-func parseEnc(str string) (string, bool) {
+func ParseEnc(str string) (string, bool) {
 	str = strings.Trim(str, " \t")
 	if strings.HasPrefix(str, "ENC[") && strings.HasSuffix(str, "]") {
 		return str[4 : len(str)-1], true
@@ -40,13 +40,13 @@ func parseEnc(str string) (string, bool) {
 
 // IsEnc returns true if a string respects the ENC[<handle>] format
 func IsEnc(str string) bool {
-	_, ok := parseEnc(str)
+	_, ok := ParseEnc(str)
 	return ok
 }
 
 // extractHandle returns the handle of a secret
 func extractHandle(str string) (string, error) {
-	if handle, ok := parseEnc(str); ok {
+	if handle, ok := ParseEnc(str); ok {
 		return handle, nil
 	}
 
