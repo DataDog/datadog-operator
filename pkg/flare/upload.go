@@ -179,9 +179,18 @@ func (u *Uploader) resolveURL(ctx context.Context, client *http.Client, target s
 	return resp.Request.URL.String(), nil
 }
 
+// switchWriter writes to the buffer it currently points to, so that the
+// multipart parts around the archive can be built without copying it.
+type switchWriter struct{ w *bytes.Buffer }
+
+func (s *switchWriter) Write(p []byte) (int, error) { return s.w.Write(p) }
+
 func (u *Uploader) post(ctx context.Context, client *http.Client, target string, req UploadRequest) (*http.Response, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+	// The archive is streamed from req.Archive between the multipart head
+	// and tail, so the upload doesn't hold a second copy of it.
+	head, tail := &bytes.Buffer{}, &bytes.Buffer{}
+	out := &switchWriter{w: head}
+	writer := multipart.NewWriter(out)
 	fields := [][2]string{
 		{"case_id", req.CaseID},
 		{"email", req.Email},
@@ -205,29 +214,28 @@ func (u *Uploader) post(ctx context.Context, client *http.Client, target string,
 	if name == "" {
 		name = "datadog-operator-flare.zip"
 	}
-	part, err := writer.CreateFormFile("flare_file", name)
-	if err != nil {
+	if _, err := writer.CreateFormFile("flare_file", name); err != nil {
 		return nil, err
 	}
-	if _, err = part.Write(req.Archive); err != nil {
-		return nil, err
-	}
+	out.w = tail
 	if req.OperatorVersion != "" {
-		if err = writer.WriteField("operator_version", req.OperatorVersion); err != nil {
+		if err := writer.WriteField("operator_version", req.OperatorVersion); err != nil {
 			return nil, err
 		}
 	}
-	if err = writer.WriteField("hostname", req.Hostname); err != nil {
+	if err := writer.WriteField("hostname", req.Hostname); err != nil {
 		return nil, err
 	}
-	if err = writer.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		return nil, err
 	}
 
+	body := io.MultiReader(bytes.NewReader(head.Bytes()), bytes.NewReader(req.Archive), bytes.NewReader(tail.Bytes()))
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, target, body)
 	if err != nil {
 		return nil, err
 	}
+	request.ContentLength = int64(head.Len() + len(req.Archive) + tail.Len())
 	request.Header.Set(apiKeyHeader, u.APIKey)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	return client.Do(request)

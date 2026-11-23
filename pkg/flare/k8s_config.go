@@ -18,6 +18,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -225,20 +226,23 @@ type crdVersion struct {
 }
 
 func collectCRDs(ctx context.Context, c *Collection) error {
-	// Unstructured, so that it works with clients whose scheme doesn't
-	// register apiextensions, such as the kubectl plugin's.
-	items, _, _, err := listUnstructured(ctx, c.Env.Reader, crdGVK)
+	names, err := datadogCRDNames(ctx, c.Env.Reader)
 	if err != nil {
 		return fmt.Errorf("unable to list CustomResourceDefinitions: %w", err)
 	}
 	var summaries []crdSummary
-	for i := range items {
-		crd := apiextensionsv1.CustomResourceDefinition{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(items[i].Object, &crd); err != nil {
-			c.Warn(fmt.Errorf("unable to read CustomResourceDefinition %s: %w", items[i].GetName(), err))
+	for _, name := range names {
+		// Unstructured, so that it works with clients whose scheme doesn't
+		// register apiextensions, such as the kubectl plugin's.
+		item := &unstructured.Unstructured{}
+		item.SetGroupVersionKind(crdGVK)
+		if err := c.Env.Reader.Get(ctx, client.ObjectKey{Name: name}, item); err != nil {
+			c.Warn(fmt.Errorf("unable to get CustomResourceDefinition %s: %w", name, err))
 			continue
 		}
-		if crd.Spec.Group != datadogGroup {
+		crd := apiextensionsv1.CustomResourceDefinition{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, &crd); err != nil {
+			c.Warn(fmt.Errorf("unable to read CustomResourceDefinition %s: %w", name, err))
 			continue
 		}
 		cleanTyped(&crd)
@@ -259,6 +263,39 @@ func collectCRDs(ctx context.Context, c *Collection) error {
 		summaries = append(summaries, summary)
 	}
 	return c.AddYAML("config/crds.yaml", summaries)
+}
+
+// crdMetadataPageSize is small because CRD metadata can hold a copy of the
+// whole CRD in its last-applied-configuration annotation.
+const crdMetadataPageSize = 50
+
+// datadogCRDNames returns the names of the installed Datadog CRDs. It lists
+// CRD metadata only, page by page, so that clusters with thousands of CRDs
+// don't load their schemas.
+func datadogCRDNames(ctx context.Context, reader client.Reader) ([]string, error) {
+	var names []string
+	continueToken := ""
+	for {
+		list := &metav1.PartialObjectMetadataList{}
+		list.SetGroupVersionKind(crdGVK.GroupVersion().WithKind(crdGVK.Kind + "List"))
+		opts := []client.ListOption{client.Limit(crdMetadataPageSize)}
+		if continueToken != "" {
+			opts = append(opts, client.Continue(continueToken))
+		}
+		if err := reader.List(ctx, list, opts...); err != nil {
+			return names, err
+		}
+		for _, item := range list.Items {
+			// A CRD is named <plural>.<group>.
+			if strings.HasSuffix(item.Name, "."+datadogGroup) {
+				names = append(names, item.Name)
+			}
+		}
+		continueToken = list.GetContinue()
+		if continueToken == "" || len(names) >= maxListItems {
+			return names, nil
+		}
+	}
 }
 
 // helmLabels and helmAnnotations identify a Helm installation.

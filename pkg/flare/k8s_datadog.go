@@ -49,22 +49,27 @@ func fullResourceCollector(name, dir string, gvk schema.GroupVersionKind) Collec
 	return Collector{
 		Name: name,
 		Collect: func(ctx context.Context, c *Collection) error {
-			items, found, truncated, err := listUnstructured(ctx, c.Env.Reader, gvk)
+			count, full := 0, false
+			found, truncated, err := eachUnstructuredPage(ctx, c.Env.Reader, gvk, func(items []unstructured.Unstructured) bool {
+				for i := range items {
+					count++
+					obj := cleanObject(items[i].Object)
+					c.Warn(c.AddYAML(objectPath(dir, items[i].GetNamespace(), items[i].GetName()), obj))
+				}
+				full = c.Remaining() <= 0
+				return !full
+			})
 			if err != nil {
 				return fmt.Errorf("unable to list %s: %w", gvk.Kind, err)
 			}
 			if !found {
 				return c.AddText(path.Join(dir, "NOT_INSTALLED.txt"), []byte(fmt.Sprintf("The %s resource is not installed in this cluster.\n", gvk.GroupKind())))
 			}
-			if truncated {
+			if truncated && !full {
 				c.Warn(fmt.Errorf("only the first %d %s were collected", maxListItems, gvk.Kind))
 			}
-			if len(items) == 0 {
+			if count == 0 {
 				return c.AddText(path.Join(dir, "NONE.txt"), []byte(fmt.Sprintf("No %s found.\n", gvk.Kind)))
-			}
-			for i := range items {
-				obj := cleanObject(items[i].Object)
-				c.Warn(c.AddYAML(objectPath(dir, items[i].GetNamespace(), items[i].GetName()), obj))
 			}
 			return nil
 		},
@@ -84,7 +89,21 @@ type resourceSummary struct {
 func collectResourceSummaries(ctx context.Context, c *Collection) error {
 	summaries := map[string]any{}
 	for _, gvk := range summarizedGVKs {
-		items, found, truncated, err := listUnstructured(ctx, c.Env.Reader, gvk)
+		var list []resourceSummary
+		found, truncated, err := eachUnstructuredPage(ctx, c.Env.Reader, gvk, func(items []unstructured.Unstructured) bool {
+			for i := range items {
+				status, _, _ := unstructured.NestedMap(items[i].Object, "status")
+				list = append(list, resourceSummary{
+					Namespace:         items[i].GetNamespace(),
+					Name:              items[i].GetName(),
+					Generation:        items[i].GetGeneration(),
+					CreationTimestamp: items[i].GetCreationTimestamp().UTC().Format("2006-01-02T15:04:05Z"),
+					Deleting:          items[i].GetDeletionTimestamp() != nil,
+					Status:            status,
+				})
+			}
+			return true
+		})
 		switch {
 		case err != nil:
 			c.Warn(fmt.Errorf("unable to list %s: %w", gvk.Kind, err))
@@ -96,17 +115,8 @@ func collectResourceSummaries(ctx context.Context, c *Collection) error {
 		case truncated:
 			c.Warn(fmt.Errorf("only the first %d %s were collected", maxListItems, gvk.Kind))
 		}
-		list := make([]resourceSummary, 0, len(items))
-		for i := range items {
-			status, _, _ := unstructured.NestedMap(items[i].Object, "status")
-			list = append(list, resourceSummary{
-				Namespace:         items[i].GetNamespace(),
-				Name:              items[i].GetName(),
-				Generation:        items[i].GetGeneration(),
-				CreationTimestamp: items[i].GetCreationTimestamp().UTC().Format("2006-01-02T15:04:05Z"),
-				Deleting:          items[i].GetDeletionTimestamp() != nil,
-				Status:            status,
-			})
+		if list == nil {
+			list = []resourceSummary{}
 		}
 		summaries[gvk.Kind] = list
 	}

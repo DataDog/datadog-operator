@@ -23,7 +23,7 @@ import (
 const (
 	// DefaultMaxBytes is the default size limit of a flare: the sum of the
 	// scrubbed, uncompressed files. The compressed archive is smaller.
-	DefaultMaxBytes int64 = 50 * 1024 * 1024
+	DefaultMaxBytes int64 = 20 * 1024 * 1024
 	// manifestReserve is kept free for the manifest file.
 	manifestReserve int64 = 512 * 1024
 	// ManifestFile is the name of the manifest file at the root of the archive.
