@@ -84,6 +84,8 @@ type RemoteConfigUpdater struct {
 	tasksMu      sync.Mutex
 	taskStatuses map[string]state.ApplyStatus
 	tasksWG      sync.WaitGroup
+	// flareRunning is true while a flare task runs. Guarded by tasksMu.
+	flareRunning bool
 	tasksCtx     context.Context //nolint:containedctx // Base context of the flare tasks, canceled by Stop.
 	cancelTasks  context.CancelFunc
 }
