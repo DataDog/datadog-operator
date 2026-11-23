@@ -45,7 +45,7 @@ const (
 	genericResourceWatchNamespaceEnvVar = "DD_GENERIC_RESOURCE_WATCH_NAMESPACE"
 	// MonitorWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogMonitor controller.
 	monitorWatchNamespaceEnvVar = "DD_MONITOR_WATCH_NAMESPACE"
-	// ProfilesWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgentProfile controller.
+	// Deprecated: profileWatchNamespaceEnvVar is ignored; profiles use the Agent watch namespaces.
 	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
 	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
@@ -168,13 +168,12 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogAgentProfileEnabled {
-		agentProfileNamespaces := GetWatchNamespacesFromEnv(logger, profileWatchNamespaceEnvVar)
-		if opts.ManagedAgentInstallationEnabled {
-			agentProfileNamespaces = includeWatchNamespace(agentProfileNamespaces, opts.ManagedAgentInstallationNamespace)
+		if _, set := os.LookupEnv(profileWatchNamespaceEnvVar); set {
+			logger.Info("Warning: DD_AGENT_PROFILE_WATCH_NAMESPACE is deprecated and ignored. DatadogAgentProfiles now use the DatadogAgent watch namespaces")
 		}
-		logger.Info("DatadogAgentProfile Enabled", "watching namespace", slices.Collect(maps.Keys(agentProfileNamespaces)))
+		logger.Info("DatadogAgentProfile Enabled", "watching namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[profileObj] = cache.ByObject{
-			Namespaces: agentProfileNamespaces,
+			Namespaces: agentNamespaces,
 		}
 	}
 

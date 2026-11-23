@@ -61,6 +61,8 @@ Common scenarios:
 * A DAP must be in the same namespace as the DDA it configures. Cross-namespace profiles are ignored. Move existing cross-namespace profiles into the DDA's namespace before upgrading; otherwise, they stop applying on reconciliation.
 * Grant DAP edit permissions only to users trusted to modify Agent configuration in that namespace.
 
+DAPs use the same watch namespaces as DDAs: `DD_AGENT_WATCH_NAMESPACE`, falling back to `WATCH_NAMESPACE`, or all namespaces if neither is set. `DD_AGENT_PROFILE_WATCH_NAMESPACE` is deprecated and ignored; remove it from your configuration.
+
 ## Enabling DatadogAgentProfiles
 
 DAP is disabled by default. To enable DAP using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set in your `values.yaml` or as a flag in the command line arguments using `--set`:
