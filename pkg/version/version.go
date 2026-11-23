@@ -6,13 +6,10 @@
 package version
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"runtime"
-	"strings"
 
 	"github.com/go-logr/logr"
 )
@@ -89,74 +86,4 @@ func printVersionSlice() []string {
 // GetVersion returns the operator version
 func GetVersion() string {
 	return Version
-}
-
-// Parse reads the output of `manager --version`, in the json format of
-// --version-format json or in the text format older Operators only print.
-func Parse(output []byte) (JSON, error) {
-	trimmed := bytes.TrimSpace(output)
-	if len(trimmed) == 0 {
-		return JSON{}, errors.New("empty version output")
-	}
-	// The json format is a single line. Skip anything else, such as logs.
-	var jsonErr error
-	for line := range bytes.SplitSeq(trimmed, []byte("\n")) {
-		line = bytes.TrimSpace(line)
-		if len(line) == 0 || line[0] != '{' {
-			continue
-		}
-		decoded := JSON{}
-		if err := json.Unmarshal(line, &decoded); err != nil {
-			jsonErr = fmt.Errorf("invalid version json: %w", err)
-			continue
-		}
-		if decoded.Error != "" {
-			return JSON{}, errors.New(decoded.Error)
-		}
-		if decoded.Version != "" {
-			return decoded, nil
-		}
-	}
-
-	decoded := JSON{}
-	for line := range strings.SplitSeq(string(trimmed), "\n") {
-		key, value, ok := strings.Cut(strings.TrimPrefix(strings.TrimSpace(line), "- "), ":")
-		if !ok {
-			continue
-		}
-		value = strings.TrimSpace(value)
-		switch strings.TrimSpace(key) {
-		case "Version":
-			decoded.Version = value
-		case "Build time":
-			decoded.BuildTime = value
-		case "Git Commit":
-			decoded.Commit = value
-		case "Go Version":
-			decoded.Go = value
-		case "Go OS/Arch":
-			decoded.Os = value
-		}
-	}
-	if decoded.Version == "" {
-		if jsonErr != nil {
-			return JSON{}, jsonErr
-		}
-		return JSON{}, fmt.Errorf("no version in the version output %q", truncate(string(trimmed), 200))
-	}
-	return decoded, nil
-}
-
-// Normalize returns the version without a leading v and without the build
-// suffix after an underscore, such as 1.22.0 for v1.22.0_abcdef.
-func Normalize(v string) string {
-	v, _, _ = strings.Cut(strings.TrimSpace(v), "_")
-	return strings.TrimLeft(v, "v")
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
 }
