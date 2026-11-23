@@ -9,6 +9,7 @@ const (
 	openshiftConfigMapName = "datadog-controlplane-monitoring-openshift"
 	defaultConfigMapName   = "datadog-controlplane-monitoring-default"
 	eksConfigMapName       = "datadog-controlplane-monitoring-eks"
+	talosConfigMapName     = "datadog-controlplane-monitoring-talos"
 
 	kubeApiserverMetricsVolumeName  = "kube-apiserver-metrics-config"
 	kubeControllerManagerVolumeName = "kube-controller-manager-config"
@@ -27,4 +28,19 @@ const (
 
 	disableEtcdAutoconfVolumeName      = "disable-etcd-autoconf"
 	disableEtcdAutoconfVolumeMountPath = "/etc/datadog-agent/conf.d/etcd.d"
+
+	// etcd client certs on Talos: host location, and where the etcd check reads them.
+	talosEtcdCertsVolumeName = "etcd-certs"
+	talosEtcdCertsHostPath   = "/system/secrets/etcd"
+	talosEtcdCertsMountPath  = "/host/etc/kubernetes/pki/etcd"
+
+	// Taint on Talos control-plane nodes.
+	controlPlaneTaintKey = "node-role.kubernetes.io/control-plane"
+
+	// Volumes that mask the Agent image's bundled autoconf for the checks that
+	// run as cluster checks, so the node agent does not collect them a second
+	// time when it runs on a control-plane node.
+	disableKubeApiserverMetricsAutoconfVolumeName  = "disable-kube-apiserver-metrics-autoconf"
+	disableKubeControllerManagerAutoconfVolumeName = "disable-kube-controller-manager-autoconf"
+	disableKubeSchedulerAutoconfVolumeName         = "disable-kube-scheduler-autoconf"
 )

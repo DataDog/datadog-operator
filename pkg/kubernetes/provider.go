@@ -15,8 +15,6 @@ const (
 	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
 	ProviderAnnotationKey = "agent.datadoghq.com/cluster-provider"
 
-	// LegacyProvider Legacy Provider (empty name)
-	LegacyProvider = ""
 	// DefaultProvider Default provider name
 	DefaultProvider = "default"
 
@@ -50,6 +48,12 @@ const (
 	// OpenshiftProvider is the OpenShift Provider name
 	OpenshiftProvider = "openshift"
 
+	// TalosProvider is the provider string for Talos Linux clusters.
+	TalosProvider = "talos"
+
+	// NebiusProvider is the provider string for Nebius Managed Kubernetes clusters.
+	NebiusProvider = "nebius"
+
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
 	OpenShiftProviderLabel = "node.openshift.io/os_id"
 
@@ -77,6 +81,16 @@ const (
 	// AKS cluster, including virtual (ACI) nodes, so any label under this
 	// prefix is a reliable cluster-level AKS signal.
 	aksLabelPrefix = "kubernetes.azure.com/"
+
+	// talosOSImagePrefix detects Talos from Node.Status.NodeInfo.OSImage (kubelet's
+	// PRETTY_NAME from /etc/os-release); Talos exposes no default node label. Matched
+	// case-sensitively, the trailing " (" is intentional to match "<name> (<version>)"
+	// format, should not be changed or relaxed to strings.Contains.
+	talosOSImagePrefix = "Talos ("
+
+	// nebiusProviderIDPrefix detects Nebius from Node.Spec.ProviderID, which the
+	// Nebius cloud controller sets to "nebius://computeinstance-<id>".
+	nebiusProviderIDPrefix = "nebius://"
 )
 
 // ProviderValue allowlist
@@ -108,6 +122,35 @@ func isAKSProvider(labels map[string]string) bool {
 	return false
 }
 
+func isTalosProvider(node *corev1.Node) bool {
+	return node != nil && strings.HasPrefix(node.Status.NodeInfo.OSImage, talosOSImagePrefix)
+}
+
+func isNebiusProvider(node *corev1.Node) bool {
+	return node != nil && strings.HasPrefix(node.Spec.ProviderID, nebiusProviderIDPrefix)
+}
+
+// IsOpenShiftProvider reports whether p is OpenShift in either documented spelling
+// (docs/providers.md): a bare "openshift" from the provider annotation, or the
+// detected "openshift-<os_id>". The "-" stops "openshiftfoo" matching.
+func IsOpenShiftProvider(p string) bool {
+	return p == OpenshiftProvider || strings.HasPrefix(p, OpenshiftProvider+"-")
+}
+
+// ProviderFamily collapses a provider to the key its configuration is shared under,
+// returning p unchanged when it has no family. Provider-keyed tables are exact-match,
+// but OpenShift is detected as "openshift-<os_id>", so a platform-wide rule would
+// otherwise have no key to live under.
+//
+// Only OpenShift has a family: gke-cos and eks-ec2-use-hostname-from-file name node
+// variants whose config is specific to the variant, not the cloud provider.
+func ProviderFamily(p string) string {
+	if IsOpenShiftProvider(p) {
+		return OpenshiftProvider
+	}
+	return p
+}
+
 // ShouldUseDefaultDaemonset checks if the provider list contains providers that don't support
 // provider-specific daemonsets and should use a single default daemonset without node affinity.
 // Currently applies to EKS and OpenShift providers.
@@ -117,8 +160,7 @@ func ShouldUseDefaultDaemonset(providerList map[string]struct{}) bool {
 		if provider == EKSCloudProvider {
 			return true
 		}
-		// Check for OpenShift (has format "openshift-{value}")
-		if strings.HasPrefix(provider, OpenshiftProvider+"-") {
+		if IsOpenShiftProvider(provider) {
 			return true
 		}
 	}
@@ -182,7 +224,7 @@ func splitProviderSuffix(provider string) (string, string) {
 // GetAgentNameWithProvider returns the agent name based on the ds name and provider
 func GetAgentNameWithProvider(overrideDSName, provider string) string {
 	if provider != "" && overrideDSName != "" {
-		return overrideDSName + "-" + strings.Replace(provider, "_", "-", -1)
+		return overrideDSName + "-" + strings.ReplaceAll(provider, "_", "-")
 	}
 	return overrideDSName
 }
@@ -217,11 +259,32 @@ func ClusterProviderFromNodeLabels(labels map[string]string) string {
 	return DefaultProvider
 }
 
+// ClusterProviderFromNode maps a single node to the cluster-level provider. Most
+// providers are label-derived; Talos is detected from osImage because Talos does
+// not expose a default stable node label. Nebius is detected from providerID and
+// checked last: it identifies the infrastructure rather than the distribution, so
+// a distribution running on Nebius (Talos, OpenShift) keeps its own provider.
+func ClusterProviderFromNode(node *corev1.Node) string {
+	if isTalosProvider(node) {
+		return TalosProvider
+	}
+	if node == nil {
+		return DefaultProvider
+	}
+	if provider := ClusterProviderFromNodeLabels(node.Labels); provider != DefaultProvider {
+		return provider
+	}
+	if isNebiusProvider(node) {
+		return NebiusProvider
+	}
+	return DefaultProvider
+}
+
 // GetClusterProviderFromNodeList returns the cluster-level provider for a node
 // list, preferring a specific provider over the default (first match wins).
 func GetClusterProviderFromNodeList(nodeList []corev1.Node) string {
 	for i := range nodeList {
-		if provider := ClusterProviderFromNodeLabels(nodeList[i].Labels); provider != DefaultProvider {
+		if provider := ClusterProviderFromNode(&nodeList[i]); provider != DefaultProvider {
 			return provider
 		}
 	}

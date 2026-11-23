@@ -6,7 +6,6 @@
 package override
 
 import (
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -30,12 +29,5 @@ func DaemonSet(daemonSet *v1.DaemonSet, override *v2alpha1.DatadogAgentComponent
 		}
 
 		daemonSet.Spec.UpdateStrategy.Type = v1.DaemonSetUpdateStrategyType(override.UpdateStrategy.Type)
-	}
-}
-
-// ExtendedDaemonSet overrides an ExtendedDaemonSet according to the given override options
-func ExtendedDaemonSet(eds *edsv1alpha1.ExtendedDaemonSet, override *v2alpha1.DatadogAgentComponentOverride) {
-	if override.Name != nil && *override.Name != "" {
-		eds.Name = *override.Name
 	}
 }

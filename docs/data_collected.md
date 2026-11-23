@@ -27,7 +27,6 @@ The OpenMetrics check is enabled by default through Autodiscovery annotations an
 - Create/Update/Delete Service <Namespace/Name>
 - Create/Update/Delete ConfigMap <Namespace/Name>
 - Create/Update/Delete DaemonSet <Namespace/Name>
-- Create/Update/Delete ExtendedDaemonSet <Namespace/Name>
 - Create/Update/Delete Deployment <Namespace/Name>
 - Create/Update/Delete ClusterRole </Name>
 - Create/Update/Delete Role <Namespace/Name>

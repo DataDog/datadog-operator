@@ -2,6 +2,13 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: IAM role, Fargate profile and execution role for Karpenter controller on Fargate
 Conditions:
   ShouldDeployNodeAccessEntry: !Equals [!Ref DeployNodeAccessEntry, "true"]
+  ShouldCreateOIDCProvider: !Equals [!Ref CreateOIDCProvider, "true"]
+Rules:
+  OIDCProviderArnRequired:
+    RuleCondition: !Equals [!Ref CreateOIDCProvider, "false"]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref OIDCProviderArn, ""]]
+        AssertDescription: "OIDCProviderArn is required when CreateOIDCProvider is false"
 Parameters:
   ClusterName:
     Type: String
@@ -9,9 +16,17 @@ Parameters:
   KarpenterNamespace:
     Type: String
     Description: "Namespace where Karpenter will be deployed"
+  CreateOIDCProvider:
+    Type: String
+    Description: "Whether to create the IAM OIDC provider of the cluster. Must be false when a provider is already registered for the cluster's issuer, as AWS::IAM::OIDCProvider fails if one exists."
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
   OIDCProviderArn:
     Type: String
-    Description: "ARN of the IAM OIDC provider registered for the cluster"
+    Description: "ARN of the IAM OIDC provider already registered for the cluster. Ignored when CreateOIDCProvider is true."
+    Default: ""
   OIDCProviderURL:
     Type: String
     Description: "OIDC provider issuer URL without the https:// scheme (e.g. oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF)"
@@ -52,6 +67,16 @@ Resources:
       Selectors:
         - Namespace: !Ref KarpenterNamespace
       Subnets: !Ref FargateSubnets
+  # Created only when the cluster has no IAM OIDC provider yet, so that it is
+  # deleted along with the stack. A pre-existing provider may be used by other
+  # workloads and is left alone.
+  OIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateOIDCProvider
+    Properties:
+      Url: !Sub "https://${OIDCProviderURL}"
+      ClientIdList:
+        - sts.amazonaws.com
   KarpenterIRSARole:
     Type: AWS::IAM::Role
     # Use a JSON-string AssumeRolePolicyDocument because the StringEquals
@@ -59,21 +84,23 @@ Resources:
     # and :aud) — YAML maps do not interpolate keys.
     Properties:
       RoleName: !Sub "${ClusterName}-karpenter"
-      AssumeRolePolicyDocument: !Sub |
-        {
-          "Version": "2012-10-17",
-          "Statement": [{
-            "Effect": "Allow",
-            "Principal": { "Federated": "${OIDCProviderArn}" },
-            "Action": "sts:AssumeRoleWithWebIdentity",
-            "Condition": {
-              "StringEquals": {
-                "${OIDCProviderURL}:sub": "system:serviceaccount:${KarpenterNamespace}:karpenter",
-                "${OIDCProviderURL}:aud": "sts.amazonaws.com"
+      AssumeRolePolicyDocument: !Sub
+        - |
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Principal": { "Federated": "${ProviderArn}" },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "${OIDCProviderURL}:sub": "system:serviceaccount:${KarpenterNamespace}:karpenter",
+                  "${OIDCProviderURL}:aud": "sts.amazonaws.com"
+                }
               }
-            }
-          }]
-        }
+            }]
+          }
+        - ProviderArn: !If [ShouldCreateOIDCProvider, !Ref OIDCProvider, !Ref OIDCProviderArn]
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerNodeLifecyclePolicy-${ClusterName}"
         - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerIAMIntegrationPolicy-${ClusterName}"

@@ -6,16 +6,73 @@
 package datadogagentinternal
 
 import (
+	"context"
 	"reflect"
 	"slices"
+	"testing"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func TestDefaultDataPlaneEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		enabled bool
+		ddai    *v1alpha1.DatadogAgentInternal
+		want    bool
+	}{
+		{
+			name:    "ordinary DDAI uses enabled runtime option",
+			enabled: true,
+			ddai:    &v1alpha1.DatadogAgentInternal{},
+			want:    true,
+		},
+		{
+			name:    "ordinary DDAI uses disabled runtime option",
+			enabled: false,
+			ddai:    &v1alpha1.DatadogAgentInternal{},
+			want:    false,
+		},
+		{
+			name:    "Windows profile disables the default",
+			enabled: true,
+			ddai: &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{constants.ProfileLabelKey: "windows"},
+				Annotations: map[string]string{
+					kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider,
+				},
+			}},
+			want: false,
+		},
+		{
+			name:    "unprofiled DDAI ignores Windows annotation",
+			enabled: true,
+			ddai: &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider,
+				},
+			}},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{options: ReconcilerOptions{DefaultDataPlaneLinuxEnabled: tt.enabled}}
+			assert.Equal(t, tt.want, r.reconcilerOptionsToFeatureOptions(context.Background(), tt.ddai).DefaultDataPlaneEnabled)
+		})
+	}
+}
 
 func containsEnv(slice []corev1.EnvVar, name, value string) bool {
 	for _, element := range slice {

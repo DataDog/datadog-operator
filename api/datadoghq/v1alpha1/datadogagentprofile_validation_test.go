@@ -67,6 +67,26 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
+	validHostProfilerContainerOverride := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+						common.HostProfiler: {
+							Resources: &corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+							},
+							Env:          []corev1.EnvVar{{Name: "FOO", Value: "bar"}},
+							VolumeMounts: []corev1.VolumeMount{{Name: "foo", MountPath: "/foo"}},
+						},
+					},
+				},
+			},
+		},
+	}
 	invalidComponentOverride := &DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
@@ -146,6 +166,22 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
+	validHostProfilerFeature := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				HostProfiler: &v2alpha1.HostProfilerFeatureConfig{
+					Enabled:     ptr.To(true),
+					RunAsRoot:   ptr.To(false),
+					SELinuxType: ptr.To("custom_t"),
+					Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+						Enabled:        ptr.To(true),
+						LoggingEnabled: ptr.To(true),
+					},
+				},
+			},
+		},
+	}
 	validAPMFeature := &DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
@@ -190,6 +226,10 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		{
 			name: "valid dap, resources specified in one container only",
 			spec: validResourceOverrideInOneContainerOnly,
+		},
+		{
+			name: "valid host profiler container override",
+			spec: validHostProfilerContainerOverride,
 		},
 		{
 			name:    "invalid component override",
@@ -238,6 +278,10 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			spec: validAPMFeature,
 		},
 		{
+			name: "host profiler feature override",
+			spec: validHostProfilerFeature,
+		},
+		{
 			name:    "dap with unsupported feature",
 			spec:    invalidFeatures,
 			wantErr: "npm override is not supported",
@@ -262,8 +306,9 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 
 func TestValidateDatadogAgentProfileFeaturesAllowlist(t *testing.T) {
 	allowedFeatureFields := map[string]struct{}{
-		"APM": {},
-		"GPU": {},
+		"APM":          {},
+		"GPU":          {},
+		"HostProfiler": {},
 	}
 
 	featuresType := reflect.TypeOf(v2alpha1.DatadogFeatures{})

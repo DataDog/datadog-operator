@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -36,6 +38,18 @@ type ebpfCheckFeature struct{}
 // ID returns the ID of the Feature
 func (f *ebpfCheckFeature) ID() feature.IDType {
 	return feature.EBPFCheckIDType
+}
+
+// NodeAgentProviderCapabilities mounts tracefs on Talos, where it is a
+// standalone mount rather than nested under this feature's debugfs mount.
+func (f *ebpfCheckFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.

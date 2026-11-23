@@ -81,7 +81,11 @@ func TestRender_Golden(t *testing.T) {
 		ddaFile   string
 		autopilot bool   // inject the experimental GKE Autopilot opt-in annotation
 		provider  string // inject the provider annotation (e.g. EKS); "" = none
-		golden    string
+		// sccAllowed is the canned OpenShift SCC authorization verdict. Default false
+		// means "not authorized", under which the OpenShift ServiceAccount wiring must
+		// make no change at all.
+		sccAllowed bool
+		golden     string
 	}{
 		{
 			name:      "comprehensive dda, autopilot",
@@ -150,6 +154,76 @@ func TestRender_Golden(t *testing.T) {
 			autopilot: true,
 			golden:    "testdata/golden/suppression-autopilot.golden.yaml",
 		},
+		{
+			// oomKill, tcpQueueLength, cws and cspm each strip host volumes
+			// (src/modules/passwd/group) that don't exist on Talos.
+			name:    "talos dda, baseline (no provider)",
+			ddaFile: "testdata/talos-dda.yaml",
+			golden:  "testdata/golden/talos-baseline.golden.yaml",
+		},
+		{
+			name:     "talos dda, talos",
+			ddaFile:  "testdata/talos-dda.yaml",
+			provider: kubernetes.TalosProvider,
+			golden:   "testdata/golden/talos-talos.golden.yaml",
+		},
+		// OpenShift cases. Provider strings are the real node-label-derived values:
+		// detection yields "openshift-<os_id>", never a bare "openshift".
+		{
+			// Control: identical fixture with no provider. Diffing this against the
+			// openshift-rhcos golden isolates exactly what the provider changes.
+			name:    "openshift dda, baseline (no provider)",
+			ddaFile: "testdata/openshift-dda.yaml",
+			golden:  "testdata/golden/openshift-baseline.golden.yaml",
+		},
+		{
+			// The common real-world value (production OpenShift nodes report rhcos).
+			// Gains SELinux spc_t, master/infra tolerations and kubelet tlsVerify false.
+			name:       "openshift dda, openshift-rhcos",
+			ddaFile:    "testdata/openshift-dda.yaml",
+			provider:   "openshift-rhcos",
+			sccAllowed: true,
+			golden:     "testdata/golden/openshift-rhcos.golden.yaml",
+		},
+		{
+			// Log collection off. spc_t must still be injected: the node agent needs it
+			// for host paths and the system-probe seccomp profile, not only pod logs.
+			name:       "openshift dda, log collection disabled",
+			ddaFile:    "testdata/openshift-nologs-dda.yaml",
+			provider:   "openshift-rhcos",
+			sccAllowed: true,
+			golden:     "testdata/golden/openshift-nologs.golden.yaml",
+		},
+		{
+			// Every injectable field explicitly user-set to the opposite value: the
+			// operator fills gaps and must not overwrite intent. Only tolerations
+			// differ, since those are appended.
+			name:       "openshift user-set dda, openshift-rhcos",
+			ddaFile:    "testdata/openshift-userset-dda.yaml",
+			provider:   "openshift-rhcos",
+			sccAllowed: true,
+			golden:     "testdata/golden/openshift-userset.golden.yaml",
+		},
+		{
+			// Off OpenShift the authorizer must never be consulted, so authorizing
+			// changes nothing. Reuses the committed baseline golden.
+			name:       "comprehensive dda, no provider, scc authorized (must be ignored)",
+			ddaFile:    "testdata/comprehensive-dda.yaml",
+			sccAllowed: true,
+			golden:     "testdata/golden/comprehensive-baseline.golden.yaml",
+		},
+		{
+			// Control plane monitoring on Talos has two tiers. The fixture above
+			// has no control-plane toleration, so only the cluster-check tier
+			// (apiserver/scheduler/controller-manager) renders. This fixture adds
+			// the toleration, which is what unlocks the etcd tier: the etcd config
+			// gets mounted into the node agent along with the host cert hostPath.
+			// Diffing the two goldens isolates exactly what the toleration buys.
+			name:     "talos dda with control-plane toleration, talos",
+			ddaFile:  "testdata/talos-cp-toleration-dda.yaml",
+			provider: kubernetes.TalosProvider,
+			golden:   "testdata/golden/talos-cp-toleration-talos.golden.yaml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -168,7 +242,7 @@ func TestRender_Golden(t *testing.T) {
 			}
 			pinImageTags(dda)
 
-			objects, scheme, err := Render(Options{DDA: dda})
+			objects, scheme, err := Render(Options{DDA: dda, SCCAllowed: tt.sccAllowed})
 			require.NoError(t, err)
 
 			out, err := Serialize(objects, scheme, "yaml", false)

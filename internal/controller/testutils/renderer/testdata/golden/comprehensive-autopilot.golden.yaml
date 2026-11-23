@@ -217,6 +217,15 @@ rules:
   - list
   - watch
 - apiGroups:
+  - resource.k8s.io
+  resources:
+  - devicetaintrules
+  - resourceclaims
+  - resourceslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses
@@ -338,6 +347,37 @@ rules:
   - list
   - watch
 - apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - backendtlspolicies
+  - gatewayclasses
+  - gateways
+  - grpcroutes
+  - httproutes
+  - listenersets
+  - referencegrants
+  - tcproutes
+  - tlsroutes
+  - udproutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - inference.networking.k8s.io
+  resources:
+  - inferencepools
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - inference.networking.x-k8s.io
+  resources:
+  - inferencepoolimports
+  - inferencepools
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - karpenter.azure.com
   resources:
   - '*'
@@ -359,6 +399,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - kubeai.org
+  resources:
+  - models
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - kustomize.toolkit.fluxcd.io
   resources:
   - kustomizations
@@ -374,9 +421,32 @@ rules:
   - list
   - watch
 - apiGroups:
+  - nvidia.com
+  resources:
+  - dynamocheckpoints
+  - dynamocomponentdeployments
+  - dynamographdeploymentrequests
+  - dynamographdeployments
+  - dynamographdeploymentscalingadapters
+  - dynamomodels
+  - dynamoworkermetadatas
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - policy
   resources:
   - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  - raycronjobs
+  - rayjobs
+  - rayservices
   verbs:
   - list
   - watch
@@ -387,6 +457,24 @@ rules:
   - clusterroles
   - rolebindings
   - roles
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - serving.kserve.io
+  resources:
+  - clusterservingruntimes
+  - clusterstoragecontainers
+  - inferencegraphs
+  - inferenceservices
+  - llminferenceserviceconfigs
+  - llminferenceservices
+  - localmodelcaches
+  - localmodelnamespacecaches
+  - localmodelnodegroups
+  - localmodelnodes
+  - servingruntimes
+  - trainedmodels
   verbs:
   - list
   - watch
@@ -548,12 +636,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - datadoghq.com
-  resources:
-  - extendeddaemonsetreplicasets
-  verbs:
-  - get
-- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
@@ -568,6 +650,21 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - storage.k8s.io
+  resourceNames:
+  - k8s.csi.datadoghq.com
+  resources:
+  - csidrivers
+  verbs:
+  - get
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - list
+  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
@@ -1339,7 +1436,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 3d559495a5d61788e11fc24c7cc24829
+    agent.datadoghq.com/agentspechash: da24700cba44d631ad9ed07ca44666b3
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1405,6 +1502,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1530,6 +1633,9 @@ spec:
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
           readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
+          readOnly: true
         - mountPath: /opt/datadog-agent/run
           name: datadogrun
         - mountPath: /tmp
@@ -1582,6 +1688,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1642,6 +1750,8 @@ spec:
           name: logdatadog
         - mountPath: /etc/datadog-agent
           name: config
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1662,6 +1772,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1844,6 +1956,9 @@ spec:
           path: /sys/fs/cgroup
         name: cgroups
       - hostPath:
+          path: /etc/os-release
+        name: os-release-file
+      - hostPath:
           path: /var/autopilot/addon/datadog/logs
         name: datadogrun
       - emptyDir: {}
@@ -1883,7 +1998,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 8a31a7295887debaf6b7dcd2b916b306
+    agent.datadoghq.com/agentspechash: 54fbecbcee7b1dc436e28f8c447b179e
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2022,6 +2137,8 @@ spec:
           value: datadog-webhook
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -2097,14 +2214,14 @@ spec:
           name: datadog-agent-auth
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
         - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
           name: ksm-core-config
           readOnly: true
         - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
           name: orchestrator-explorer-config
           readOnly: true
-        - mountPath: /opt/datadog-agent/run/
-          name: datadogrun
       serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
@@ -2120,20 +2237,20 @@ spec:
         name: datadog-agent-auth
       - emptyDir: {}
         name: tmpdir
+      - emptyDir: {}
+        name: datadogrun
       - configMap:
           name: datadog-agent-kube-state-metrics-core-config
         name: ksm-core-config
       - configMap:
           name: datadog-agent-orchestrator-explorer-config
         name: orchestrator-explorer-config
-      - emptyDir: {}
-        name: datadogrun
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 977561eccc4bc79683f1bbbbf100d060
+    agent.datadoghq.com/agentspechash: 22544129f96d3c6085e66a40789558d5
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2210,6 +2327,8 @@ spec:
               fieldPath: metadata.name
         - name: DD_USE_DOGSTATSD
           value: "false"
+        - name: DD_DISCOVERY_ENABLED
+          value: "false"
         - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
           value: "false"
         - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
@@ -2257,7 +2376,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.81.1
+        image: gcr.io/datadoghq/agent:7.85.5
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2312,7 +2431,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.81.1
+        image: gcr.io/datadoghq/agent:7.85.5
         name: init-config
         resources: {}
         volumeMounts:
@@ -2341,7 +2460,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.81.1
+        image: gcr.io/datadoghq/agent:7.85.5
         name: init-copy-check-assets
         resources: {}
         securityContext:

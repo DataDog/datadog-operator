@@ -17,6 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -42,6 +44,18 @@ func (f *usmFeature) ID() feature.IDType {
 	return feature.USMIDType
 }
 
+// NodeAgentProviderCapabilities mounts tracefs on Talos, where it is a
+// standalone mount rather than nested under this feature's debugfs mount.
+func (f *usmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		},
+	}
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
@@ -61,7 +75,7 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		const directSendMinVersion = "7.81.0-0"
 		defaultIfVersionUnknown := true
-		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
+		if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
 			directSendEnabled = false
 		}
 		if !directSendEnabled {

@@ -65,7 +65,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogdashboard", req.NamespacedName)
+	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling Datadog Dashboard")
 
 	auth, credErr := r.credsManager.GetAuth()
@@ -156,7 +156,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 
 		if err != nil {
-			result.RequeueAfter = defaultErrRequeuePeriod
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+			if ctrutils.IsPermanentAPIError(err) {
+				result.RequeueAfter = forceSyncPeriod
+			} else {
+				result.RequeueAfter = defaultErrRequeuePeriod
+			}
 		}
 	}
 

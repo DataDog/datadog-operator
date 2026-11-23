@@ -45,9 +45,6 @@ import (
 // - All the profile, agent, and node names are random to avoid conflicts
 // between tests.
 
-// TODO: these tests are only for DaemonSets. We should add similar tests for
-// EDS.
-
 type daemonSetExpectations struct {
 	affinity           *v1.Affinity
 	containerResources map[apicommon.AgentContainerName]v1.ResourceRequirements

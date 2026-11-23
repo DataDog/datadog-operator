@@ -17,8 +17,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -32,16 +33,19 @@ const (
 	profileControllerName         = "DatadogAgentProfile"
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
+	byocClusterControllerName     = "DatadogBYOCCluster"
+	workerControllerName          = "DatadogObservabilityPipelinesWorker"
 	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset          ExtendedDaemonsetOptions
 	SupportCilium                     bool
 	CredsManager                      *config.CredentialManager
 	DatadogAgentEnabled               bool
 	DatadogMonitorEnabled             bool
+	DatadogMonitorMaxWorkers          int
+	DatadogMonitorRequeue             time.Duration
 	DatadogSLOEnabled                 bool
 	OperatorMetricsEnabled            bool
 	V2APIEnabled                      bool
@@ -50,6 +54,7 @@ type SetupOptions struct {
 	OtelAgentEnabled                  bool
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
+	DatadogBYOCClusterEnabled         bool
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
@@ -57,23 +62,13 @@ type SetupOptions struct {
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
 	RolloutOnConfigMapChangeEnabled   bool
+	DefaultDataPlaneLinuxEnabled      bool
+	ComponentHealthEnabled            bool
+	ComponentHealthIntakeEnabled      bool
+	ComponentHealthIntakeURL          string
+	ComponentHealthSnapshotInterval   time.Duration
+	ComponentHealthResolveGracePeriod time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
-}
-
-// ExtendedDaemonsetOptions defines ExtendedDaemonset options
-type ExtendedDaemonsetOptions struct {
-	Enabled                   bool
-	MaxPodUnavailable         string
-	MaxPodSchedulerFailure    string
-	SlowStartAdditiveIncrease string
-
-	CanaryDuration                      time.Duration
-	CanaryReplicas                      string
-	CanaryAutoPauseEnabled              bool
-	CanaryAutoPauseMaxRestarts          int
-	CanaryAutoFailEnabled               bool
-	CanaryAutoFailMaxRestarts           int
-	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
@@ -86,8 +81,11 @@ var controllerStarters = map[string]starterFunc{
 	profileControllerName:         startDatadogAgentProfiles,
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
+	byocClusterControllerName:     startDatadogBYOCCluster,
+	workerControllerName:          startDatadogObservabilityPipelinesWorker,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
+	componentHealthControllerName: startComponentHealth,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -121,19 +119,6 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
-			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                             options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
-				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
-				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
-				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
-			},
 			SupportCilium:              options.SupportCilium,
 			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
 			IntrospectionEnabled:       options.IntrospectionEnabled,
@@ -160,24 +145,11 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentInternalControllerName),
 		Options: datadogagentinternal.ReconcilerOptions{
-			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                             options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
-				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
-				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
-				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
-			},
 			SupportCilium:                   options.SupportCilium,
 			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
 			UntaintControllerEnabled:        options.UntaintControllerEnabled,
-			DatadogCSIDriverEnabled:         options.DatadogCSIDriverEnabled,
 			RolloutOnConfigMapChangeEnabled: options.RolloutOnConfigMapChangeEnabled,
+			DefaultDataPlaneLinuxEnabled:    options.DefaultDataPlaneLinuxEnabled,
 			APIReader:                       mgr.GetAPIReader(),
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
@@ -197,6 +169,10 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
+		Options: DatadogMonitorReconcilerOptions{
+			MaxConcurrentReconciles: options.DatadogMonitorMaxWorkers,
+			RequeuePeriod:           options.DatadogMonitorRequeue,
+		},
 	}
 
 	return monitorReconciler.SetupWithManager(mgr, metricForwardersMgr)
@@ -240,6 +216,32 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	return genericResourceReconciler.SetupWithManager(mgr)
 }
 
+func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", byocClusterControllerName)
+		return nil
+	}
+
+	return (&datadogbyoccluster.Reconciler{
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogObservabilityPipelinesWorker(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", workerControllerName)
+		return nil
+	}
+
+	return (&datadogobservabilitypipelinesworker.Reconciler{
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
+	}).SetupWithManager(mgr)
+}
+
 func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
@@ -271,6 +273,46 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 	if err != nil {
 		return fmt.Errorf("untaint controller setup: %w", err)
 	}
+	return reconciler.SetupWithManager(mgr)
+}
+
+func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.ComponentHealthEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", componentHealthControllerName)
+		return nil
+	}
+
+	log := ctrl.Log.WithName("controllers").WithName(componentHealthControllerName)
+	reconciler := NewComponentHealthReconciler(mgr.GetClient(), log)
+
+	// Override the default snapshot cadence when configured; a non-positive value
+	// keeps the built-in default.
+	if options.ComponentHealthSnapshotInterval > 0 {
+		reconciler.snapshotInterval = options.ComponentHealthSnapshotInterval
+	}
+
+	// Override the default resolve grace period when configured; a non-positive
+	// value keeps the built-in default.
+	if options.ComponentHealthResolveGracePeriod > 0 {
+		reconciler.resolveGracePeriod = options.ComponentHealthResolveGracePeriod
+	}
+
+	// When the intake is enabled, swap the default logging emitter for the
+	// production emitter that POSTs current-state HealthReport snapshots to the
+	// agenthealth intake.
+	if options.ComponentHealthIntakeEnabled {
+		if options.CredsManager == nil {
+			return fmt.Errorf("%s: intake emitter requires a credentials manager", componentHealthControllerName)
+		}
+		emitter := newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
+		// When set, override the derived agenthealth intake URL (testing/QA against a
+		// fakeintake). Empty keeps the production URL derived from the site.
+		emitter.intakeURL = options.ComponentHealthIntakeURL
+		reconciler.emitter = emitter
+		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake",
+			"controller", componentHealthControllerName, "intakeURLOverride", options.ComponentHealthIntakeURL)
+	}
+
 	return reconciler.SetupWithManager(mgr)
 }
 

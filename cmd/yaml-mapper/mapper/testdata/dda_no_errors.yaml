@@ -29,11 +29,28 @@ spec:
     site: datadoghq.com
   override:
     clusterAgent:
+      customConfigurations:
+        datadog-cluster.yaml:
+          configData: |
+            cluster_checks:
+              enabled: true
+            log_level: debug
+      extraConfd:
+        configDataMap:
+          kubernetes_state.yaml: |-
+            ad_identifiers:
+              - kube-state-metrics
+          mysql.yaml: 'cluster_check: true'
       image:
         name: cluster-agent
         tag: 7.50.0
       replicas: 2
     nodeAgent:
+      customConfigurations:
+        datadog.yaml:
+          configData: |
+            jmx_use_container_support: true
+            log_level: debug
       image:
         name: agent
         tag: 7.50.0

@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -31,6 +33,8 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
+	// owner stores the user's DatadogAgent resource, which we keep because the passwd mount path depends on the Agent image version set in it.
+	owner          metav1.Object
 	scrubArgs      *bool
 	stripArgs      *bool
 	runInCoreAgent bool
@@ -41,8 +45,20 @@ func (f *liveProcessFeature) ID() feature.IDType {
 	return feature.LiveProcessIDType
 }
 
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user database, so the
+// passwd volume this feature adds is stripped.
+func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName},
+		},
+	}
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *liveProcessFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.owner = dda
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = new(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
@@ -55,7 +71,7 @@ func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Datado
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+		f.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -119,8 +135,9 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+	mountPath := featutils.ProcessPasswdMountPath(f.owner)
+	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount

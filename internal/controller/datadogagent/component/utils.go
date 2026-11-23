@@ -11,7 +11,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -22,7 +21,7 @@ func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
-// GetDaemonSetNameFromDatadogAgent returns the expected node Agent DS/EDS name based on
+// GetDaemonSetNameFromDatadogAgent returns the expected node Agent DaemonSet name based on
 // the DDA name and nodeAgent name override
 func GetDaemonSetNameFromDatadogAgent(ddaObject metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	dsName := GetAgentName(ddaObject)
@@ -61,33 +60,5 @@ func GetEKSControlPlaneMetricsPolicyRule() rbacv1.PolicyRule {
 		Verbs: []string{
 			rbac.GetVerb,
 		},
-	}
-}
-
-func AgentImageConfigForComponent(dda metav1.Object, componentName v2alpha1.ComponentName) *v2alpha1.AgentImageConfig {
-	return AgentImageConfigForComponentSpec(agentSpec(dda), componentName)
-}
-
-func AgentImageConfigForComponentSpec(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) *v2alpha1.AgentImageConfig {
-	if spec == nil {
-		return nil
-	}
-
-	override, ok := spec.Override[componentName]
-	if !ok {
-		return nil
-	}
-
-	return override.Image
-}
-
-func agentSpec(dda metav1.Object) *v2alpha1.DatadogAgentSpec {
-	switch d := dda.(type) {
-	case *v2alpha1.DatadogAgent:
-		return &d.Spec
-	case *v1alpha1.DatadogAgentInternal:
-		return &d.Spec
-	default:
-		return nil
 	}
 }

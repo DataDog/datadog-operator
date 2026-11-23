@@ -16,10 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -27,6 +27,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/appsec"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/autoscaling"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
@@ -40,8 +41,10 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kaischeduler"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kueue"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/logcollection"
@@ -62,16 +65,17 @@ import (
 const (
 	defaultRequeuePeriod    = 15 * time.Second
 	defaultErrRequeuePeriod = 5 * time.Second
+
+	ddaiOperationName = "datadogagentinternal.reconcile"
 )
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
 	SupportCilium                   bool
 	OperatorMetricsEnabled          bool
 	UntaintControllerEnabled        bool
-	DatadogCSIDriverEnabled         bool
 	RolloutOnConfigMapChangeEnabled bool
+	DefaultDataPlaneLinuxEnabled    bool
 	APIReader                       client.Reader
 }
 
@@ -120,9 +124,9 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
-func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
-	var resp reconcile.Result
-	var err error
+func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (resp reconcile.Result, err error) {
+	span, ctx := trace.StartReconcileSpan(ctx, "DatadogAgentInternal", ddaiOperationName, ddai)
+	defer trace.FinishSpan(span, &err)
 
 	resp, err = r.internalReconcile(ctx, ddai)
 
@@ -130,12 +134,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *feature.Options {
+func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) *feature.Options {
+	windowsProfile := isDDAILabeledWithProfile(ddai) && ddai.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider
+
 	return &feature.Options{
 		Logger:                  ctrl.LoggerFrom(ctx),
 		Client:                  r.apiReader,
 		PlatformInfo:            r.platformInfo,
-		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
+		DefaultDataPlaneEnabled: r.options.DefaultDataPlaneLinuxEnabled && !windowsProfile,
 	}
 }
 

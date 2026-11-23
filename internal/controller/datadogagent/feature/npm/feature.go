@@ -17,6 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -44,6 +46,20 @@ func (f *npmFeature) ID() feature.IDType {
 	return feature.NPMIDType
 }
 
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos exposes tracefs as a standalone mount
+// rather than nesting it under the debugfs mount this feature already adds,
+// so it must be mounted explicitly.
+func (f *npmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		},
+	}
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil {
@@ -62,7 +78,7 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		const directSendMinVersion = "7.81.0-0"
 		defaultIfVersionUnknown := true
-		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
+		if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
 			directSendEnabled = false
 		}
 		if !directSendEnabled {

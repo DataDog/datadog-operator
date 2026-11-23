@@ -8,15 +8,18 @@ package datadogagent
 import (
 	"context"
 	"maps"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -63,7 +66,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
-			r.log.V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
+			ctrl.LoggerFrom(ctx).V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
 			for k, v := range node.Labels {
 				if _, ok := labelsToRemove[k]; ok {
 					continue
@@ -97,6 +100,8 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // might not always be evicted when there's a change in the profiles to apply.
 // Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
 // available in Kubernetes yet.
+// Unschedulable pods have no node name yet, so their node is read from their
+// node affinity.
 func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
 	agentPods := &corev1.PodList{}
 	err := r.client.List(
@@ -111,8 +116,36 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		return err
 	}
 
+	// The pod cache only keeps names, labels and node names, so unscheduled
+	// pods are read straight from the API server to get their node affinity.
+	// This only happens when the cache shows a pod with no node yet.
+	hasUnscheduledPod := slices.ContainsFunc(agentPods.Items, func(pod corev1.Pod) bool {
+		return pod.Spec.NodeName == ""
+	})
+	if hasUnscheduledPod && r.options.APIReader != nil {
+		unscheduledPods := &corev1.PodList{}
+		err = r.options.APIReader.List(
+			ctx,
+			unscheduledPods,
+			client.MatchingLabels(map[string]string{
+				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			}),
+			client.MatchingFields{"spec.nodeName": ""},
+			client.InNamespace(ddaNamespace),
+		)
+		if err != nil {
+			return err
+		}
+		agentPods.Items = append(agentPods.Items, unscheduledPods.Items...)
+	}
+
 	for _, agentPod := range agentPods.Items {
-		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
+		// Already being deleted
+		if agentPod.DeletionTimestamp != nil {
+			continue
+		}
+
+		profileNamespacedName, found := profilesByNode[agentPodNodeName(&agentPod)]
 		if !found {
 			continue
 		}
@@ -133,7 +166,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 					Name:      agentPod.Name,
 				},
 			}
-			r.log.Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
+			ctrl.LoggerFrom(ctx).Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
 			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
@@ -143,32 +176,52 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 	return nil
 }
 
-// getValidDaemonSetNames generates a list of valid DS and EDS names
-func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile, useV3Metadata bool) (map[string]struct{}, map[string]struct{}) {
+// agentPodNodeName returns the node the agent pod runs on. For an unschedulable
+// pod created by the operator, it returns the node in the pod's "metadata.name"
+// node affinity.
+func agentPodNodeName(pod *corev1.Pod) string {
+	if pod.Spec.NodeName != "" {
+		return pod.Spec.NodeName
+	}
+
+	unschedulable := slices.ContainsFunc(pod.Status.Conditions, func(cond corev1.PodCondition) bool {
+		return cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse && cond.Reason == corev1.PodReasonUnschedulable
+	})
+	managedByOperator := pod.Labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
+	if !managedByOperator || !unschedulable || pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
+		return ""
+	}
+
+	nodeSelector := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	if nodeSelector == nil {
+		return ""
+	}
+	for _, term := range nodeSelector.NodeSelectorTerms {
+		for _, field := range term.MatchFields {
+			if field.Key == common.FieldPathMetaName && field.Operator == corev1.NodeSelectorOpIn && len(field.Values) == 1 {
+				return field.Values[0]
+			}
+		}
+	}
+
+	return ""
+}
+
+// getValidDaemonSetNames generates the list of valid DaemonSet names.
+func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile, useV3Metadata bool) map[string]struct{} {
 	validDaemonSetNames := map[string]struct{}{}
-	validExtendedDaemonSetNames := map[string]struct{}{}
 
 	// Introspection includes names with a provider suffix
 	if r.options.IntrospectionEnabled {
 		if r.useDefaultDaemonset(providerList) {
-			// Legacy DaemonSet uses the base name without provider suffix
-			if r.options.ExtendedDaemonsetOptions.Enabled {
-				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
-			} else {
-				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
-			}
+			validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
 		} else {
-			// Normal provider-specific DaemonSets
 			for provider := range providerList {
-				if r.options.ExtendedDaemonsetOptions.Enabled {
-					validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-				} else {
-					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-				}
+				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
 			}
 		}
 	}
-	// Profiles include names with the profile prefix and the DS/EDS name for the default profile
+	// Profiles include names with the profile prefix and the DaemonSet name for the default profile.
 	if r.options.DatadogAgentProfileEnabled {
 		for _, profile := range profiles {
 			name := types.NamespacedName{
@@ -177,25 +230,17 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 			}
 			dsProfileName := agentprofile.DaemonSetName(name, useV3Metadata)
 
-			// The default profile can be a DS or an EDS and uses the DS/EDS name
+			// The default profile uses the base DaemonSet name.
 			if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 				if r.options.IntrospectionEnabled {
 					for provider := range providerList {
-						if r.options.ExtendedDaemonsetOptions.Enabled {
-							validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-						} else {
-							validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-						}
+						validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
 					}
 				} else {
-					if r.options.ExtendedDaemonsetOptions.Enabled {
-						validExtendedDaemonSetNames[dsName] = struct{}{}
-					} else {
-						validDaemonSetNames[dsName] = struct{}{}
-					}
+					validDaemonSetNames[dsName] = struct{}{}
 				}
 			}
-			// Non-default profiles can only be DaemonSets
+			// Non-default profiles use profile-specific DaemonSet names.
 			if r.options.IntrospectionEnabled {
 				for provider := range providerList {
 					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsProfileName, provider)] = struct{}{}
@@ -206,18 +251,12 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 		}
 	}
 
-	// If neither introspection nor profiles are enabled, only the current DS/EDS name is valid
+	// If neither introspection nor profiles are enabled, only the current DaemonSet name is valid.
 	if !r.options.IntrospectionEnabled && !r.options.DatadogAgentProfileEnabled {
-		if r.options.ExtendedDaemonsetOptions.Enabled {
-			validExtendedDaemonSetNames = map[string]struct{}{
-				dsName: {},
-			}
-		} else {
-			validDaemonSetNames = map[string]struct{}{
-				dsName: {},
-			}
+		validDaemonSetNames = map[string]struct{}{
+			dsName: {},
 		}
 	}
 
-	return validDaemonSetNames, validExtendedDaemonSetNames
+	return validDaemonSetNames
 }

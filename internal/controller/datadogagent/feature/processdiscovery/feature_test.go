@@ -16,22 +16,37 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 )
 
 func Test_processDiscoveryFeature_Configure(t *testing.T) {
+	// Pin a pre-7.86 Agent so the expected passwd path does not change when the Operator's
+	// default Agent version is bumped.
+	preHostPasswdAgent := v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.85.0"}}
+	windowsProfile := testutils.NewDatadogAgentBuilder().
+		WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}).
+		WithProcessDiscoveryEnabled(true).
+		WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
+		Build()
+	windowsProfile.Labels = map[string]string{constants.ProfileLabelKey: "windows"}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name: "process discovery enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.PasswdMountPath),
 		},
 		{
 			Name: "process discovery disabled",
@@ -43,9 +58,10 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		{
 			Name: "process discovery config missing",
 			DDA: testutils.NewDatadogAgentBuilder().
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.PasswdMountPath),
 		},
 		{
 			Name: "process discovery without min version to run in core agent",
@@ -59,31 +75,52 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, common.PasswdMountPath),
 		},
 		{
 			Name: "process discovery enabled on single container",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, preHostPasswdAgent).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, common.PasswdMountPath),
+		},
+		{
+			Name: "host passwd on supported core agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, common.HostPasswdMountPath),
+		},
+		{
+			Name: "host passwd on supported unprivileged single agent",
+			DDA: testutils.NewDatadogAgentBuilder().WithProcessDiscoveryEnabled(true).WithSingleContainerStrategy(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"}}).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true, common.HostPasswdMountPath),
+		},
+		{
+			Name:          "process discovery on Windows",
+			DDA:           windowsProfile,
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, common.PasswdMountPath),
 		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool, expectedPath string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// check volume mounts
-			wantVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      common.PasswdVolumeName,
-					MountPath: common.PasswdMountPath,
+					MountPath: expectedPath,
 					ReadOnly:  true,
 				},
 				{
@@ -99,10 +136,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(agentMounts, wantVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, wantVolumeMounts))
+			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMounts))
 
 			// check volumes
-			wantVolumes := []corev1.Volume{
+			expectedVolumes := []corev1.Volume{
 				{
 					Name: common.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
@@ -130,10 +167,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 
 			volumes := mgr.VolumeMgr.Volumes
-			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolumes))
 
 			// check env vars
-			wantEnvVars := []*corev1.EnvVar{
+			expectedEnvVars := []*corev1.EnvVar{
 				{
 					Name:  common.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
@@ -145,7 +182,50 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			}
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, wantEnvVars))
+			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, expectedEnvVars))
 		},
 	)
+}
+
+func Test_processDiscoveryFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.ProcessAgentContainerName)},
+				},
+			},
+		}
+	}
+
+	volumeNames := func(tmpl *corev1.PodTemplateSpec) []string {
+		names := make([]string, 0, len(tmpl.Spec.Volumes))
+		for _, v := range tmpl.Spec.Volumes {
+			names = append(names, v.Name)
+		}
+		return names
+	}
+
+	t.Run("talos strips passwd volume", func(t *testing.T) {
+		p := &processDiscoveryFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, p.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, p.NodeAgentProviderCapabilities())
+
+		assert.NotContains(t, volumeNames(tmpl), common.PasswdVolumeName)
+	})
+
+	t.Run("default provider keeps passwd volume", func(t *testing.T) {
+		p := &processDiscoveryFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, p.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, p.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.PasswdVolumeName)
+	})
 }

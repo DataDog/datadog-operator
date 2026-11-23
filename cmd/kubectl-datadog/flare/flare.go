@@ -252,7 +252,8 @@ func (o *options) createCRFiles(dir string, cmd *cobra.Command) error {
 	}
 
 	// Get custom resources yaml
-	template, err := yaml.Marshal(ddList.Items)
+	// Kubernetes API types use JSON tags, which this YAML marshaler honors.
+	template, err := yaml.Marshal(ddList.Items) //nolint:musttag
 	if err != nil {
 		return err
 	}
@@ -397,7 +398,7 @@ func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, erro
 		return "", errors.New("empty version")
 	}
 
-	version := strings.Split(decoded.Version, "_")[0]
+	version, _, _ := strings.Cut(decoded.Version, "_")
 	return strings.TrimLeft(version, "v"), nil
 }
 
@@ -507,7 +508,7 @@ func archiveDir(dir, destination string) error {
 	// O_EXCL rather than truncating: getArchivePath only has second precision,
 	// so two concurrent flares can pick the same name, and clobbering one would
 	// upload a corrupt archive.
-	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		return err
 	}

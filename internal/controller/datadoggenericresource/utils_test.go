@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 func Test_getHandler(t *testing.T) {
@@ -34,10 +36,12 @@ func Test_translateClientError(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		error                  error
+		httpResp               *http.Response
 		message                string
 		expectedErrorType      error
-		expectedError          error
+		expectedErrorString    string
 		expectedErrorInterface any
+		wantPermanent          bool
 	}{
 		{
 			name:              "no message, generic error",
@@ -58,15 +62,29 @@ func Test_translateClientError(t *testing.T) {
 			expectedErrorInterface: &datadogapi.GenericOpenAPIError{},
 		},
 		{
-			name:          "generic message, error type *url.Error",
-			error:         &url.Error{Err: fmt.Errorf("generic url error")},
-			message:       "generic message",
-			expectedError: fmt.Errorf("generic message (url.Error):  \"\": generic url error"),
+			name:                "generic message, error type *url.Error",
+			error:               &url.Error{Err: fmt.Errorf("generic url error")},
+			message:             "generic message",
+			expectedErrorString: "generic message (url.Error):  \"\": generic url error",
+		},
+		{
+			name:          "400 response is classified as a permanent error",
+			error:         datadogapi.GenericOpenAPIError{},
+			httpResp:      &http.Response{StatusCode: http.StatusBadRequest},
+			message:       "error creating resource",
+			wantPermanent: true,
+		},
+		{
+			name:          "500 response is classified as a transient error",
+			error:         datadogapi.GenericOpenAPIError{},
+			httpResp:      &http.Response{StatusCode: http.StatusInternalServerError},
+			message:       "error creating resource",
+			wantPermanent: false,
 		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := translateClientError(test.error, test.message)
+			result := translateClientError(test.error, test.httpResp, test.message)
 
 			if test.expectedErrorType != nil {
 				assert.True(t, errors.Is(result, test.expectedErrorType))
@@ -76,11 +94,22 @@ func Test_translateClientError(t *testing.T) {
 				assert.True(t, errors.As(result, test.expectedErrorInterface))
 			}
 
-			if test.expectedError != nil {
-				assert.Equal(t, test.expectedError, result)
+			if test.expectedErrorString != "" {
+				assert.EqualError(t, result, test.expectedErrorString)
 			}
+
+			assert.Equal(t, test.wantPermanent, ctrutils.IsPermanentAPIError(result))
 		})
 	}
+}
+
+func Test_translateUnmarshalError(t *testing.T) {
+	err := translateUnmarshalError(errors.New("unexpected end of JSON input"), "error unmarshalling monitor spec")
+	assert.EqualError(t, err, "error unmarshalling monitor spec: unexpected end of JSON input")
+	// A spec that never parses will never succeed on retry, no HTTP request was
+	// made, so this must be classified as permanent rather than defaulting to
+	// transient the way a genuine network failure (nil response) would.
+	assert.True(t, ctrutils.IsPermanentAPIError(err))
 }
 
 func Test_resourceStringToInt64ID(t *testing.T) {

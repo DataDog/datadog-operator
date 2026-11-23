@@ -50,7 +50,8 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		{
 			Name:          "service discovery not enabled",
 			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
-			WantConfigure: false,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getDisabledWantFunc(apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName)),
 		},
 		{
 			Name:          "service discovery enabled",
@@ -67,6 +68,21 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildFeature)
+}
+
+func Test_serviceDiscoveryFeature_ManageSingleContainerNodeAgent_Disabled(t *testing.T) {
+	f := buildFeature(nil)
+	reqComp := f.Configure(nil, &v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{Enabled: ptr.To(false)},
+		},
+	}, nil)
+	assert.False(t, reqComp.Agent.IsEnabled())
+	assert.True(t, reqComp.Agent.IsConfigured())
+
+	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	assert.NoError(t, f.ManageSingleContainerNodeAgent(mgr))
+	getDisabledWantFunc(apicommon.UnprivilegedSingleAgentContainerName)(t, mgr)
 }
 
 func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
@@ -255,6 +271,29 @@ func serviceDiscoveryEnabledForVersion(version string) bool {
 	return pkgutils.IsAboveMinVersion(version, serviceDiscoveryAutoEnableMinVersion, nil)
 }
 
+func getDisabledWantFunc(containerNames ...apicommon.AgentContainerName) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		wantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  common.DDServiceDiscoveryEnabled,
+				Value: "false",
+			},
+		}
+		for _, containerName := range containerNames {
+			envVars := mgr.EnvVarMgr.EnvVarsByC[containerName]
+			assert.True(t, apiutils.IsEqualStruct(envVars, wantEnvVars), "%s envvars \ndiff = %s", containerName, cmp.Diff(envVars, wantEnvVars))
+		}
+		initEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.InitConfigContainerName]
+		assert.True(t, apiutils.IsEqualStruct(initEnvVars, wantEnvVars), "init-config envvars \ndiff = %s", cmp.Diff(initEnvVars, wantEnvVars))
+
+		assert.Empty(t, mgr.VolumeMgr.Volumes, "no volumes expected when service discovery is disabled")
+		assert.Empty(t, mgr.VolumeMountMgr.VolumeMountsByC, "no volume mounts expected when service discovery is disabled")
+		assert.Empty(t, mgr.SecurityContextMgr.CapabilitiesByC, "no capabilities expected when service discovery is disabled")
+	}
+}
+
 func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -333,7 +372,7 @@ func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface featu
 		// check env vars
 		wantAgentEnvVars := []*corev1.EnvVar{
 			{
-				Name:  DDServiceDiscoveryEnabled,
+				Name:  common.DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
 			{
@@ -344,7 +383,7 @@ func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface featu
 
 		wantSPEnvVars := []*corev1.EnvVar{
 			{
-				Name:  DDServiceDiscoveryEnabled,
+				Name:  common.DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
 		}

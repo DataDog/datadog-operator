@@ -191,7 +191,7 @@ func Test_setup(t *testing.T) {
 
 			_, err := omf.createRequest([]byte("test"))
 			assert.Nil(t, err)
-			apiKey, requestURL, err := omf.getApiKeyAndURL()
+			apiKey, requestURL, err := omf.getAPIKeyAndURL()
 
 			assert.Nil(t, err)
 			assert.Equal(t, tt.wantAPIKey, *apiKey)
@@ -282,7 +282,6 @@ func Test_GetPayload(t *testing.T) {
 		"datadogagentprofile_enabled",
 		"datadogagentinternal_enabled",
 		"leader_election_enabled",
-		"extendeddaemonset_enabled",
 		"remote_config_enabled",
 		"introspection_enabled",
 		"cluster_id",

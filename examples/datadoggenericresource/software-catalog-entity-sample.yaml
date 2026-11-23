@@ -1,0 +1,29 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-software-catalog-entity-sample
+spec:
+  type: software_catalog_entity
+  # This example registers a "service" entity in Software Catalog. jsonSpec follows
+  # the Entity V3 schema directly (apiVersion/kind/metadata/spec), not a JSON:API
+  # envelope. The Software Catalog API is upsert-shaped: re-applying this manifest
+  # after editing jsonSpec updates the same entity, keyed by kind/namespace/name.
+  jsonSpec: |-
+    {
+      "apiVersion": "v3",
+      "kind": "service",
+      "metadata": {
+        "name": "example-service",
+        "displayName": "Example Service",
+        "description": "Example service entity set by Datadog Generic Resource",
+        "owner": "my-team",
+        "tags": [
+          "env:prod"
+        ]
+      },
+      "spec": {
+        "lifecycle": "production",
+        "tier": "1",
+        "type": "web"
+      }
+    }

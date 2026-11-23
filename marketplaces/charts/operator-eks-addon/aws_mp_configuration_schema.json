@@ -250,15 +250,9 @@
             },
             "site": {
               "type": "string",
-              "enum": [
-                "datadoghq.com",
-                "datadoghq.eu",
-                "us3.datadoghq.com",
-                "us5.datadoghq.com",
-                "ddog-gov.com",
-                "ap1.datadoghq.com",
-                "ap2.datadoghq.com"
-              ]
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)*$"
             }
           },
           "required": [

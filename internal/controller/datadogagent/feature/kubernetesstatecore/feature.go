@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -50,7 +51,26 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
-	useApiServerCache          bool
+	useAPIServerCache          bool
+
+	// podCollectionOnNode is true when PodCollectionMode=node_kubelet has
+	// been requested AND the agent version is compatible.
+	podCollectionOnNode bool
+	// podCollectionOnNodeUserConfig is true when the user supplied their
+	// own cluster-side config via .Conf alongside PodCollectionMode=node_kubelet.
+	// In that case the operator deploys the node-side check but does NOT
+	// mutate the user's cluster-side YAML; the user owns cluster_unassigned.
+	podCollectionOnNodeUserConfig bool
+	// nodeAgentConfigMapName is the name of the operator-managed ConfigMap
+	// holding the pods-only check for node agents (only populated when
+	// podCollectionOnNode is true).
+	nodeAgentConfigMapName string
+
+	shardingEnabled bool
+
+	// draRBAC is true when the component running the check supports the DRA
+	// collectors, so users can list them in a custom KSM config.
+	draRBAC bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -90,61 +110,117 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
-		f.useApiServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
+		f.useAPIServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
-		// Determine CollectControllerRevisions setting
-		// Default to true, then check version requirements
-		f.collectControllerRevisions = true
+		clusterCheckComponent := v2alpha1.ClusterAgentComponentName
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
-		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
+		if componentccr.RunsOnRunners(dda, ddaSpec, constants.KubeStateMetricsCoreCheckName) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
 			output.ClusterChecksRunner.IsRequired = new(true)
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
-
-			if ccrOverride, ok := ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
-				if ccrOverride.Image != nil {
-					agentVersion := common.GetAgentVersionFromImage(*ccrOverride.Image)
-
-					// CRD and APIService version checks
-					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion, nil) {
-						f.collectAPIServiceMetrics = false
-						f.collectCRDMetrics = false
-					}
-
-					// ControllerRevisions version check - enable if version supports it
-					fallback := false
-					if !utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-						f.collectControllerRevisions = false
-					}
-				}
-			}
-		} else {
-			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-				if clusterAgentOverride.Image != nil {
-					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
-
-					// CRD and APIService version checks
-					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion, nil) {
-						f.collectAPIServiceMetrics = false
-						f.collectCRDMetrics = false
-					}
-
-					// ControllerRevisions version check - enable if version supports it
-					fallback := false
-					if !utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-						f.collectControllerRevisions = false
-					}
-				}
-			}
+			clusterCheckComponent = v2alpha1.ClusterChecksRunnerComponentName
 		}
 
+		clusterCheckVersion := common.GetComponentVersionFromSpec(ddaSpec, clusterCheckComponent)
+		if f.runInClusterChecksRunner {
+			// A runner group claiming the check can run its own image.
+			clusterCheckVersion = componentccr.RunnerVersion(dda, ddaSpec, constants.KubeStateMetricsCoreCheckName)
+		}
+		if !utils.IsAboveMinVersion(clusterCheckVersion, crdAPIServiceCollectionMinVersion, nil) {
+			f.collectAPIServiceMetrics = false
+			f.collectCRDMetrics = false
+		}
+		f.collectControllerRevisions = utils.IsAboveMinVersion(clusterCheckVersion, controllerRevisionsCollectionMinVersion, new(false))
+
+		// Capture the user-supplied custom config (if any) so PodCollectionMode
+		// resolution below can decide whether to mutate the cluster-side YAML.
 		if ddaSpec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = ddaSpec.Features.KubeStateMetricsCore.Conf
 		}
+
+		// Resolve PodCollectionMode. When node_kubelet is requested AND every
+		// component that loads the check is version-compatible, switch the
+		// cluster-side instance to pod_collection_mode: cluster_unassigned
+		// (only when the operator owns the cluster-side config) and deploy a
+		// pods-only check to every node agent. When the user supplies their
+		// own .Conf, the operator still deploys the node-side check but does
+		// not mutate the user's YAML; they are responsible for setting
+		// cluster_unassigned themselves.
+		if mode := ddaSpec.Features.KubeStateMetricsCore.PodCollectionMode; mode != nil &&
+			*mode == v2alpha1.KSMPodCollectionModeNodeKubelet {
+			f.podCollectionOnNode = true
+			// Version compatibility check on BOTH sides: the cluster-side
+			// component that runs the cluster_unassigned check (CCR if cluster-
+			// checks-runners are enabled, otherwise the cluster-agent) AND the
+			// node-agent that runs the node_kubelet check. If either image tag
+			// is parseable AND below the supported floor, skip the feature so
+			// the operator doesn't mount an unsupported file into a node-agent
+			// that would silently fall back to default mode and double-collect.
+			// Unparseable tags (`:dev`, custom registries, etc.) are assumed
+			// compatible — matches the existing pattern for the apiservices/CRD
+			// checks above.
+			versions := []struct {
+				comp    v2alpha1.ComponentName
+				version string
+			}{
+				{v2alpha1.NodeAgentComponentName, common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)},
+				{clusterCheckComponent, clusterCheckVersion},
+			}
+			for _, cv := range versions {
+				if !utils.IsAboveMinVersion(cv.version, podCollectionOnNodeMinVersion, nil) {
+					f.logger.Info(
+						"PodCollectionMode=node_kubelet requires agent >= 7.82; falling back to default",
+						"component", string(cv.comp),
+						"version", cv.version,
+					)
+					f.podCollectionOnNode = false
+					break
+				}
+			}
+			if f.podCollectionOnNode {
+				f.podCollectionOnNodeUserConfig = f.customConfig != nil
+				f.nodeAgentConfigMapName = constants.GetConfName(dda, nil, defaultKSMPodsOnNodeConf)
+				if f.podCollectionOnNodeUserConfig {
+					f.logger.Info(
+						"PodCollectionMode=node_kubelet is set with a user-supplied features.kubeStateMetricsCore.conf; " +
+							"the operator will deploy the node-side check but won't alter the user-supplied cluster-side values. " +
+							"To avoid double pod collection, set pod_collection_mode: cluster_unassigned " +
+							"(or omit `pods` from `collectors`) on the cluster-side instance. " +
+							"For cluster-aggregate metrics, add an instance with no collectors and pod_collection_mode: cluster_aggregates_only.",
+					)
+				}
+			}
+		}
+
+		if apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.ShardingEnabled) {
+			f.shardingEnabled = true
+
+			if !f.runInClusterChecksRunner {
+				f.logger.Info(
+					"ShardingEnabled requires that the KSM check runs on cluster check runners",
+				)
+				f.shardingEnabled = false
+			}
+
+			agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
+			if !utils.IsAboveMinVersion(agentVersion, ksmShardingMinVersion, nil) {
+				f.logger.Info(
+					"ShardingEnabled requires agent >= 7.83; falling back to default",
+					"version", agentVersion,
+				)
+				f.shardingEnabled = false
+			}
+		}
+
+		// Grant read access to the DRA API so users can add the resourceclaims,
+		// resourceslices and devicetaintrules collectors in a custom config.
+		// Fail closed: older or unparseable versions of the component running the check
+		// (Cluster Agent or Cluster Checks Runners) do not get the rule.
+		f.draRBAC = utils.IsAboveMinVersion(clusterCheckVersion, draCollectorsMinVersion, new(false))
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
@@ -157,7 +233,8 @@ type collectorOptions struct {
 	enableAPIService          bool
 	enableCRD                 bool
 	enableControllerRevisions bool
-	useApiServerCache         bool
+	useAPIServerCache         bool
+	enableDRARBAC             bool
 	customResources           []v2alpha1.Resource
 }
 
@@ -172,7 +249,8 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 		enableAPIService:          f.collectAPIServiceMetrics,
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
-		useApiServerCache:         f.useApiServerCache,
+		useAPIServerCache:         f.useAPIServerCache,
+		enableDRARBAC:             f.draRBAC,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
@@ -181,6 +259,16 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	}
 	if configCM != nil {
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
+			return err
+		}
+	}
+
+	// When PodCollectionMode=node_kubelet, ship a separate pods-only check
+	// to every node agent regardless of whether the cluster-side config was
+	// user-supplied.
+	if f.podCollectionOnNode {
+		nodeCM := f.buildKSMCorePodsOnNodeConfigMap()
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, nodeCM); err != nil {
 			return err
 		}
 	}
@@ -227,6 +315,13 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		Value: f.configConfigMapName,
 	})
 
+	if f.shardingEnabled {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDKubeStateMetricsShardingEnabled,
+			Value: "true",
+		})
+	}
+
 	return nil
 }
 
@@ -240,7 +335,12 @@ func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction); err != nil {
+		return err
+	}
+
+	f.mountPodsOnNodeCheck(managers, apicommon.UnprivilegedSingleAgentContainerName)
+	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
@@ -252,7 +352,28 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction); err != nil {
+		return err
+	}
+
+	f.mountPodsOnNodeCheck(managers, apicommon.CoreAgentContainerName)
+	return nil
+}
+
+// mountPodsOnNodeCheck mounts the node-side pods-only KSM check into the given
+// container when PodCollectionMode=node_kubelet is enabled.
+func (f *ksmFeature) mountPodsOnNodeCheck(managers feature.PodTemplateManagers, containerName apicommon.AgentContainerName) {
+	if !f.podCollectionOnNode {
+		return
+	}
+	vol := volume.GetBasicVolume(f.nodeAgentConfigMapName, ksmCorePodsOnNodeVolumeName)
+	volMount := corev1.VolumeMount{
+		Name:      ksmCorePodsOnNodeVolumeName,
+		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, ksmCoreCheckFolderName),
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, containerName)
+	managers.Volume().AddVolume(&vol)
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec

@@ -148,7 +148,7 @@ func ValidateAnnotationsMatching(annotations map[string]string, validIDs map[str
 	errors := []string{}
 	for annotation := range annotations {
 		if matched, _ := regexp.MatchString(fmt.Sprintf(`%s.+\..+`, ADPrefixRegex), annotation); matched {
-			id := strings.Split(annotation[len(ADPrefix):], ".")[0]
+			id, _, _ := strings.Cut(annotation[len(ADPrefix):], ".")
 			if found := validIDs[id]; !found {
 				errors = append(errors, fmt.Sprintf("Annotation %s is invalid: %s doesn't match a container name", annotation, id))
 			}

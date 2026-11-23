@@ -11,18 +11,24 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // baseKindCounts is the expected resource inventory for a minimal DatadogAgent
-// with no extra features enabled. The three Services are the Cluster Agent,
-// the admission controller, and the node Agent local service (rendered because
-// the simulated Kubernetes version is >= 1.22).
+// with no explicitly enabled features. Instrumentation CRD is enabled by
+// default because the default Agent versions meet its minimum version. The
+// three Services are the Cluster Agent, the admission controller, and the node
+// Agent local service (rendered because the simulated Kubernetes version is >=
+// 1.22).
 var baseKindCounts = map[string]int{
 	"ServiceAccount":       2,
-	"ClusterRole":          5,
-	"ClusterRoleBinding":   5,
+	"ClusterRole":          6,
+	"ClusterRoleBinding":   6,
 	"Role":                 1,
 	"RoleBinding":          1,
 	"Secret":               1,
@@ -37,8 +43,8 @@ var baseKindCounts = map[string]int{
 // reflecting the dependency-aware sort in kindOrder.
 var baseKindSeq = []string{
 	"ServiceAccount", "ServiceAccount",
-	"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
-	"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
+	"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
+	"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
 	"Role",
 	"RoleBinding",
 	"Secret",
@@ -93,8 +99,8 @@ func TestRender_WithDAP(t *testing.T) {
 
 	assert.Equal(t, map[string]int{
 		"ServiceAccount":       2,
-		"ClusterRole":          5,
-		"ClusterRoleBinding":   5,
+		"ClusterRole":          6,
+		"ClusterRoleBinding":   6,
 		"Role":                 1,
 		"RoleBinding":          1,
 		"Secret":               1,
@@ -109,8 +115,8 @@ func TestRender_WithDAP(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"ServiceAccount", "ServiceAccount",
-		"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
-		"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
+		"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
+		"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
 		"Role",
 		"RoleBinding",
 		"Secret",
@@ -177,4 +183,76 @@ func countKinds(objects []client.Object, scheme *runtime.Scheme) map[string]int 
 		counts[resolveKind(obj, scheme)]++
 	}
 	return counts
+}
+
+// TestRender_OpenShiftSCCDenied covers the safety property of the OpenShift
+// ServiceAccount wiring: when authorization cannot be confirmed, nothing changes.
+//
+// The golden cases all run authorized, and the decision itself is unit tested in the
+// openshift package. What neither covers is the RBAC half — the operator binds its
+// agent ClusterRole to whichever name is resolved, so a regression could leave the
+// pod on one ServiceAccount and the binding on another, which is worse than either
+// outcome alone. That needs a real render, but not a 2k-line golden.
+func TestRender_OpenShiftSCCDenied(t *testing.T) {
+	const (
+		defaultSA = "datadog-agent-agent"
+		bundleSA  = "datadog-agent-scc"
+	)
+
+	tests := []struct {
+		name       string
+		sccAllowed bool
+		wantSA     string
+	}{
+		{
+			name:       "denied: default ServiceAccount is kept",
+			sccAllowed: false,
+			wantSA:     defaultSA,
+		},
+		{
+			name:       "allowed: the bundle ServiceAccount is adopted",
+			sccAllowed: true,
+			wantSA:     bundleSA,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda, err := LoadDDA("testdata/openshift-dda.yaml")
+			require.NoError(t, err)
+			if dda.Annotations == nil {
+				dda.Annotations = map[string]string{}
+			}
+			dda.Annotations[kubernetes.ProviderAnnotationKey] = "openshift-rhcos"
+
+			objects, scheme, err := Render(Options{DDA: dda, SCCAllowed: tt.sccAllowed})
+			require.NoError(t, err)
+
+			var (
+				podSA       string
+				bindingSubj []string
+				sawAgentDS  bool
+			)
+			for _, obj := range objects {
+				switch o := obj.(type) {
+				case *appsv1.DaemonSet:
+					sawAgentDS = true
+					podSA = o.Spec.Template.Spec.ServiceAccountName
+				case *rbacv1.ClusterRoleBinding:
+					if o.Name == defaultSA { // the node agent's ClusterRoleBinding
+						for _, s := range o.Subjects {
+							bindingSubj = append(bindingSubj, s.Name)
+						}
+					}
+				}
+			}
+
+			require.True(t, sawAgentDS, "no node agent DaemonSet was rendered")
+			assert.Equal(t, tt.wantSA, podSA, "DaemonSet ServiceAccount")
+			assert.Equal(t, []string{tt.wantSA}, bindingSubj,
+				"the agent ClusterRoleBinding must follow the same name as the pod")
+
+			_ = scheme
+		})
+	}
 }

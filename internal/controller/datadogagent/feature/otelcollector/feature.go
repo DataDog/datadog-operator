@@ -36,7 +36,7 @@ const (
 	otelAgentMinVersionForDisplay   = "7.67.0"
 )
 
-var errIncompatibleImage = errors.New("Incompatible OTel Agent image")
+var errIncompatibleImage = errors.New("incompatible OTel Agent image")
 
 func init() {
 	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
@@ -74,9 +74,9 @@ type otelCollectorFeature struct {
 }
 
 type coreAgentConfig struct {
-	extension_timeout *int
-	extension_url     *string
-	enabled           *bool
+	extensionTimeout *int
+	extensionURL     *string
+	enabled          *bool
 }
 
 func (o *otelCollectorFeature) ID() feature.IDType {
@@ -84,8 +84,9 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 }
 
 func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	agentImageName, agentVersion := otelCollectorAgentImage(ddaSpec)
-	if otelCollectorRequiresNewerAgent(agentImageName, agentVersion) {
+	imageOverride := common.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+	agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+	if otelCollectorRequiresNewerAgent(imageOverride, agentVersion) {
 		o.incompatibleImage = true
 		o.logger.Error(errIncompatibleImage,
 			fmt.Sprintf("OTel Agent Standalone requires Agent version %s or higher. Either update the Agent version to %s+, or override the Agent image by setting %s to a fully qualified image name with the -full tag (e.g., %s)",
@@ -94,12 +95,12 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		return feature.RequiredComponents{}
 	}
 
-	if otelCollectorRejectsFullTag(agentImageName, agentVersion) {
+	if otelCollectorRejectsFullTag(imageOverride) {
 		o.incompatibleImage = true
 		o.logger.Error(errIncompatibleImage,
 			fmt.Sprintf("OTel Agent Standalone does not support the -full tag. Either remove the -full suffix from the Agent tag (e.g., use %s instead of %s), or override the Agent image by setting %s to a fully qualified image name (e.g., %s)",
 				otelAgentVersionExample, otelAgentVersionWithFullExample, otelAgentOverrideImageNameField, otelAgentFullImageExample),
-			"current_version", agentVersion)
+			"current_version", imageOverride.Tag)
 		return feature.RequiredComponents{}
 	}
 
@@ -111,8 +112,8 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
+		o.coreAgentConfig.extensionTimeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extensionURL = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
 	}
 
 	if len(ddaSpec.Features.OtelCollector.Ports) == 0 {
@@ -272,27 +273,19 @@ func otelCollectorLocalAgentServicePorts(ddaiSpec *v2alpha1.DatadogAgentSpec) []
 }
 
 func otelCollectorSupportsAgentImage(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	agentImageName, agentVersion := otelCollectorAgentImage(ddaSpec)
-	return !otelCollectorRequiresNewerAgent(agentImageName, agentVersion) &&
-		!otelCollectorRejectsFullTag(agentImageName, agentVersion)
+	imageOverride := common.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+	agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+	return !otelCollectorRequiresNewerAgent(imageOverride, agentVersion) &&
+		!otelCollectorRejectsFullTag(imageOverride)
 }
 
-func otelCollectorRequiresNewerAgent(agentImageName, agentVersion string) bool {
-	return !utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, new(true)) && agentImageName == ""
+func otelCollectorRequiresNewerAgent(imageOverride *v2alpha1.AgentImageConfig, agentVersion string) bool {
+	return (imageOverride == nil || imageOverride.Name == "") &&
+		!utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, new(true))
 }
 
-func otelCollectorRejectsFullTag(agentImageName, agentVersion string) bool {
-	return strings.HasSuffix(agentVersion, "-full") && agentImageName == ""
-}
-
-func otelCollectorAgentImage(ddaSpec *v2alpha1.DatadogAgentSpec) (string, string) {
-	var agentImageName string
-	agentVersion := images.AgentLatestVersion
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
-		agentImageName = nodeAgent.Image.Name
-		agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
-	}
-	return agentImageName, agentVersion
+func otelCollectorRejectsFullTag(imageOverride *v2alpha1.AgentImageConfig) bool {
+	return imageOverride != nil && imageOverride.Name == "" && strings.HasSuffix(imageOverride.Tag, images.FullTagSuffix)
 }
 
 func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
@@ -400,25 +393,31 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		})
 	}
 
-	if o.coreAgentConfig.extension_timeout != nil {
+	if o.coreAgentConfig.extensionTimeout != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionTimeout,
-			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
+			Value: strconv.Itoa(*o.coreAgentConfig.extensionTimeout),
 		})
 	}
-	if o.coreAgentConfig.extension_url != nil {
+	if o.coreAgentConfig.extensionURL != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionURL,
-			Value: *o.coreAgentConfig.extension_url,
+			Value: *o.coreAgentConfig.extensionURL,
 		})
 	}
 
 	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
 	// Users must explicitly add infraattributes and prometheus if needed.
+	// DD_OTELCOLLECTOR_GATEWAY_DAEMONSET makes the converter add cumulativetodelta to
+	// metrics pipelines exporting to the gateway.
 	if o.otelGatewayEnabled {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
 			Name:  DDOtelCollectorConverterFeatures,
-			Value: "health_check,zpages,pprof,ddflare",
+			Value: "health_check,zpages,pprof,ddflare,cumulativetodelta",
+		})
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+			Name:  DDOtelCollectorGatewayDaemonSet,
+			Value: "true",
 		})
 	}
 

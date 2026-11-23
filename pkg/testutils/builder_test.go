@@ -29,3 +29,55 @@ func TestDatadogAgentBuilder_WithKubernetesActionsEnabled(t *testing.T) {
 	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
 	assert.False(t, *builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
 }
+
+func TestDatadogAgentBuilder_WithKubernetesActionsCommunication(t *testing.T) {
+	builder := NewDatadogAgentBuilder()
+
+	returnedBuilder := builder.WithKubernetesActionsCommunication(false, true)
+	require.Same(t, builder, returnedBuilder)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions)
+	communication := builder.datadogAgent.Spec.Features.KubernetesActions.Communication
+	require.NotNil(t, communication)
+	require.NotNil(t, communication.RemoteConfiguration)
+	require.NotNil(t, communication.RemoteConfiguration.Enabled)
+	require.NotNil(t, communication.PrivateActionRunner)
+	require.NotNil(t, communication.PrivateActionRunner.Enabled)
+	assert.False(t, *communication.RemoteConfiguration.Enabled)
+	assert.True(t, *communication.PrivateActionRunner.Enabled)
+}
+
+func TestDatadogAgentBuilder_WithCSPMRunInSystemProbe(t *testing.T) {
+	builder := NewDatadogAgentBuilder()
+	require.Nil(t, builder.datadogAgent.Spec.Features.CSPM)
+
+	returnedBuilder := builder.WithCSPMRunInSystemProbe(true)
+	require.Same(t, builder, returnedBuilder)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.CSPM)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe)
+	assert.True(t, *builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe)
+
+	initialCSPMConfig := builder.datadogAgent.Spec.Features.CSPM
+	builder.WithCSPMRunInSystemProbe(false)
+
+	assert.Same(t, initialCSPMConfig, builder.datadogAgent.Spec.Features.CSPM)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe)
+	assert.False(t, *builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe)
+}
+
+func TestDatadogAgentBuilder_WithCWSDirectSendFromSystemProbe(t *testing.T) {
+	builder := NewDatadogAgentBuilder()
+	require.Nil(t, builder.datadogAgent.Spec.Features.CWS)
+
+	returnedBuilder := builder.WithCWSDirectSendFromSystemProbe(true)
+	require.Same(t, builder, returnedBuilder)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.CWS)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe)
+	assert.True(t, *builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe)
+
+	initialCWSConfig := builder.datadogAgent.Spec.Features.CWS
+	builder.WithCWSDirectSendFromSystemProbe(false)
+
+	assert.Same(t, initialCWSConfig, builder.datadogAgent.Spec.Features.CWS)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe)
+	assert.False(t, *builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe)
+}

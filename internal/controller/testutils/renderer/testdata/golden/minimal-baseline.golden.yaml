@@ -319,6 +319,37 @@ rules:
   - list
   - watch
 - apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - backendtlspolicies
+  - gatewayclasses
+  - gateways
+  - grpcroutes
+  - httproutes
+  - listenersets
+  - referencegrants
+  - tcproutes
+  - tlsroutes
+  - udproutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - inference.networking.k8s.io
+  resources:
+  - inferencepools
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - inference.networking.x-k8s.io
+  resources:
+  - inferencepoolimports
+  - inferencepools
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - karpenter.azure.com
   resources:
   - '*'
@@ -340,6 +371,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - kubeai.org
+  resources:
+  - models
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - kustomize.toolkit.fluxcd.io
   resources:
   - kustomizations
@@ -355,9 +393,32 @@ rules:
   - list
   - watch
 - apiGroups:
+  - nvidia.com
+  resources:
+  - dynamocheckpoints
+  - dynamocomponentdeployments
+  - dynamographdeploymentrequests
+  - dynamographdeployments
+  - dynamographdeploymentscalingadapters
+  - dynamomodels
+  - dynamoworkermetadatas
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - policy
   resources:
   - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  - raycronjobs
+  - rayjobs
+  - rayservices
   verbs:
   - list
   - watch
@@ -368,6 +429,24 @@ rules:
   - clusterroles
   - rolebindings
   - roles
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - serving.kserve.io
+  resources:
+  - clusterservingruntimes
+  - clusterstoragecontainers
+  - inferencegraphs
+  - inferenceservices
+  - llminferenceserviceconfigs
+  - llminferenceservices
+  - localmodelcaches
+  - localmodelnamespacecaches
+  - localmodelnodegroups
+  - localmodelnodes
+  - servingruntimes
+  - trainedmodels
   verbs:
   - list
   - watch
@@ -519,12 +598,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - datadoghq.com
-  resources:
-  - extendeddaemonsetreplicasets
-  verbs:
-  - get
-- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
@@ -539,6 +612,21 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - storage.k8s.io
+  resourceNames:
+  - k8s.csi.datadoghq.com
+  resources:
+  - csidrivers
+  verbs:
+  - get
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - list
+  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
@@ -1190,7 +1278,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: eb24d8f6476671882e1ee4e795753e76
+    agent.datadoghq.com/agentspechash: c8d33a994d2520c2d4ce10cf41659f84
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1254,6 +1342,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1356,6 +1450,9 @@ spec:
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
           readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
+          readOnly: true
         - mountPath: /var/run/datadog
           name: dsdsocket
         - mountPath: /host/var/run
@@ -1408,6 +1505,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1475,6 +1574,8 @@ spec:
         - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1497,6 +1598,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1671,6 +1774,9 @@ spec:
           path: /sys/fs/cgroup
         name: cgroups
       - hostPath:
+          path: /etc/os-release
+        name: os-release-file
+      - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate
         name: dsdsocket
@@ -1702,7 +1808,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 41473d90b0a13a8f221447ea0ba6e878
+    agent.datadoghq.com/agentspechash: fc95b4a4bdc6b1b01aae6b9b76416b36
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1843,6 +1949,8 @@ spec:
           value: /var/run/datadog/apm.socket
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1922,14 +2030,14 @@ spec:
           name: datadog-agent-auth
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
         - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
           name: ksm-core-config
           readOnly: true
         - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
           name: orchestrator-explorer-config
           readOnly: true
-        - mountPath: /opt/datadog-agent/run/
-          name: datadogrun
       serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
@@ -1945,11 +2053,11 @@ spec:
         name: datadog-agent-auth
       - emptyDir: {}
         name: tmpdir
+      - emptyDir: {}
+        name: datadogrun
       - configMap:
           name: datadog-agent-kube-state-metrics-core-config
         name: ksm-core-config
       - configMap:
           name: datadog-agent-orchestrator-explorer-config
         name: orchestrator-explorer-config
-      - emptyDir: {}
-        name: datadogrun

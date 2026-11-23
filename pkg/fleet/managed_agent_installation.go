@@ -49,22 +49,12 @@ const (
 	fleetPartialConfigVersionPrefix            = "partial:"
 
 	fleetDatadogAgentName     = "datadog-agent"
-	fleetCredentialSecretName = "datadog-secret"
+	fleetCredentialSecretName = "datadog-managed-secret"
 	fleetCredentialAPIKey     = "api-key"
 )
 
 var managedAgentInstallationDeletePollInterval = time.Second
 var managedAgentInstallationDeleteTimeout = 3 * time.Minute
-
-var allowedManagedAgentInstallationSites = map[string]struct{}{
-	"datadoghq.com":     {},
-	"datadoghq.eu":      {},
-	"us3.datadoghq.com": {},
-	"us5.datadoghq.com": {},
-	"ddog-gov.com":      {},
-	"ap1.datadoghq.com": {},
-	"ap2.datadoghq.com": {},
-}
 
 type datadogAgentManagedAgentInstallationConfig struct {
 	Spec *v2alpha1.DatadogAgentSpec `json:"spec"`
@@ -115,6 +105,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, existing); err != nil {
 			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
 		}
+		if err := d.ensureManagedAgentInstallationAgentProfiles(ctx, existing, command.Intent.AgentProfiles); err != nil {
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
+		}
 		if err := d.markFleetDatadogAgentReady(ctx, target, existing.UID, configID); err != nil {
 			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
 		}
@@ -129,6 +122,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 			return err
 		}
 		if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, observed); err != nil {
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
+		}
+		if err := d.validateManagedAgentInstallationAgentProfilesExist(ctx, observed, command.Intent.AgentProfiles); err != nil {
 			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
 		}
 		return nil
@@ -203,6 +199,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 	if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, dda); err != nil {
 		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
 	}
+	if err := d.ensureManagedAgentInstallationAgentProfiles(ctx, dda, command.Intent.AgentProfiles); err != nil {
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
+	}
 	if err := d.markFleetDatadogAgentReady(ctx, target, dda.UID, configID); err != nil {
 		return fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err)
 	}
@@ -217,6 +216,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		return err
 	}
 	if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, observed); err != nil {
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
+	}
+	if err := d.validateManagedAgentInstallationAgentProfilesExist(ctx, observed, command.Intent.AgentProfiles); err != nil {
 		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
 	}
 
@@ -720,6 +722,19 @@ func (d *Daemon) managedAgentInstallationResourcesAbsent(ctx context.Context, ta
 			return false, fmt.Errorf("read Windows DatadogAgentProfile after managed Agent uninstall: %w", err)
 		}
 	} else if d.isManagedAgentInstallationWindowsProfile(profile, target, deletedUID) {
+		return false, nil
+	}
+
+	fleetProfiles := &v1alpha1.DatadogAgentProfileList{}
+	if err := d.managedAgentInstallationReader().List(ctx, fleetProfiles, client.MatchingLabels{
+		fleetManagedByLabel:                        fleetManagedByValue,
+		fleetManagedAgentInstallationProviderLabel: string(d.managedAgentInstallationIdentity.Provider()),
+		fleetInstallationIDLabel:                   d.managedAgentInstallationIdentity.InstallationID(),
+		fleetTargetIDLabel:                         d.managedAgentInstallationIdentity.TargetID(),
+	}); err != nil {
+		return false, fmt.Errorf("list managed DatadogAgentProfile resources: %w", err)
+	}
+	if len(fleetProfiles.Items) != 0 {
 		return false, nil
 	}
 

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -70,17 +69,17 @@ type ReleaseEntry struct {
 
 // ReleaseSnapshot holds a snapshot of a Helm release
 type ReleaseSnapshot struct {
-	Release            *HelmReleaseMinimal
-	ReleaseName        string
-	Namespace          string
-	ChartName          string
-	ChartVersion       string
-	AppVersion         string
-	ConfigMapUID       string
-	ProvidedValuesYAML string
-	FullValuesYAML     string
-	Revision           int
-	Status             string
+	Release        *HelmReleaseMinimal
+	ReleaseName    string
+	Namespace      string
+	ChartName      string
+	ChartVersion   string
+	AppVersion     string
+	ConfigMapUID   string
+	ProvidedValues string
+	FullValues     string
+	Revision       int
+	Status         string
 }
 
 type HelmMetadataPayload struct {
@@ -108,16 +107,16 @@ type HelmMetadata struct {
 
 // HelmReleaseData contains all data for a single Helm release
 type HelmReleaseData struct {
-	ReleaseName        string
-	Namespace          string
-	ChartName          string
-	ChartVersion       string
-	AppVersion         string
-	ConfigMapUID       string
-	ProvidedValuesYAML string // User-provided values only
-	FullValuesYAML     string // Includes defaults
-	Revision           int
-	Status             string
+	ReleaseName    string
+	Namespace      string
+	ChartName      string
+	ChartVersion   string
+	AppVersion     string
+	ConfigMapUID   string
+	ProvidedValues string // User-provided values only
+	FullValues     string // Includes defaults
+	Revision       int
+	Status         string
 }
 
 // HelmReleaseMinimal represents the minimal structure we care about from Helm release
@@ -303,47 +302,47 @@ func (hmf *HelmMetadataForwarder) buildSnapshot(
 	releaseName, namespace, uid string,
 	revision int,
 ) *ReleaseSnapshot {
-	providedValuesYAML, err := yaml.Marshal(release.Config)
+	providedValues, err := json.Marshal(release.Config)
 	if err != nil {
 		hmf.logger.V(1).Info("Failed to marshal Helm provided values", "release", releaseName, "error", err)
 		return nil
 	}
 
 	fullValues := hmf.mergeValues(release.Chart.Values, release.Config)
-	fullValuesYAML, err := yaml.Marshal(fullValues)
+	fullValuesJSON, err := json.Marshal(fullValues)
 	if err != nil {
 		hmf.logger.V(1).Info("Failed to marshal Helm full values", "release", releaseName, "error", err)
-		fullValuesYAML = providedValuesYAML
+		fullValuesJSON = providedValues
 	}
 
 	return &ReleaseSnapshot{
-		Release:            release,
-		ReleaseName:        releaseName,
-		Namespace:          namespace,
-		ChartName:          release.Chart.Metadata.Name,
-		ChartVersion:       release.Chart.Metadata.Version,
-		AppVersion:         release.Chart.Metadata.AppVersion,
-		ConfigMapUID:       uid,
-		ProvidedValuesYAML: string(providedValuesYAML),
-		FullValuesYAML:     string(fullValuesYAML),
-		Revision:           revision,
-		Status:             release.Info.Status,
+		Release:        release,
+		ReleaseName:    releaseName,
+		Namespace:      namespace,
+		ChartName:      release.Chart.Metadata.Name,
+		ChartVersion:   release.Chart.Metadata.Version,
+		AppVersion:     release.Chart.Metadata.AppVersion,
+		ConfigMapUID:   uid,
+		ProvidedValues: string(providedValues),
+		FullValues:     string(fullValuesJSON),
+		Revision:       revision,
+		Status:         release.Info.Status,
 	}
 }
 
 // snapshotToReleaseData converts a ReleaseSnapshot to HelmReleaseData
 func (hmf *HelmMetadataForwarder) snapshotToReleaseData(snapshot *ReleaseSnapshot) HelmReleaseData {
 	return HelmReleaseData{
-		ReleaseName:        snapshot.ReleaseName,
-		Namespace:          snapshot.Namespace,
-		ChartName:          snapshot.ChartName,
-		ChartVersion:       snapshot.ChartVersion,
-		AppVersion:         snapshot.AppVersion,
-		ConfigMapUID:       snapshot.ConfigMapUID,
-		ProvidedValuesYAML: snapshot.ProvidedValuesYAML,
-		FullValuesYAML:     snapshot.FullValuesYAML,
-		Revision:           snapshot.Revision,
-		Status:             snapshot.Status,
+		ReleaseName:    snapshot.ReleaseName,
+		Namespace:      snapshot.Namespace,
+		ChartName:      snapshot.ChartName,
+		ChartVersion:   snapshot.ChartVersion,
+		AppVersion:     snapshot.AppVersion,
+		ConfigMapUID:   snapshot.ConfigMapUID,
+		ProvidedValues: snapshot.ProvidedValues,
+		FullValues:     snapshot.FullValues,
+		Revision:       snapshot.Revision,
+		Status:         snapshot.Status,
 	}
 }
 
@@ -412,8 +411,8 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 		ChartVersion:              release.ChartVersion,
 		ChartNamespace:            release.Namespace,
 		ChartConfigMapUID:         release.ConfigMapUID,
-		HelmProvidedConfiguration: release.ProvidedValuesYAML,
-		HelmFullConfiguration:     release.FullValuesYAML,
+		HelmProvidedConfiguration: release.ProvidedValues,
+		HelmFullConfiguration:     release.FullValues,
 	}
 
 	payload := HelmMetadataPayload{

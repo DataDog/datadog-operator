@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -134,6 +136,60 @@ func Test_isEKSProvider(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isEKSProvider(tt.labels)
 			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func Test_IsOpenShiftProvider(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		want     bool
+	}{
+		{
+			// The form ClusterProviderFromNodeLabels produces in production.
+			name:     "detected openshift-rhcos",
+			provider: "openshift-rhcos",
+			want:     true,
+		},
+		{
+			// What CRC reports.
+			name:     "detected openshift-rhel",
+			provider: "openshift-rhel",
+			want:     true,
+		},
+		{
+			// Documented annotation value (docs/providers.md).
+			name:     "bare openshift from the provider annotation",
+			provider: OpenshiftProvider,
+			want:     true,
+		},
+		{
+			// Guards the trailing "-" in the prefix test.
+			name:     "unrelated provider sharing the prefix",
+			provider: "openshiftfoo",
+			want:     false,
+		},
+		{
+			name:     "eks",
+			provider: EKSCloudProvider,
+			want:     false,
+		},
+		{
+			name:     "default",
+			provider: DefaultProvider,
+			want:     false,
+		},
+		{
+			name:     "empty",
+			provider: "",
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsOpenShiftProvider(tt.provider))
 		})
 	}
 }
@@ -338,6 +394,184 @@ func TestClusterProviderFromNodeLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, ClusterProviderFromNodeLabels(tt.labels))
+		})
+	}
+}
+
+func TestClusterProviderFromNode(t *testing.T) {
+	tests := []struct {
+		name string
+		node *corev1.Node
+		want string
+	}{
+		{name: "nil node", node: nil, want: DefaultProvider},
+		{
+			name: "talos os image",
+			node: providerNode(nil, "Talos (v1.13.7)"),
+			want: TalosProvider,
+		},
+		{
+			name: "talos dev os image without semver",
+			node: providerNode(nil, "Talos (abcdef0)"),
+			want: TalosProvider,
+		},
+		{
+			name: "non-talos os image containing talos elsewhere does not match",
+			node: providerNode(nil, "Debian GNU/Linux with talos tooling"),
+			want: DefaultProvider,
+		},
+		{
+			name: "label-derived provider still works",
+			node: providerNode(map[string]string{EKSProviderLabel: "ami-x"}, ""),
+			want: EKSCloudProvider,
+		},
+		{
+			name: "talos os image takes precedence over labels",
+			node: providerNode(map[string]string{EKSProviderLabel: "ami-x"}, "Talos (v1.13.7)"),
+			want: TalosProvider,
+		},
+		{
+			// The providerID ECI observed on a Nebius Managed Kubernetes node.
+			name: "nebius provider id",
+			node: withProviderID(providerNode(nil, "Ubuntu 22.04.5 LTS"), "nebius://computeinstance-e00abcdef0123456789"),
+			want: NebiusProvider,
+		},
+		{
+			name: "other cloud provider id",
+			node: withProviderID(providerNode(nil, "Ubuntu 22.04.5 LTS"), "aws:///us-east-1a/i-0123456789abcdef0"),
+			want: DefaultProvider,
+		},
+		{
+			// Guards the "://" in the prefix test.
+			name: "provider id merely sharing the nebius prefix",
+			node: withProviderID(providerNode(nil, ""), "nebiusfoo://x"),
+			want: DefaultProvider,
+		},
+		{
+			// The distribution's provider carries more configuration than the
+			// infrastructure's, so it wins.
+			name: "openshift label takes precedence over nebius provider id",
+			node: withProviderID(providerNode(map[string]string{OpenShiftProviderLabel: "rhcos"}, ""), "nebius://computeinstance-x"),
+			want: "openshift-rhcos",
+		},
+		{
+			name: "talos os image takes precedence over nebius provider id",
+			node: withProviderID(providerNode(nil, "Talos (v1.13.7)"), "nebius://computeinstance-x"),
+			want: TalosProvider,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ClusterProviderFromNode(tt.node))
+		})
+	}
+}
+
+func TestGetClusterProviderFromNodeListDetectsTalos(t *testing.T) {
+	tests := []struct {
+		name  string
+		nodes []corev1.Node
+		want  string
+	}{
+		{name: "empty", nodes: nil, want: DefaultProvider},
+		{
+			name: "first match talos",
+			nodes: []corev1.Node{
+				*providerNode(nil, "Debian GNU/Linux 12 (bookworm)"),
+				*providerNode(nil, "Talos (v1.13.7)"),
+			},
+			want: TalosProvider,
+		},
+		{
+			name: "no talos",
+			nodes: []corev1.Node{
+				*providerNode(nil, "Debian GNU/Linux 12 (bookworm)"),
+			},
+			want: DefaultProvider,
+		},
+		{
+			name: "first match nebius",
+			nodes: []corev1.Node{
+				*providerNode(nil, "Debian GNU/Linux 12 (bookworm)"),
+				*withProviderID(providerNode(nil, "Ubuntu 22.04.5 LTS"), "nebius://computeinstance-x"),
+			},
+			want: NebiusProvider,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, GetClusterProviderFromNodeList(tt.nodes))
+		})
+	}
+}
+
+func providerNode(labels map[string]string, osImage string) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Labels: labels},
+		Status: corev1.NodeStatus{
+			NodeInfo: corev1.NodeSystemInfo{OSImage: osImage},
+		},
+	}
+}
+
+func withProviderID(node *corev1.Node, providerID string) *corev1.Node {
+	node.Spec.ProviderID = providerID
+	return node
+}
+
+func Test_ProviderFamily(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		want     string
+	}{
+		{
+			// Every openshift-<os_id> collapses to one key.
+			name:     "openshift-rhcos collapses",
+			provider: "openshift-rhcos",
+			want:     OpenshiftProvider,
+		},
+		{
+			name:     "openshift-rhel collapses",
+			provider: "openshift-rhel",
+			want:     OpenshiftProvider,
+		},
+		{
+			name:     "bare openshift is already the family",
+			provider: OpenshiftProvider,
+			want:     OpenshiftProvider,
+		},
+		{
+			// gke-cos names a node image; collapsing it to "gke" would misapply rules.
+			name:     "gke-cos is unchanged",
+			provider: GKECosProvider,
+			want:     GKECosProvider,
+		},
+		{
+			name:     "eks hostname-from-file variant is unchanged",
+			provider: EKSEC2UseHostnameFromFileProvider,
+			want:     EKSEC2UseHostnameFromFileProvider,
+		},
+		{
+			name:     "gke-autopilot is unchanged",
+			provider: GKEAutopilotProvider,
+			want:     GKEAutopilotProvider,
+		},
+		{
+			name:     "eks is unchanged",
+			provider: EKSCloudProvider,
+			want:     EKSCloudProvider,
+		},
+		{
+			name:     "empty is unchanged",
+			provider: "",
+			want:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ProviderFamily(tt.provider))
 		})
 	}
 }

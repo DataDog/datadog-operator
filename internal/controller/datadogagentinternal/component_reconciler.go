@@ -21,11 +21,13 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
@@ -184,8 +186,9 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 }
 
 // reconcileComponent reconciles a single component
-func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	var result reconcile.Result
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default deployment
@@ -224,6 +227,14 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		override.Deployment(deployment, componentOverride)
 	}
 
+	// When the untaint controller is enabled, tolerate the agent-not-ready startup taint on
+	// these Operator-managed Deployments so they can schedule on a cold cluster before the
+	// first node Agent is Ready, mirroring the node Agent DaemonSet. Applied after overrides
+	// so a user-supplied toleration wins (this is a no-op if already tolerated).
+	if r.reconciler.options.UntaintControllerEnabled {
+		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
+	}
+
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
 		err := utilerrors.NewAggregate(errs)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
@@ -231,7 +242,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	}
 
 	if r.reconciler.options.RolloutOnConfigMapChangeEnabled {
-		if err := r.reconciler.annotateConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
+		if err = r.reconciler.annotateConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
 			component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s configmap checksum error", component.Name()), err.Error())
 			return result, err
 		}
@@ -256,7 +267,9 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 }
 
 // Cleanup removes the component deployment, associated resources and updates status
-func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 
 	// Apply the name override so we delete the correct deployment

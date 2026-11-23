@@ -15,8 +15,6 @@ type Type string
 const (
 	// DatadogConditionTypeCreated means the Datadog CRD is created successfully
 	DatadogConditionTypeCreated Type = "Created"
-	// DatadogConditionTypeActive means the Datadog CRD is active
-	DatadogConditionTypeActive Type = "Active"
 	// DatadogConditionTypeUpdated means the Datadog CRD is updated
 	DatadogConditionTypeUpdated Type = "Updated"
 	// DatadogConditionTypeError means the  Datadog CRD has error

@@ -121,7 +121,7 @@ for file in $go_mod_files; do
 done
 
 # api/go.mod stays at initial patch release for the minor Go version: it is a types-only CRD module imported by
-# external projects (Agent, EDS, dd-source autoscaling, ...). A stricter `go`
+# external projects (Agent, dd-source autoscaling, ...). A stricter `go`
 # directive would force consumers off Go n-1 for no real benefit since the
 # module ships no runtime code that could trigger stdlib CVEs.
 api_go_mod="$ROOT/api/go.mod"
@@ -135,7 +135,7 @@ fi
 
 # Run go work sync
 echo "Running go work sync..."
-go work sync
+"$SCRIPTS_DIR/sync-go-work.sh"
 
 # Keep every module's go.sum valid when tested outside the workspace.
 echo "Running go mod tidy for root module..."

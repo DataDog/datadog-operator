@@ -17,10 +17,35 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
-var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
+var errHostPIDDisabledManually = errors.New("host PID is required for host profiler")
 
-// SELinux type applied to the host-profiler container unless overridden via the annotation.
+// SELinux type applied to the host-profiler container unless overridden.
 const defaultSELinuxType = "spc_t"
+
+// DeprecatedConfigReplacement is the CRD path that supersedes the host-profiler annotations.
+const DeprecatedConfigReplacement = "spec.features.hostProfiler"
+
+// deprecatedAnnotations are the host-profiler annotations superseded by spec.features.hostProfiler.
+var deprecatedAnnotations = []string{
+	featureutils.EnableHostProfilerAnnotation,
+	featureutils.EnableHostProfilerSeccompAnnotation,
+	featureutils.EnableHostProfilerLoggingSeccompAnnotation,
+	featureutils.EnableHostProfilerNonRootAnnotation,
+	featureutils.HostProfilerSELinuxTypeAnnotation,
+}
+
+// HasDeprecatedAnnotations reports whether any host-profiler annotation is present, whatever
+// its value.
+//
+// It is exported so the reconciler can surface the deprecation on the DatadogAgent status.
+func HasDeprecatedAnnotations(annotations map[string]string) bool {
+	for _, key := range deprecatedAnnotations {
+		if _, ok := annotations[key]; ok {
+			return true
+		}
+	}
+	return false
+}
 
 type hostProfilerFeature struct {
 	owner                   metav1.Object
@@ -28,6 +53,7 @@ type hostProfilerFeature struct {
 	seccompEnabled          bool
 	loggingSeccomp          bool
 	selinuxType             string
+	hostProfilerRoot        bool
 
 	logger logr.Logger
 }
@@ -53,16 +79,40 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 	return feature.HostProfilerIDType
 }
 
-func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
 
-	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
+	// Warn before the early return below, so that users who disabled the feature through the
+	// spec still hear about annotations that are left over.
+	if HasDeprecatedAnnotations(dda.GetAnnotations()) {
+		o.logger.Info("host profiler: agent.datadoghq.com/host-profiler-* annotations are deprecated; migrate to " + DeprecatedConfigReplacement)
+	}
+
+	// Settings are read from spec.features.hostProfiler first. The deprecated annotations are used
+	// as a fallback for any setting not defined in the spec.
+	// todo (mackjmr): remove annotation fallback once annotation support is removed.
+	var hpConfig *v2alpha1.HostProfilerFeatureConfig
+	if ddaSpec != nil && ddaSpec.Features != nil {
+		hpConfig = ddaSpec.Features.HostProfiler
+	}
+	var seccompConfig *v2alpha1.HostProfilerSeccompConfig
+	if hpConfig != nil {
+		seccompConfig = hpConfig.Seccomp
+	}
+
+	enabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
+	if hpConfig != nil && hpConfig.Enabled != nil {
+		enabled = *hpConfig.Enabled
+	}
+	if !enabled {
 		return feature.RequiredComponents{}
 	}
 
-	// Seccomp profile is enabled by default; opt out via the seccomp annotation set to "false".
+	// Seccomp profile is enabled by default.
 	o.seccompEnabled = true
-	if str, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
+	if seccompConfig != nil && seccompConfig.Enabled != nil {
+		o.seccompEnabled = *seccompConfig.Enabled
+	} else if str, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
 		value, err := strconv.ParseBool(str)
 		if err != nil {
 			o.logger.Info("host profiler: invalid seccomp annotation value, defaulting to enabled", "value", str)
@@ -71,14 +121,27 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		}
 	}
 
-	o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	if seccompConfig != nil && seccompConfig.LoggingEnabled != nil {
+		o.loggingSeccomp = *seccompConfig.LoggingEnabled
+	} else {
+		o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	}
 	if o.loggingSeccomp && !o.seccompEnabled {
-		o.logger.V(1).Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
+		o.logger.V(1).Info("host profiler: logging seccomp has no effect when seccomp is disabled")
 	}
 
-	// SELinux type defaults to spc_t; override via the selinux-type annotation.
+	// Runs as root by default.
+	if hpConfig != nil && hpConfig.RunAsRoot != nil {
+		o.hostProfilerRoot = *hpConfig.RunAsRoot
+	} else {
+		o.hostProfilerRoot = !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
+	}
+
+	// SELinux type defaults to spc_t.
 	o.selinuxType = defaultSELinuxType
-	if str, ok := dda.GetAnnotations()[featureutils.HostProfilerSELinuxTypeAnnotation]; ok && str != "" {
+	if hpConfig != nil && hpConfig.SELinuxType != nil && *hpConfig.SELinuxType != "" {
+		o.selinuxType = *hpConfig.SELinuxType
+	} else if str, ok := dda.GetAnnotations()[featureutils.HostProfilerSELinuxTypeAnnotation]; ok && str != "" {
 		o.selinuxType = str
 	}
 
@@ -112,6 +175,15 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// Host PID
 	managers.PodTemplateSpec().Spec.HostPID = true
 
+	// Host-profiler is Linux-only. This runs only on the node-agent pod that includes
+	// the container. Windows profiles skip this hook (the feature is Excluded) and
+	// set kubernetes.io/os=windows themselves after overrides.
+	spec := &managers.PodTemplateSpec().Spec
+	if spec.NodeSelector == nil {
+		spec.NodeSelector = map[string]string{}
+	}
+	spec.NodeSelector[corev1.LabelOSStable] = string(corev1.Linux)
+
 	// Security context: drop all caps, add only what host-profiler needs, lock down privilege escalation,
 	// and apply a localhost seccomp profile. AllowPrivilegeEscalation must be explicitly false so that
 	// runc applies the seccomp filter before its own setuid/setgid/capset calls during container setup.
@@ -137,13 +209,18 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
 
 	sc := hostProfilerContainer.SecurityContext
+	if !o.hostProfilerRoot {
+		sc.RunAsUser = new(common.DDAgentUserID)
+		sc.RunAsGroup = new(common.DDAgentUserID)
+		sc.RunAsNonRoot = new(true)
+	}
 	sc.AllowPrivilegeEscalation = new(false)
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},
 		Add:  defaultCapabilities(),
 	}
 
-	// Seccomp profile and its setup init container are gated on the seccomp annotation (default enabled).
+	// Seccomp profile and its setup init container are gated on spec.features.hostProfiler.seccomp.enabled (default enabled).
 	// When disabled, the container runs Unconfined and the init container that installs the profile on
 	// the node is omitted.
 	if o.seccompEnabled {
@@ -158,7 +235,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 		// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 		// Appended after the base init containers (init-volume, init-config) added by default.go.
-		initContainer := buildSeccompSetupInitContainer(hostProfilerImage, o.loggingSeccomp)
+		initContainer := buildSeccompSetupInitContainer(hostProfilerImage, o.loggingSeccomp, o.selinuxType)
 		managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 	} else {
 		sc.SeccompProfile = &corev1.SeccompProfile{
@@ -171,8 +248,8 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
 
 	// SELinux: run as the super-privileged container type (spc_t by default) so SELinux-enforcing
-	// nodes don't block the cross-process /proc access the host-profiler needs. Overridable via the
-	// host-profiler-selinux-type annotation.
+	// nodes don't block the cross-process /proc access the host-profiler needs. Overridable via
+	// spec.features.hostProfiler.seLinuxType.
 	sc.SELinuxOptions = &corev1.SELinuxOptions{
 		Type: o.selinuxType,
 	}

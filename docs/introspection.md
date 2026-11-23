@@ -101,8 +101,8 @@ override:
 
 ### Operator v1.4.0 <= x < v1.6.0
 
-1. Upgrade to Operator v1.4.0+ **without** enabling introspection. The Operator should label the existing node Agent DaemonSet or ExtendedDaemonSet with the label `agent.datadoghq.com/provider=""`.
-2. Enable introspection in the Operator following the instructions above. The Operator should delete the unused node Agent DaemonSet or ExtendedDaemonSet.
+1. Upgrade to Operator v1.4.0+ **without** enabling introspection. The Operator should label the existing node Agent workload with the label `agent.datadoghq.com/provider=""`.
+2. Enable introspection in the Operator following the instructions above. The Operator should delete the unused node Agent workload.
 
 ### Operator v1.6.0+
 

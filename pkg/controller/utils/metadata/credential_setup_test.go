@@ -323,7 +323,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify API key is set correctly
-			apiKey, requestURL, _ := omf.getApiKeyAndURL()
+			apiKey, requestURL, _ := omf.getAPIKeyAndURL()
 			assert.Equal(t, tt.wantAPIKey, *apiKey, "API key should match expected value")
 
 			// Verify URL is set correctly

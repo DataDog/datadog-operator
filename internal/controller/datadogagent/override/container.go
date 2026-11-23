@@ -115,10 +115,6 @@ func addHealthPort(containerName apicommon.AgentContainerName, manager feature.P
 }
 
 func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
-	if override.Name != nil {
-		container.Name = *override.Name
-	}
-
 	if override.Resources != nil {
 		for resource, quantity := range override.Resources.Requests {
 			if container.Resources.Requests == nil {
@@ -156,7 +152,12 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	}
 
 	if override.SecurityContext != nil {
-		container.SecurityContext = overrideSecurityContext(override.SecurityContext)
+		container.SecurityContext = overrideSecurityContext(container, override.SecurityContext)
+	}
+
+	// rename container at the end so previous steps can rely on defaults
+	if override.Name != nil {
+		container.Name = *override.Name
 	}
 }
 
@@ -271,10 +272,17 @@ func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
 	return startupProbeOverride
 }
 
-func overrideSecurityContext(securityContext *corev1.SecurityContext) *corev1.SecurityContext {
+func overrideSecurityContext(container *corev1.Container, securityContext *corev1.SecurityContext) *corev1.SecurityContext {
 	if securityContext.ReadOnlyRootFilesystem == nil {
 		// Default to readOnlyRootFilesystem to true if not explicitly configured.
 		securityContext.ReadOnlyRootFilesystem = new(true)
+	}
+	// if host profiler annotations enabled a seccomp profile and override doesn't provide one, carry it over
+	if container.Name == string(apicommon.HostProfiler) && securityContext.SeccompProfile == nil && container.SecurityContext != nil {
+		securityContext.SeccompProfile = container.SecurityContext.SeccompProfile
+		if securityContext.AllowPrivilegeEscalation == nil {
+			securityContext.AllowPrivilegeEscalation = new(false)
+		}
 	}
 	return securityContext
 }

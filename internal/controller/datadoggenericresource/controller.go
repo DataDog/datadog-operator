@@ -2,6 +2,7 @@ package datadoggenericresource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -41,18 +43,28 @@ const (
 	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
 )
 
+var (
+	errCreateSkipped = errors.New("resource changed before create")
+	errPreCreateRead = errors.New("checking DatadogGenericResource before create")
+)
+
 type Reconciler struct {
 	client          client.Client
+	apiReader       client.Reader
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
 	requeuePeriod   time.Duration
 	forceSyncPeriod time.Duration
-	scheme          *runtime.Scheme
-	log             logr.Logger
-	recorder        record.EventRecorder
+	// statePollingDisabled is inverted so the zero value keeps polling on.
+	statePollingDisabled bool
+	scheme               *runtime.Scheme
+	log                  logr.Logger
+	recorder             record.EventRecorder
 }
 
 type ReconcilerOptions struct {
+	// APIReader bypasses the informer cache for pre-create checks.
+	APIReader     client.Reader
 	RequeuePeriod time.Duration
 }
 
@@ -62,15 +74,22 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		options = opts[0]
 	}
 
+	if options.APIReader == nil {
+		options.APIReader = client
+	}
+
 	return &Reconciler{
 		client:          client,
+		apiReader:       options.APIReader,
 		credsManager:    credsManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
 		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
 		forceSyncPeriod: forceSyncPeriodFromEnv(log),
-		scheme:          scheme,
-		log:             log,
-		recorder:        recorder,
+		// Shared with DatadogMonitor so one setting gates both controllers.
+		statePollingDisabled: !ctrutils.StatePollingEnabledFromEnv(log),
+		scheme:               scheme,
+		log:                  log,
+		recorder:             recorder,
 	}
 }
 
@@ -152,7 +171,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = handler.getResource(auth, instance)
+			remoteHash := ""
+			if hasher, ok := handler.(remoteDefinitionHasher); ok {
+				remoteHash, err = hasher.getRemoteDefinitionHash(auth, instance)
+			} else {
+				err = handler.getResource(auth, instance)
+			}
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -162,6 +186,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
 				// create()/update() advance it themselves once the sync actually succeeds.
+			} else if remoteHash != "" && remoteHash == instance.Status.RemoteDefinitionHash {
+				// Nobody edited the resource since our last write, so reapplying the
+				// spec would be a no-op.
+				logger.V(1).Info("Remote resource unchanged since the last update; skipping force-sync update", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
+				status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+				status.LastForceSyncTime = &now
 			} else {
 				shouldUpdate = true
 			}
@@ -169,6 +200,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			// Idle tick: refresh Datadog-side state for resource types that expose it.
 			// No-op for resource types without live state.
 			shouldRefreshStatus = true
+		}
+	}
+
+	// State polling can be disabled with DD_STATE_POLLING_ENABLED.
+	// Lifecycle and force-sync work above still run; only the refresh is skipped.
+	refresher, hasLiveState := handler.(liveStateRefresher)
+	if r.statePollingDisabled {
+		shouldRefreshStatus = false
+		if hasLiveState {
+			setStatePollingDisabled(status, now)
+		}
+	} else {
+		// Polling was re-enabled; clear the sentinel in case lifecycle work defers the first refresh.
+		if c := meta.FindStatusCondition(status.Conditions, string(condition.DatadogConditionTypeStateSynced)); c != nil && c.Reason == ctrutils.StatePollingDisabledState {
+			condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeStateSynced)
+		}
+		if status.State == ctrutils.StatePollingDisabledState {
+			status.State = ""
+			status.StateLastTransitionTime = &now
 		}
 	}
 
@@ -180,28 +230,45 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			err = r.update(ctx, auth, handler, instance, status, now, instanceSpecHash)
 		}
 
+		if errors.Is(err, errCreateSkipped) {
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
+		if errors.Is(err, errPreCreateRead) {
+			// Surface infrastructure failures without writing status from a stale CR.
+			return ctrl.Result{}, err
+		}
+
 		if err != nil {
-			result.RequeueAfter = defaultErrRequeuePeriod
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+			if ctrutils.IsPermanentAPIError(err) {
+				result.RequeueAfter = r.forceSyncPeriod
+			} else {
+				result.RequeueAfter = defaultErrRequeuePeriod
+			}
 		}
 	} else if shouldRefreshStatus {
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
-		state, refreshErr := handler.refreshState(auth, instance)
-		if refreshErr != nil {
-			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
-			// Preserve last-known state and surface the failure via the StateSynced condition.
-			// Do not fail reconcile.
-			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
-		} else if state != nil {
-			// Resource type exposes live state — merge it into status.
-			applyResourceState(*state, status, now)
-			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+		if hasLiveState {
+			state, refreshErr := refresher.refreshState(auth, instance)
+			if refreshErr != nil {
+				logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				// Preserve last-known state and surface the failure via the StateSynced condition.
+				// Do not fail reconcile.
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
+			} else if state != nil {
+				applyResourceState(*state, status, now)
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+			}
 		}
-		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
 	// If reconcile was successful and uneventful, requeue with the configured period.
+	// Requeue is needed here to distinguish an immediate requeue requested by the finalizer.
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = r.requeuePeriod
+		if r.statePollingDisabled {
+			result.RequeueAfter = r.untilForceSync(status, now)
+		}
 	}
 
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
@@ -211,8 +278,17 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	logger := ctrl.LoggerFrom(ctx)
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
+	// Until an update succeeds, the remote resource may not match the spec, so
+	// force syncs must not be skipped.
+	status.RemoteDefinitionHash = ""
 
-	err := handler.updateResource(auth, instance)
+	var remoteHash string
+	var err error
+	if hasher, ok := handler.(remoteDefinitionHasher); ok {
+		remoteHash, err = hasher.updateResourceWithHash(auth, instance)
+	} else {
+		err = handler.updateResource(auth, instance)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 			// If the remote resource was deleted out-of-band after we stored its ID,
@@ -235,6 +311,7 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.LastForceSyncTime = &now
+	status.RemoteDefinitionHash = remoteHash
 
 	logger.Info("Updated DatadogGenericResource", "Generic Resource Id", instance.Status.Id)
 	return nil
@@ -242,6 +319,19 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 
 func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
+	// Check the API server immediately before creating, including recreation after
+	// a remote 404. A different persisted ID means this reconcile is stale.
+	latest := &v1alpha1.DatadogGenericResource{}
+	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); err != nil {
+		if apierrors.IsNotFound(err) {
+			return errCreateSkipped
+		}
+		return fmt.Errorf("%w: %w", errPreCreateRead, err)
+	}
+	if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.Id != "" && latest.Status.Id != instance.Status.Id) {
+		logger.Info("Skipping create because DatadogGenericResource changed; requeuing")
+		return errCreateSkipped
+	}
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
 	result, err := handler.createResource(auth, instance)
@@ -260,6 +350,7 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	status.Creator = result.Creator
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
+	status.RemoteDefinitionHash = result.RemoteDefinitionHash
 
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
 	r.recordEvent(instance, event)
@@ -278,6 +369,32 @@ func updateErrStatus(status *v1alpha1.DatadogGenericResourceStatus, now metav1.T
 	status.SyncStatus = syncStatus
 }
 
+// untilForceSync returns the delay to the next force sync. An overdue force
+// sync (its last attempt failed) is retried at the requeue period, as before.
+func (r *Reconciler) untilForceSync(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) time.Duration {
+	last := status.LastForceSyncTime
+	if last == nil {
+		last = status.Created
+	}
+	if last == nil {
+		return r.forceSyncPeriod
+	}
+	if d := r.forceSyncPeriod - now.Sub(last.Time); d > 0 {
+		// Cap it in case the remote creation time is ahead of the local clock.
+		return min(d, r.forceSyncPeriod)
+	}
+	return r.requeuePeriod
+}
+
+// setStatePollingDisabled replaces polled state with a sentinel so consumers
+// expecting a Datadog state notice that polling is off.
+func setStatePollingDisabled(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) {
+	applyResourceState(ctrutils.StatePollingDisabledState, status, now)
+	status.StateLastUpdateTime = nil
+	msg := fmt.Sprintf("State polling is disabled by %s", ctrutils.StatePollingEnabledEnvVar)
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, ctrutils.StatePollingDisabledState, msg)
+}
+
 // applyResourceState merges a refreshed Datadog-side state into the CR status,
 // bumping StateLastTransitionTime only when the state value actually changes,
 // and always advancing StateLastUpdateTime to now.
@@ -292,6 +409,7 @@ func applyResourceState(state string, status *v1alpha1.DatadogGenericResourceSta
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		originalID := instance.Status.Id
 		desiredStatus := status.DeepCopy()
 		instance.Status = *desiredStatus.DeepCopy()
 		err := r.client.Status().Update(ctx, instance)
@@ -306,7 +424,12 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha
 					return getErr
 				}
 
-				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+				// A stale reconcile may have failed to create a resource whose ID
+				// has since been persisted. Keep the entire newer status rather
+				// than replacing it with that stale error. Still allow an intentional
+				// reset of the ID this reconcile observed (e.g. after a remote 404).
+				preserveLatestID := desiredStatus.Id == "" && latest.Status.Id != "" && latest.Status.Id != originalID
+				if preserveLatestID || apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
 					instance.ResourceVersion = latest.ResourceVersion
 					instance.Status = latest.Status
 					return nil

@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -30,6 +32,8 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
+	// owner stores the user's DatadogAgent resource, which we keep because the passwd mount path depends on the Agent image version set in it.
+	owner          metav1.Object
 	runInCoreAgent bool
 }
 
@@ -37,14 +41,26 @@ func (p *processDiscoveryFeature) ID() feature.IDType {
 	return feature.ProcessDiscoveryIDType
 }
 
-func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user database, so the
+// passwd volume this feature adds is stripped.
+func (p *processDiscoveryFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName},
+		},
+	}
+}
+
+func (p *processDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	p.owner = dda
 	var reqComp feature.RequiredComponents
 	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddaSpec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+		p.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -97,8 +113,9 @@ func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers featur
 
 func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+	mountPath := featutils.ProcessPasswdMountPath(p.owner)
+	passwdVol, passwdMount := featutils.ProcessPasswdVolume(mountPath)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount

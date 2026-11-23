@@ -65,7 +65,7 @@ type CredentialManager struct {
 	ddaCredsMap  sync.Map
 }
 
-// NewCredentialManager returns a CredentialManager.
+// NewCredentialManagerWithDecryptor returns a CredentialManager using the provided decryptor.
 func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.Decryptor) *CredentialManager {
 	cm := &CredentialManager{
 		logger:        ctrl.Log.WithName("credentials-manager"),
@@ -88,8 +88,8 @@ func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.D
 	return cm
 }
 
-// TODO deprecate in favor of NewCredentialManagerWithDecryptor
-// NewCredentialManager returns a CredentialManager.
+// NewCredentialManager returns a CredentialManager with the default secret backend.
+// TODO deprecate in favor of NewCredentialManagerWithDecryptor.
 func NewCredentialManager(client client.Reader) *CredentialManager {
 	cm := &CredentialManager{
 		logger:        ctrl.Log.WithName("credentials-manager"),
@@ -178,7 +178,9 @@ func (cm *CredentialManager) GetAuth() (context.Context, error) {
 // This function tries to decrypt the secrets using the secret backend if needed.
 // It returns an error if the creds aren't configured or if the secret backend fails to decrypt.
 func (cm *CredentialManager) GetCredentials() (Creds, error) {
-	if creds, found := cm.getCredsFromCache(); found {
+	// The cache can hold API-key-only credentials (see GetAPIKeyCredentials);
+	// only serve it here when it also has the App key this function guarantees.
+	if creds, found := cm.getCredsFromCache(); found && creds.AppKey != "" {
 		return creds, nil
 	}
 
@@ -231,10 +233,10 @@ func (cm *CredentialManager) fetchCredentials() (Creds, error) {
 	return Creds{APIKey: apiKey, AppKey: appKey}, nil
 }
 
-// GetCredentialsForMetadata retrieves credentials for metadata endpoints.
-// Only DD_API_KEY is required; DD_APP_KEY is optional since metadata endpoints
-// don't require application keys for authentication.
-func (cm *CredentialManager) GetCredentialsForMetadata() (Creds, error) {
+// GetAPIKeyCredentials retrieves credentials that only require an API key, for
+// callers that authenticate with it alone (Remote Config, metadata endpoints).
+// DD_APP_KEY is returned when set but is optional.
+func (cm *CredentialManager) GetAPIKeyCredentials() (Creds, error) {
 	if creds, found := cm.getCredsFromCache(); found {
 		return creds, nil
 	}
@@ -290,7 +292,7 @@ func (cm *CredentialManager) GetCredentialsForMetadata() (Creds, error) {
 // Only DD_API_KEY is required; DD_APP_KEY is optional since this is exclusively
 // used for metadata endpoints (/api/v1/metadata) which don't require application keys.
 func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.DatadogAgent, error)) (Creds, error) {
-	if creds, err := cm.GetCredentialsForMetadata(); err == nil {
+	if creds, err := cm.GetAPIKeyCredentials(); err == nil {
 		if site := os.Getenv("DD_SITE"); site != "" {
 			creds.Site = &site
 		}
@@ -445,8 +447,8 @@ func (cm *CredentialManager) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
-	apiKey := ""
-	err := error(nil)
+	var apiKey string
+	var err error
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {

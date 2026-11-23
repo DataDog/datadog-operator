@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -65,6 +66,15 @@ func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
 	}
 }
 
+func TestOptionsParse_DefaultDataPlaneLinuxEnabled(t *testing.T) {
+	resetCommandLine(t)
+
+	var opts options
+	opts.Parse()
+
+	require.False(t, opts.defaultDataPlaneLinuxEnabled)
+}
+
 func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	resetCommandLine(t)
 	t.Setenv("DD_METRICS_ADDR", ":9090")
@@ -78,9 +88,11 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	t.Setenv("DD_MAXIMUM_GOROUTINES", "123")
 	t.Setenv("DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES", "7")
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
+	t.Setenv("DD_BYOC_CLUSTER_CONTROLLER_ENABLED", "true")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
 	t.Setenv("DD_CREATE_CONTROLLER_REVISIONS", "true")
 	t.Setenv("DD_MANAGED_AGENT_INSTALLATION_ENABLED", "true")
+	t.Setenv("DD_DEFAULT_DATA_PLANE_LINUX_ENABLED", "true")
 
 	var opts options
 	opts.Parse()
@@ -96,9 +108,11 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	require.Equal(t, 123, opts.maximumGoroutines)
 	require.Equal(t, 7, opts.datadogGenericResourceMaxWorkers)
 	require.Equal(t, 5*time.Minute, opts.datadogGenericResourceRequeuePeriod)
+	require.True(t, opts.datadogBYOCClusterEnabled)
 	require.True(t, opts.untaintControllerWaitForCSIDriver)
 	require.True(t, opts.createControllerRevisions)
 	require.True(t, opts.managedAgentInstallationEnabled)
+	require.True(t, opts.defaultDataPlaneLinuxEnabled)
 }
 
 func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
@@ -111,6 +125,7 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 		"-datadogGenericResourceRequeuePeriod=2m30s",
 		"-leader-election-lease-duration=2m",
 		"-untaintControllerWaitForCSIDriver=false",
+		"-defaultDataPlaneLinuxEnabled=false",
 	)
 	t.Setenv("DD_METRICS_ADDR", ":9090")
 	t.Setenv("DD_METRICS_SECURE", "true")
@@ -120,6 +135,7 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
 	t.Setenv("DD_LEADER_ELECTION_LEASE_DURATION", "90s")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
+	t.Setenv("DD_DEFAULT_DATA_PLANE_LINUX_ENABLED", "true")
 
 	var opts options
 	opts.Parse()
@@ -132,6 +148,59 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	require.Equal(t, 150*time.Second, opts.datadogGenericResourceRequeuePeriod)
 	require.Equal(t, 2*time.Minute, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.untaintControllerWaitForCSIDriver)
+	require.False(t, opts.defaultDataPlaneLinuxEnabled)
+}
+
+func TestOptionsParse_SecretBackendSGC(t *testing.T) {
+	resetCommandLine(t,
+		"-secretBackendType=hashicorp.vault",
+		`-secretBackendConfig={"vault_session":{"vault_auth_type":"kubernetes"}}`,
+	)
+
+	var opts options
+	opts.Parse()
+
+	require.Equal(t, "hashicorp.vault", opts.secretBackendType)
+	require.JSONEq(t, `{"vault_session":{"vault_auth_type":"kubernetes"}}`, opts.secretBackendConfig)
+}
+
+func TestParseSecretBackendConfig(t *testing.T) {
+	config, err := parseSecretBackendConfig(`{"vault_session":{"vault_auth_type":"kubernetes"}}`)
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{
+		"vault_session": map[string]any{"vault_auth_type": "kubernetes"},
+	}, config)
+
+	_, err = parseSecretBackendConfig("not-json")
+	require.Error(t, err)
+}
+
+func TestConfigureSecretBackend(t *testing.T) {
+	resetSecretBackend := func() {
+		secrets.SetSecretBackendCommand("")
+		secrets.SetSecretBackendArgs(nil)
+		secrets.SetSecretBackendType("")
+		secrets.SetSecretBackendConfig(map[string]any{})
+	}
+	resetSecretBackend()
+	t.Cleanup(resetSecretBackend)
+
+	require.NoError(t, configureSecretBackend(&options{}))
+	require.NoError(t, configureSecretBackend(&options{
+		secretBackendType:   "hashicorp.vault",
+		secretBackendConfig: `{"vault_session":{"vault_auth_type":"kubernetes"}}`,
+	}))
+
+	resetSecretBackend()
+	require.Error(t, configureSecretBackend(&options{secretBackendConfig: "not-json"}))
+
+	resetSecretBackend()
+	require.Error(t, configureSecretBackend(&options{
+		secretBackendType:   "hashicorp.vault",
+		secretBackendConfig: "not-json",
+	}))
+	_, err := secrets.NewSecretBackend().Decrypt([]string{"ENC[vault://test]"})
+	require.EqualError(t, err, "secret backend command not configured")
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
@@ -141,6 +210,7 @@ func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "120")
 	t.Setenv("DD_LEADER_ELECTION_LEASE_DURATION", "not-a-duration")
 	t.Setenv("DD_MONITOR_CONTROLLER_ENABLED", "not-a-boolean-meaning-string")
+	t.Setenv("DD_DEFAULT_DATA_PLANE_LINUX_ENABLED", "not-a-boolean-meaning-string")
 
 	var opts options
 	opts.Parse()
@@ -150,6 +220,7 @@ func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	require.Equal(t, defaultDatadogGenericResourceRequeuePeriod, opts.datadogGenericResourceRequeuePeriod)
 	require.Equal(t, 60*time.Second, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.datadogMonitorEnabled)
+	require.False(t, opts.defaultDataPlaneLinuxEnabled)
 }
 
 func resetCommandLine(t *testing.T, args ...string) {

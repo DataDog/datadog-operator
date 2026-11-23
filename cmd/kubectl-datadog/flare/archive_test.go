@@ -37,28 +37,32 @@ func TestArchiveDir(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	got := map[string]string{}
-	for _, entry := range reader.File {
-		if entry.FileInfo().IsDir() {
-			got[entry.Name] = ""
+	expectedNames := []string{
+		"",
+		"datadog-custom-resources.yaml",
+		"pod-abc.json",
+		"sub/",
+		"sub/nested.txt",
+	}
+	require.Len(t, reader.File, len(expectedNames))
+	for i, entry := range reader.File {
+		name := expectedNames[i]
+		assert.Equal(t, "datadog-operator/"+name, entry.Name)
+		want, isFile := files[name]
+		assert.Equal(t, !isFile, entry.FileInfo().IsDir(), entry.Name)
+		if !isFile {
+			assert.Equal(t, uint16(zip.Store), entry.Method, entry.Name)
 			continue
 		}
 
+		assert.Equal(t, uint16(zip.Deflate), entry.Method, entry.Name)
 		content, err := entry.Open()
 		require.NoError(t, err)
 		data, err := io.ReadAll(content)
 		require.NoError(t, err)
 		require.NoError(t, content.Close())
-		got[entry.Name] = string(data)
+		assert.Equal(t, want, string(data), entry.Name)
 	}
-
-	assert.Equal(t, map[string]string{
-		"datadog-operator/": "",
-		"datadog-operator/datadog-custom-resources.yaml": "apiVersion: datadoghq.com/v2alpha1\n",
-		"datadog-operator/pod-abc.json":                  `{"msg":"hello"}`,
-		"datadog-operator/sub/":                          "",
-		"datadog-operator/sub/nested.txt":                "nested\n",
-	}, got)
 }
 
 func TestArchiveDirSkipsNonRegularFiles(t *testing.T) {
@@ -95,7 +99,7 @@ func TestArchiveDirKeepsExistingArchive(t *testing.T) {
 	existing := []byte("archive from a concurrent flare")
 	require.NoError(t, os.WriteFile(destination, existing, 0644))
 
-	assert.Error(t, archiveDir(src, destination))
+	assert.ErrorIs(t, archiveDir(src, destination), os.ErrExist)
 
 	kept, err := os.ReadFile(destination)
 	require.NoError(t, err)
@@ -105,7 +109,7 @@ func TestArchiveDirKeepsExistingArchive(t *testing.T) {
 func TestArchiveDirMissingSource(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "flare.zip")
 
-	assert.Error(t, archiveDir(filepath.Join(t.TempDir(), "absent"), destination))
+	assert.ErrorIs(t, archiveDir(filepath.Join(t.TempDir(), "absent"), destination), os.ErrNotExist)
 
 	_, err := os.Stat(destination)
 	assert.True(t, os.IsNotExist(err), "a failed archive must not be left behind")

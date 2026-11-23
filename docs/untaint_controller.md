@@ -101,7 +101,7 @@ env:
 
 When `--untaintControllerEnabled` is enabled, the operator injects a toleration for
 `agent.datadoghq.com/not-ready=presence:NoSchedule` into the node Agent
-DaemonSet (or ExtendedDaemonSet) pod template, unless an equivalent toleration
+DaemonSet pod template, unless an equivalent toleration
 is already present. When **`--untaintControllerWaitForCSIDriver`** is also true **and**
 the DatadogCSIDriver controller is running (`--datadogCSIDriverEnabled=true`), the same
 toleration is injected into the **Datadog CSI node-server** DaemonSet pod

@@ -7,6 +7,8 @@ package appsec
 
 const ClusterAgentMinVersion = "7.76.0"
 
+const ClusterAgentGKEMinVersion = "7.82.0"
+
 // ClusterAgentNginxMinVersion is the minimum cluster-agent version for ingress-nginx injection (explicit config only)
 const ClusterAgentNginxMinVersion = "7.79.0"
 
@@ -69,6 +71,8 @@ const (
 	DDClusterAgentAppsecInjectorProcessorServiceNamespace = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAMESPACE"
 	// DDClusterAgentAppsecInjectorMode is the injector mode (sidecar or external)
 	DDClusterAgentAppsecInjectorMode = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_MODE"
+	// DDAppsecProxyGKEGatewayClasses is the JSON list of GKE GatewayClasses eligible for AppSec injection
+	DDAppsecProxyGKEGatewayClasses = "DD_APPSEC_PROXY_GKE_GATEWAY_CLASSES"
 	// DDAdmissionControllerAppsecSidecarImage is the sidecar container image
 	DDAdmissionControllerAppsecSidecarImage = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_IMAGE"
 	// DDAdmissionControllerAppsecSidecarImageTag is the sidecar container image tag
@@ -91,7 +95,12 @@ const (
 	DDAdmissionControllerAppsecNginxModuleMountPath = "DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH"
 )
 
-var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx"}
+// allowedProxyValues is the source of truth for the accepted proxy names. Keep it in sync
+// with the +kubebuilder:validation:items:Enum marker on AppsecInjectorConfig.Proxies in
+// api/datadoghq/v2alpha1/datadogagent_types.go, which enforces the same set at admission.
+// The runtime check in Config.Validate remains as defense in depth and still guards the
+// annotation path, which the CRD schema cannot reach.
+var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx", "gke-gateway"}
 
 // AllowedProxyValues returns the proxy types that the current RBAC supports.
 // The returned slice must not be modified.

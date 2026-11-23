@@ -15,7 +15,7 @@ import (
 
 func TestKubernetesActionsRBACPolicyRules(t *testing.T) {
 	rules := kubernetesActionsRBACPolicyRules
-	assert.Len(t, rules, 3, "expected pods, deployments, deployments/status rules")
+	assert.Len(t, rules, 4, "expected pods, deployments, deployments/status, replicasets rules")
 
 	byResource := map[string]int{}
 	for i, r := range rules {
@@ -35,4 +35,15 @@ func TestKubernetesActionsRBACPolicyRules(t *testing.T) {
 	statusRule := rules[byResource["deployments/status"]]
 	assert.Equal(t, []string{rbac.AppsAPIGroup}, statusRule.APIGroups)
 	assert.ElementsMatch(t, []string{rbac.GetVerb}, statusRule.Verbs)
+
+	// The patch DaemonSet / StatefulSet actions are not exposed in the Datadog UI:
+	// do not grant cluster-wide patch on those workloads.
+	for _, res := range []string{rbac.DaemonsetsResource, rbac.StatefulsetsResource} {
+		_, granted := byResource[res]
+		assert.False(t, granted, "%s should not be granted", res)
+	}
+
+	rsRule := rules[byResource[rbac.ReplicasetsResource]]
+	assert.Equal(t, []string{rbac.AppsAPIGroup}, rsRule.APIGroups)
+	assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.ListVerb}, rsRule.Verbs)
 }

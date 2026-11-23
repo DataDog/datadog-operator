@@ -169,6 +169,7 @@ default applies.
 | DatadogGenericResource  | `--datadogGenericResourceEnabled` | `DD_GENERIC_RESOURCE_CONTROLLER_ENABLED` | `false` |
 | DatadogCSIDriver        | `--datadogCSIDriverEnabled`       | `DD_CSI_DRIVER_CONTROLLER_ENABLED`       | `false` |
 | DatadogAgentProfile     | `--datadogAgentProfileEnabled`    | `DD_AGENT_PROFILE_CONTROLLER_ENABLED`    | `false` |
+| DatadogBYOCCluster      | `--datadogBYOCClusterEnabled`     | `DD_BYOC_CLUSTER_CONTROLLER_ENABLED`     | `false` |
 | Introspection           | `--introspectionEnabled`          | `DD_INTROSPECTION_ENABLED`               | `false` |
 | RemoteConfig            | `--remoteConfigEnabled`           | `DD_REMOTE_CONFIG_ENABLED`               | `false` |
 | RemoteUpdates           | `--remoteUpdatesEnabled`          | `DD_REMOTE_UPDATES_ENABLED`              | `false` |
@@ -183,18 +184,27 @@ Other operator startup options can also be configured via environment variable:
 | Metrics address            | `--metrics-addr`                     | `DD_METRICS_ADDR`                     | `:8080` |
 | Secure metrics             | `--metrics-secure`                   | `DD_METRICS_SECURE`                   | `false` |
 | Profiling                  | `--profiling-enabled`                | `DD_PROFILING_ENABLED`                | `false` |
+| APM tracing                | `--tracing-enabled`                  | `DD_TRACING_ENABLED`                  | `false` |
 | Leader election lease      | `--leader-election-lease-duration`   | `DD_LEADER_ELECTION_LEASE_DURATION`   | `60s`   |
 | Cilium network policies    | `--supportCilium`                    | `DD_SUPPORT_CILIUM`                   | `false` |
 | Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `500`   |
+| Monitor max concurrent reconciles | `--datadogMonitorMaxConcurrentReconciles` | `DD_MONITOR_MAX_CONCURRENT_RECONCILES` | `1` |
+| Monitor requeue period     | `--datadogMonitorRequeuePeriod`      | `DD_MONITOR_REQUEUE_PERIOD`            | `60s`   |
 | DDGR max concurrent reconciles | `--datadogGenericResourceMaxConcurrentReconciles` | `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` |
 | DDGR requeue period        | `--datadogGenericResourceRequeuePeriod` | `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s`   |
 | Controller revisions       | `--createControllerRevisions`        | `DD_CREATE_CONTROLLER_REVISIONS`      | `false` |
+| Linux Data Plane default   | `--defaultDataPlaneLinuxEnabled`     | `DD_DEFAULT_DATA_PLANE_LINUX_ENABLED` | `false` |
 
-ExtendedDaemonset options (`--supportExtendedDaemonset` and `--eds*`),
-the leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
+The leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
 log options (`--loglevel`, `--logEncoder`), secret backend options
 (`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
 configurable using CLI flags in the shipped manifests.
+
+When tracing is enabled, the Datadog Operator reports traces of DatadogAgent and DatadogAgentInternal reconciles under the service name specified by `DD_SERVICE` (default: `datadog-operator`). Configure `DD_AGENT_HOST` or `DD_TRACE_AGENT_URL` in the Operator environment, or mount the Agent's APM socket at `/var/run/datadog/apm.socket`, to point to a Datadog Agent with APM enabled. Traced Kubernetes API requests also set the `Audit-ID` header to `<trace ID>-<span ID>`, so audit log entries can be traced back to the reconcile that caused them while keeping one audit ID per request.
+
+ExtendedDaemonSet flags were removed. If they are present in a custom
+Deployment manifest, remove them before upgrading. See the
+[ExtendedDaemonSet migration guide](extendeddaemonset_migration.md).
 
 Boolean values follow Go's [`strconv.ParseBool`](https://pkg.go.dev/strconv#ParseBool):
 `true`, `True`, `TRUE`, `1` or `false`, `False`, `FALSE`, `0`. The strings

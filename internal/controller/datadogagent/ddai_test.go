@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -446,7 +445,6 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 func Test_cleanUpUnusedDDAIs(t *testing.T) {
 	sch := agenttestutils.TestScheme()
 	ctx := context.Background()
-	logger := logf.Log.WithName("test_cleanUpUnusedDDAIs")
 
 	testCases := []struct {
 		name          string
@@ -584,7 +582,6 @@ func Test_cleanUpUnusedDDAIs(t *testing.T) {
 
 			r := &Reconciler{
 				client: fakeClient,
-				log:    logger,
 			}
 
 			err := r.cleanUpUnusedDDAIs(ctx, tt.validDDAIs)
