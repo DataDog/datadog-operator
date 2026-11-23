@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -88,6 +89,16 @@ func (in *Intake) Last() Received {
 	in.mu.Lock()
 	defer in.mu.Unlock()
 	return Received{Path: in.path, APIKey: in.apiKey, FileName: in.fileName, Fields: in.fields, File: in.file}
+}
+
+// ReadZipFile returns the files of a zip archive file by name, and removes
+// the file at the end of the test.
+func ReadZipFile(t *testing.T, path string) map[string]string {
+	t.Helper()
+	t.Cleanup(func() { _ = os.Remove(path) })
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return ReadZip(t, data)
 }
 
 // ReadZip returns the files of a zip archive by name.

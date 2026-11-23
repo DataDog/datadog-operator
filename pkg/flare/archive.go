@@ -7,10 +7,11 @@ package flare
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -40,12 +41,14 @@ var (
 	ErrArchiveClosed = errors.New("flare archive already closed")
 )
 
-// Archive builds a flare zip archive in memory. Every file is scrubbed before
-// it is written, and the sum of the written files is capped. Archive is safe
-// for concurrent use.
+// Archive builds a flare zip archive in a temporary file, so that a flare
+// doesn't hold its files in memory. Every file is scrubbed before it is
+// written, and the sum of the written files is capped. Archive is safe for
+// concurrent use.
 type Archive struct {
 	mu       sync.Mutex
-	buf      bytes.Buffer
+	file     *os.File
+	err      error
 	zw       *zip.Writer
 	root     string
 	scrubber *Scrubber
@@ -72,9 +75,12 @@ type ArchiveOptions struct {
 	MaxBytes int64
 	// Now returns the file modification time. time.Now if nil.
 	Now func() time.Time
+	// Dir is the directory of the temporary zip file. os.TempDir() if "".
+	Dir string
 }
 
-// NewArchive returns an empty Archive.
+// NewArchive returns an empty Archive. If its temporary file can't be
+// created, writes and Close return the error.
 func NewArchive(opts ArchiveOptions) *Archive {
 	a := &Archive{
 		root:     strings.Trim(opts.Root, "/"),
@@ -89,7 +95,13 @@ func NewArchive(opts ArchiveOptions) *Archive {
 	if a.now == nil {
 		a.now = time.Now
 	}
-	a.zw = zip.NewWriter(&a.buf)
+	a.file, a.err = os.CreateTemp(opts.Dir, "datadog-operator-flare-*.zip")
+	if a.err != nil {
+		a.err = fmt.Errorf("unable to create the flare archive: %w", a.err)
+		a.zw = zip.NewWriter(io.Discard)
+		return a
+	}
+	a.zw = zip.NewWriter(a.file)
 	return a
 }
 
@@ -129,6 +141,9 @@ func (a *Archive) write(name string, data []byte, reserve int64) error {
 	defer a.mu.Unlock()
 	if a.closed {
 		return ErrArchiveClosed
+	}
+	if a.err != nil {
+		return a.err
 	}
 
 	name = a.uniquePath(name)
@@ -174,9 +189,15 @@ func (a *Archive) uniquePath(name string) string {
 	}
 }
 
-// Close writes the manifest and returns the zip archive. Writes after Close
-// fail with ErrArchiveClosed.
-func (a *Archive) Close(manifest *Manifest) ([]byte, error) {
+// Close writes the manifest and returns the path of the zip archive, which the
+// caller removes. On error, the archive is removed. Writes after Close fail
+// with ErrArchiveClosed.
+func (a *Archive) Close(manifest *Manifest) (archivePath string, err error) {
+	defer func() {
+		if err != nil && !errors.Is(err, ErrArchiveClosed) {
+			a.Discard()
+		}
+	}()
 	if manifest != nil {
 		a.mu.Lock()
 		manifest.Files = append([]FileInfo(nil), a.files...)
@@ -187,22 +208,40 @@ func (a *Archive) Close(manifest *Manifest) ([]byte, error) {
 
 		data, err := json.MarshalIndent(manifest, "", "  ")
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		// The manifest has its own reserved space.
 		if err := a.write(ManifestFile, a.scrubber.ScrubBytes(data), 0); err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.closed {
-		return nil, ErrArchiveClosed
+		return "", ErrArchiveClosed
 	}
 	a.closed = true
-	if err := a.zw.Close(); err != nil {
-		return nil, err
+	if a.err != nil {
+		return "", a.err
 	}
-	return a.buf.Bytes(), nil
+	if err := a.zw.Close(); err != nil {
+		return "", err
+	}
+	if err := a.file.Close(); err != nil {
+		return "", err
+	}
+	return a.file.Name(), nil
+}
+
+// Discard closes and removes the archive file. Use it when the archive is
+// not closed, for example after a failure.
+func (a *Archive) Discard() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.closed = true
+	if a.file != nil {
+		_ = a.file.Close()
+		_ = os.Remove(a.file.Name())
+	}
 }

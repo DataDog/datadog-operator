@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,9 +23,10 @@ import (
 // records the page sizes it was asked for.
 type pagedReader struct {
 	client.Reader
-	total  int
-	name   func(i int) string
-	limits []int64
+	total     int
+	name      func(i int) string
+	limits    []int64
+	remaining *int64
 }
 
 func (r *pagedReader) List(_ context.Context, list client.ObjectList, opts ...client.ListOption) error {
@@ -52,6 +54,9 @@ func (r *pagedReader) List(_ context.Context, list client.ObjectList, opts ...cl
 			l.Items = append(l.Items, metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: r.name(i)}})
 		}
 		l.Continue = next
+		if start == 0 && next != "" {
+			l.RemainingItemCount = r.remaining
+		}
 	default:
 		return fmt.Errorf("unexpected list %T", list)
 	}
@@ -97,4 +102,32 @@ func TestDatadogCRDNames(t *testing.T) {
 	for _, limit := range reader.limits {
 		assert.Equal(t, int64(crdMetadataPageSize), limit, "CRDs are listed in small metadata pages")
 	}
+}
+
+func TestSampledResourceCollector(t *testing.T) {
+	reader := &pagedReader{total: 340, name: func(i int) string { return fmt.Sprintf("profile-%03d", i) }}
+	files, manifest := runCollectors(t, Env{Reader: reader}, sampledResourceCollector("datadog/datadogagentprofiles", datadogAgentProfileGVK))
+
+	require.Len(t, manifest.Collectors, 1)
+	assert.Equal(t, []string{"collected the first 20 of 340 DatadogAgentProfile"}, manifest.Collectors[0].Errors)
+	sampled := 0
+	for name := range files {
+		if strings.HasPrefix(name, "datadog/datadogagentprofiles/") {
+			sampled++
+		}
+	}
+	assert.Equal(t, maxSampledResources, sampled)
+	assert.Equal(t, int64(maxSampledResources), reader.limits[0], "the API server is asked for the sample only")
+}
+
+func TestCountResources(t *testing.T) {
+	reader := &pagedReader{total: 1234, name: strconv.Itoa}
+	count, err := countResources(context.Background(), reader, datadogAgentGVK)
+	require.NoError(t, err)
+	assert.Equal(t, 1234, count)
+
+	remaining := int64(5000)
+	count, err = countResources(context.Background(), &pagedReader{total: 60, name: strconv.Itoa, remaining: &remaining}, datadogAgentGVK)
+	require.NoError(t, err)
+	assert.Equal(t, 5050, count, "the remaining item count of the first page is used")
 }

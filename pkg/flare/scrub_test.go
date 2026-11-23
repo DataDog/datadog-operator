@@ -134,7 +134,7 @@ func TestRedactObject(t *testing.T) {
 	require.NoError(t, a.AddYAML("container.yaml", container))
 	data, err := a.Close(nil)
 	require.NoError(t, err)
-	files := flaretest.ReadZip(t, data)
+	files := flaretest.ReadZipFile(t, data)
 
 	for _, content := range files {
 		for _, secret := range []string{testAPIKey, testAppKey, testToken, "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t"} {

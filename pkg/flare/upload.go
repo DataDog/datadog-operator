@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -90,7 +91,8 @@ type UploadRequest struct {
 	Tags            []string
 	OperatorVersion string
 	ArchiveName     string
-	Archive         []byte
+	// ArchivePath is the zip file to send. It's read again for each attempt.
+	ArchivePath string
 }
 
 // Uploader sends flares to the Datadog flare intake.
@@ -186,8 +188,8 @@ type switchWriter struct{ w *bytes.Buffer }
 func (s *switchWriter) Write(p []byte) (int, error) { return s.w.Write(p) }
 
 func (u *Uploader) post(ctx context.Context, client *http.Client, target string, req UploadRequest) (*http.Response, error) {
-	// The archive is streamed from req.Archive between the multipart head
-	// and tail, so the upload doesn't hold a second copy of it.
+	// The archive is streamed from its file between the multipart head and
+	// tail, so the upload doesn't load it in memory.
 	head, tail := &bytes.Buffer{}, &bytes.Buffer{}
 	out := &switchWriter{w: head}
 	writer := multipart.NewWriter(out)
@@ -230,12 +232,26 @@ func (u *Uploader) post(ctx context.Context, client *http.Client, target string,
 		return nil, err
 	}
 
-	body := io.MultiReader(bytes.NewReader(head.Bytes()), bytes.NewReader(req.Archive), bytes.NewReader(tail.Bytes()))
+	archive, err := os.Open(req.ArchivePath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read the flare archive: %w", err)
+	}
+	info, err := archive.Stat()
+	if err != nil {
+		archive.Close()
+		return nil, fmt.Errorf("unable to read the flare archive: %w", err)
+	}
+	// The HTTP client closes the body, and so the file, once it's sent.
+	body := struct {
+		io.Reader
+		io.Closer
+	}{io.MultiReader(bytes.NewReader(head.Bytes()), archive, bytes.NewReader(tail.Bytes())), archive}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, target, body)
 	if err != nil {
+		archive.Close()
 		return nil, err
 	}
-	request.ContentLength = int64(head.Len() + len(req.Archive) + tail.Len())
+	request.ContentLength = int64(head.Len()) + info.Size() + int64(tail.Len())
 	request.Header.Set(apiKeyHeader, u.APIKey)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	return client.Do(request)

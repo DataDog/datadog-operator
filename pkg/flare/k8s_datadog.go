@@ -12,19 +12,23 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
 	datadogAgentGVK         = schema.GroupVersionKind{Group: datadogGroup, Version: "v2alpha1", Kind: "DatadogAgent"}
 	datadogAgentInternalGVK = schema.GroupVersionKind{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogAgentInternal"}
 	datadogAgentProfileGVK  = schema.GroupVersionKind{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogAgentProfile"}
+	datadogCSIDriverGVK     = schema.GroupVersionKind{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogCSIDriver"}
 
-	// summarizedGVKs are the resources whose status, not spec, is
-	// collected.
-	summarizedGVKs = []schema.GroupVersionKind{
+	// countedGVKs are the resources that are only counted: they can number
+	// in the thousands, and their sync errors are in the Operator logs and
+	// events.
+	countedGVKs = []schema.GroupVersionKind{
 		{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogMonitor"},
 		{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogSLO"},
 		{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogDashboard"},
@@ -32,101 +36,110 @@ var (
 	}
 )
 
+// maxSampledResources caps the resources collected in full per kind. The API
+// server returns at most this many per request, so memory doesn't grow with
+// the number of resources.
+const maxSampledResources = 20
+
 // DatadogResourcesCollectors returns the collectors of the Datadog custom
-// resources (full for agents and profiles, status only for the others) and
-// their events.
+// resources (up to maxSampledResources in full for the Agent kinds, a count
+// for the others) and their events.
 func DatadogResourcesCollectors() []Collector {
 	return []Collector{
-		fullResourceCollector("datadog/datadogagents", "datadog/datadogagents", datadogAgentGVK),
-		fullResourceCollector("datadog/datadogagentinternals", "datadog/datadogagentinternals", datadogAgentInternalGVK),
-		fullResourceCollector("datadog/datadogagentprofiles", "datadog/datadogagentprofiles", datadogAgentProfileGVK),
-		{Name: "datadog/resources-summary", Collect: collectResourceSummaries},
+		sampledResourceCollector("datadog/datadogagents", datadogAgentGVK),
+		sampledResourceCollector("datadog/datadogagentinternals", datadogAgentInternalGVK),
+		sampledResourceCollector("datadog/datadogagentprofiles", datadogAgentProfileGVK),
+		sampledResourceCollector("datadog/datadogcsidrivers", datadogCSIDriverGVK),
+		{Name: "datadog/resources-count", Collect: collectResourceCounts},
 		{Name: "datadog/events", Collect: collectDatadogEvents},
 	}
 }
 
-func fullResourceCollector(name, dir string, gvk schema.GroupVersionKind) Collector {
+func sampledResourceCollector(dir string, gvk schema.GroupVersionKind) Collector {
 	return Collector{
-		Name: name,
+		Name: dir,
 		Collect: func(ctx context.Context, c *Collection) error {
-			count, full := 0, false
-			found, truncated, err := eachUnstructuredPage(ctx, c.Env.Reader, gvk, func(items []unstructured.Unstructured) bool {
-				for i := range items {
-					count++
-					obj := cleanObject(items[i].Object)
-					c.Warn(c.AddYAML(objectPath(dir, items[i].GetNamespace(), items[i].GetName()), obj))
+			list := &unstructured.UnstructuredList{}
+			list.SetGroupVersionKind(gvk.GroupVersion().WithKind(gvk.Kind + "List"))
+			if err := c.Env.Reader.List(ctx, list, client.Limit(maxSampledResources)); err != nil {
+				if isNotInstalled(err) {
+					return c.AddText(path.Join(dir, "NOT_INSTALLED.txt"), []byte(fmt.Sprintf("The %s resource is not installed in this cluster.\n", gvk.GroupKind())))
 				}
-				full = c.Remaining() <= 0
-				return !full
-			})
-			if err != nil {
 				return fmt.Errorf("unable to list %s: %w", gvk.Kind, err)
 			}
-			if !found {
-				return c.AddText(path.Join(dir, "NOT_INSTALLED.txt"), []byte(fmt.Sprintf("The %s resource is not installed in this cluster.\n", gvk.GroupKind())))
+			items := list.Items
+			if len(items) > maxSampledResources {
+				items = items[:maxSampledResources]
 			}
-			if truncated && !full {
-				c.Warn(fmt.Errorf("only the first %d %s were collected", maxListItems, gvk.Kind))
-			}
-			if count == 0 {
+			if len(items) == 0 {
 				return c.AddText(path.Join(dir, "NONE.txt"), []byte(fmt.Sprintf("No %s found.\n", gvk.Kind)))
+			}
+			for i := range items {
+				obj := cleanObject(items[i].Object)
+				c.Warn(c.AddYAML(objectPath(dir, items[i].GetNamespace(), items[i].GetName()), obj))
+			}
+			if len(list.Items) > len(items) || list.GetContinue() != "" {
+				total, err := countResources(ctx, c.Env.Reader, gvk)
+				if err != nil {
+					c.Warn(fmt.Errorf("collected the first %d %s, unable to count the others: %w", len(items), gvk.Kind, err))
+				} else {
+					c.Warn(fmt.Errorf("collected the first %d of %d %s", len(items), total, gvk.Kind))
+				}
 			}
 			return nil
 		},
 	}
 }
 
-// resourceSummary is the summary of a Datadog resource.
-type resourceSummary struct {
-	Namespace         string         `json:"namespace"`
-	Name              string         `json:"name"`
-	Generation        int64          `json:"generation,omitempty"`
-	CreationTimestamp string         `json:"creationTimestamp,omitempty"`
-	Deleting          bool           `json:"deleting,omitempty"`
-	Status            map[string]any `json:"status,omitempty"`
+// collectResourceCounts counts the resources of countedGVKs.
+func collectResourceCounts(ctx context.Context, c *Collection) error {
+	counts := map[string]any{}
+	for _, gvk := range countedGVKs {
+		count, err := countResources(ctx, c.Env.Reader, gvk)
+		switch {
+		case err != nil && isNotInstalled(err):
+			counts[gvk.Kind] = "not installed"
+		case err != nil:
+			c.Warn(fmt.Errorf("unable to count %s: %w", gvk.Kind, err))
+			counts[gvk.Kind] = "error: " + err.Error()
+		default:
+			counts[gvk.Kind] = count
+		}
+	}
+	return c.AddYAML("datadog/resources-count.yaml", counts)
 }
 
-func collectResourceSummaries(ctx context.Context, c *Collection) error {
-	summaries := map[string]any{}
-	for _, gvk := range summarizedGVKs {
-		var list []resourceSummary
-		found, truncated, err := eachUnstructuredPage(ctx, c.Env.Reader, gvk, func(items []unstructured.Unstructured) bool {
-			for i := range items {
-				status, _, _ := unstructured.NestedMap(items[i].Object, "status")
-				list = append(list, resourceSummary{
-					Namespace:         items[i].GetNamespace(),
-					Name:              items[i].GetName(),
-					Generation:        items[i].GetGeneration(),
-					CreationTimestamp: items[i].GetCreationTimestamp().UTC().Format("2006-01-02T15:04:05Z"),
-					Deleting:          items[i].GetDeletionTimestamp() != nil,
-					Status:            status,
-				})
-			}
-			return true
-		})
-		switch {
-		case err != nil:
-			c.Warn(fmt.Errorf("unable to list %s: %w", gvk.Kind, err))
-			summaries[gvk.Kind] = "error: " + err.Error()
-			continue
-		case !found:
-			summaries[gvk.Kind] = "not installed"
-			continue
-		case truncated:
-			c.Warn(fmt.Errorf("only the first %d %s were collected", maxListItems, gvk.Kind))
+// countResources counts the resources of a kind in all namespaces. It lists
+// metadata only, and uses the remaining item count of the first page when the
+// API server returns it.
+func countResources(ctx context.Context, reader client.Reader, gvk schema.GroupVersionKind) (int, error) {
+	count := 0
+	continueToken := ""
+	for {
+		list := &metav1.PartialObjectMetadataList{}
+		list.SetGroupVersionKind(gvk.GroupVersion().WithKind(gvk.Kind + "List"))
+		opts := []client.ListOption{client.Limit(crdMetadataPageSize)}
+		if continueToken != "" {
+			opts = append(opts, client.Continue(continueToken))
 		}
-		if list == nil {
-			list = []resourceSummary{}
+		if err := reader.List(ctx, list, opts...); err != nil {
+			return count, err
 		}
-		summaries[gvk.Kind] = list
+		count += len(list.Items)
+		if continueToken == "" && list.RemainingItemCount != nil {
+			return count + int(*list.RemainingItemCount), nil
+		}
+		continueToken = list.Continue
+		if continueToken == "" {
+			return count, nil
+		}
 	}
-	return c.AddYAML("datadog/resources-summary.yaml", summaries)
 }
 
 func collectDatadogEvents(ctx context.Context, c *Collection) error {
-	kinds := make([]string, 0, 3+len(summarizedGVKs))
-	kinds = append(kinds, datadogAgentGVK.Kind, datadogAgentInternalGVK.Kind, datadogAgentProfileGVK.Kind)
-	for _, gvk := range summarizedGVKs {
+	kinds := make([]string, 0, 4+len(countedGVKs))
+	kinds = append(kinds, datadogAgentGVK.Kind, datadogAgentInternalGVK.Kind, datadogAgentProfileGVK.Kind, datadogCSIDriverGVK.Kind)
+	for _, gvk := range countedGVKs {
 		kinds = append(kinds, gvk.Kind)
 	}
 	failed := 0

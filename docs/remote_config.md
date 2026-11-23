@@ -53,7 +53,7 @@ When Remote Configuration is enabled, the Datadog Operator also receives these F
 The Operator collects the flare in-process, with its own Kubernetes client:
 
 * **Operator**: version and build information, command line flags and the `DD_*`, `POD_*`, `WATCH_NAMESPACE` and proxy environment variables, enabled controllers and features, leader election and Remote Configuration client state, the logs of the Operator pods in its own namespace (current and previous container), a snapshot of its metrics (from the configured `-metrics-addr`, or read in-process when the metrics endpoint is secure), and its health and readiness probes.
-* **Datadog resources**: every `DatadogAgent`, `DatadogAgentInternal` and `DatadogAgentProfile` with its spec and status, a status summary of `DatadogMonitor`, `DatadogSLO`, `DatadogDashboard` and `DatadogGenericResource` resources, and the Kubernetes events of these resources.
+* **Datadog resources**: up to 20 `DatadogAgent`, `DatadogAgentInternal`, `DatadogAgentProfile` and `DatadogCSIDriver` resources each, with their spec and status (the manifest gives the total when there are more), the number of `DatadogMonitor`, `DatadogSLO`, `DatadogDashboard` and `DatadogGenericResource` resources, and the Kubernetes events of these resources.
 * **Managed workloads**: the node Agent DaemonSets (or ExtendedDaemonSets), and the Cluster Agent and Cluster Checks Runner Deployments: manifests, rollout status, their pods (phase, readiness, restarts) and events. The logs of these pods are not collected: the Agent and Cluster Agent flares collect them.
 * **Configuration**: the ConfigMaps, RBAC and webhook configurations the Operator manages, the RBAC of the Operator service account, the installed Datadog CRD versions, and the Operator Deployment with its Helm chart metadata. Helm keeps the release values in a Secret, so they are not collected.
 * **Cluster**: Kubernetes version and distribution, node count, OS and architecture mix, cluster name and ID.
@@ -68,7 +68,7 @@ A `manifest.json` file at the root of the archive lists what was collected and w
 ### Privacy and limits
 
 * Secrets are never read. API and App keys, tokens, passwords, certificates and credentials in URLs are scrubbed from every file before it's added to the archive, with the Datadog Agent scrubber. Values of sensitive keys (such as `apiKey`, `clusterAgentToken` or `caBundle`) and of sensitive environment variables are replaced.
-* A flare is capped at about 20 MB of files and 2 minutes of collection. Each container log is tailed to its last 10,000 lines and 10 MB. When a collector fails, or a limit is reached, the Operator still sends the partial flare and the manifest says what's missing.
+* The flare archive is written to a temporary file, streamed to the intake and removed afterwards. A flare is capped at about 20 MB of files and 2 minutes of collection. Each container log is tailed to its last 10,000 lines and 10 MB. When a collector fails, or a limit is reached, the Operator still sends the partial flare and the manifest says what's missing.
 * The flare is sent with the Operator API key to the flare intake of the configured site (`DD_SITE`, or `DD_DD_URL`/`DD_URL`), with the hostname `datadog-operator.<cluster ID>`, where the cluster ID is the UID of the `kube-system` namespace.
 
 ### Permissions

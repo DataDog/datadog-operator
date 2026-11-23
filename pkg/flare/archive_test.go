@@ -9,6 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +35,7 @@ func TestArchiveSizeLimit(t *testing.T) {
 	manifest := &Manifest{}
 	data, err := a.Close(manifest)
 	require.NoError(t, err)
-	files := flaretest.ReadZip(t, data)
+	files := flaretest.ReadZipFile(t, data)
 
 	assert.Len(t, files["flare/small.txt"], 400)
 	assert.Len(t, files["flare/big.txt"], 600)
@@ -54,7 +56,7 @@ func TestArchiveScrubsAndDeduplicates(t *testing.T) {
 	require.NoError(t, a.AddText("escape.txt", []byte("second")))
 	data, err := a.Close(nil)
 	require.NoError(t, err)
-	files := flaretest.ReadZip(t, data)
+	files := flaretest.ReadZipFile(t, data)
 	assert.Contains(t, files, "escape.txt")
 	assert.Contains(t, files, "escape-1.txt")
 	assertNoSecrets(t, files, testAPIKey)
@@ -135,7 +137,31 @@ func TestRunTimeoutSkipsRemainingCollectors(t *testing.T) {
 
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
-	files := flaretest.ReadZip(t, data)
+	files := flaretest.ReadZipFile(t, data)
 	assert.NotContains(t, files, "never.txt")
 	assert.Contains(t, files, ManifestFile)
+}
+
+func TestArchiveFileLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	a := NewArchive(ArchiveOptions{Dir: dir})
+	require.NoError(t, a.AddText("a.txt", []byte("a")))
+	archivePath, err := a.Close(nil)
+	require.NoError(t, err)
+	assert.Equal(t, dir, filepath.Dir(archivePath))
+	assert.Contains(t, flaretest.ReadZipFile(t, archivePath), "a.txt")
+
+	discarded := NewArchive(ArchiveOptions{Dir: dir})
+	require.NoError(t, discarded.AddText("b.txt", []byte("b")))
+	discarded.Discard()
+	require.ErrorIs(t, discarded.AddText("c.txt", nil), ErrArchiveClosed)
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "the discarded archive is removed")
+	assert.Equal(t, filepath.Base(archivePath), entries[0].Name())
+
+	broken := NewArchive(ArchiveOptions{Dir: filepath.Join(dir, "missing")})
+	require.Error(t, broken.AddText("d.txt", nil))
+	_, err = broken.Close(nil)
+	require.Error(t, err)
 }
