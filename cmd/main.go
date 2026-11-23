@@ -46,6 +46,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	ddgr "github.com/DataDog/datadog-operator/internal/controller/datadoggenericresource"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -56,6 +57,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/secrets/resolver"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -389,8 +391,9 @@ func run(opts *options) error {
 	}
 
 	// Dispatch CLI flags to each package
-	if err := configureSecretBackend(opts); err != nil {
-		setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
+	secretBackendErr := configureSecretBackend(opts)
+	if secretBackendErr != nil {
+		setupLog.Error(secretBackendErr, "Invalid -secretBackendConfig JSON, secret backend disabled; DatadogGenericResource secret references will fail")
 	}
 
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
@@ -560,6 +563,7 @@ func run(opts *options) error {
 		DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
 		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
+		DatadogGenericResourceSecrets:     newGenericResourceSecretResolver(opts, secretBackendErr),
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
@@ -639,6 +643,15 @@ func configureSecretBackend(opts *options) error {
 	secrets.SetSecretBackendType(opts.secretBackendType)
 	secrets.SetSecretBackendConfig(backendConfig)
 	return nil
+}
+
+// newGenericResourceSecretResolver builds the DGR resolver on the configured secret backend; nil if the controller is disabled.
+func newGenericResourceSecretResolver(opts *options, configErr error) ddgr.SecretResolver {
+	if !opts.datadogGenericResourceEnabled {
+		return nil
+	}
+	configured := opts.secretBackendCommand != "" || opts.secretBackendType != ""
+	return resolver.New(secrets.NewSecretBackend(), configured, configErr)
 }
 
 func getVersionAndPlatformInfo(configCopy *rest.Config) (*apimversion.Info, kubernetes.PlatformInfo, error) {

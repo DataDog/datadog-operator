@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -33,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
+	"github.com/DataDog/datadog-operator/pkg/secrets/resolver"
 )
 
 const (
@@ -60,12 +60,15 @@ type Reconciler struct {
 	scheme               *runtime.Scheme
 	log                  logr.Logger
 	recorder             record.EventRecorder
+	secretResolver       SecretResolver
 }
 
 type ReconcilerOptions struct {
 	// APIReader bypasses the informer cache for pre-create checks.
 	APIReader     client.Reader
 	RequeuePeriod time.Duration
+	// SecretResolver resolves jsonSpec secret references; nil disables it.
+	SecretResolver SecretResolver
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, opts ...ReconcilerOptions) *Reconciler {
@@ -90,6 +93,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		scheme:               scheme,
 		log:                  log,
 		recorder:             recorder,
+		secretResolver:       options.SecretResolver,
 	}
 }
 
@@ -178,9 +182,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				err = handler.getResource(auth, instance)
 			}
 			if err != nil {
+				notFound := isResourceNotFound(err)
+				if resolver.HasReferences(instance.Spec.JsonSpec) {
+					err = hideDecodeErrorBody(err)
+				}
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
-				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+				if notFound {
 					shouldCreate = true
 				}
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
@@ -224,10 +232,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 	if shouldCreate || shouldUpdate {
 
-		if shouldCreate {
-			err = r.create(ctx, auth, handler, instance, status, now, instanceSpecHash)
-		} else if shouldUpdate {
-			err = r.update(ctx, auth, handler, instance, status, now, instanceSpecHash)
+		// Resolve once, before the hash is recorded, so a failed resolution is retried.
+		var sent payload
+		sent, err = r.resolveSecrets(ctx, instance)
+		if err != nil {
+			logger.Error(err, "error resolving secret references", "generic resource Id", instance.Status.Id)
+			syncStatus := v1alpha1.DatadogSyncStatusUpdateError
+			if shouldCreate {
+				syncStatus = v1alpha1.DatadogSyncStatusCreateError
+			}
+			updateErrStatus(status, now, syncStatus, "ResolvingSecretReferences", err)
+		} else if shouldCreate {
+			err = r.create(ctx, auth, handler, instance, sent, status, now, instanceSpecHash)
+		} else {
+			err = r.update(ctx, auth, handler, instance, sent, status, now, instanceSpecHash)
 		}
 
 		if errors.Is(err, errCreateSkipped) {
@@ -240,7 +258,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 		if err != nil {
 			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
-			if ctrutils.IsPermanentAPIError(err) {
+			// Secret resolution retries at the requeue period to limit backend calls.
+			if errors.Is(err, resolver.ErrUnresolved) {
+				result.RequeueAfter = r.requeuePeriod
+			} else if ctrutils.IsPermanentAPIError(err) {
 				result.RequeueAfter = r.forceSyncPeriod
 			} else {
 				result.RequeueAfter = defaultErrRequeuePeriod
@@ -251,6 +272,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		if hasLiveState {
 			state, refreshErr := refresher.refreshState(auth, instance)
 			if refreshErr != nil {
+				if resolver.HasReferences(instance.Spec.JsonSpec) {
+					refreshErr = hideDecodeErrorBody(refreshErr)
+				}
 				logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				// Preserve last-known state and surface the failure via the StateSynced condition.
 				// Do not fail reconcile.
@@ -274,7 +298,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
 }
 
-func (r *Reconciler) update(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) update(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, sent payload, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
@@ -285,18 +309,19 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	var remoteHash string
 	var err error
 	if hasher, ok := handler.(remoteDefinitionHasher); ok {
-		remoteHash, err = hasher.updateResourceWithHash(auth, instance)
+		remoteHash, err = hasher.updateResourceWithHash(auth, sent.instance)
 	} else {
-		err = handler.updateResource(auth, instance)
+		err = handler.updateResource(auth, sent.instance)
 	}
+	if isResourceNotFound(err) {
+		// If the remote resource was deleted out-of-band after we stored its ID,
+		// treat an update-time 404 as drift from the Kubernetes source of truth
+		// and recreate it immediately instead of waiting for the next force sync.
+		logger.Info("generic resource missing in Datadog during update; recreating", "generic resource Id", instance.Status.Id)
+		return r.create(ctx, auth, handler, instance, sent, status, now, hash)
+	}
+	err = hideSecrets(err, sent.secretValues)
 	if err != nil {
-		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
-			// If the remote resource was deleted out-of-band after we stored its ID,
-			// treat an update-time 404 as drift from the Kubernetes source of truth
-			// and recreate it immediately instead of waiting for the next force sync.
-			logger.Info("generic resource missing in Datadog during update; recreating", "generic resource Id", instance.Status.Id)
-			return r.create(ctx, auth, handler, instance, status, now, hash)
-		}
 		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericResource", err)
 		return err
@@ -317,7 +342,7 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	return nil
 }
 
-func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, sent payload, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
 	// Check the API server immediately before creating, including recreation after
 	// a remote 404. A different persisted ID means this reconcile is stale.
@@ -334,7 +359,8 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	}
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
-	result, err := handler.createResource(auth, instance)
+	result, err := handler.createResource(auth, sent.instance)
+	err = hideSecrets(err, sent.secretValues)
 	if err != nil {
 		logger.Error(err, "error creating resource", "type", instance.Spec.Type)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
