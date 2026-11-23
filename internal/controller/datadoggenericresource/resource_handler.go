@@ -25,12 +25,6 @@ type ResourceHandler interface {
 	getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
 	updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
 	deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
-	// refreshState fetches the live Datadog-side state of the resource.
-	// Returns (nil, nil) for resource types that do not expose live state — the
-	// caller should leave .status.state untouched in that case. On error, the
-	// caller should preserve last-known state and surface the failure via the
-	// StateSynced condition.
-	refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error)
 }
 
 // remoteDefinitionHasher is an optional extension of ResourceHandler. Handlers
@@ -44,4 +38,13 @@ type remoteDefinitionHasher interface {
 	// updateResourceWithHash updates the remote resource, in place of
 	// updateResource, and returns the hash of the definition it now has.
 	updateResourceWithHash(auth context.Context, instance *v1alpha1.DatadogGenericResource) (string, error)
+}
+
+// liveStateRefresher is an optional extension of ResourceHandler for resource
+// types with live Datadog-side state. Only these handlers are polled and get
+// the PollingDisabled state when state polling is disabled.
+type liveStateRefresher interface {
+	// refreshState fetches the live state. On error, the caller keeps the
+	// last-known state and reports the failure via the StateSynced condition.
+	refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error)
 }

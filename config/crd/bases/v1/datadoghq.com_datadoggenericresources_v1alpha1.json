@@ -136,7 +136,7 @@
           "type": "string"
         },
         "state": {
-          "description": "State is the live Datadog-side state of the underlying resource as last\nfetched from the Datadog API. Values are resource-type dependent — for\nMonitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:\nbreached, warning, ok, no_data. Only populated for resource types that\nexpose live state.",
+          "description": "State is the live Datadog-side state of the underlying resource as last\nfetched from the Datadog API. Values are resource-type dependent — for\nMonitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:\nbreached, warning, ok, no_data. Only populated for resource types that\nexpose live state. PollingDisabled when state polling is disabled.",
           "type": "string"
         },
         "stateLastTransitionTime": {
