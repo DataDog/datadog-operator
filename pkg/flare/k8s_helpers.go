@@ -65,6 +65,13 @@ func listUnstructured(ctx context.Context, reader client.Reader, gvk schema.Grou
 	}
 }
 
+// warnTruncated records in the manifest that a list stopped at maxListItems.
+func warnTruncated(c *Collection, kind string, list client.ObjectList) {
+	if list.GetContinue() != "" {
+		c.Warn(fmt.Errorf("only the first %d %s were collected", maxListItems, kind))
+	}
+}
+
 // isNotInstalled reports whether err means a kind isn't served by the API
 // server, for example because its CRD isn't installed.
 func isNotInstalled(err error) bool {

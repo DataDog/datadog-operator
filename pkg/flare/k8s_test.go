@@ -412,3 +412,14 @@ func TestCollectorsReportAPIErrors(t *testing.T) {
 	}
 	assert.Contains(t, files, ManifestFile)
 }
+
+func TestWarnTruncated(t *testing.T) {
+	c := &Collection{Archive: NewArchive(ArchiveOptions{})}
+	warnTruncated(c, "nodes", &corev1.NodeList{})
+	assert.Empty(t, c.recordedErrors())
+
+	truncated := &corev1.NodeList{}
+	truncated.Continue = "next"
+	warnTruncated(c, "nodes", truncated)
+	assert.Equal(t, []string{"only the first 2000 nodes were collected"}, c.recordedErrors())
+}
