@@ -32,11 +32,11 @@ var dummyValues = map[string]string{
 	"ns/looks;enc":      "ENC[ns/other;y]",
 }
 
-// fakeBackend resolves dummyValues, fails other handles and counts calls.
-type fakeBackend struct{ calls int }
+// fakeBackend resolves dummyValues, fails other handles and records the refs of each run.
+type fakeBackend struct{ runs [][]string }
 
 func (f *fakeBackend) Decrypt(refs []string) (map[string]string, error) {
-	f.calls++
+	f.runs = append(f.runs, refs)
 	out := map[string]string{}
 	for _, ref := range refs {
 		h, _ := secrets.ParseEnc(ref)
@@ -68,7 +68,7 @@ func TestResolveJSONWithoutReferences(t *testing.T) {
 			res, err := r.ResolveJSON(in)
 			require.NoError(t, err)
 			assert.Equal(t, Result{JSON: in}, res, "input must be returned byte for byte")
-			assert.Zero(t, b.calls)
+			assert.Empty(t, b.runs)
 		})
 	}
 }
@@ -107,7 +107,8 @@ func TestResolveJSON(t *testing.T) {
 	assert.Contains(t, out, `"big":12345678901234567890`, "large integers must keep their digits")
 	assert.Contains(t, out, `"huge":123456789012345678901234567890`)
 	assert.Contains(t, out, `"html":"<a & b>"`, "no HTML escaping")
-	assert.Equal(t, 3, b.calls, "one backend call per unique handle")
+	assert.Equal(t, [][]string{{"ENC[ns/client;tls.crt]", "ENC[ns/client;tls.key]", "ENC[prod/password]"}}, b.runs,
+		"one backend run with each unique handle once")
 }
 
 func TestResolveJSONTopLevelArray(t *testing.T) {
@@ -118,7 +119,7 @@ func TestResolveJSONTopLevelArray(t *testing.T) {
 }
 
 func TestResolveJSONEscapedReference(t *testing.T) {
-	in := `{"p": "ENC[prod/password]"}`
+	in := `{"p": "\u0045NC[prod/password]"}`
 	assert.True(t, HasReferences(in))
 	r, _ := newTestResolver()
 	res, err := r.ResolveJSON(in)
@@ -183,7 +184,7 @@ func TestResolveJSONNoBackend(t *testing.T) {
 	res, err = r.ResolveJSON(in)
 	require.NoError(t, err)
 	assert.Equal(t, Result{JSON: in}, res)
-	assert.Zero(t, b.calls)
+	assert.Empty(t, b.runs)
 }
 
 func TestResolveJSONInvalidConfig(t *testing.T) {
@@ -197,7 +198,7 @@ func TestResolveJSONInvalidConfig(t *testing.T) {
 	res, err = r.ResolveJSON(`{"v": "plain"}`)
 	require.NoError(t, err)
 	assert.Equal(t, Result{JSON: `{"v": "plain"}`}, res)
-	assert.Zero(t, b.calls)
+	assert.Empty(t, b.runs)
 }
 
 func TestResolveJSONWithSecretBackend(t *testing.T) {
@@ -224,4 +225,31 @@ EOF
 	require.ErrorIs(t, err, ErrUnresolved)
 	assert.Contains(t, err.Error(), "ns/bad;x")
 	assert.NotContains(t, err.Error(), "DUMMY")
+}
+
+func TestResolveJSONRetriesHandlesAlone(t *testing.T) {
+	r, b := newTestResolver()
+	_, err := r.ResolveJSON(`{"p": "ENC[prod/password]", "bad": "ENC[ns/bad;x]"}`)
+	require.ErrorIs(t, err, ErrUnresolved)
+	assert.Equal(t, [][]string{
+		{"ENC[ns/bad;x]", "ENC[prod/password]"},
+		{"ENC[ns/bad;x]"},
+		{"ENC[prod/password]"},
+	}, b.runs, "a failed batch is retried per handle")
+}
+
+// brokenBackend fails every run like a crashed or timed out backend.
+type brokenBackend struct{ fakeBackend }
+
+func (f *brokenBackend) Decrypt(refs []string) (map[string]string, error) {
+	_, _ = f.fakeBackend.Decrypt(refs)
+	return nil, secrets.NewDecryptorError(errors.New("timeout DUMMYBACKENDERROR"), true)
+}
+
+func TestResolveJSONBackendRunFails(t *testing.T) {
+	b := &brokenBackend{}
+	_, err := New(b, true, nil).ResolveJSON(`{"p": "ENC[prod/password]", "o": "ENC[ns/other;y]"}`)
+	require.ErrorIs(t, err, ErrUnresolved)
+	assert.EqualError(t, err, "unable to resolve secret references: secret backend failed")
+	assert.Len(t, b.runs, 1, "a failed run isn't retried per handle")
 }

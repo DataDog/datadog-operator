@@ -87,22 +87,47 @@ func (r *Resolver) ResolveJSON(jsonSpec string) (Result, error) {
 	return res, nil
 }
 
-// fetch resolves each handle separately, so the error can name only the failing ones.
-// Backend errors are dropped: their text comes from the backend and isn't guaranteed value-free.
+// fetch resolves all handles in one backend run. If a handle fails, each is retried alone so the
+// error names only the failing ones. Backend error text is dropped: it isn't guaranteed value-free.
 func (r *Resolver) fetch(handles []string) (map[string]string, error) {
-	values := make(map[string]string, len(handles))
+	values, err := r.decrypt(handles)
+	if err == nil {
+		return values, nil
+	}
+	if secrets.Retriable(err) {
+		// The run itself failed (exec, timeout, output); retrying each handle would only repeat it.
+		return nil, fmt.Errorf("%w: secret backend failed", ErrUnresolved)
+	}
 	var left []string
 	for _, h := range handles {
-		ref := "ENC[" + h + "]"
-		out, err := r.backend.Decrypt([]string{ref})
-		if v, ok := out[ref]; err != nil || !ok {
+		if _, err := r.decrypt([]string{h}); err != nil {
 			left = append(left, h)
-		} else {
-			values[h] = v
 		}
 	}
-	if len(left) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrUnresolved, strings.Join(left, ", "))
+	if len(left) == 0 {
+		// Each resolved alone but not together; can't tell which one is at fault.
+		left = handles
+	}
+	return nil, fmt.Errorf("%w: %s", ErrUnresolved, strings.Join(left, ", "))
+}
+
+// decrypt resolves handles in one backend run, keyed by handle.
+func (r *Resolver) decrypt(handles []string) (map[string]string, error) {
+	refs := make([]string, len(handles))
+	for i, h := range handles {
+		refs[i] = "ENC[" + h + "]"
+	}
+	out, err := r.backend.Decrypt(refs)
+	if err != nil {
+		return nil, err
+	}
+	values := make(map[string]string, len(handles))
+	for i, h := range handles {
+		v, ok := out[refs[i]]
+		if !ok {
+			return nil, errors.New("missing value")
+		}
+		values[h] = v
 	}
 	return values, nil
 }
