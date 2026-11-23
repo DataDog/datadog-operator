@@ -875,7 +875,7 @@ spec:
                               injectionMode:
                                 description: |-
                                   InjectionMode is the injection mode to use for libraries injection.
-                                  Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+                                  Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
                                   Empty by default so the Cluster Agent can apply its own defaults.
                                 enum:
                                 - auto
@@ -1610,6 +1610,16 @@ spec:
                                     type: string
                                 type: object
                             type: object
+                          databaseBenchmarks:
+                            description: DatabaseBenchmarks contains configuration
+                              for database benchmarks.
+                            properties:
+                              enabled:
+                                description: |-
+                                  Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+                                  Default: false
+                                type: boolean
+                            type: object
                           enabled:
                             description: |-
                               Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
@@ -2065,13 +2075,22 @@ spec:
                               probes are disabled; privileged mode is retained for cgroup permission patching.
                               To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
                               core agent and system-probe containers via spec.override.nodeAgent.containers.
+                              Applies to NVIDIA GPUs only.
                               Default: false
                             type: boolean
                           requiredRuntimeClassName:
                             description: |-
                               PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
                               If the value is an empty string, the runtime class is not set.
-                              Default: nvidia
+                              Default: nvidia, or unset when vendor is amd
+                            type: string
+                          vendor:
+                            description: |-
+                              Vendor selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings,
+                              sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot.
+                            enum:
+                            - nvidia
+                            - amd
                             type: string
                         type: object
                       helmCheck:
