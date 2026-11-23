@@ -68,7 +68,7 @@ A `manifest.json` file at the root of the archive lists what was collected and w
 ### Privacy and limits
 
 * Secrets are never read. API and App keys, tokens, passwords, certificates and credentials in URLs are scrubbed from every file before it's added to the archive, with the Datadog Agent scrubber. Values of sensitive keys (such as `apiKey`, `clusterAgentToken` or `caBundle`) and of sensitive environment variables are replaced.
-* A flare is capped at about 50 MB of files and 2 minutes of collection. Each container log is tailed to its last 10,000 lines and 10 MB. When a collector fails, or a limit is reached, the Operator still sends the partial flare and the manifest says what's missing.
+* A flare is capped at about 20 MB of files and 2 minutes of collection. Each container log is tailed to its last 10,000 lines and 10 MB. When a collector fails, or a limit is reached, the Operator still sends the partial flare and the manifest says what's missing.
 * The flare is sent with the Operator API key to the flare intake of the configured site (`DD_SITE`, or `DD_DD_URL`/`DD_URL`), with the hostname `datadog-operator.<cluster ID>`, where the cluster ID is the UID of the `kube-system` namespace.
 
 ### Permissions

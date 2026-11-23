@@ -24,8 +24,9 @@ import (
 )
 
 const (
-	// listPageSize is the page size of list calls.
-	listPageSize = 500
+	// listPageSize is the page size of list calls. Pages are small because
+	// Datadog resources such as dashboards can be large.
+	listPageSize = 100
 	// maxListItems caps the objects collected per kind.
 	maxListItems = 2000
 	// maxEventsPerKind caps the events collected per kind or workload.
@@ -40,7 +41,19 @@ const (
 // listUnstructured lists objects of a kind in all namespaces, up to
 // maxListItems. found is false when the kind isn't installed.
 func listUnstructured(ctx context.Context, reader client.Reader, gvk schema.GroupVersionKind, opts ...client.ListOption) (items []unstructured.Unstructured, found bool, truncated bool, err error) {
+	found, truncated, err = eachUnstructuredPage(ctx, reader, gvk, func(page []unstructured.Unstructured) bool {
+		items = append(items, page...)
+		return true
+	}, opts...)
+	return items, found, truncated, err
+}
+
+// eachUnstructuredPage lists objects of a kind page by page, up to
+// maxListItems, so that only one page is held in memory. It stops when page
+// returns false. found is false when the kind isn't installed.
+func eachUnstructuredPage(ctx context.Context, reader client.Reader, gvk schema.GroupVersionKind, page func([]unstructured.Unstructured) bool, opts ...client.ListOption) (found bool, truncated bool, err error) {
 	continueToken := ""
+	seen := 0
 	for {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk.GroupVersion().WithKind(gvk.Kind + "List"))
@@ -50,17 +63,24 @@ func listUnstructured(ctx context.Context, reader client.Reader, gvk schema.Grou
 		}
 		if err := reader.List(ctx, list, listOpts...); err != nil {
 			if isNotInstalled(err) {
-				return nil, false, false, nil
+				return false, false, nil
 			}
-			return items, true, false, err
+			return true, false, err
 		}
-		items = append(items, list.Items...)
-		if len(items) >= maxListItems {
-			return items[:maxListItems], true, true, nil
+		items := list.Items
+		if seen+len(items) > maxListItems {
+			items = items[:maxListItems-seen]
+		}
+		seen += len(items)
+		if !page(items) {
+			return true, true, nil
 		}
 		continueToken = list.GetContinue()
 		if continueToken == "" {
-			return items, true, false, nil
+			return true, false, nil
+		}
+		if seen >= maxListItems {
+			return true, true, nil
 		}
 	}
 }
