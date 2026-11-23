@@ -151,7 +151,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	}
 
 	if utils.ShouldReturn(groupsResult, groupsErr) {
-		return r.updateStatusIfNeeded(ctx, instance, newStatus, groupsResult, groupsErr, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, groupsResult, groupsErr, now, conditionMessages, evaluatedConditions)
 	}
 
 	// Always requeue
