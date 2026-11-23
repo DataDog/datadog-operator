@@ -73,8 +73,20 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	}
 
 	f.rcEnabled = featureutils.IsKubernetesActionsRCEnabled(ddaSpec)
-	// The private action runner feature enables the runner under the same condition.
 	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
+	if f.parEnabled {
+		if par := ddaSpec.Features.PrivateActionRunner; par == nil {
+			f.logger.Info("Warning: Kubernetes Actions communication.privateActionRunner.enabled is true and features.privateActionRunner is not configured; the Private Action Runner is enabled automatically on the Cluster Agent")
+		} else {
+			parEnabled := apiutils.BoolValue(par.Enabled)
+			if cluster := par.ClusterAgent; cluster != nil && cluster.Enabled != nil {
+				parEnabled = *cluster.Enabled
+			}
+			if !parEnabled {
+				f.logger.Info("Warning: Kubernetes Actions communication.privateActionRunner.enabled is true, but features.privateActionRunner disables the Private Action Runner on the Cluster Agent; Kubernetes actions cannot be delivered through Private Action Runner")
+			}
+		}
+	}
 	if !f.rcEnabled && !f.parEnabled {
 		f.logger.Error(nil, "Kubernetes Actions is enabled but both communication.remoteConfiguration.enabled and communication.privateActionRunner.enabled are false; the feature will not be configured")
 		return reqComp

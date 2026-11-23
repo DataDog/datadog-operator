@@ -6,11 +6,14 @@
 package kubernetesactions
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/go-logr/logr/funcr"
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -200,4 +203,63 @@ func Test_kubernetesActionsFeature_NoOpManagers(t *testing.T) {
 	assert.NoError(t, f.ManageNodeAgent(nil))
 	assert.NoError(t, f.ManageClusterChecksRunner(nil))
 	assert.NoError(t, f.ManageOtelAgentGateway(nil))
+}
+
+func TestKubernetesActionsPARWarnings(t *testing.T) {
+	const disabledPARWarning = "Warning: Kubernetes Actions communication.privateActionRunner.enabled is true, but features.privateActionRunner disables the Private Action Runner on the Cluster Agent; Kubernetes actions cannot be delivered through Private Action Runner"
+	const missingPARWarning = "Warning: Kubernetes Actions communication.privateActionRunner.enabled is true and features.privateActionRunner is not configured; the Private Action Runner is enabled automatically on the Cluster Agent"
+	disabled := &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(false)}
+	for _, tt := range []struct {
+		name            string
+		par             *v2alpha1.PrivateActionRunnerFeatureConfig
+		communication   *v2alpha1.KubernetesActionsCommunicationConfig
+		actionsDisabled bool
+		oldAgent        bool
+		wantWarning     string
+	}{
+		{name: "shared PAR disabled with default channels", par: disabled, wantWarning: disabledPARWarning},
+		{name: "empty PAR block disables automatic activation", par: &v2alpha1.PrivateActionRunnerFeatureConfig{}, wantWarning: disabledPARWarning},
+		{name: "cluster runner explicitly disabled", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(false)}}, wantWarning: disabledPARWarning},
+		{name: "only node runner enabled", par: &v2alpha1.PrivateActionRunnerFeatureConfig{NodeAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(true)}}, wantWarning: disabledPARWarning},
+		{name: "PAR-only channel with disabled runner", par: disabled, communication: &v2alpha1.KubernetesActionsCommunicationConfig{RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(false)}, PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}}, wantWarning: disabledPARWarning},
+		{name: "PAR feature absent with default channels", wantWarning: missingPARWarning},
+		{name: "PAR feature absent with explicit PAR channel", communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}}, wantWarning: missingPARWarning},
+		{name: "PAR feature absent with defaulted PAR channel", communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{}}, wantWarning: missingPARWarning},
+		{name: "PAR feature absent with PAR channel disabled", communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(false)}}},
+		{name: "PAR feature absent with Kubernetes Actions disabled", actionsDisabled: true},
+		{name: "PAR feature absent with unsupported Cluster Agent version", oldAgent: true},
+		{name: "shared PAR enabled", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}},
+		{name: "empty cluster settings inherit shared enablement", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{}}},
+		{name: "cluster runner enabled over shared disable", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(false), ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(true)}}},
+		{name: "cluster runner enabled without shared enablement", par: &v2alpha1.PrivateActionRunnerFeatureConfig{ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(true)}}},
+		{name: "PAR delivery channel disabled", par: disabled, communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(false)}}},
+		{name: "Kubernetes Actions disabled", par: disabled, actionsDisabled: true},
+		{name: "unsupported Cluster Agent version", par: disabled, oldAgent: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var warnings []string
+			logger := funcr.New(func(_, message string) {
+				if strings.Contains(message, "Warning: Kubernetes Actions communication.privateActionRunner.enabled") {
+					warnings = append(warnings, message)
+				}
+			}, funcr.Options{})
+			dda := testutils.NewDatadogAgentBuilder().WithKubernetesActionsEnabled(!tt.actionsDisabled).WithClusterAgentTag("7.86.0").Build()
+			dda.Spec.Features.PrivateActionRunner = tt.par
+			dda.Spec.Features.KubernetesActions.Communication = tt.communication
+			if tt.oldAgent {
+				dda.Spec.Override[v2alpha1.ClusterAgentComponentName].Image.Tag = "7.83.0"
+			}
+			f := buildKubernetesActionsFeature(&feature.Options{Logger: logger}).(*kubernetesActionsFeature)
+			req := f.Configure(dda, &dda.Spec, nil)
+			if tt.wantWarning != "" {
+				if assert.Len(t, warnings, 1) {
+					assert.Contains(t, warnings[0], tt.wantWarning)
+				}
+				assert.True(t, req.ClusterAgent.IsEnabled(), "the warning must not disable Kubernetes Actions")
+				assert.True(t, f.parEnabled, "the warning must not change the requested delivery channel")
+			} else {
+				assert.Empty(t, warnings)
+			}
+		})
+	}
 }
