@@ -471,6 +471,11 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                args:
+                  items:
+                    type: string
+                  type: array
+                  x-kubernetes-list-type: atomic
                 autoscaling:
                   properties:
                     behavior:

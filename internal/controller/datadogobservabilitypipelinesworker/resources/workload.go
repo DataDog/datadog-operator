@@ -50,11 +50,15 @@ func newPodSpec(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, i
 
 func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, image workerImage) corev1.Container {
 	spec := worker.Spec
+	args := spec.Args
+	if len(args) == 0 {
+		args = []string{"run"}
+	}
 	return corev1.Container{
 		Name:            ContainerName,
 		Image:           image.reference,
 		ImagePullPolicy: image.pullPolicy,
-		Args:            []string{"run"},
+		Args:            args,
 		Env:             newEnvironment(worker),
 		EnvFrom:         spec.EnvFrom,
 		Ports:           containerPorts(spec.Ports),

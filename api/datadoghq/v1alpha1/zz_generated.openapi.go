@@ -885,6 +885,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterCompactorC
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -1163,6 +1183,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentS
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"podDisruptionBudget": {
@@ -1969,6 +2009,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"podDisruptionBudget": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodDisruptionBudget configures the component Pod disruption budget. When omitted, the global setting or Operator default is used. Set this field to an empty object to disable the budget for this component.",
@@ -2247,6 +2307,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"podDisruptionBudget": {
@@ -2610,6 +2690,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"podDisruptionBudget": {
@@ -3076,6 +3176,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"podDisruptionBudget": {
@@ -5621,6 +5741,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 						SchemaProps: spec.SchemaProps{
 							Description: "SecurityContext is the security context of the component container. When set, it replaces the Operator default entirely. The default runs the container as the non-root user of the component image. BYOC components run as user 1005 with a read-only root filesystem, and the Observability Pipelines Worker runs as user and group 1000.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args are the arguments of the component container. When non-empty, they replace the Operator default entirely; BYOC components must keep --service <service>. The default is \"run --service <service>\" for BYOC components and \"run\" for the Observability Pipelines Worker.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"podDisruptionBudget": {

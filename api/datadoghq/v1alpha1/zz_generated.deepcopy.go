@@ -558,6 +558,11 @@ func (in *DatadogBYOCClusterComponentSpec) DeepCopyInto(out *DatadogBYOCClusterC
 		*out = new(corev1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.PodDisruptionBudget != nil {
 		in, out := &in.PodDisruptionBudget, &out.PodDisruptionBudget
 		*out = new(DatadogBYOCClusterPodDisruptionBudgetSpec)
