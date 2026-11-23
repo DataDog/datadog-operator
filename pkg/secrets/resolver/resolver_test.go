@@ -148,6 +148,10 @@ func TestResolveJSONUnresolved(t *testing.T) {
 			handles:  []string{"ns/bad;x"},
 			resolved: []string{"ns/client;tls.key", "prod/password"},
 		},
+		"empty reference": {
+			in:      `{"v": " ENC[] ", "p": "ENC[prod/password]"}`,
+			handles: []string{"empty ENC[] reference"},
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r, _ := newTestResolver()

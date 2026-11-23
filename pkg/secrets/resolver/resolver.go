@@ -68,6 +68,9 @@ func (r *Resolver) ResolveJSON(jsonSpec string) (Result, error) {
 	if r.configErr != nil {
 		return Result{}, fmt.Errorf("%w: invalid secret backend configuration", ErrUnresolved)
 	}
+	if slices.Contains(handles, "") {
+		return Result{}, fmt.Errorf("%w: empty ENC[] reference", ErrUnresolved)
+	}
 
 	values, err := r.fetch(handles)
 	if err != nil {
