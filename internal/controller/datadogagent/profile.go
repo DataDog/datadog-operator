@@ -145,7 +145,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		return appliedProfiles, err
 	}
 
-	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode, dsNSName.Namespace); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
 	}
 
@@ -338,7 +338,7 @@ func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alph
 	if !ok || override == nil {
 		override = &v2alpha1.DatadogAgentComponentOverride{}
 	}
-	return common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
+	return common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile, ddai.Namespace))
 }
 
 func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) error {

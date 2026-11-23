@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
@@ -198,17 +199,23 @@ func Test_profilesCleanup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reconciler := reconcilerForFinalizerTest([]client.Object{
-				testutils.NewNode("node-a", map[string]string{constants.ProfileLabelKey: "profile-a"}),
-				testutils.NewNode("node-b", map[string]string{constants.ProfileLabelKey: "profile-b"}),
+				testutils.NewNode("node-a", map[string]string{
+					agentprofile.NodeLabelKey("foo"):   "profile-a",
+					agentprofile.NodeLabelKey("other"): "profile-a",
+				}),
+				testutils.NewNode("node-b", map[string]string{agentprofile.NodeLabelKey("foo"): "profile-b"}),
 				testutils.NewNode("node-default", nil),
 			})
 
-			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName))
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo"))
 
 			for nodeName, want := range tt.wantLabelled {
 				node := &corev1.Node{}
 				assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: nodeName}, node))
-				assert.Equal(t, want, node.Labels[constants.ProfileLabelKey], nodeName)
+				assert.Equal(t, want, node.Labels[agentprofile.NodeLabelKey("foo")], nodeName)
+				if nodeName == "node-a" {
+					assert.Equal(t, "profile-a", node.Labels[agentprofile.NodeLabelKey("other")])
+				}
 			}
 		})
 	}
@@ -228,17 +235,17 @@ func Test_profilesCleanup_emptyLabelValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reconciler := reconcilerForFinalizerTest([]client.Object{
-				testutils.NewNode("node-empty", map[string]string{constants.ProfileLabelKey: ""}),
+				testutils.NewNode("node-empty", map[string]string{agentprofile.NodeLabelKey("foo"): ""}),
 			})
 
-			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName))
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo"))
 
 			node := &corev1.Node{}
 			assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-empty"}, node))
 			if tt.wantLabel {
-				assert.Contains(t, node.Labels, constants.ProfileLabelKey)
+				assert.Contains(t, node.Labels, agentprofile.NodeLabelKey("foo"))
 			} else {
-				assert.NotContains(t, node.Labels, constants.ProfileLabelKey)
+				assert.NotContains(t, node.Labels, agentprofile.NodeLabelKey("foo"))
 			}
 		})
 	}
@@ -255,7 +262,7 @@ func Test_finalizeDDAI_defaultDDAI(t *testing.T) {
 	}
 	reconciler := reconcilerForFinalizerTest([]client.Object{
 		ddai,
-		testutils.NewNode("node-a", map[string]string{constants.ProfileLabelKey: "profile-a"}),
+		testutils.NewNode("node-a", map[string]string{agentprofile.NodeLabelKey("foo"): "profile-a"}),
 		testutils.NewNode("node-default", nil),
 	})
 
@@ -263,11 +270,11 @@ func Test_finalizeDDAI_defaultDDAI(t *testing.T) {
 
 	nodeA := &corev1.Node{}
 	assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-a"}, nodeA))
-	assert.Equal(t, "profile-a", nodeA.Labels[constants.ProfileLabelKey])
+	assert.Equal(t, "profile-a", nodeA.Labels[agentprofile.NodeLabelKey("foo")])
 
 	nodeDefault := &corev1.Node{}
 	assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-default"}, nodeDefault))
-	assert.NotContains(t, nodeDefault.Labels, constants.ProfileLabelKey)
+	assert.NotContains(t, nodeDefault.Labels, agentprofile.NodeLabelKey("foo"))
 }
 
 func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {

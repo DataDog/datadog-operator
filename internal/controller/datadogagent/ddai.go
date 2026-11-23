@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -116,13 +117,15 @@ func getDDAILabels(dda *v2alpha1.DatadogAgent) map[string]string {
 	return labels
 }
 
-func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, dda *v2alpha1.DatadogAgent, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
 	validDDAIMap := make(map[string]struct{}, len(validDDAIs))
 	for _, ddai := range validDDAIs {
 		validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)] = struct{}{}
 	}
 	ddaiList := &v1alpha1.DatadogAgentInternalList{}
-	if err := r.client.List(ctx, ddaiList); err != nil {
+	if err := r.client.List(ctx, ddaiList, client.InNamespace(dda.Namespace), client.MatchingLabels{
+		apicommon.DatadogAgentNameLabelKey: dda.Name,
+	}); err != nil {
 		return err
 	}
 	for _, ddai := range ddaiList.Items {

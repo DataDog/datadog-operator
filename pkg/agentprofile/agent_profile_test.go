@@ -7,6 +7,7 @@ package agentprofile
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/go-logr/logr"
 
 	"github.com/stretchr/testify/assert"
@@ -27,9 +27,18 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const testNamespace = "default"
+
+func TestNodeLabelKey(t *testing.T) {
+	for _, namespace := range []string{"datadog", "tenant-a", strings.Repeat("a", 63)} {
+		assert.Empty(t, validation.IsQualifiedName(NodeLabelKey(namespace)))
+	}
+	assert.Equal(t, "datadog.agent.datadoghq.com/datadogagentprofile", NodeLabelKey("datadog"))
+	assert.NotEqual(t, NodeLabelKey("tenant-a"), NodeLabelKey("tenant-b"))
+}
 
 func TestGetMaxUnavailableFromSpec(t *testing.T) {
 	overrideValue := intstr.FromString("25%")
@@ -849,12 +858,12 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			},
 			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "profile",
 				}),
 				createNodeWithLabels("node2", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "profile",
 				}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
@@ -882,13 +891,13 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			},
 			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "profile",
 				}),
 				createNodeWithLabels("node2", map[string]string{"os": "linux"}),
 				createNodeWithLabels("node3", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "wrong-profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "wrong-profile",
 				}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},

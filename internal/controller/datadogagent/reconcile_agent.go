@@ -25,9 +25,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-// labelNodesWithProfiles sets the "agent.datadoghq.com/datadogagentprofile" label only in
-// the nodes where a profile is applied
-func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
+// labelNodesWithProfiles updates profile assignments only for this Agent namespace.
+func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string) error {
+	profileLabelKey := agentprofile.NodeLabelKey(namespace)
 	for nodeName, profileNamespacedName := range profilesByNode {
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 
@@ -48,19 +48,22 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		// If the profile is the default one and the label exists in the node,
 		// it should be removed.
 		if isDefaultProfile {
-			if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists {
-				labelsToRemove[constants.ProfileLabelKey] = true
+			if _, profileLabelExists := node.Labels[profileLabelKey]; profileLabelExists {
+				labelsToRemove[profileLabelKey] = true
 			}
 		} else {
 			// If the profile is not the default one and the label does not exist in
 			// the node, it should be added. If the label value is outdated, it
 			// should be updated.
-			if profileLabelValue := node.Labels[constants.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
-				labelsToAddOrChange[constants.ProfileLabelKey] = profileNamespacedName.Name
+			if profileLabelValue := node.Labels[profileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+				labelsToAddOrChange[profileLabelKey] = profileNamespacedName.Name
 			}
 		}
 
-		// Remove old profile label key if it is present
+		// Remove the legacy shared assignment labels during migration.
+		if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists {
+			labelsToRemove[constants.ProfileLabelKey] = true
+		}
 		if _, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]; oldProfileLabelExists {
 			labelsToRemove[agentprofile.OldProfileLabelKey] = true
 		}
@@ -77,7 +80,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			maps.Copy(newLabels, labelsToAddOrChange)
 		}
 
-		if len(newLabels) == 0 {
+		if len(labelsToRemove) == 0 && len(labelsToAddOrChange) == 0 {
 			continue
 		}
 

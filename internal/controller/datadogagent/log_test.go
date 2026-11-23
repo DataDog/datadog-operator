@@ -85,14 +85,16 @@ func TestHelpersUseContextLogger(t *testing.T) {
 	}{
 		{
 			name:    "unused DDAI cleanup",
-			objects: []runtime.Object{&v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "unused", Namespace: "ns"}}},
-			run:     func(ctx context.Context, r *Reconciler) error { return r.cleanUpUnusedDDAIs(ctx, nil) },
+			objects: []runtime.Object{&v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "unused", Namespace: "ns", Labels: map[string]string{"agent.datadoghq.com/datadogagent": "dda"}}}},
+			run: func(ctx context.Context, r *Reconciler) error {
+				return r.cleanUpUnusedDDAIs(ctx, &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "dda", Namespace: "ns"}}, nil)
+			},
 		},
 		{
 			name:    "node label changes",
 			objects: []runtime.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"existing": "label"}}}},
 			run: func(ctx context.Context, r *Reconciler) error {
-				return r.labelNodesWithProfiles(ctx, map[string]types.NamespacedName{"node": {Name: "profile", Namespace: "ns"}})
+				return r.labelNodesWithProfiles(ctx, map[string]types.NamespacedName{"node": {Name: "profile", Namespace: "ns"}}, "ns")
 			},
 		},
 		{

@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -98,11 +99,71 @@ func Test_reconcileProfiles_Namespace(t *testing.T) {
 			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
 			podErr := fakeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, &corev1.Pod{})
 			if sameNamespaceProfile {
-				assert.Equal(t, foreignProfile.Name, gotNode.Labels[constants.ProfileLabelKey])
+				assert.Equal(t, foreignProfile.Name, gotNode.Labels[agentprofile.NodeLabelKey("datadog")])
 				require.NoError(t, podErr)
 			} else {
 				assert.NotContains(t, gotNode.Labels, constants.ProfileLabelKey)
 				assert.True(t, apierrors.IsNotFound(podErr), "previously applied cross-namespace profile pod must be deleted: %v", podErr)
+			}
+		})
+	}
+}
+
+func Test_reconcileProfiles_MultipleNamespaces(t *testing.T) {
+	for _, secondProfile := range []bool{false, true} {
+		name := "second namespace has no profiles"
+		if secondProfile {
+			name = "same profile name in both namespaces"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			sch := agenttestutils.TestScheme()
+			profile := testAPMMatrixProfile("agent-a", "profile", metav1.Now(), workerProfileRequirement(), nil)
+			node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "worker", Labels: map[string]string{"profile": "worker"}}}
+			objects := []k8sruntime.Object{profile, node}
+			if secondProfile {
+				other := profile.DeepCopy()
+				other.Namespace = "agent-b"
+				objects = append(objects, other)
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).
+				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+			r := &Reconciler{client: fakeClient, scheme: sch}
+
+			for i, namespace := range []string{"agent-a", "agent-b", "agent-a", "agent-b"} {
+				ddai := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: namespace}}
+				applied, err := r.reconcileProfiles(ctx, types.NamespacedName{Name: "agent", Namespace: namespace}, intstr.FromInt(1), ddai)
+				require.NoError(t, err)
+				gotNode := &corev1.Node{}
+				require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
+				assert.Equal(t, profile.Name, gotNode.Labels[agentprofile.NodeLabelKey("agent-a")], "reconciling %s must preserve agent-a's assignment", namespace)
+				if secondProfile && i > 0 {
+					assert.Equal(t, profile.Name, gotNode.Labels[agentprofile.NodeLabelKey("agent-b")], "reconciling %s must preserve agent-b's assignment", namespace)
+				} else {
+					assert.NotContains(t, gotNode.Labels, agentprofile.NodeLabelKey("agent-b"))
+				}
+				hasProfile := namespace == "agent-a" || secondProfile
+				wantApplied := 1
+				if hasProfile {
+					wantApplied++
+				}
+				require.Len(t, applied, wantApplied)
+				for _, appliedProfile := range applied {
+					affinity := setProfileDDAIAffinity(ddai, appliedProfile)
+					selector, err := nodeaffinity.NewNodeSelector(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+					require.NoError(t, err)
+					isDefault := agentprofile.IsDefaultProfile(appliedProfile.Namespace, appliedProfile.Name)
+					assert.Equal(t, !isDefault || !hasProfile, selector.Match(gotNode), "namespace %s, profile %s", namespace, appliedProfile.Name)
+				}
+			}
+
+			// Finalizing one namespace must preserve the other namespace's assignment.
+			require.NoError(t, r.profilesCleanup(ctx, "agent-a"))
+			gotNode := &corev1.Node{}
+			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
+			assert.NotContains(t, gotNode.Labels, agentprofile.NodeLabelKey("agent-a"))
+			if secondProfile {
+				assert.Equal(t, profile.Name, gotNode.Labels[agentprofile.NodeLabelKey("agent-b")])
 			}
 		})
 	}
@@ -158,7 +219,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "10394c6b4f1e5029544f602ecb5a557b",
+						constants.MD5DDAIDeploymentAnnotationKey: "9ede0e2088d78de526dc93e90cdfeb9a",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -176,7 +237,7 @@ func Test_computeProfileMerge(t *testing.T) {
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},
@@ -271,7 +332,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "a9033f6ffba89ddf862136d39a5db466",
+						constants.MD5DDAIDeploymentAnnotationKey: "465beed1eea604efe8f0a1e7c402591f",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -295,7 +356,7 @@ func Test_computeProfileMerge(t *testing.T) {
 														Values:   []string{"foo"},
 													},
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpIn,
 														Values:   []string{"foo-profile"},
 													},
@@ -615,7 +676,7 @@ func Test_setProfileSpec(t *testing.T) {
 														Values:   []string{"value"},
 													},
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},
@@ -731,7 +792,7 @@ func Test_setProfileSpec(t *testing.T) {
 														Values:   []string{"foo"},
 													},
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpIn,
 														Values:   []string{"foo-profile"},
 													},
@@ -809,7 +870,7 @@ func Test_setProfileSpec(t *testing.T) {
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},

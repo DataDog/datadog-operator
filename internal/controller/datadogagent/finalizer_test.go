@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
@@ -120,7 +121,12 @@ func Test_handleFinalizer(t *testing.T) {
 
 	nodes := []*corev1.Node{
 		testutils.NewNode("node-1", nil),
-		testutils.NewNode("node-2", map[string]string{constants.ProfileLabelKey: "true"}), // The label should be deleted
+		testutils.NewNode("node-2", map[string]string{
+			constants.ProfileLabelKey:          "legacy-profile",
+			agentprofile.NodeLabelKey("foo"):   "profile",
+			agentprofile.NodeLabelKey("other"): "other-profile",
+		}),
+		testutils.NewNode("node-3", map[string]string{agentprofile.NodeLabelKey("foo"): "profile"}),
 	}
 
 	for _, clusterRole := range existingClusterRoles {
@@ -158,6 +164,10 @@ func Test_handleFinalizer(t *testing.T) {
 		err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: node.Name}, currentNode)
 		assert.NoError(t, err)
 		assert.NotContains(t, currentNode.Labels, constants.ProfileLabelKey)
+		assert.NotContains(t, currentNode.Labels, agentprofile.NodeLabelKey("foo"))
+		if node.Name == "node-2" {
+			assert.Equal(t, "other-profile", currentNode.Labels[agentprofile.NodeLabelKey("other")])
+		}
 	}
 }
 

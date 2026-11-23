@@ -211,7 +211,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *datadoghqv
 	}
 
 	// Clean up unused DDAI objects
-	if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
+	if e := r.cleanUpUnusedDDAIs(ctx, instance, ddais); e != nil {
 		return r.updateStatusIfNeeded(ctx, instance, ddaStatusCopy, result, e, now)
 	}
 
