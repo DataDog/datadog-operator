@@ -31,25 +31,31 @@ type SecretResolver interface {
 	ResolveJSON(jsonSpec string) (resolver.Result, error)
 }
 
-// resolveSecrets returns a copy of instance with resolved references, and the resolved values.
-func (r *Reconciler) resolveSecrets(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (*v1alpha1.DatadogGenericResource, []string, error) {
+// payload is what's sent to Datadog: the instance with resolved references, and the values to redact.
+type payload struct {
+	instance     *v1alpha1.DatadogGenericResource
+	secretValues []string
+}
+
+// resolveSecrets returns the payload for instance, with a copy if references were resolved.
+func (r *Reconciler) resolveSecrets(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (payload, error) {
 	if r.secretResolver == nil {
-		return instance, nil, nil
+		return payload{instance: instance}, nil
 	}
 	res, err := r.secretResolver.ResolveJSON(instance.Spec.JsonSpec)
 	if err != nil {
-		return nil, nil, err
+		return payload{}, err
 	}
 	if res.NoBackend {
 		ctrl.LoggerFrom(ctx).Info(noSecretBackendMsg)
 		r.recorder.Event(instance, corev1.EventTypeWarning, "SecretBackendNotConfigured", noSecretBackendMsg)
 	}
 	if len(res.Values) == 0 {
-		return instance, nil, nil
+		return payload{instance: instance}, nil
 	}
 	resolved := instance.DeepCopy()
 	resolved.Spec.JsonSpec = res.JSON
-	return resolved, res.Values, nil
+	return payload{instance: resolved, secretValues: res.Values}, nil
 }
 
 // redactedError replaces err's message, keeping err in the chain for classification.
@@ -111,15 +117,9 @@ func hideSecrets(err error, values []string) error {
 // secretForms returns how v can appear in a message: as is, %q-escaped and JSON-escaped.
 func secretForms(v string) []string {
 	quoted := strconv.Quote(v)
-	escaped := []string{quoted[1 : len(quoted)-1]}
+	forms := []string{v, quoted[1 : len(quoted)-1]}
 	if jsonQuoted, err := json.Marshal(v); err == nil {
-		escaped = append(escaped, string(jsonQuoted[1:len(jsonQuoted)-1]))
-	}
-	forms := []string{v}
-	for _, f := range escaped {
-		if !slices.Contains(forms, f) {
-			forms = append(forms, f)
-		}
+		forms = append(forms, string(jsonQuoted[1:len(jsonQuoted)-1]))
 	}
 	return forms
 }

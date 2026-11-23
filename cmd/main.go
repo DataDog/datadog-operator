@@ -393,7 +393,7 @@ func run(opts *options) error {
 	// Dispatch CLI flags to each package
 	secretBackendErr := configureSecretBackend(opts)
 	if secretBackendErr != nil {
-		setupLog.Error(secretBackendErr, "Invalid -secretBackendConfig JSON, ignoring")
+		setupLog.Error(secretBackendErr, "Invalid -secretBackendConfig JSON, secret backend disabled; DatadogGenericResource secret references will fail")
 	}
 
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
@@ -563,7 +563,7 @@ func run(opts *options) error {
 		DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
 		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
-		GenericResourceSecretResolver:     newGenericResourceSecretResolver(opts, secretBackendErr),
+		DatadogGenericResourceSecrets:     newGenericResourceSecretResolver(opts, secretBackendErr),
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,

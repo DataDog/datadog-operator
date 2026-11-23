@@ -262,10 +262,12 @@ func TestSecretsUpdateNotFoundRecreates(t *testing.T) {
 	require.NoError(t, env.r.client.Update(env.ctx, obj))
 	env.resolver.value = ctrutils.NotFoundString
 	mockUpdateErr = apiError(http.StatusNotFound, secretValue)
+	calls := env.resolver.calls
 
 	env.reconcile(t)
 	assert.Equal(t, 1, mockUpdateCalls)
 	assert.Equal(t, 2, mockCreateCalls, "a 404 on update must still recreate the resource")
+	assert.Equal(t, calls+1, env.resolver.calls, "update and the recreate must share one resolution")
 	env.assertNoSecretValue(t)
 }
 

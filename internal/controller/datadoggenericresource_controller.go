@@ -32,13 +32,13 @@ type DatadogGenericResourceReconciler struct {
 	Recorder     record.EventRecorder
 	Options      DatadogGenericResourceReconcilerOptions
 	internal     *ddgr.Reconciler
-	// SecretResolver resolves jsonSpec secret references; nil disables it.
-	SecretResolver ddgr.SecretResolver
 }
 
 type DatadogGenericResourceReconcilerOptions struct {
 	MaxConcurrentReconciles int
 	RequeuePeriod           time.Duration
+	// SecretResolver resolves jsonSpec secret references; nil disables it.
+	SecretResolver ddgr.SecretResolver
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
@@ -54,7 +54,7 @@ func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) er
 	r.internal = ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, ddgr.ReconcilerOptions{
 		APIReader:      mgr.GetAPIReader(),
 		RequeuePeriod:  r.Options.RequeuePeriod,
-		SecretResolver: r.SecretResolver,
+		SecretResolver: r.Options.SecretResolver,
 	})
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogGenericResource](r.Client, r)
