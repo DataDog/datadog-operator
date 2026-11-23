@@ -16,6 +16,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClusterChecksFeature(t *testing.T) {
@@ -102,9 +104,121 @@ func TestClusterChecksFeature(t *testing.T) {
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.UnprivilegedSingleAgentContainerName),
 		},
+		{
+			Name: "cluster checks enabled, runners enabled, and a dedicated runner group",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithClusterChecksRunnerGroups([]componentccr.Group{
+					{Name: "ksm", Checks: []string{"kubernetes_state_core"}},
+				}).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"ksm","checks":["kubernetes_state_core"]}]`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "mixed mode: knob on, runners off, node agents keep cluster checks",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithCoreChecksRunnerDefault().
+				WithKSMEnabled(true).
+				WithOrchestratorExplorerEnabled(true).
+				WithHelmCheckEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"core","checks":["kubernetes_state_core","orchestrator","helm"]}]`)),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+		},
+		{
+			Name: "knob on and runners on: the Cluster Agent learns both groups",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithCoreChecksRunnerDefault().
+				WithKSMEnabled(true).
+				WithOrchestratorExplorerEnabled(true).
+				WithHelmCheckEnabled(true).
+				WithClusterChecksRunnerGroups([]componentccr.Group{
+					{Name: "kafka", Checks: []string{"kafka_consumer"}},
+				}).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"core","checks":["kubernetes_state_core","orchestrator","helm"]},{"name":"kafka","checks":["kafka_consumer"]}]`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "runners off and knob off: user-declared groups are still materialized",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithClusterChecksRunnerGroups([]componentccr.Group{
+					{Name: "ksm", Checks: []string{"kubernetes_state_core"}},
+				}).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"ksm","checks":["kubernetes_state_core"]}]`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "runners off, overlapping groups: the check stays with the first group",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithClusterChecksRunnerGroups([]componentccr.Group{
+					{Name: "a", Checks: []string{"kubernetes_state_core"}},
+					{Name: "b", Checks: []string{"kubernetes_state_core"}},
+				}).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"a","checks":["kubernetes_state_core"]}]`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "runners off, knob on, Cluster Agent older than 7.86: groups are ignored",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithCoreChecksRunnerDefault().
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.85.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			ClusterChecksRunner: testClusterChecksRunnerHasNoEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+		},
 	}
 
 	tests.Run(t, buildClusterChecksFeature)
+}
+
+func TestRunnerGroupsJSON(t *testing.T) {
+	raw, err := runnerGroupsJSON(nil)
+	require.NoError(t, err)
+	assert.Empty(t, raw)
+	raw, err = runnerGroupsJSON([]componentccr.Group{
+		{Name: "b", Checks: []string{"y", "z"}},
+		{Name: "a", Checks: []string{"x"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, `[{"name":"b","checks":["y","z"]},{"name":"a","checks":["x"]}]`, raw)
 }
 
 func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
@@ -161,7 +275,14 @@ func wantClusterAgentHasExpectedEnvsAndChecksum(t testing.TB, mgrInterface featu
 	wantClusterAgentHasNonEmptyChecksumAnnotation(t, mgrInterface)
 }
 
-func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func wantClusterAgentWithRunnerGroups(runnerGroups string) func(testing.TB, feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		wantClusterAgentHasExpectedEnvs(t, mgrInterface, &corev1.EnvVar{Name: DDClusterChecksRunnerGroups, Value: runnerGroups})
+		wantClusterAgentHasNonEmptyChecksumAnnotation(t, mgrInterface)
+	}
+}
+
+func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTemplateManagers, extraEnvs ...*corev1.EnvVar) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
@@ -179,6 +300,7 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 			Value: kubeServicesAndEndpointsListeners,
 		},
 	}
+	expectedClusterAgentEnvs = append(expectedClusterAgentEnvs, extraEnvs...)
 
 	assert.True(
 		t,
@@ -215,6 +337,21 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 				t,
 				apiutils.IsEqualStruct(clusterRunnerEnvs, expectedClusterRunnerEnvs),
 				"Cluster Runner ENVs \ndiff = %s", cmp.Diff(clusterRunnerEnvs, expectedClusterRunnerEnvs),
+			)
+		},
+	)
+}
+
+func testClusterChecksRunnerHasNoEnvs() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
+			assert.Empty(
+				t,
+				clusterRunnerEnvs,
+				"Cluster Runner ENVs should be empty, got diff = %s", cmp.Diff(clusterRunnerEnvs, []*corev1.EnvVar{}),
 			)
 		},
 	)

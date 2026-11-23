@@ -52,6 +52,7 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 
 type cwsFeature struct {
 	syscallMonitorEnabled      bool
+	spec                       *v2alpha1.DatadogAgentSpec
 	networkEnabled             bool
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
@@ -90,6 +91,7 @@ func (f *cwsFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+	f.spec = ddaSpec
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(ddaSpec, ddaRCStatus)
@@ -271,7 +273,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 		// The system-probe submits the events itself and cannot resolve a secret-backed
 		// api_key on its own, so it needs config sync to get the resolved value.
-		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+		featureutils.EnableConfigSyncForDirectSend(managers, f.spec, []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		})

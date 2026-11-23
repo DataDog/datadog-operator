@@ -130,6 +130,8 @@ spec:
 | override.[nodeAgent].volumes | v1.29.0 |  |
 | override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |  |
 | features.apm.\* | v1.29.0 | Cluster Agent and admission controller must be enabled in DatadogAgent resource, if profile enables Single Step Instrumentation. Both are enabled by default. |
+| features.hostProfiler.\* | v1.32.0 | See [Configuration][3] for available fields |
 
 [1]: https://docs.datadoghq.com/containers/datadog_operator/providers
 [2]: https://docs.datadoghq.com/gpu_monitoring/setup/?tab=datadogoperator#set-up-gpu-monitoring-on-a-mixed-kubernetes-cluster
+[3]: ./configuration_public.md

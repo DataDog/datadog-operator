@@ -16,3 +16,5 @@ spec:
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
+    dataPlane:
+      enabled: false

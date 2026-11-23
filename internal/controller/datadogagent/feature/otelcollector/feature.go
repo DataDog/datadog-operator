@@ -62,6 +62,7 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 type otelCollectorFeature struct {
 	customConfig    *v2alpha1.CustomConfig
 	owner           metav1.Object
+	spec            *v2alpha1.DatadogAgentSpec
 	configMapName   string
 	ports           []*corev1.ContainerPort
 	coreAgentConfig coreAgentConfig
@@ -105,6 +106,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	}
 
 	o.owner = dda
+	o.spec = ddaSpec
 	if ddaSpec.Features.OtelCollector.Conf != nil {
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
@@ -357,23 +359,17 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
-	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
-	// core agent when secrets backend is used.
-	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcPort,
-		Value: "5009",
-	}
-	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcConfigRefreshInterval,
-		Value: "60",
-	}
+	// agent_ipc env vars for config sync with the core agent, required to fetch
+	// the API key when a secrets backend is used. User-provided values win.
+	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(o.spec)
 	// don't set env var if it was already set by user.
 	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
 		return current, nil
 	}
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent} {
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
+		for _, envVar := range agentIpcEnvVars {
+			managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, envVar, mergeFunc)
+		}
 	}
 
 	var enableEnvVar *corev1.EnvVar

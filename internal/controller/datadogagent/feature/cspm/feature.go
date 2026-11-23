@@ -51,6 +51,7 @@ func buildCSPMFeature(options *feature.Options) feature.Feature {
 
 type cspmFeature struct {
 	enable                    bool
+	spec                      *v2alpha1.DatadogAgentSpec
 	serviceAccountName        string
 	checkInterval             string
 	hostBenchmarksEnabled     bool
@@ -83,6 +84,7 @@ func (f *cspmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapab
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+	f.spec = ddaSpec
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(ddaSpec, ddaRCStatus)
@@ -388,7 +390,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	if f.runInSystemProbe {
 		// The system-probe submits the compliance payloads itself and cannot resolve a
 		// secret-backed api_key on its own, so it needs config sync to get the resolved value.
-		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+		featureutils.EnableConfigSyncForDirectSend(managers, f.spec, []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		})

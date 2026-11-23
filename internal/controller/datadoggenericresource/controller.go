@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -54,10 +55,12 @@ type Reconciler struct {
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
 	requeuePeriod   time.Duration
 	forceSyncPeriod time.Duration
-	scheme          *runtime.Scheme
-	log             logr.Logger
-	recorder        record.EventRecorder
-	secretResolver  SecretResolver
+	// statePollingDisabled is inverted so the zero value keeps polling on.
+	statePollingDisabled bool
+	scheme               *runtime.Scheme
+	log                  logr.Logger
+	recorder             record.EventRecorder
+	secretResolver       SecretResolver
 }
 
 type ReconcilerOptions struct {
@@ -85,10 +88,12 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
 		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
 		forceSyncPeriod: forceSyncPeriodFromEnv(log),
-		scheme:          scheme,
-		log:             log,
-		recorder:        recorder,
-		secretResolver:  options.SecretResolver,
+		// Shared with DatadogMonitor so one setting gates both controllers.
+		statePollingDisabled: !ctrutils.StatePollingEnabledFromEnv(log),
+		scheme:               scheme,
+		log:                  log,
+		recorder:             recorder,
+		secretResolver:       options.SecretResolver,
 	}
 }
 
@@ -206,6 +211,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 	}
 
+	// State polling can be disabled with DD_STATE_POLLING_ENABLED.
+	// Lifecycle and force-sync work above still run; only the refresh is skipped.
+	refresher, hasLiveState := handler.(liveStateRefresher)
+	if r.statePollingDisabled {
+		shouldRefreshStatus = false
+		if hasLiveState {
+			setStatePollingDisabled(status, now)
+		}
+	} else {
+		// Polling was re-enabled; clear the sentinel in case lifecycle work defers the first refresh.
+		if c := meta.FindStatusCondition(status.Conditions, string(condition.DatadogConditionTypeStateSynced)); c != nil && c.Reason == ctrutils.StatePollingDisabledState {
+			condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeStateSynced)
+		}
+		if status.State == ctrutils.StatePollingDisabledState {
+			status.State = ""
+			status.StateLastTransitionTime = &now
+		}
+	}
+
 	if shouldCreate || shouldUpdate {
 
 		if shouldCreate {
@@ -235,27 +259,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 	} else if shouldRefreshStatus {
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
-		state, refreshErr := handler.refreshState(auth, instance)
-		if refreshErr != nil {
-			if resolver.HasReferences(instance.Spec.JsonSpec) {
-				refreshErr = hideDecodeErrorBody(refreshErr)
+		if hasLiveState {
+			state, refreshErr := refresher.refreshState(auth, instance)
+			if refreshErr != nil {
+				if resolver.HasReferences(instance.Spec.JsonSpec) {
+					refreshErr = hideDecodeErrorBody(refreshErr)
+				}
+				logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				// Preserve last-known state and surface the failure via the StateSynced condition.
+				// Do not fail reconcile.
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
+			} else if state != nil {
+				applyResourceState(*state, status, now)
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
 			}
-			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
-			// Preserve last-known state and surface the failure via the StateSynced condition.
-			// Do not fail reconcile.
-			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
-		} else if state != nil {
-			// Resource type exposes live state — merge it into status.
-			applyResourceState(*state, status, now)
-			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
 		}
-		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
 	// If reconcile was successful and uneventful, requeue with the configured period.
 	// Requeue is needed here to distinguish an immediate requeue requested by the finalizer.
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = r.requeuePeriod
+		if r.statePollingDisabled {
+			result.RequeueAfter = r.untilForceSync(status, now)
+		}
 	}
 
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
@@ -370,6 +397,32 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 func updateErrStatus(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
 	status.SyncStatus = syncStatus
+}
+
+// untilForceSync returns the delay to the next force sync. An overdue force
+// sync (its last attempt failed) is retried at the requeue period, as before.
+func (r *Reconciler) untilForceSync(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) time.Duration {
+	last := status.LastForceSyncTime
+	if last == nil {
+		last = status.Created
+	}
+	if last == nil {
+		return r.forceSyncPeriod
+	}
+	if d := r.forceSyncPeriod - now.Sub(last.Time); d > 0 {
+		// Cap it in case the remote creation time is ahead of the local clock.
+		return min(d, r.forceSyncPeriod)
+	}
+	return r.requeuePeriod
+}
+
+// setStatePollingDisabled replaces polled state with a sentinel so consumers
+// expecting a Datadog state notice that polling is off.
+func setStatePollingDisabled(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) {
+	applyResourceState(ctrutils.StatePollingDisabledState, status, now)
+	status.StateLastUpdateTime = nil
+	msg := fmt.Sprintf("State polling is disabled by %s", ctrutils.StatePollingEnabledEnvVar)
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, ctrutils.StatePollingDisabledState, msg)
 }
 
 // applyResourceState merges a refreshed Datadog-side state into the CR status,

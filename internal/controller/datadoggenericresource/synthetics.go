@@ -35,10 +35,6 @@ func (h *SyntheticsAPITestHandler) deleteResource(auth context.Context, instance
 	return deleteSyntheticTest(auth, h.client, instance.Status.Id)
 }
 
-func (h *SyntheticsAPITestHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
-	return nil, nil
-}
-
 type SyntheticsBrowserTestHandler struct {
 	client *datadogV1.SyntheticsApi
 }
@@ -85,10 +81,6 @@ func createResultFromSyntheticsTest(createdTest interface{ GetPublicId() string 
 		CreatedTime: createdTime,
 		Creator:     creator,
 	}
-}
-
-func (h *SyntheticsBrowserTestHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
-	return nil, nil
 }
 
 // Synthetic tests (encompass browser and API tests): get
