@@ -76,7 +76,7 @@ func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha
 	f.parEnabled = featureutils.IsKubernetesActionsPAREnabled(ddaSpec)
 	if f.parEnabled {
 		if par := ddaSpec.Features.PrivateActionRunner; par == nil {
-			f.logger.Info("Warning: Kubernetes Actions communication.privateActionRunner.enabled is true and features.privateActionRunner is not configured; the Private Action Runner is enabled automatically on the Cluster Agent")
+			f.logger.V(1).Info("Kubernetes Actions communication.privateActionRunner.enabled is true and features.privateActionRunner is not configured; the Private Action Runner is enabled automatically on the Cluster Agent")
 		} else {
 			parEnabled := apiutils.BoolValue(par.Enabled)
 			if cluster := par.ClusterAgent; cluster != nil && cluster.Enabled != nil {
