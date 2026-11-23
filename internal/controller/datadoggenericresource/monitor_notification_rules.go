@@ -69,10 +69,6 @@ func (h *MonitorNotificationRuleHandler) deleteResource(auth context.Context, in
 	return deleteMonitorNotificationRule(auth, h.client, instance.Status.Id)
 }
 
-func (h *MonitorNotificationRuleHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
-	return nil, nil
-}
-
 func getMonitorNotificationRule(auth context.Context, client *datadogV2.MonitorsApi, ruleID string) (datadogV2.MonitorNotificationRuleResponse, error) {
 	if ruleID == "" {
 		return datadogV2.MonitorNotificationRuleResponse{}, fmt.Errorf("cannot get monitor notification rule: ruleID is empty")

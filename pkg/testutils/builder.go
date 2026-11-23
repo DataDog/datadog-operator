@@ -772,6 +772,28 @@ func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners b
 	return builder
 }
 
+// WithClusterChecksRunnerGroups sets the experimental cluster checks runner groups annotation to groups encoded as JSON.
+func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups any) *DatadogAgentBuilder {
+	raw, err := json.Marshal(groups)
+	if err != nil {
+		panic(err)
+	}
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, string(raw))
+}
+
+// WithCoreChecksRunnerDefault enables the experimental built-in core runner group.
+func (builder *DatadogAgentBuilder) WithCoreChecksRunnerDefault() *DatadogAgentBuilder {
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalCoreChecksRunnerDefault, "true")
+}
+
+func (builder *DatadogAgentBuilder) withAnnotation(key, value string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = map[string]string{}
+	}
+	builder.datadogAgent.Annotations[key] = value
+	return builder
+}
+
 // Prometheus Scrape
 
 func (builder *DatadogAgentBuilder) initPrometheusScrape() {

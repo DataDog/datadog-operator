@@ -49,6 +49,7 @@ func HasDeprecatedAnnotations(annotations map[string]string) bool {
 
 type hostProfilerFeature struct {
 	owner                   metav1.Object
+	spec                    *v2alpha1.DatadogAgentSpec
 	hostPIDDisabledManually bool
 	seccompEnabled          bool
 	loggingSeccomp          bool
@@ -81,6 +82,7 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
+	o.spec = ddaSpec
 
 	// Warn before the early return below, so that users who disabled the feature through the
 	// spec still hear about annotations that are left over.
@@ -272,19 +274,13 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
 
-	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
-	// core agent when secrets backend is used.
-	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcPort,
-		Value: "5009",
-	}
-	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  common.DDAgentIpcConfigRefreshInterval,
-		Value: "60",
-	}
+	// agent_ipc env vars for config sync with the core agent, required to fetch
+	// the API key when a secrets backend is used.
+	agentIpcEnvVars := featureutils.AgentIPCConfigSyncEnvVars(o.spec)
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
-		managers.EnvVar().AddEnvVarToContainer(container, agentIpcPortEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(container, agentIpcConfigRefreshIntervalEnvVar)
+		for _, envVar := range agentIpcEnvVars {
+			managers.EnvVar().AddEnvVarToContainer(container, envVar)
+		}
 	}
 
 	return nil

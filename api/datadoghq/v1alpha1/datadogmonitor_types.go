@@ -310,6 +310,8 @@ const (
 	DatadogMonitorConditionTypeUpdated DatadogMonitorConditionType = "Updated"
 	// DatadogMonitorConditionTypeError means the DatadogMonitor has an error
 	DatadogMonitorConditionTypeError DatadogMonitorConditionType = "Error"
+	// DatadogMonitorConditionTypeStateSynced reports why the monitor state is not being polled
+	DatadogMonitorConditionTypeStateSynced DatadogMonitorConditionType = "StateSynced"
 )
 
 // DatadogMonitorState represents the overall DatadogMonitor state
@@ -330,6 +332,8 @@ const (
 	DatadogMonitorStateIgnored DatadogMonitorState = "Ignored"
 	// DatadogMonitorStateUnknown means the DatadogMonitor is in an unknown state
 	DatadogMonitorStateUnknown DatadogMonitorState = "Unknown"
+	// DatadogMonitorStatePollingDisabled means the operator is not polling the monitor state
+	DatadogMonitorStatePollingDisabled DatadogMonitorState = "PollingDisabled"
 )
 
 // DatadogMonitorOptionsOnMissingData controls how groups or monitors are treated if an evaluation does not return any data points

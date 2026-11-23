@@ -102,6 +102,11 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 	})
 
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_AGENT_IPC_USE_SOCKET",
+		Value: "false",
+	})
+
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL",
 		Value: "0",
 	})

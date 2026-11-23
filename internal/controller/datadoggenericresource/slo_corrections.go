@@ -72,11 +72,6 @@ func (h *SLOCorrectionHandler) deleteResource(auth context.Context, instance *v1
 	return deleteSLOCorrection(auth, h.client, instance.Status.Id)
 }
 
-// refreshState is a no-op: SLO corrections expose no live state to poll.
-func (h *SLOCorrectionHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
-	return nil, nil
-}
-
 // getSLOCorrection fetches an SLO correction by ID.
 func getSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObjectiveCorrectionsApi, sloCorrectionID string) (datadogV1.SLOCorrectionResponse, error) {
 	if sloCorrectionID == "" {

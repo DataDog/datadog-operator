@@ -89,6 +89,8 @@ By default, the Operator ensures that the API monitor definition stays in sync w
 
 The controller requeues each `DatadogMonitor` every 60 seconds by default. Configure this interval with `--datadogMonitorRequeuePeriod` or `DD_MONITOR_REQUEUE_PERIOD`; both accept Go duration strings such as `30s` or `5m`. Configure the number of monitors reconciled concurrently with `--datadogMonitorMaxConcurrentReconciles` or `DD_MONITOR_MAX_CONCURRENT_RECONCILES` (default `1`). Increasing concurrency can improve throughput for large monitor collections, but increases Operator CPU usage and concurrent Datadog API requests. Scheduled status polling is lower priority than create, update, and delete work, so state fields are eventually consistent while the controller queue is busy.
 
+`DD_STATE_POLLING_ENABLED` (default `true`, also applies to `DatadogGenericResource`) controls monitor state polling. Polling calls the Datadog API on every requeue, which can hit API rate limits and slow down create, update, and delete operations, so enable it only when you need `status.monitorState`. When `false`, monitors only requeue for force sync, `status.monitorState` is `PollingDisabled`, and the `StateSynced` condition is `False` with reason `PollingDisabled`. Set the variable explicitly: the Operator logs an error when it is unset, because the default will change to `false`.
+
 ## Cleanup
 
 The following commands delete the monitor from your Datadog account and all the Kubernetes resources created by the above instructions:
