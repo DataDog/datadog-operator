@@ -7,6 +7,8 @@ package experimental_test
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -107,6 +109,14 @@ func TestWithoutInitConfigInvalid(t *testing.T) {
 		{"missing main YAML", func(_ *v1alpha1.DatadogAgentInternal, p *corev1.PodTemplateSpec) {
 			p.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{common.GetVolumeMountForConfig()}
 		}, "requires an explicit"},
+		{"read-only configuration parent", func(_ *v1alpha1.DatadogAgentInternal, p *corev1.PodTemplateSpec) {
+			for i := range p.Spec.Containers[0].VolumeMounts {
+				m := &p.Spec.Containers[0].VolumeMounts[i]
+				if m.Name == common.ConfigVolumeName && m.MountPath == common.ConfigVolumePath {
+					m.ReadOnly = true
+				}
+			}
+		}, "requires a writable shared configuration mount"},
 		{"missing init-volume", func(_ *v1alpha1.DatadogAgentInternal, p *corev1.PodTemplateSpec) { p.Spec.InitContainers = nil }, "requires init-volume"},
 		{"unknown ConfigMap keys", func(_ *v1alpha1.DatadogAgentInternal, p *corev1.PodTemplateSpec) {
 			for i := range p.Spec.Volumes {
@@ -305,6 +315,171 @@ func TestWithoutInitConfigEmptyInlineFiles(t *testing.T) {
 			if m.Name == "confd" || m.Name == "checksd" {
 				assert.Empty(t, m.SubPath)
 			}
+		}
+	}
+}
+
+func TestWithoutInitConfigManualInputs(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		mountPath  string
+		subPath    string
+		nested     bool
+		wantPath   string
+		wantSource string
+	}{
+		{name: "override only confd", mountPath: "/conf.d", wantPath: "conf.d/redis.yaml", wantSource: "redis.yaml"},
+		{name: "override replaces CRD input", nested: true, mountPath: "/conf.d", wantPath: "conf.d/redis.yaml", wantSource: "redis.yaml"},
+		{name: "override only checksd", mountPath: "/checks.d", wantPath: "checks.d/check.py", wantSource: "check.py"},
+		{name: "file subPath renamed", mountPath: "/conf.d/renamed.yaml", subPath: "redis.yaml", wantPath: "conf.d/renamed.yaml", wantSource: "redis.yaml"},
+		{name: "directory subPath", mountPath: "/conf.d/redisdb.d", subPath: "nested", wantPath: "conf.d/redisdb.d/cache.yaml", wantSource: "nested/cache.yaml"},
+		{name: "nested input", nested: true, mountPath: "/conf.d/redisdb.d", wantPath: "conf.d/redisdb.d/redis.yaml", wantSource: "redis.yaml"},
+		{name: "nested file hides CRD file", nested: true, mountPath: "/conf.d/redisdb.d/cache.yaml", subPath: "redis.yaml", wantPath: "conf.d/redisdb.d/cache.yaml", wantSource: "redis.yaml"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ddai, template := startupTemplate()
+			settings := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+			if !tc.nested {
+				settings.ExtraConfd = nil
+			}
+			settings.Volumes = []corev1.Volume{{Name: "custom-files", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "manual"},
+				Items:                []corev1.KeyToPath{{Key: "redis", Path: "redis.yaml"}, {Key: "python", Path: "check.py"}, {Key: "nested", Path: "nested/cache.yaml"}},
+			}}}}
+			settings.Containers = map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+				"init-config": {VolumeMounts: []corev1.VolumeMount{{Name: "custom-files", MountPath: tc.mountPath, SubPath: tc.subPath, ReadOnly: true}}},
+			}
+			// Build a fresh template so override-only cases do not retain earlier CRD volumes.
+			ds := componentagent.NewDefaultAgentDaemonset(ddai, feature.RequiredComponent{Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName, apicommon.TraceAgentContainerName,
+			}}, "test-agent")
+			template = &ds.Spec.Template
+			override.PodTemplateSpec(logr.Discard(), feature.NewPodTemplateManagers(template), settings, v2alpha1.NodeAgentComponentName, ddai.Name)
+			require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template))
+			for _, c := range template.Spec.Containers {
+				assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "custom-files", MountPath: "/etc/datadog-agent/" + tc.wantPath, SubPath: tc.wantSource, ReadOnly: true})
+				if tc.name == "nested file hides CRD file" {
+					assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/queue.yaml", SubPath: "redisdb.d/queue.yaml", ReadOnly: true})
+				}
+				if tc.nested {
+					for _, m := range c.VolumeMounts {
+						assert.False(t, m.Name == "confd" && m.SubPath == "redisdb.d/cache.yaml", "hidden CRD file must not be mounted")
+					}
+				}
+			}
+			for _, c := range template.Spec.InitContainers {
+				assert.NotEqual(t, "init-config", c.Name)
+			}
+		})
+	}
+}
+
+func TestWithoutInitConfigManualInputErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*corev1.PodTemplateSpec)
+		want   string
+	}{
+		{name: "missing volume", change: func(p *corev1.PodTemplateSpec) {
+			p.Spec.InitContainers[1].VolumeMounts = append(p.Spec.InitContainers[1].VolumeMounts, corev1.VolumeMount{Name: "missing", MountPath: "/conf.d/manual"})
+		}, want: "references missing volume"},
+		{name: "dynamic subPath", change: func(p *corev1.PodTemplateSpec) {
+			p.Spec.InitContainers[1].VolumeMounts = append(p.Spec.InitContainers[1].VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/conf.d/manual", SubPathExpr: "$(CONFIG)"})
+		}, want: "unsupported init-config mount"},
+		{name: "missing subPath", change: func(p *corev1.PodTemplateSpec) {
+			p.Spec.InitContainers[1].VolumeMounts = append(p.Spec.InitContainers[1].VolumeMounts, corev1.VolumeMount{Name: "confd", MountPath: "/conf.d/manual", SubPath: "missing.yaml"})
+		}, want: "references missing subPath"},
+		{name: "custom emptyDir", change: func(p *corev1.PodTemplateSpec) {
+			p.Spec.Volumes = append(p.Spec.Volumes, corev1.Volume{Name: "dynamic", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
+			p.Spec.InitContainers[1].VolumeMounts = append(p.Spec.InitContainers[1].VolumeMounts, corev1.VolumeMount{Name: "dynamic", MountPath: "/conf.d/manual"})
+		}, want: "volume dynamic must use a ConfigMap"},
+		{name: "Secret", change: func(p *corev1.PodTemplateSpec) {
+			p.Spec.Volumes = append(p.Spec.Volumes, corev1.Volume{Name: "private", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "configs"}}})
+			p.Spec.InitContainers[1].VolumeMounts = append(p.Spec.InitContainers[1].VolumeMounts, corev1.VolumeMount{Name: "private", MountPath: "/checks.d/manual"})
+		}, want: "volume private must use a ConfigMap"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ddai, template := startupTemplate()
+			tc.change(template)
+			before := template.DeepCopy()
+			require.ErrorContains(t, experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template), tc.want)
+			assert.Equal(t, before, template)
+		})
+	}
+}
+
+func TestWithoutInitConfigManualDestinationMounts(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		mount    corev1.VolumeMount
+		conflict bool
+	}{
+		{name: "disjoint", mount: corev1.VolumeMount{Name: "manual", MountPath: "/etc/datadog-agent/conf.d/other.yaml"}},
+		{name: "identical", mount: corev1.VolumeMount{Name: "confd", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml", SubPath: "redisdb.d/cache.yaml", ReadOnly: true}},
+		{name: "same file", mount: corev1.VolumeMount{Name: "manual", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml"}, conflict: true},
+		{name: "parent", mount: corev1.VolumeMount{Name: "manual", MountPath: "/etc/datadog-agent/conf.d/redisdb.d"}, conflict: true},
+		{name: "child", mount: corev1.VolumeMount{Name: "manual", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/cache.yaml/child"}, conflict: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ddai, template := startupTemplate()
+			template.Spec.Containers[0].VolumeMounts = append(template.Spec.Containers[0].VolumeMounts, tc.mount)
+			before := template.DeepCopy()
+			err := experimental.ApplyWithoutInitConfig(context.Background(), fake.NewClientBuilder().Build(), ddai, template)
+			if tc.conflict {
+				require.ErrorContains(t, err, "conflicting mount")
+				assert.Equal(t, before, template)
+				return
+			}
+			require.NoError(t, err)
+			count := 0
+			for _, m := range template.Spec.Containers[0].VolumeMounts {
+				if reflect.DeepEqual(m, tc.mount) {
+					count++
+				}
+			}
+			assert.Equal(t, 1, count)
+			if tc.name == "disjoint" {
+				assert.NotContains(t, template.Spec.Containers[1].VolumeMounts, tc.mount)
+			}
+		})
+	}
+}
+
+func TestWithoutInitConfigPermissions(t *testing.T) {
+	for _, mode := range []int32{0400, 0440, 0600, 0640, 0644} {
+		for _, optional := range []bool{false, true} {
+			t.Run(fmt.Sprintf("mode_%04o/optional_%t", mode, optional), func(t *testing.T) {
+				ddai, template := startupTemplate()
+				ddai.Namespace = "test"
+				template.Spec.SecurityContext = &corev1.PodSecurityContext{
+					RunAsUser: ptr.To[int64](1000), RunAsGroup: ptr.To[int64](1000), FSGroup: ptr.To[int64](2000),
+				}
+				template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(true)}
+				for i := range template.Spec.Volumes {
+					if v := &template.Spec.Volumes[i]; v.Name == "confd" {
+						v.ConfigMap.DefaultMode = ptr.To(mode)
+						v.ConfigMap.Optional = ptr.To(optional)
+						v.ConfigMap.Items[0].Mode = ptr.To[int32](0400)
+						// The second item inherits defaultMode.
+						v.ConfigMap.Items[1].Mode = nil
+					}
+				}
+				cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "redis", Namespace: "test"}, Data: map[string]string{"cache": "", "queue": ""}}
+				reader := fake.NewClientBuilder().WithObjects(cm).Build()
+				before := template.DeepCopy()
+				require.NoError(t, experimental.ApplyWithoutInitConfig(context.Background(), reader, ddai, template))
+				assert.Equal(t, before.Spec.Volumes, template.Spec.Volumes, "do not broaden or discard ConfigMap modes")
+				assert.Equal(t, before.Spec.SecurityContext, template.Spec.SecurityContext, "preserve UID, GID and fsGroup")
+				for i, c := range template.Spec.Containers {
+					assert.Equal(t, before.Spec.Containers[i].SecurityContext, c.SecurityContext)
+					for _, name := range []string{"cache", "queue"} {
+						assert.Contains(t, c.VolumeMounts, corev1.VolumeMount{
+							Name: "confd", MountPath: "/etc/datadog-agent/conf.d/redisdb.d/" + name + ".yaml",
+							SubPath: "redisdb.d/" + name + ".yaml", ReadOnly: true,
+						})
+					}
+				}
+			})
 		}
 	}
 }

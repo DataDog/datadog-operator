@@ -52,89 +52,29 @@ func mountWithoutInitConfig(ctx context.Context, reader client.Reader, ddai *v1a
 	if !slices.ContainsFunc(spec.InitContainers, func(c corev1.Container) bool { return c.Name == "init-volume" }) {
 		return fmt.Errorf("requires init-volume and the shared configuration directory")
 	}
-	var mounts []corev1.VolumeMount
-	override := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
-	for _, volume := range spec.Volumes {
-		var directory, extension string
-		var custom *v2alpha1.MultiCustomConfig
-		switch volume.Name {
-		case common.ConfdVolumeName:
-			directory, extension = "conf.d", ".yaml"
-			if override != nil {
-				custom = override.ExtraConfd
-			}
-		case common.ChecksdVolumeName:
-			directory, extension = "checks.d", ".py"
-			if override != nil {
-				custom = override.ExtraChecksd
-			}
-		default:
-			continue
-		}
-		if volume.EmptyDir != nil {
-			continue
-		}
-		if volume.ConfigMap == nil {
-			return fmt.Errorf("volume %s must use a ConfigMap", volume.Name)
-		}
-		items, err := configMapItems(ctx, reader, ddai.Namespace, volume, custom)
-		if err != nil {
-			return err
-		}
-		paths := map[string]bool{}
-		for _, item := range items {
-			if !safeConfigPath(item.Path) || paths[item.Path] {
-				return fmt.Errorf("volume %s has an unsafe or duplicate file path %q", volume.Name, item.Path)
-			}
-			paths[item.Path] = true
-			if !strings.HasSuffix(item.Path, extension) {
-				continue
-			}
-			mounts = append(mounts, corev1.VolumeMount{
-				Name: volume.Name, MountPath: path.Join(common.ConfigVolumePath, directory, item.Path),
-				SubPath: item.Path, ReadOnly: true,
-			})
-		}
+	initConfig := slices.IndexFunc(spec.InitContainers, func(c corev1.Container) bool { return c.Name == "init-config" })
+	if initConfig < 0 {
+		return nil // The transformation has already been applied.
+	}
+	mounts, err := customFileMounts(ctx, reader, ddai, spec, spec.InitContainers[initConfig].VolumeMounts)
+	if err != nil {
+		return err
 	}
 	consumers := 0
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
-		if !slices.ContainsFunc(container.VolumeMounts, func(m corev1.VolumeMount) bool {
+		configMount := slices.IndexFunc(container.VolumeMounts, func(m corev1.VolumeMount) bool {
 			return m.Name == common.ConfigVolumeName && m.MountPath == common.ConfigVolumePath
-		}) {
+		})
+		if configMount < 0 {
 			continue
 		}
 		consumers++
-		if !slices.ContainsFunc(container.VolumeMounts, func(m corev1.VolumeMount) bool {
-			return m.MountPath == path.Join(common.ConfigVolumePath, "datadog.yaml") && m.SubPath != "" && m.ReadOnly
-		}) {
-			return fmt.Errorf("container %s requires an explicit read-only datadog.yaml file mount", container.Name)
+		if err := validateInitConfigConsumer(container, container.VolumeMounts[configMount]); err != nil {
+			return err
 		}
-		for _, env := range container.Env {
-			switch env.Name {
-			case "DD_INSIDE_CI", "ECS_FARGATE", "ECS_MANAGED_INSTANCES", "DD_EKS_FARGATE", "MESOS_MASTER", "MESOS_SLAVE", "MARATHON_URL":
-				if env.Value != "" || env.ValueFrom != nil {
-					return fmt.Errorf("container %s sets %s, whose init script is outside this experiment", container.Name, env.Name)
-				}
-			}
-		}
-		for _, mount := range mounts {
-			exists := false
-			for _, current := range container.VolumeMounts {
-				if apiequality.Semantic.DeepEqual(current, mount) {
-					exists = true
-					continue
-				}
-				if current.MountPath == common.ConfigVolumePath {
-					continue
-				}
-				if current.MountPath == mount.MountPath || strings.HasPrefix(mount.MountPath, current.MountPath+"/") || strings.HasPrefix(current.MountPath, mount.MountPath+"/") {
-					return fmt.Errorf("container %s has a conflicting mount at %s", container.Name, current.MountPath)
-				}
-			}
-			if !exists {
-				container.VolumeMounts = append(container.VolumeMounts, mount)
-			}
+		if err := addCustomFileMounts(container, mounts); err != nil {
+			return err
 		}
 	}
 	if consumers == 0 {
@@ -142,6 +82,131 @@ func mountWithoutInitConfig(ctx context.Context, reader client.Reader, ddai *v1a
 	}
 	spec.InitContainers = slices.DeleteFunc(spec.InitContainers, func(c corev1.Container) bool { return c.Name == "init-config" })
 	return nil
+}
+
+func validateInitConfigConsumer(container *corev1.Container, configMount corev1.VolumeMount) error {
+	// init-config used to create nested mountpoints in the shared volume.
+	// Without it, a read-only parent can prevent containers from starting.
+	if configMount.ReadOnly {
+		return fmt.Errorf("container %s requires a writable shared configuration mount for nested mountpoints", container.Name)
+	}
+	if !slices.ContainsFunc(container.VolumeMounts, func(m corev1.VolumeMount) bool {
+		return m.MountPath == path.Join(common.ConfigVolumePath, "datadog.yaml") && m.SubPath != "" && m.ReadOnly
+	}) {
+		return fmt.Errorf("container %s requires an explicit read-only datadog.yaml file mount", container.Name)
+	}
+	for _, env := range container.Env {
+		switch env.Name {
+		case "DD_INSIDE_CI", "ECS_FARGATE", "ECS_MANAGED_INSTANCES", "DD_EKS_FARGATE", "MESOS_MASTER", "MESOS_SLAVE", "MARATHON_URL":
+			if env.Value != "" || env.ValueFrom != nil {
+				return fmt.Errorf("container %s sets %s, whose init script is outside this experiment", container.Name, env.Name)
+			}
+		}
+	}
+	return nil
+}
+
+func addCustomFileMounts(container *corev1.Container, mounts []corev1.VolumeMount) error {
+	for _, mount := range mounts {
+		exists := false
+		for _, current := range container.VolumeMounts {
+			if apiequality.Semantic.DeepEqual(current, mount) {
+				exists = true
+				continue
+			}
+			if current.MountPath == common.ConfigVolumePath {
+				continue
+			}
+			if current.MountPath == mount.MountPath || strings.HasPrefix(mount.MountPath, current.MountPath+"/") || strings.HasPrefix(current.MountPath, mount.MountPath+"/") {
+				return fmt.Errorf("container %s has a conflicting mount at %s", container.Name, current.MountPath)
+			}
+		}
+		if !exists {
+			container.VolumeMounts = append(container.VolumeMounts, mount)
+		}
+	}
+	return nil
+}
+
+// customFileMounts follows the effective init-config mounts after all overrides.
+// Volume names alone do not identify the files visible to the copy script.
+func customFileMounts(ctx context.Context, reader client.Reader, ddai *v1alpha1.DatadogAgentInternal, spec *corev1.PodSpec, inputs []corev1.VolumeMount) ([]corev1.VolumeMount, error) {
+	var mounts []corev1.VolumeMount
+	override := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+	for _, input := range inputs {
+		var extension string
+		var custom *v2alpha1.MultiCustomConfig
+		switch {
+		case input.MountPath == "/conf.d" || strings.HasPrefix(input.MountPath, "/conf.d/"):
+			extension = ".yaml"
+			if override != nil && input.Name == common.ConfdVolumeName {
+				custom = override.ExtraConfd
+			}
+		case input.MountPath == "/checks.d" || strings.HasPrefix(input.MountPath, "/checks.d/"):
+			extension = ".py"
+			if override != nil && input.Name == common.ChecksdVolumeName {
+				custom = override.ExtraChecksd
+			}
+		default:
+			continue
+		}
+		if path.Clean(input.MountPath) != input.MountPath || input.SubPathExpr != "" || (input.SubPath != "" && !safeConfigPath(input.SubPath)) {
+			return nil, fmt.Errorf("unsupported init-config mount at %s", input.MountPath)
+		}
+		index := slices.IndexFunc(spec.Volumes, func(v corev1.Volume) bool { return v.Name == input.Name })
+		if index < 0 {
+			return nil, fmt.Errorf("init-config mount %s references missing volume %s", input.MountPath, input.Name)
+		}
+		volume := spec.Volumes[index]
+		// These are the default empty input directories, not custom sources.
+		if volume.EmptyDir != nil && input.SubPath == "" && ((input.Name == common.ConfdVolumeName && input.MountPath == "/conf.d") || (input.Name == common.ChecksdVolumeName && input.MountPath == "/checks.d")) {
+			continue
+		}
+		if volume.ConfigMap == nil {
+			return nil, fmt.Errorf("volume %s must use a ConfigMap", volume.Name)
+		}
+		items, err := configMapItems(ctx, reader, ddai.Namespace, volume, custom)
+		if err != nil {
+			return nil, err
+		}
+		foundSubPath := input.SubPath == ""
+		paths := map[string]bool{}
+		for _, item := range items {
+			if !safeConfigPath(item.Path) || paths[item.Path] {
+				return nil, fmt.Errorf("volume %s has an unsafe or duplicate file path %q", volume.Name, item.Path)
+			}
+			paths[item.Path] = true
+			relative := item.Path
+			if input.SubPath != "" {
+				switch {
+				case item.Path == input.SubPath:
+					relative = ""
+				case strings.HasPrefix(item.Path, input.SubPath+"/"):
+					relative = strings.TrimPrefix(item.Path, input.SubPath+"/")
+				default:
+					continue
+				}
+			}
+			foundSubPath = true
+			filename := path.Join(input.MountPath, relative)
+			// A nested mount hides the corresponding files from its parent volume.
+			if slices.ContainsFunc(inputs, func(other corev1.VolumeMount) bool {
+				return strings.HasPrefix(other.MountPath, input.MountPath+"/") && (filename == other.MountPath || strings.HasPrefix(filename, other.MountPath+"/"))
+			}) || !strings.HasSuffix(filename, extension) {
+				continue
+			}
+			// Reuse the original projection so defaultMode and per-item modes remain
+			// effective. ConfigMap files remain read-only, including for root.
+			mounts = append(mounts, corev1.VolumeMount{
+				Name: volume.Name, MountPath: path.Join(common.ConfigVolumePath, filename),
+				SubPath: item.Path, ReadOnly: true,
+			})
+		}
+		if !foundSubPath {
+			return nil, fmt.Errorf("init-config mount %s references missing subPath %s", input.MountPath, input.SubPath)
+		}
+	}
+	return mounts, nil
 }
 
 // configMapItems preserves explicit mappings. Without them, Kubernetes projects
