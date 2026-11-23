@@ -52,6 +52,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/flare"
 	"github.com/DataDog/datadog-operator/pkg/flare/remoteflare"
 	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/introspection"
@@ -63,6 +64,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	//nolint:gci // Keep the scaffold marker in its own import section.
+	// +kubebuilder:scaffold:imports
 )
 
 const (
@@ -74,8 +77,6 @@ const (
 	defaultComponentHealthSnapshotInterval               = 60 * time.Second
 	defaultComponentHealthResolveGracePeriod             = 5 * time.Minute
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
-	healthProbeBindAddress                               = ":8081"
-	leaderElectionID                                     = "datadog-operator-lock"
 )
 
 var (
@@ -448,9 +449,9 @@ func run(opts *options) error {
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
-		HealthProbeBindAddress:     healthProbeBindAddress,
+		HealthProbeBindAddress:     ":8081",
 		LeaderElection:             opts.enableLeaderElection,
-		LeaderElectionID:           leaderElectionID,
+		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
@@ -525,7 +526,7 @@ func run(opts *options) error {
 			setupLog.Error(flareErr, "Unable to set up remote flares; flare requests from Fleet Automation will fail")
 		}
 		rcUpdaterOptions := []remoteconfig.RemoteConfigUpdaterOption{
-			remoteconfig.WithLogLevelSetter(remoteconfig.NewAtomicLogLevel(atomicLogLevel)),
+			remoteconfig.WithLogLevel(atomicLogLevel),
 			remoteconfig.WithLeaderCheck(isLeader),
 		}
 		if flareRunner != nil {
@@ -945,10 +946,10 @@ func newFlareRunner(opts *options, restConfig *rest.Config, reader client.Reader
 		Credentials:           creds,
 		MetricsAddr:           opts.metricsAddr,
 		SecureMetrics:         opts.secureMetrics,
-		HealthProbeAddr:       healthProbeBindAddress,
+		HealthProbeAddr:       ":" + flare.DefaultHealthProbePort,
 		Features:              opts.flareFeatures(),
 		LeaderElectionEnabled: opts.enableLeaderElection,
-		LeaderElectionID:      leaderElectionID,
+		LeaderElectionID:      flare.LeaderElectionID,
 		IsLeader:              isLeader,
 		RemoteConfigState:     rcState,
 		RemoteConfigOrg:       rcOrg,

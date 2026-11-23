@@ -33,10 +33,8 @@ var (
 )
 
 // DatadogResourcesCollectors returns the collectors of the Datadog custom
-// resources: every DatadogAgent, DatadogAgentInternal and DatadogAgentProfile
-// with its full spec and status, a status summary of the DatadogMonitor,
-// DatadogSLO, DatadogDashboard and DatadogGenericResource resources, and the
-// Kubernetes events of all of them.
+// resources (full for agents and profiles, status only for the others) and
+// their events.
 func DatadogResourcesCollectors() []Collector {
 	return []Collector{
 		fullResourceCollector("datadog/datadogagents", "datadog/datadogagents", datadogAgentGVK),

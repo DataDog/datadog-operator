@@ -31,86 +31,57 @@ import (
 )
 
 const (
-	// hostnamePrefix is the hostname of Operator flares, followed by the
-	// cluster ID.
-	hostnamePrefix = "datadog-operator"
-	// localHTTPTimeout bounds requests to the Operator's own endpoints.
+	// hostnamePrefix is followed by the cluster ID.
+	hostnamePrefix   = "datadog-operator"
 	localHTTPTimeout = 10 * time.Second
 )
 
-// CredentialsGetter returns the Operator credentials. Only the API key is
-// used. *config.CredentialManager implements it.
+// CredentialsGetter is implemented by *config.CredentialManager.
 type CredentialsGetter interface {
 	GetAPIKeyCredentials() (config.Creds, error)
 }
 
-// Config configures a Runner.
+// Config configures a Runner. Empty fields get the defaults NewRunner sets.
 type Config struct {
-	// Reader reads Kubernetes objects. Use the manager's API reader, which
-	// doesn't start informers.
-	Reader client.Reader
-	// Clientset reads pod logs, events and the server version.
-	Clientset kubernetes.Interface
-	// Credentials returns the API key used to upload flares.
+	// Reader should be the manager's API reader, which starts no informers.
+	Reader      client.Reader
+	Clientset   kubernetes.Interface
 	Credentials CredentialsGetter
 
-	// Namespace and PodName identify the Operator pod. POD_NAMESPACE and
-	// POD_NAME (or the hostname) if empty.
-	Namespace string
-	PodName   string
-	// ClusterName is the configured cluster name. DD_CLUSTER_NAME if empty.
+	Namespace   string
+	PodName     string
 	ClusterName string
-	// Site and DDURL select the flare intake. DD_SITE, and DD_DD_URL or
-	// DD_URL, if empty.
-	Site  string
-	DDURL string
-	// FlareURL overrides the flare intake base URL, for tests.
+	// Site and DDURL select the flare intake; FlareURL overrides it in tests.
+	Site     string
+	DDURL    string
 	FlareURL string
 
-	// MetricsAddr is the bind address of the metrics endpoint, such as
-	// :8080. "0" means it's disabled.
-	MetricsAddr string
-	// SecureMetrics is true if the metrics endpoint is served with HTTPS
-	// and authentication. The metrics are then read in-process.
-	SecureMetrics bool
-	// HealthProbeAddr is the bind address of the health probes, such as
-	// :8081.
+	// MetricsAddr "0" disables the metrics endpoint. With SecureMetrics, the
+	// metrics are read in-process.
+	MetricsAddr     string
+	SecureMetrics   bool
 	HealthProbeAddr string
 
-	// Features lists the controllers and features and whether they are
-	// enabled.
-	Features map[string]bool
-	// LeaderElectionEnabled and LeaderElectionID describe leader election.
+	Features              map[string]bool
 	LeaderElectionEnabled bool
 	LeaderElectionID      string
-	// IsLeader reports whether this replica is the leader.
-	IsLeader func() bool
-	// RemoteConfigState returns the Remote Configuration client state.
-	RemoteConfigState func() any
-	// RemoteConfigOrg returns what the Remote Configuration client knows of
-	// the org, for the manifest.
-	RemoteConfigOrg func() remoteconfig.FlareOrg
+	IsLeader              func() bool
+	RemoteConfigState     func() any
+	RemoteConfigOrg       func() remoteconfig.FlareOrg
 
-	// Flags are the command line flags. flag.CommandLine if nil.
-	Flags *flag.FlagSet
-	// Environ returns the environment. os.Environ if nil.
-	Environ func() []string
-	// Gatherer reads the metrics in-process. The controller-runtime
-	// registry if nil.
-	Gatherer prometheus.Gatherer
-	// HTTPClient sends the flare and reads the local endpoints.
-	HTTPClient *http.Client
-	// UploadRetryDelay is the delay between upload attempts.
+	Flags            *flag.FlagSet
+	Environ          func() []string
+	Gatherer         prometheus.Gatherer
+	HTTPClient       *http.Client
 	UploadRetryDelay time.Duration
 
-	// MaxBytes, Timeout, LogTailLines and LogLimitBytes are the flare
-	// limits. The flare package defaults if 0.
+	// MaxBytes, Timeout, LogTailLines and LogLimitBytes default to the flare
+	// package defaults.
 	MaxBytes      int64
 	Timeout       time.Duration
 	LogTailLines  int64
 	LogLimitBytes int64
 
-	// Now returns the current time. time.Now if nil.
 	Now func() time.Time
 }
 
@@ -178,9 +149,6 @@ func (r *Runner) Run(ctx context.Context, task remoteconfig.FlareTask) error {
 
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("the flare task was canceled before the flare was sent: %w", err)
-	}
-	if r.cfg.Credentials == nil {
-		return errors.New("unable to send the flare: no credentials")
 	}
 	creds, err := r.cfg.Credentials.GetAPIKeyCredentials()
 	if err != nil {
@@ -287,10 +255,6 @@ func (r *Runner) orgInfo(task remoteconfig.FlareTask) *flare.OrgInfo {
 		info.OrgID = flare.Known(orgID, "the Remote Configuration path of the flare task, "+task.ConfigPath)
 	}
 
-	if r.cfg.RemoteConfigOrg == nil {
-		info.OrgUUID = flare.UnknownOrgValue("the Remote Configuration org data is not available")
-		return info
-	}
 	org := r.cfg.RemoteConfigOrg()
 	if org.Site != "" && org.Site != info.Site.Value {
 		info.Site.Source += fmt.Sprintf("; the Remote Configuration client uses the site %s", org.Site)

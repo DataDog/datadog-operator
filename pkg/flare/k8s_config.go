@@ -8,6 +8,7 @@ package flare
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -15,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -23,10 +25,7 @@ import (
 )
 
 // ConfigCollectors returns the collectors of the configuration the Operator
-// generates or runs with: the ConfigMaps, RBAC and webhook configurations it
-// manages, the RBAC of its own service account, the installed Datadog CRD
-// versions, and its Deployment with its Helm chart metadata. Secrets are
-// never collected.
+// manages or runs with. Secrets are never collected.
 func ConfigCollectors() []Collector {
 	return []Collector{
 		{Name: "config/configmaps", Collect: collectConfigMaps},
@@ -55,53 +54,31 @@ func collectConfigMaps(ctx context.Context, c *Collection) error {
 }
 
 func collectRBAC(ctx context.Context, c *Collection) error {
-	managed := client.MatchingLabels{managedByLabel: managedByOperator}
+	lists := []struct {
+		kind string
+		list client.ObjectList
+	}{
+		{"ClusterRoles", &rbacv1.ClusterRoleList{}},
+		{"ClusterRoleBindings", &rbacv1.ClusterRoleBindingList{}},
+		{"Roles", &rbacv1.RoleList{}},
+		{"RoleBindings", &rbacv1.RoleBindingList{}},
+		{"ServiceAccounts", &corev1.ServiceAccountList{}},
+	}
 	failures := 0
-	list := func(kind string, obj client.ObjectList, opts ...client.ListOption) bool {
-		if err := c.Env.Reader.List(ctx, obj, append(opts, client.Limit(maxListItems))...); err != nil {
+	for _, l := range lists {
+		if err := c.Env.Reader.List(ctx, l.list, client.MatchingLabels{managedByLabel: managedByOperator}, client.Limit(maxListItems)); err != nil {
 			failures++
-			c.Warn(fmt.Errorf("unable to list %s: %w", kind, err))
-			return false
+			c.Warn(fmt.Errorf("unable to list %s: %w", l.kind, err))
+			continue
 		}
-		return true
+		_ = meta.EachListItem(l.list, func(o runtime.Object) error {
+			cleanTyped(o.(metav1.Object))
+			return nil
+		})
+		items := reflect.ValueOf(l.list).Elem().FieldByName("Items").Interface()
+		c.Warn(c.AddYAML("config/rbac/managed-"+strings.ToLower(l.kind)+".yaml", items))
 	}
-
-	clusterRoles := &rbacv1.ClusterRoleList{}
-	if list("ClusterRoles", clusterRoles, managed) {
-		for i := range clusterRoles.Items {
-			cleanTyped(&clusterRoles.Items[i])
-		}
-		c.Warn(c.AddYAML("config/rbac/managed-clusterroles.yaml", clusterRoles.Items))
-	}
-	clusterRoleBindings := &rbacv1.ClusterRoleBindingList{}
-	if list("ClusterRoleBindings", clusterRoleBindings, managed) {
-		for i := range clusterRoleBindings.Items {
-			cleanTyped(&clusterRoleBindings.Items[i])
-		}
-		c.Warn(c.AddYAML("config/rbac/managed-clusterrolebindings.yaml", clusterRoleBindings.Items))
-	}
-	roles := &rbacv1.RoleList{}
-	if list("Roles", roles, managed) {
-		for i := range roles.Items {
-			cleanTyped(&roles.Items[i])
-		}
-		c.Warn(c.AddYAML("config/rbac/managed-roles.yaml", roles.Items))
-	}
-	roleBindings := &rbacv1.RoleBindingList{}
-	if list("RoleBindings", roleBindings, managed) {
-		for i := range roleBindings.Items {
-			cleanTyped(&roleBindings.Items[i])
-		}
-		c.Warn(c.AddYAML("config/rbac/managed-rolebindings.yaml", roleBindings.Items))
-	}
-	serviceAccounts := &corev1.ServiceAccountList{}
-	if list("ServiceAccounts", serviceAccounts, managed) {
-		for i := range serviceAccounts.Items {
-			cleanTyped(&serviceAccounts.Items[i])
-		}
-		c.Warn(c.AddYAML("config/rbac/managed-serviceaccounts.yaml", serviceAccounts.Items))
-	}
-	if failures == 5 {
+	if failures == len(lists) {
 		return fmt.Errorf("unable to list RBAC resources")
 	}
 
@@ -128,6 +105,19 @@ func collectOperatorRBAC(ctx context.Context, c *Collection) {
 		}
 		return false
 	}
+	getRole := func(ref rbacv1.RoleRef) (client.Object, error) {
+		var role client.Object = &rbacv1.Role{}
+		key := types.NamespacedName{Namespace: pod.Namespace, Name: ref.Name}
+		if ref.Kind == "ClusterRole" {
+			role = &rbacv1.ClusterRole{}
+			key.Namespace = ""
+		}
+		if err := c.Env.Reader.Get(ctx, key, role); err != nil {
+			return nil, fmt.Errorf("unable to get %s %s: %w", ref.Kind, ref.Name, err)
+		}
+		cleanTyped(role)
+		return role, nil
+	}
 
 	operatorRBAC := map[string]any{"serviceAccount": pod.Namespace + "/" + saName}
 	clusterRoleBindings := &rbacv1.ClusterRoleBindingList{}
@@ -135,20 +125,18 @@ func collectOperatorRBAC(ctx context.Context, c *Collection) {
 		c.Warn(fmt.Errorf("unable to list ClusterRoleBindings: %w", err))
 	} else {
 		var bindings []rbacv1.ClusterRoleBinding
-		var roles []rbacv1.ClusterRole
+		var roles []any
 		for _, binding := range clusterRoleBindings.Items {
 			if !isOperatorSA(binding.Subjects) {
 				continue
 			}
 			cleanTyped(&binding)
 			bindings = append(bindings, binding)
-			role := rbacv1.ClusterRole{}
-			if err := c.Env.Reader.Get(ctx, types.NamespacedName{Name: binding.RoleRef.Name}, &role); err != nil {
-				c.Warn(fmt.Errorf("unable to get ClusterRole %s: %w", binding.RoleRef.Name, err))
-				continue
+			if role, err := getRole(binding.RoleRef); err != nil {
+				c.Warn(err)
+			} else {
+				roles = append(roles, role)
 			}
-			cleanTyped(&role)
-			roles = append(roles, role)
 		}
 		operatorRBAC["clusterRoleBindings"] = bindings
 		operatorRBAC["clusterRoles"] = roles
@@ -166,18 +154,11 @@ func collectOperatorRBAC(ctx context.Context, c *Collection) {
 			}
 			cleanTyped(&binding)
 			bindings = append(bindings, binding)
-			var role client.Object = &rbacv1.Role{}
-			key := types.NamespacedName{Namespace: pod.Namespace, Name: binding.RoleRef.Name}
-			if binding.RoleRef.Kind == "ClusterRole" {
-				role = &rbacv1.ClusterRole{}
-				key.Namespace = ""
+			if role, err := getRole(binding.RoleRef); err != nil {
+				c.Warn(err)
+			} else {
+				roles = append(roles, role)
 			}
-			if err := c.Env.Reader.Get(ctx, key, role); err != nil {
-				c.Warn(fmt.Errorf("unable to get %s %s: %w", binding.RoleRef.Kind, binding.RoleRef.Name, err))
-				continue
-			}
-			cleanTyped(role)
-			roles = append(roles, role)
 		}
 		operatorRBAC["roleBindings"] = bindings
 		operatorRBAC["roles"] = roles
@@ -185,47 +166,36 @@ func collectOperatorRBAC(ctx context.Context, c *Collection) {
 	c.Warn(c.AddYAML("config/rbac/operator-serviceaccount-rbac.yaml", operatorRBAC))
 }
 
-func isDatadogWebhook(obj metav1.Object) bool {
-	return obj.GetLabels()[managedByLabel] == managedByOperator || strings.Contains(strings.ToLower(obj.GetName()), "datadog")
-}
-
 func collectWebhooks(ctx context.Context, c *Collection) error {
-	failures := 0
-	mutating := &admissionregistrationv1.MutatingWebhookConfigurationList{}
-	if err := c.Env.Reader.List(ctx, mutating); err != nil {
-		failures++
-		c.Warn(fmt.Errorf("unable to list MutatingWebhookConfigurations: %w", err))
-	} else {
-		for i := range mutating.Items {
-			webhook := &mutating.Items[i]
-			if !isDatadogWebhook(webhook) {
-				continue
-			}
+	add := func(kind string, webhook client.Object) {
+		if webhook.GetLabels()[managedByLabel] == managedByOperator || strings.Contains(strings.ToLower(webhook.GetName()), "datadog") {
 			cleanTyped(webhook)
-			for j := range webhook.Webhooks {
-				webhook.Webhooks[j].ClientConfig.CABundle = nil
-			}
-			c.Warn(c.AddYAML(objectPath("config/webhooks/mutating", "", webhook.Name), webhook))
+			c.Warn(c.AddYAML(objectPath("config/webhooks/"+kind, "", webhook.GetName()), webhook))
 		}
+	}
+	mutating := &admissionregistrationv1.MutatingWebhookConfigurationList{}
+	mutatingErr := c.Env.Reader.List(ctx, mutating)
+	if mutatingErr != nil {
+		c.Warn(fmt.Errorf("unable to list MutatingWebhookConfigurations: %w", mutatingErr))
+	}
+	for i := range mutating.Items {
+		for j := range mutating.Items[i].Webhooks {
+			mutating.Items[i].Webhooks[j].ClientConfig.CABundle = nil
+		}
+		add("mutating", &mutating.Items[i])
 	}
 	validating := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
-	if err := c.Env.Reader.List(ctx, validating); err != nil {
-		failures++
-		c.Warn(fmt.Errorf("unable to list ValidatingWebhookConfigurations: %w", err))
-	} else {
-		for i := range validating.Items {
-			webhook := &validating.Items[i]
-			if !isDatadogWebhook(webhook) {
-				continue
-			}
-			cleanTyped(webhook)
-			for j := range webhook.Webhooks {
-				webhook.Webhooks[j].ClientConfig.CABundle = nil
-			}
-			c.Warn(c.AddYAML(objectPath("config/webhooks/validating", "", webhook.Name), webhook))
-		}
+	validatingErr := c.Env.Reader.List(ctx, validating)
+	if validatingErr != nil {
+		c.Warn(fmt.Errorf("unable to list ValidatingWebhookConfigurations: %w", validatingErr))
 	}
-	if failures == 2 {
+	for i := range validating.Items {
+		for j := range validating.Items[i].Webhooks {
+			validating.Items[i].Webhooks[j].ClientConfig.CABundle = nil
+		}
+		add("validating", &validating.Items[i])
+	}
+	if mutatingErr != nil && validatingErr != nil {
 		return fmt.Errorf("unable to list webhook configurations")
 	}
 	return nil
@@ -268,16 +238,12 @@ func collectCRDs(ctx context.Context, c *Collection) error {
 		if crd.Spec.Group != datadogGroup {
 			continue
 		}
+		cleanTyped(&crd)
 		summary := crdSummary{
 			Name:           crd.Name,
 			StoredVersions: crd.Status.StoredVersions,
 			Labels:         crd.Labels,
-			Annotations:    map[string]string{},
-		}
-		for key, value := range crd.Annotations {
-			if key != "kubectl.kubernetes.io/last-applied-configuration" {
-				summary.Annotations[key] = value
-			}
+			Annotations:    crd.Annotations,
 		}
 		for _, v := range crd.Spec.Versions {
 			summary.Versions = append(summary.Versions, crdVersion{Name: v.Name, Served: v.Served, Storage: v.Storage, Deprecated: v.Deprecated})
@@ -298,10 +264,8 @@ var (
 	helmAnnotations = []string{"meta.helm.sh/release-name", "meta.helm.sh/release-namespace"}
 )
 
-// collectOperatorDeployment collects the Operator pod, its Deployment, and the
-// Helm chart metadata of the Deployment. Helm stores the release values in a
-// Secret, so they aren't collected: the Deployment shows the flags and
-// environment the chart values produced.
+// collectOperatorDeployment collects the Operator pod, its Deployment and its
+// Helm chart metadata (not the values, which Helm keeps in a Secret).
 func collectOperatorDeployment(ctx context.Context, c *Collection) error {
 	pod := c.Env.OperatorPod
 	if pod == nil {

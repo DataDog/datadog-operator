@@ -190,13 +190,8 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 	archive := flare.NewArchive(flare.ArchiveOptions{Root: "datadog-operator"})
 
-	// The plugin runs on the user's machine and only sees the Operator
-	// through the Kubernetes API: it collects the Operator configuration
-	// from its pod spec, leader election from the Lease and health from the
-	// pod status and the probe endpoints (through the API server proxy).
-	// The Remote Configuration state is only in the Operator's memory: only
-	// flares requested from Fleet Automation, which the Operator collects
-	// itself, include it.
+	// The plugin only sees the Operator through the Kubernetes API, so it
+	// has no Remote Configuration state.
 	var operatorVersion *version.JSON
 	pluginCollectors := []flare.Collector{
 		{Name: "operator/version", Collect: func(ctx context.Context, c *flare.Collection) error {
@@ -225,9 +220,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	// The plugin only sees the site the Operator pod spec sets: the org
-	// UUID and org ID are only known to the Operator's Remote Configuration
-	// client.
+	// Only the site is known from the pod spec.
 	manifest.Org = flare.PodOrgInfo(leaderPod)
 
 	uploadVersion := fallbackVersion
@@ -284,12 +277,7 @@ func collectOperatorLogs(ctx context.Context, c *flare.Collection, clientset kub
 	if len(pods.Items) == 0 {
 		return fmt.Errorf("no pod with label %s in namespace %s", operatorLabel, namespace)
 	}
-	summaries := make([]flare.PodSummary, 0, len(pods.Items))
-	for i := range pods.Items {
-		summaries = append(summaries, flare.SummarizePod(&pods.Items[i]))
-		flare.CollectPodLogs(ctx, c, "operator/logs", &pods.Items[i])
-	}
-	return c.AddYAML("operator/pods.yaml", summaries)
+	return flare.CollectOperatorPods(ctx, c, pods.Items)
 }
 
 // collectMetrics gets the metrics of the leader pod through the API server
@@ -406,9 +394,8 @@ var versionCommands = [][]string{
 	{flare.OperatorBinary, "--version"},
 }
 
-// collectVersion gets the version of the leader pod and writes it to
-// operator/version.yaml. It runs the Operator binary in the pod, and falls
-// back to the tag of the Operator image.
+// collectVersion writes the version of the leader pod, from its binary or
+// else its image tag, to operator/version.yaml.
 func (o *options) collectVersion(ctx context.Context, c *flare.Collection, pod *corev1.Pod) (*version.JSON, error) {
 	info, source, err := resolveVersion(ctx, pod, o.execInPod)
 	if err != nil {
@@ -417,8 +404,8 @@ func (o *options) collectVersion(ctx context.Context, c *flare.Collection, pod *
 	return writeVersion(c, pod, info, source)
 }
 
-// writeVersion writes operator/version.yaml and returns the version with the
-// normalized version number, used for the manifest and the intake host.
+// writeVersion writes operator/version.yaml and returns the version,
+// normalized.
 func writeVersion(c *flare.Collection, pod *corev1.Pod, info *version.JSON, source string) (*version.JSON, error) {
 	if err := c.AddYAML("operator/version.yaml", map[string]any{
 		"pod":       pod.Name,

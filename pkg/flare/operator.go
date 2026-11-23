@@ -20,10 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// This file holds the Operator collectors and helpers shared by the remote
-// flare, which runs in the Operator process, and the kubectl plugin, which
-// runs on the user's machine and only sees the Operator through the
-// Kubernetes API.
+// Operator collectors and helpers shared by the remote flare and the kubectl plugin.
 
 const (
 	// LeaderElectionID is the name of the Operator's leader election Lease.
@@ -115,10 +112,8 @@ func OperatorContainer(pod *corev1.Pod) *corev1.Container {
 	return &pod.Spec.Containers[0]
 }
 
-// ContainerFlags returns the flags set in the command and args of a
-// container, in order, as name and value. A flag without a value, such as
-// --pprof, has the value "true" unless the next argument is its value.
-// Names are without dashes.
+// ContainerFlags returns the flags of a container's command and args, in
+// order, as name (without dashes) and value ("true" for a bare flag).
 func ContainerFlags(container *corev1.Container) [][2]string {
 	if container == nil {
 		return nil
@@ -157,10 +152,8 @@ func ContainerFlag(container *corev1.Container, name string) (string, bool) {
 	return value, found
 }
 
-// OperatorPodConfig is the configuration of an Operator container, as the
-// Kubernetes API shows it: flags, environment and image. Credentials are
-// redacted, and variables set from Secrets or ConfigMaps keep only the
-// reference.
+// OperatorPodConfig is the configuration of an Operator container in its pod
+// spec, with credentials redacted.
 type OperatorPodConfig struct {
 	Source    string            `json:"source"`
 	Pod       string            `json:"pod"`
@@ -180,53 +173,43 @@ type PodConfigEnv struct {
 	From  string `json:"from,omitempty"`
 }
 
-// OperatorPodConfigCollector collects the configuration of the Operator
-// from its pod spec: what the kubectl plugin can see from outside the
-// Operator process. The remote flare reads the parsed flags in-process
-// instead.
+// OperatorPodConfigCollector collects the Operator configuration from its pod
+// spec, for the kubectl plugin.
 func OperatorPodConfigCollector() Collector {
 	return Collector{Name: "operator/config", Collect: func(_ context.Context, c *Collection) error {
-		config, err := PodConfig(c.Env.OperatorPod)
-		if err != nil {
-			return err
+		pod := c.Env.OperatorPod
+		container := OperatorContainer(pod)
+		if container == nil {
+			return errors.New("the Operator pod is unknown")
+		}
+		config := &OperatorPodConfig{
+			Source:    "pod spec (Kubernetes API); flag defaults and in-process settings are not visible from outside the Operator",
+			Pod:       pod.Name,
+			Container: container.Name,
+			Image:     container.Image,
+			Flags:     map[string]string{},
+		}
+		for _, arg := range container.Command {
+			if !strings.HasPrefix(arg, "-") {
+				config.Command = append(config.Command, arg)
+			}
+		}
+		for _, flag := range ContainerFlags(container) {
+			config.Flags[flag[0]] = RedactFlagValue(flag[0], flag[1])
+		}
+		for _, env := range container.Env {
+			config.Env = append(config.Env, podConfigEnv(env))
+		}
+		for _, from := range container.EnvFrom {
+			switch {
+			case from.SecretRef != nil:
+				config.EnvFrom = append(config.EnvFrom, fmt.Sprintf("%sSecret %s", from.Prefix, from.SecretRef.Name))
+			case from.ConfigMapRef != nil:
+				config.EnvFrom = append(config.EnvFrom, fmt.Sprintf("%sConfigMap %s", from.Prefix, from.ConfigMapRef.Name))
+			}
 		}
 		return c.AddYAML("operator/config.yaml", config)
 	}}
-}
-
-// PodConfig returns the configuration of the Operator container of a pod.
-func PodConfig(pod *corev1.Pod) (*OperatorPodConfig, error) {
-	container := OperatorContainer(pod)
-	if container == nil {
-		return nil, errors.New("the Operator pod is unknown")
-	}
-	config := &OperatorPodConfig{
-		Source:    "pod spec (Kubernetes API); flag defaults and in-process settings are not visible from outside the Operator",
-		Pod:       pod.Name,
-		Container: container.Name,
-		Image:     container.Image,
-		Flags:     map[string]string{},
-	}
-	for _, arg := range container.Command {
-		if !strings.HasPrefix(arg, "-") {
-			config.Command = append(config.Command, arg)
-		}
-	}
-	for _, flag := range ContainerFlags(container) {
-		config.Flags[flag[0]] = RedactFlagValue(flag[0], flag[1])
-	}
-	for _, env := range container.Env {
-		config.Env = append(config.Env, podConfigEnv(env))
-	}
-	for _, from := range container.EnvFrom {
-		switch {
-		case from.SecretRef != nil:
-			config.EnvFrom = append(config.EnvFrom, fmt.Sprintf("%sSecret %s", from.Prefix, from.SecretRef.Name))
-		case from.ConfigMapRef != nil:
-			config.EnvFrom = append(config.EnvFrom, fmt.Sprintf("%sConfigMap %s", from.Prefix, from.ConfigMapRef.Name))
-		}
-	}
-	return config, nil
 }
 
 func podConfigEnv(env corev1.EnvVar) PodConfigEnv {
@@ -285,9 +268,8 @@ func LeaderElectionCollector(leaseName string) Collector {
 // returns the HTTP status even when the endpoint reports a failure.
 type HealthGetter func(ctx context.Context, endpoint string) (status string, body []byte, err error)
 
-// CollectHealthEndpoints reads the Operator health probe endpoints and
-// writes them to operator/health.txt. It fails only when no endpoint can be
-// read.
+// CollectHealthEndpoints writes the Operator health probe endpoints to
+// operator/health.txt.
 func CollectHealthEndpoints(ctx context.Context, c *Collection, get HealthGetter) error {
 	failures := 0
 	var out bytes.Buffer
@@ -312,9 +294,7 @@ func CollectHealthEndpoints(ctx context.Context, c *Collection, get HealthGetter
 	return c.AddText("operator/health.txt", out.Bytes())
 }
 
-// PodHealth is what the Kubernetes API knows of the health of a pod: its
-// conditions, the results of the probes as container states, and the probes
-// themselves.
+// PodHealth is the health of a pod as the Kubernetes API shows it.
 type PodHealth struct {
 	Pod        string                  `json:"pod"`
 	Conditions []corev1.PodCondition   `json:"conditions,omitempty"`
@@ -334,8 +314,7 @@ type ContainerHealthStatus struct {
 	StartupProbe   *corev1.Probe         `json:"startupProbe,omitempty"`
 }
 
-// SummarizePodHealth returns the health of a pod as the Kubernetes API
-// shows it.
+// SummarizePodHealth returns the health of a pod.
 func SummarizePodHealth(pod *corev1.Pod) PodHealth {
 	health := PodHealth{Pod: pod.Name, Conditions: pod.Status.Conditions}
 	probes := map[string]*corev1.Container{}

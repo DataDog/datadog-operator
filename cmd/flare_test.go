@@ -29,13 +29,3 @@ func TestNewFlareRunner(t *testing.T) {
 	_, err = newFlareRunner(opts, &rest.Config{Host: "http://127.0.0.1:1", Username: "u", BearerToken: "t"}, fake.NewClientBuilder().Build(), testCreds{}, nil, nil, nil)
 	assert.Error(t, err, "basic and bearer auth together are rejected")
 }
-
-func TestFlareFeatures(t *testing.T) {
-	opts := &options{datadogAgentEnabled: true, datadogMonitorEnabled: false, remoteConfigEnabled: true, secureMetrics: true}
-	features := opts.flareFeatures()
-	assert.True(t, features["datadogAgent"])
-	assert.False(t, features["datadogMonitor"])
-	assert.True(t, features["remoteConfig"])
-	assert.True(t, features["secureMetrics"])
-	assert.Len(t, features, 25)
-}

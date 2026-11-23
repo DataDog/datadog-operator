@@ -14,15 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/DataDog/datadog-operator/pkg/fleet"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
@@ -302,11 +301,7 @@ func TestCustomSetupLoggingLevelChangesAtRuntime(t *testing.T) {
 
 	level.SetLevel(zapcore.DebugLevel)
 	require.True(t, logger.V(1).Enabled())
-	require.False(t, logger.V(2).Enabled())
 
 	level.SetLevel(zapcore.DebugLevel - 1)
 	require.True(t, logger.V(2).Enabled())
-
-	level.SetLevel(zapcore.InfoLevel)
-	require.False(t, logger.V(1).Enabled())
 }

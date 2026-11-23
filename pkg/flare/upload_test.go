@@ -8,7 +8,6 @@ package flare
 import (
 	"context"
 	"errors"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +17,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-operator/pkg/flare/flaretest"
 )
 
 func TestFlareURL(t *testing.T) {
@@ -42,51 +43,9 @@ func TestFlareURL(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// fakeIntake records the multipart form of the last flare it received.
-type fakeIntake struct {
-	server   *httptest.Server
-	posts    atomic.Int32
-	path     string
-	apiKey   string
-	fields   map[string][]string
-	fileName string
-	file     []byte
-	status   int
-	response string
-}
-
-func newFakeIntake(t *testing.T) *fakeIntake {
-	f := &fakeIntake{status: http.StatusOK, response: `{"case_id": 1234}`}
-	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodHead {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		f.posts.Add(1)
-		f.path = r.URL.Path
-		f.apiKey = r.Header.Get("Dd-Api-Key")
-		if err := r.ParseMultipartForm(64 << 20); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		f.fields = r.MultipartForm.Value
-		if files := r.MultipartForm.File["flare_file"]; len(files) == 1 {
-			f.fileName = files[0].Filename
-			file, _ := files[0].Open()
-			f.file, _ = io.ReadAll(file)
-			file.Close()
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(f.status)
-		_, _ = w.Write([]byte(f.response))
-	}))
-	t.Cleanup(f.server.Close)
-	return f
-}
-
 func TestUploadRequestShape(t *testing.T) {
-	intake := newFakeIntake(t)
-	uploader := &Uploader{BaseURL: intake.server.URL, APIKey: testAPIKey}
+	intake := flaretest.NewIntake(t)
+	uploader := &Uploader{BaseURL: intake.Server.URL, APIKey: testAPIKey}
 	caseID, err := uploader.Upload(context.Background(), UploadRequest{
 		CaseID:          "98765",
 		Email:           "user@example.com",
@@ -101,8 +60,9 @@ func TestUploadRequestShape(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "1234", caseID)
-	assert.Equal(t, "/support/flare/98765", intake.path)
-	assert.Equal(t, testAPIKey, intake.apiKey)
+	got := intake.Last()
+	assert.Equal(t, "/support/flare/98765", got.Path)
+	assert.Equal(t, testAPIKey, got.APIKey)
 	assert.Equal(t, map[string][]string{
 		"case_id":          {"98765"},
 		"email":            {"user@example.com"},
@@ -112,9 +72,9 @@ func TestUploadRequestShape(t *testing.T) {
 		"tags":             {"a:b", "c:d"},
 		"operator_version": {"1.22.0"},
 		"hostname":         {"datadog-operator.cluster-uid"},
-	}, intake.fields)
-	assert.Equal(t, "flare.zip", intake.fileName)
-	assert.Equal(t, []byte("zip-bytes"), intake.file)
+	}, got.Fields)
+	assert.Equal(t, "flare.zip", got.FileName)
+	assert.Equal(t, []byte("zip-bytes"), got.File)
 }
 
 func TestUploadErrors(t *testing.T) {
@@ -131,14 +91,14 @@ func TestUploadErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			intake := newFakeIntake(t)
-			intake.status, intake.response = tt.status, tt.response
-			uploader := &Uploader{BaseURL: intake.server.URL, APIKey: testAPIKey}
+			intake := flaretest.NewIntake(t)
+			intake.Status, intake.Response = tt.status, tt.response
+			uploader := &Uploader{BaseURL: intake.Server.URL, APIKey: testAPIKey}
 			_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", Archive: []byte("x")})
 			require.ErrorContains(t, err, tt.wantErr)
 			assert.NotContains(t, err.Error(), testAPIKey)
 			// A POST that reached the intake is never retried.
-			assert.Equal(t, int32(1), intake.posts.Load())
+			assert.Equal(t, int32(1), intake.Posts.Load())
 		})
 	}
 
@@ -148,9 +108,9 @@ func TestUploadErrors(t *testing.T) {
 
 func TestUploadRetriesConnectionFailures(t *testing.T) {
 	// The HEAD request succeeds, then the intake is unreachable.
-	intake := newFakeIntake(t)
+	intake := flaretest.NewIntake(t)
 	failing := &http.Client{Transport: &failAfterHead{base: http.DefaultTransport}}
-	uploader := &Uploader{BaseURL: intake.server.URL, APIKey: testAPIKey, HTTPClient: failing, RetryDelay: 1}
+	uploader := &Uploader{BaseURL: intake.Server.URL, APIKey: testAPIKey, HTTPClient: failing, RetryDelay: 1}
 	_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", Archive: []byte("x")})
 	require.Error(t, err)
 	assert.Equal(t, int32(uploadAttempts), failing.Transport.(*failAfterHead).posts.Load())

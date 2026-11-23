@@ -37,6 +37,10 @@ type workload struct {
 	rollout   map[string]any
 }
 
+func (w workload) file(dir string) string {
+	return path.Join(dir, safeName(w.namespace), strings.ToLower(w.kind)+"-"+safeName(w.name)+".yaml")
+}
+
 // PodSummary is a pod of a managed workload in a flare.
 type PodSummary struct {
 	Name       string             `json:"name"`
@@ -59,11 +63,9 @@ type ContainerSummary struct {
 	LastState    string `json:"lastState,omitempty"`
 }
 
-// WorkloadsCollector returns the collector of the workloads the Operator
-// manages: the node Agent DaemonSets (or ExtendedDaemonSets), and the Cluster
-// Agent and Cluster Checks Runner Deployments. For each one, it collects the
-// manifest, the rollout status, its pods (phase, readiness and restarts, but
-// not their logs) and its events.
+// WorkloadsCollector returns the collector of the DaemonSets, ExtendedDaemonSets
+// and Deployments the Operator manages, with their pods (not their logs) and
+// events.
 func WorkloadsCollector() Collector {
 	return Collector{Name: "workloads", Timeout: 45 * time.Second, Collect: collectWorkloads}
 }
@@ -176,7 +178,7 @@ func collectWorkloadPods(ctx context.Context, c *Collection, w workload) map[str
 	if len(pods.Items) >= maxPodsPerWorkload {
 		c.Warn(fmt.Errorf("only the first %d pods of %s %s/%s were collected", maxPodsPerWorkload, w.kind, w.namespace, w.name))
 	}
-	c.Warn(c.AddYAML(path.Join("workloads/pods", safeName(w.namespace), strings.ToLower(w.kind)+"-"+safeName(w.name)+".yaml"), summaries))
+	c.Warn(c.AddYAML(w.file("workloads/pods"), summaries))
 	return podNames
 }
 
@@ -198,7 +200,7 @@ func collectWorkloadEvents(ctx context.Context, c *Collection, w workload, podNa
 		return
 	}
 	scope := fmt.Sprintf("for %s %s, its pods and replica sets in namespace %s", w.kind, w.name, w.namespace)
-	c.Warn(addEvents(c, path.Join("workloads/events", safeName(w.namespace), strings.ToLower(w.kind)+"-"+safeName(w.name)+".yaml"), events, scope))
+	c.Warn(addEvents(c, w.file("workloads/events"), events, scope))
 }
 
 // SummarizePod returns the phase, readiness and restarts of a pod.

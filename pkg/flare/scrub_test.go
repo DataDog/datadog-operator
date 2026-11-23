@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/flare/flaretest"
 )
 
 const (
@@ -44,6 +46,7 @@ func TestScrubBytes(t *testing.T) {
 		{name: "yaml api key", input: "api_key: " + testAPIKey, secrets: []string{testAPIKey}},
 		{name: "quoted api key", input: `api_key: "` + testAPIKey + `"`, secrets: []string{testAPIKey}},
 		{name: "api key in a block", input: "api_key: |\n  " + testAPIKey, secrets: []string{testAPIKey}},
+		{name: "api key in a folded block", input: "api_key: >\n  " + testAPIKey, secrets: []string{testAPIKey}},
 		{name: "additional endpoints", input: "additional_endpoints:\n  \"https://app.datadoghq.com\":\n  - " + testAPIKey + ",", secrets: []string{testAPIKey}},
 		{name: "app key", input: "app_key: '" + testAppKey + "'", secrets: []string{testAppKey}},
 		{name: "api key in a url", input: "Error status code 500 : http://dog.tld/api?key=" + testAPIKey, secrets: []string{testAPIKey}},
@@ -60,6 +63,7 @@ func TestScrubBytes(t *testing.T) {
 		{name: "flag token", input: "--cluster-agent-token=" + testToken, secrets: []string{testToken}},
 		{name: "bearer token", input: "Authorization: Bearer " + testToken, secrets: []string{testToken}},
 		{name: "certificate", input: "cert_key: |\n" + testCert, secrets: []string{"MIICdQIBADANBgkqhkiG9w0BAQEFAASCAl8wggJbAgEAAoGBAOLJKRals8tGoy7K"}},
+		{name: "public certificate", input: "-----BEGIN CERTIFICATE-----\nMIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ\n-----END CERTIFICATE-----", secrets: []string{"MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ"}},
 		{name: "container id is kept", input: `container_id: "b32bd6f9b73ba7ccb64953a04b82b48e29dfafab65fd57ca01d3b94a0e024885"`, keep: []string{"b32bd6f9b73ba7ccb64953a04b82b48e29dfafab65fd57ca01d3b94a0e024885"}},
 		{name: "booleans are kept", input: "automountServiceAccountToken: true", keep: []string{"automountServiceAccountToken: true"}},
 		{name: "secret references are kept", input: "secretName: datadog-secret\nkeyName: api-key", keep: []string{"secretName: datadog-secret", "keyName: api-key"}},
@@ -127,10 +131,10 @@ func TestRedactObject(t *testing.T) {
 
 	a := NewArchive(ArchiveOptions{})
 	require.NoError(t, a.AddYAML("dda.yaml", obj))
-	require.NoError(t, a.AddJSON("container.json", container))
+	require.NoError(t, a.AddYAML("container.yaml", container))
 	data, err := a.Close(nil)
 	require.NoError(t, err)
-	files := readZip(t, data)
+	files := flaretest.ReadZip(t, data)
 
 	for _, content := range files {
 		for _, secret := range []string{testAPIKey, testAppKey, testToken, "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t"} {
@@ -138,8 +142,8 @@ func TestRedactObject(t *testing.T) {
 		}
 	}
 	assert.Contains(t, files["dda.yaml"], "secretName: datadog-secret")
-	assert.Contains(t, files["container.json"], "datadoghq.com")
-	assert.Contains(t, files["container.json"], "datadog-secret")
+	assert.Contains(t, files["container.yaml"], "datadoghq.com")
+	assert.Contains(t, files["container.yaml"], "datadog-secret")
 }
 
 func TestIsSensitiveKey(t *testing.T) {

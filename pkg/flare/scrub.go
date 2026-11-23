@@ -39,22 +39,14 @@ var (
 	// certificate replacer.
 	certRegexp = regexp.MustCompile(`-----BEGIN (?:.*)-----[A-Za-z0-9=\+\/\s]*-----END (?:.*)-----`)
 
-	// hashValueRegexp matches the 32 or 40 hex character value of a key that
-	// names a git commit or a hash, such as `commit: <sha>`, `Git Commit:
-	// <sha>`, `"agent.datadoghq.com/agentspechash": "<md5>"`, `currentHash:
-	// <md5>` or `checksum/config: <md5>`. The agent scrubber masks every bare
-	// 32 and 40 hex character string because API keys and application keys
-	// have that
-	// shape, which also masks the Operator's git commit (40 hex) and the MD5
-	// spec hashes (32 hex) the Operator writes to annotations and statuses.
-	// These values are kept: a key named like this doesn't hold a
-	// credential, and the credential key names (api_key, app_key, token...)
-	// are still scrubbed.
+	// hashValueRegexp matches the 32 or 40 hex value of a key naming a git
+	// commit or a hash (`commit: <sha>`, `agentspechash: <md5>`). The agent
+	// scrubber masks every such string as a possible key, so these are kept.
 	hashValueRegexp = regexp.MustCompile(`(?i)(\b(?:git[ _-]?)?commit(?:[ _-]?(?:sha|id|hash))?|[\w./-]*(?:hash|checksum)(?:/[\w.-]+)?)("?\s*[:=]\s*["']?)([a-f0-9]{40}|[a-f0-9]{32})\b`)
 )
 
-// keptPlaceholder replaces a kept hash while the agent scrubber runs. It is
-// made of private use code points and letters no replacer matches.
+// keptPlaceholder replaces a kept hash while the agent scrubber runs; no
+// replacer matches it.
 const keptPlaceholder = "kept-%d"
 
 // Scrubber removes credentials from everything written to a flare. It uses
@@ -154,14 +146,9 @@ func IsSensitiveKey(name string) bool {
 	return sensitiveKeyRegexp.MatchString(strings.TrimSpace(name))
 }
 
-// RedactObject returns a JSON-compatible copy of obj where the values of
-// sensitive keys are replaced, before the text scrubber runs. It handles the
-// shapes the text scrubber can't see as a single line:
-//   - a key such as apiKey or caBundle with a string value,
-//   - a {name: DD_API_KEY, value: ...} environment variable entry.
-//
-// Values that are objects, such as apiSecret: {secretName, keyName}, are
-// references and are kept.
+// RedactObject returns a JSON-compatible copy of obj where the string values of
+// sensitive keys and of {name: DD_API_KEY, value: ...} entries are replaced.
+// Object values, such as apiSecret: {secretName, keyName}, are kept.
 func RedactObject(obj any) (any, error) {
 	raw, err := json.Marshal(obj)
 	if err != nil {

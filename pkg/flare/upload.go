@@ -38,10 +38,8 @@ const (
 // api.us5.datadoghq.com. Other hosts (proxies, fake intakes) are used as is.
 var datadogHostRegexp = regexp.MustCompile(`^(app|api)(\.mrf)?\.((us[0-9]+|eu[0-9]*|ap[0-9]+)\.)?(datadoghq\.(com|eu)|ddog-gov\.com|datad0g\.(com|eu))\.?$`)
 
-// FlareURL returns the base URL of the flare intake, such as
-// https://1-22-0-flare.agent.datadoghq.com. ddURL, if set, overrides the
-// site: a Datadog URL is converted to its flare intake, any other URL is
-// used as is.
+// FlareURL returns the flare intake, such as https://1-22-0-flare.agent.datadoghq.com.
+// A non-Datadog ddURL overrides the site and is used as is.
 func FlareURL(site, ddURL, operatorVersion string) (string, error) {
 	raw := ddURL
 	if raw == "" {
@@ -79,32 +77,20 @@ func versionDomainPrefix(version string) string {
 	return m[1] + "-" + m[2] + "-" + m[3]
 }
 
-// UploadRequest is a flare to upload. Its fields are sent as the multipart
-// fields the Datadog Agent sends (comp/core/flare/helpers/send_flare.go).
+// UploadRequest is a flare to upload, with the multipart fields the Datadog
+// Agent sends (comp/core/flare/helpers/send_flare.go). An empty CaseID
+// creates a case.
 type UploadRequest struct {
-	// CaseID is the support case the flare is attached to. Empty to create
-	// a case.
-	CaseID string
-	// Email is the email of the user who requested the flare.
-	Email string
-	// Hostname identifies the flare sender, such as
-	// datadog-operator.<cluster_id>.
-	Hostname string
-	// Source is the flare source, such as remote-config.
-	Source string
-	// RCTaskUUID is the UUID of the Remote Configuration task that
-	// requested the flare.
-	RCTaskUUID string
-	// FlareSource and Tags are the source and tags of the Remote
-	// Configuration task.
-	FlareSource string
-	Tags        []string
-	// OperatorVersion is the version of the Operator.
+	CaseID          string
+	Email           string
+	Hostname        string // datadog-operator.<cluster_id>
+	Source          string
+	RCTaskUUID      string
+	FlareSource     string
+	Tags            []string
 	OperatorVersion string
-	// ArchiveName is the file name of the archive.
-	ArchiveName string
-	// Archive is the zip archive.
-	Archive []byte
+	ArchiveName     string
+	Archive         []byte
 }
 
 // Uploader sends flares to the Datadog flare intake.
@@ -264,7 +250,7 @@ func analyzeResponse(resp *http.Response) (string, error) {
 	}
 	if res.Error != "" {
 		if res.RequestUUID != "" {
-			return "", fmt.Errorf("the flare intake returned an error: %s (request uuid %s)", res.Error, res.RequestUUID)
+			res.Error += " (request uuid " + res.RequestUUID + ")"
 		}
 		return "", fmt.Errorf("the flare intake returned an error: %s", res.Error)
 	}

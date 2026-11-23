@@ -271,10 +271,7 @@ func TestCollectPodLogs(t *testing.T) {
 		return true, &runtime.Unknown{Raw: []byte(`{"level":"info","msg":"started","apiKey":"` + testToken + `"}` + "\nDD_API_KEY=" + testAPIKey + "\n")}, nil
 	})
 
-	files, manifest := runCollectors(t, env, Collector{Name: "logs", Collect: func(ctx context.Context, c *Collection) error {
-		CollectPodLogs(ctx, c, "operator/logs", pod)
-		return nil
-	}})
+	files, manifest := runCollectors(t, env, podLogsCollector("logs", "operator/logs", pod))
 	assert.Equal(t, StatusOK, manifest.Collectors[0].Status, manifest.Collectors[0].Errors)
 	assert.Contains(t, files, "operator/logs/datadog-operator-xyz/manager.log")
 	assert.Contains(t, files, "operator/logs/datadog-operator-xyz/manager.previous.log")
@@ -363,39 +360,25 @@ func TestOperatorDeploymentErrors(t *testing.T) {
 
 func TestCollectPodLogsLimits(t *testing.T) {
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "op", Namespace: "datadog"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}}}
-	_, manifest := runCollectors(t, Env{}, Collector{Name: "no-clientset", Collect: func(ctx context.Context, c *Collection) error {
-		CollectPodLogs(ctx, c, "logs", pod)
-		return nil
-	}})
+	_, manifest := runCollectors(t, Env{}, podLogsCollector("no-clientset", "logs", pod))
 	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status)
 
 	env := testEnv(t, pod)
 	archive := NewArchive(ArchiveOptions{MaxBytes: manifestReserve})
-	manifest = Run(context.Background(), env, archive, []Collector{{Name: "full", Collect: func(ctx context.Context, c *Collection) error {
-		CollectPodLogs(ctx, c, "logs", pod)
-		return nil
-	}}}, RunOptions{})
+	manifest = Run(context.Background(), env, archive, []Collector{podLogsCollector("full", "logs", pod)}, RunOptions{})
 	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status)
 	assert.Contains(t, manifest.Collectors[0].Errors[0], "size limit")
 
 	env.Clientset.(*kubefake.Clientset).PrependReactor("get", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, assert.AnError
 	})
-	_, manifest = runCollectors(t, env, Collector{Name: "error", Collect: func(ctx context.Context, c *Collection) error {
-		CollectPodLogs(ctx, c, "logs", pod)
-		return nil
-	}})
+	_, manifest = runCollectors(t, env, podLogsCollector("error", "logs", pod))
 	assert.Equal(t, StatusPartial, manifest.Collectors[0].Status)
 }
 
 func TestHelpers(t *testing.T) {
-	assert.Equal(t, "_", safeName(""))
-	assert.Equal(t, "a_b", safeName("a/b"))
-	assert.True(t, isNotInstalled(assert.AnError) == false)
+	assert.False(t, isNotInstalled(assert.AnError))
 	a := NewArchive(ArchiveOptions{})
-	require.NoError(t, a.AddJSON("x.json", map[string]string{"a": "b"}))
-	assert.Equal(t, []FileInfo{{Path: "x.json", Size: int64(len("{\n  \"a\": \"b\"\n}"))}}, a.Files())
-	require.Error(t, a.AddJSON("bad.json", make(chan int)))
 	require.Error(t, a.AddYAML("bad.yaml", make(chan int)))
 }
 

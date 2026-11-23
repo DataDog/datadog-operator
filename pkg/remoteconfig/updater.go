@@ -26,6 +26,8 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/protobuf/proto"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,31 +65,27 @@ type RemoteConfigUpdater struct {
 	clientMu                              sync.RWMutex
 	updaterTags                           []string
 	subscriptions                         []remoteConfigSubscription
-	// rcDatabasePath is the Remote Configuration database of the running
-	// service, read by flares for the org UUID. Set under clientMu.
+	// rcDatabasePath is read by flares for the org UUID. Set under clientMu.
 	rcDatabasePath string
 
-	// leaderCheck reports whether this replica is the elected leader. Agent
-	// tasks only run on the leader. A nil leaderCheck means this replica is
-	// the only one that can run tasks.
+	// leaderCheck reports whether this replica can run agent tasks; nil
+	// means it can.
 	leaderCheck func() bool
-	// flareRunner runs flare tasks. A nil flareRunner reports flare tasks as
-	// not implemented.
 	flareRunner FlareRunner
-	// logLevel applies the log_level of AGENT_CONFIG. A nil logLevel reports
-	// log_level configs as unsupported.
-	logLevel LogLevelSetter
-	// remoteLogLevel is the log level currently set through AGENT_CONFIG, or
-	// "" if the startup level is in effect. Only the AGENT_CONFIG callback
-	// writes it, under logLevelMu, so that flares can read it.
+	// logLevel is changed by the log_level of AGENT_CONFIG. Nil means
+	// log_level configs are unsupported.
+	logLevel        *zap.AtomicLevel
+	startupLogLevel zapcore.Level
+	// remoteLogLevel is the level set through AGENT_CONFIG, "" for the
+	// startup level. Guarded by logLevelMu so that flares can read it.
 	remoteLogLevel string
 	logLevelMu     sync.RWMutex
 
 	tasksMu      sync.Mutex
 	taskStatuses map[string]state.ApplyStatus
 	tasksWG      sync.WaitGroup
-	// tasksStop is closed by Stop to cancel running agent tasks.
-	tasksStop chan struct{}
+	tasksCtx     context.Context //nolint:containedctx // Base context of the flare tasks, canceled by Stop.
+	cancelTasks  context.CancelFunc
 }
 
 type remoteConfigSubscription struct {
@@ -550,12 +548,11 @@ func (r *RemoteConfigUpdater) getAndUpdateDatadogAgentWithRetry(ctx context.Cont
 
 // agentConfigUpdate is the parsed content of the AGENT_CONFIG configs.
 type agentConfigUpdate struct {
-	// merged is the merged DatadogAgent feature configuration.
 	merged DatadogAgentRemoteConfig
-	// logLevel is the merged log level, or "" if no config sets one.
+	// logLevel is "" if no config sets one.
 	logLevel string
-	// configs holds the parsed layers by config path. The configuration
-	// order file is not included.
+	// configs holds the parsed layers by config path, without the
+	// configuration order file.
 	configs map[string]DatadogAgentRemoteConfig
 }
 
@@ -607,9 +604,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		switch {
 		case isLayer && layer.logLevel() != "" && !layer.hasFeatures():
 			// Already reported.
-		case isLayer && layer.hasFeatures() && layer.logLevel() != "":
-			reportApplyStatus(applyStatus, path, errors.Join(logLevelErr, featuresErr))
-		case isLayer && layer.hasFeatures():
+		case isLayer && layer.logLevel() == "" && layer.hasFeatures():
 			reportApplyStatus(applyStatus, path, featuresErr)
 		default:
 			reportApplyStatus(applyStatus, path, errors.Join(logLevelErr, featuresErr))
@@ -621,8 +616,8 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 	}
 }
 
-// reportApplyStatus reports a config as acknowledged (applied) if err is nil,
-// and as failed with err otherwise.
+// reportApplyStatus reports a config as acknowledged if err is nil, as failed
+// otherwise.
 func reportApplyStatus(applyStatus func(string, state.ApplyStatus), path string, err error) {
 	if err != nil {
 		applyStatus(path, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
@@ -658,14 +653,16 @@ func (r *RemoteConfigUpdater) applyRemoteLogLevel(level string) error {
 		return fmt.Errorf("cannot set log level %q: changing the log level at runtime is not supported", level)
 	}
 	if level == "" {
-		r.logLevel.ResetLogLevel()
+		r.logLevel.SetLevel(r.startupLogLevel)
 		r.setRemoteLogLevel("")
 		r.logger.Info("Removed the Remote Configuration log level, restored the startup log level")
 		return nil
 	}
-	if err := r.logLevel.SetLogLevel(level); err != nil {
+	zapLevel, err := parseAgentLogLevel(level)
+	if err != nil {
 		return fmt.Errorf("cannot set log level: %w", err)
 	}
+	r.logLevel.SetLevel(zapLevel)
 	r.setRemoteLogLevel(level)
 	r.logger.Info("Set the log level through Remote Configuration", "logLevel", level)
 	return nil
@@ -931,9 +928,9 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, co
 
 func (r *RemoteConfigUpdater) Stop() error {
 	r.tasksMu.Lock()
-	if r.tasksStop != nil {
-		close(r.tasksStop)
-		r.tasksStop = nil
+	if r.cancelTasks != nil {
+		r.cancelTasks()
+		r.tasksCtx, r.cancelTasks = nil, nil
 	}
 	r.tasksMu.Unlock()
 
@@ -992,13 +989,6 @@ func WithLeaderCheck(isLeader func() bool) RemoteConfigUpdaterOption {
 func WithFlareRunner(runner FlareRunner) RemoteConfigUpdaterOption {
 	return func(updater *RemoteConfigUpdater) {
 		updater.flareRunner = runner
-	}
-}
-
-// WithLogLevelSetter lets AGENT_CONFIG change the Operator log level.
-func WithLogLevelSetter(setter LogLevelSetter) RemoteConfigUpdaterOption {
-	return func(updater *RemoteConfigUpdater) {
-		updater.logLevel = setter
 	}
 }
 

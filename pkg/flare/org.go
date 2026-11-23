@@ -20,10 +20,8 @@ const Unknown = "unknown"
 // OrgValue is one piece of org information in the manifest: its value, or
 // "unknown", with how it was obtained or why it's unknown.
 type OrgValue struct {
-	Value string `json:"value"`
-	// Source says how the value was obtained.
+	Value  string `json:"value"`
 	Source string `json:"source,omitempty"`
-	// Reason says why the value is unknown.
 	Reason string `json:"reason,omitempty"`
 }
 
@@ -38,18 +36,14 @@ func UnknownOrgValue(reason string) OrgValue {
 }
 
 // OrgInfo is the Datadog org a flare came from, as far as the Operator knows
-// it. It's written to the manifest. It never holds keys: the org is
-// identified by its site, the org UUID that Remote Configuration fetches
-// from the org data endpoint, and the org ID of Remote Configuration paths.
+// it. It never holds keys. The RemoteConfig fields are the last Remote
+// Configuration org status ("true" or "false"), if one was read.
 type OrgInfo struct {
-	Site    OrgValue `json:"site"`
-	OrgUUID OrgValue `json:"org_uuid"`
-	OrgID   OrgValue `json:"org_id"`
-	// RemoteConfigOrgEnabled and RemoteConfigAPIKeyAuthorized are the last
-	// org status the Remote Configuration service read, as the Agent status
-	// shows it ("true" or "false"), if it read one.
-	RemoteConfigOrgEnabled       string `json:"remote_config_org_enabled,omitempty"`
-	RemoteConfigAPIKeyAuthorized string `json:"remote_config_api_key_authorized,omitempty"`
+	Site                         OrgValue `json:"site"`
+	OrgUUID                      OrgValue `json:"org_uuid"`
+	OrgID                        OrgValue `json:"org_id"`
+	RemoteConfigOrgEnabled       string   `json:"remote_config_org_enabled,omitempty"`
+	RemoteConfigAPIKeyAuthorized string   `json:"remote_config_api_key_authorized,omitempty"`
 }
 
 // SiteFromSettings returns the site the Operator sends data to, from its
@@ -65,10 +59,8 @@ func SiteFromSettings(site, ddURL, from string) OrgValue {
 	return Known(DefaultSite, fmt.Sprintf("default: %s, %s and %s are unset in %s", constants.DDSite, constants.DDddURL, constants.DDURL, from))
 }
 
-// PodOrgInfo returns the org information the Kubernetes API shows of an
-// Operator pod: the site from its container environment. The org UUID and
-// org ID are only known to the Operator's Remote Configuration client, so
-// they're unknown.
+// PodOrgInfo returns the org information of an Operator pod spec: only the
+// site, since the org UUID and ID are only known to Remote Configuration.
 func PodOrgInfo(pod *corev1.Pod) *OrgInfo {
 	const notVisible = "only known to the Operator's Remote Configuration client: it's in flares requested from Fleet Automation, which the Operator collects itself, not in flares the kubectl plugin collects through the Kubernetes API"
 	info := &OrgInfo{

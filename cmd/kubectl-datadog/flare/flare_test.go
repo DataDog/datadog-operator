@@ -6,11 +6,8 @@
 package flare
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	pkgflare "github.com/DataDog/datadog-operator/pkg/flare"
+	"github.com/DataDog/datadog-operator/pkg/flare/flaretest"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -110,14 +108,9 @@ func TestCollectOperatorLogs(t *testing.T) {
 	assert.Equal(t, pkgflare.StatusError, manifest.Collectors[1].Status)
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	require.NoError(t, err)
-	var names []string
-	for _, f := range r.File {
-		names = append(names, f.Name)
-	}
-	assert.Contains(t, names, "operator/logs/datadog-operator-abc/manager.log")
-	assert.Contains(t, names, "operator/pods.yaml")
+	files := flaretest.ReadZip(t, data)
+	assert.Contains(t, files, "operator/logs/datadog-operator-abc/manager.log")
+	assert.Contains(t, files, "operator/pods.yaml")
 }
 
 func TestNilLeaderPod(t *testing.T) {
@@ -126,7 +119,6 @@ func TestNilLeaderPod(t *testing.T) {
 	require.Error(t, err)
 	require.Error(t, o.collectMetrics(context.Background(), nil, nil))
 	require.Error(t, o.collectHealth(context.Background(), nil, nil))
-	assert.Contains(t, getArchivePath(), "datadog-operator-")
 }
 
 func TestResolveVersion(t *testing.T) {
@@ -205,28 +197,10 @@ func TestCollectVersionFile(t *testing.T) {
 	assert.Equal(t, "1.23.0", got.Version, "normalized for the intake host and the manifest")
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	require.NoError(t, err)
-	names := []string{}
-	var versionFile string
-	for _, f := range r.File {
-		names = append(names, f.Name)
-		if f.Name == "root/operator/version.yaml" {
-			rc, openErr := f.Open()
-			require.NoError(t, openErr)
-			content, readErr := io.ReadAll(rc)
-			require.NoError(t, readErr)
-			_ = rc.Close()
-			versionFile = string(content)
-		}
-	}
-	assert.Contains(t, names, "root/operator/version.yaml")
+	files := flaretest.ReadZip(t, data)
+	require.Contains(t, files, "root/operator/version.yaml")
 	// The git commit has the shape of an application key, but is kept.
-	assert.Contains(t, versionFile, "commit: "+gitCommit)
-
-	baseURL, err := pkgflare.FlareURL("datadoghq.com", "", got.Version)
-	require.NoError(t, err)
-	assert.Equal(t, "https://1-23-0-flare.agent.datadoghq.com", baseURL)
+	assert.Contains(t, files["root/operator/version.yaml"], "commit: "+gitCommit)
 }
 
 func TestImageTag(t *testing.T) {

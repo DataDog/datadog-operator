@@ -29,26 +29,11 @@ const (
 	DefaultLogHeadBytes int64 = 1024 * 1024
 )
 
-// CollectPodLogs writes the logs of every container of a pod to
-// dir/<pod>/<container>.log, and the logs of the previous container to
-// <container>.previous.log when it restarted. Logs are tailed to
-// Env.LogTailLines and Env.LogLimitBytes.
-//
-// When the tail doesn't hold the whole log, the start of the log is also
-// written to <container>.head.log (and <container>.previous.head.log), up
-// to Env.LogHeadLines and Env.LogHeadBytes, so that the startup lines (the
-// version, the configuration, the features enabled) are in the flare even
-// when the Operator has run for a long time.
-//
-// The Kubernetes API only serves the logs of the current and the previous
-// instance of a container, from the log file the kubelet is writing. Files
-// the kubelet rotated (containerLogMaxSize, containerLogMaxFiles) stay on
-// the node and can't be read through the API, so the head is the oldest
-// part of the current file: it starts at the container start unless the
-// kubelet already rotated the file.
-//
-// Only use it for Operator pods: the Agent and Cluster Agent collect their
-// own logs in their flares.
+// CollectPodLogs writes the logs of every container of a pod, and of the
+// previous container after a restart, to dir/<pod>/<container>[.previous].log.
+// When the tail is truncated, the start of the log (the startup lines) is also
+// written to <container>[.previous].head.log. Only use it for Operator pods:
+// the Agent and Cluster Agent flares collect their own logs.
 func CollectPodLogs(ctx context.Context, c *Collection, dir string, pod *corev1.Pod) {
 	if c.Env.Clientset == nil {
 		c.Warn(fmt.Errorf("unable to collect the logs of %s: no Kubernetes clientset", pod.Name))
@@ -76,91 +61,74 @@ func CollectPodLogs(ctx context.Context, c *Collection, dir string, pod *corev1.
 // collectContainerLogs writes the tail of a container log to base.log and,
 // when the tail is truncated, its head to base.head.log.
 func collectContainerLogs(ctx context.Context, c *Collection, pod *corev1.Pod, container string, previous bool, base string) {
-	truncated, err := collectContainerLog(ctx, c, pod, container, previous, base+".log")
+	truncated, err := collectContainerLog(ctx, c, pod, container, previous, false, base+".log")
 	c.Warn(err)
 	if err == nil && truncated {
-		c.Warn(collectContainerLogHead(ctx, c, pod, container, previous, base+".head.log"))
+		_, err = collectContainerLog(ctx, c, pod, container, previous, true, base+".head.log")
+		c.Warn(err)
 	}
 }
 
-// collectContainerLog writes the tail of a container log. It returns true
-// when the tail may not hold the whole log.
-func collectContainerLog(ctx context.Context, c *Collection, pod *corev1.Pod, container string, previous bool, name string) (bool, error) {
-	tailLines := c.Env.LogTailLines
-	if tailLines <= 0 {
-		tailLines = DefaultLogTailLines
+// collectContainerLog writes the tail of a container log, or its first lines
+// when head is true. It returns true when the tail may not hold the whole log.
+func collectContainerLog(ctx context.Context, c *Collection, pod *corev1.Pod, container string, previous, head bool, name string) (bool, error) {
+	lines, limitBytes, what := c.Env.LogTailLines, c.Env.LogLimitBytes, "the logs"
+	if lines <= 0 {
+		lines = DefaultLogTailLines
 	}
-	limitBytes := c.Env.LogLimitBytes
 	if limitBytes <= 0 {
 		limitBytes = DefaultLogLimitBytes
 	}
-	limitBytes = min(limitBytes, c.Remaining())
-	if limitBytes <= 0 {
-		return false, fmt.Errorf("%w: the logs of %s/%s were not collected", ErrSizeLimit, pod.Name, container)
-	}
-
-	stream, err := c.Env.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
-		Container:  container,
-		Previous:   previous,
-		TailLines:  &tailLines,
-		LimitBytes: &limitBytes,
-		Timestamps: false,
-	}).Stream(ctx)
-	if err != nil {
-		return false, fmt.Errorf("unable to get the logs of %s/%s (previous: %t): %w", pod.Name, container, previous, err)
-	}
-	defer stream.Close()
-	data, err := io.ReadAll(io.LimitReader(stream, limitBytes))
-	if err != nil {
-		return false, fmt.Errorf("unable to read the logs of %s/%s: %w", pod.Name, container, err)
-	}
-	truncated := int64(len(data)) >= limitBytes || int64(bytes.Count(data, []byte{'\n'})) >= tailLines
-	return truncated, c.AddText(name, data)
-}
-
-// collectContainerLogHead writes the first lines of a container log. It
-// streams the log from its start and stops after Env.LogHeadLines lines or
-// Env.LogHeadBytes bytes.
-func collectContainerLogHead(ctx context.Context, c *Collection, pod *corev1.Pod, container string, previous bool, name string) error {
-	headLines := c.Env.LogHeadLines
-	if headLines <= 0 {
-		headLines = DefaultLogHeadLines
-	}
-	limitBytes := c.Env.LogHeadBytes
-	if limitBytes <= 0 {
-		limitBytes = DefaultLogHeadBytes
+	opts := &corev1.PodLogOptions{Container: container, Previous: previous, TailLines: &lines}
+	if head {
+		lines, limitBytes, what = c.Env.LogHeadLines, c.Env.LogHeadBytes, "the first lines of the logs"
+		if lines <= 0 {
+			lines = DefaultLogHeadLines
+		}
+		if limitBytes <= 0 {
+			limitBytes = DefaultLogHeadBytes
+		}
+		opts.TailLines = nil
 	}
 	limitBytes = min(limitBytes, c.Remaining())
 	if limitBytes <= 0 {
-		return fmt.Errorf("%w: the first lines of the logs of %s/%s were not collected", ErrSizeLimit, pod.Name, container)
+		return false, fmt.Errorf("%w: %s of %s/%s were not collected", ErrSizeLimit, what, pod.Name, container)
 	}
+	opts.LimitBytes = &limitBytes
 
+	// Canceling the context when done stops the API server from sending the
+	// rest of the log.
 	ctx, cancel := context.WithCancel(ctx)
-	// Closing the stream early stops the API server from sending the rest of
-	// the log.
 	defer cancel()
-	stream, err := c.Env.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
-		Container:  container,
-		Previous:   previous,
-		LimitBytes: &limitBytes,
-		Timestamps: false,
-	}).Stream(ctx)
+	stream, err := c.Env.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, opts).Stream(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to get the first lines of the logs of %s/%s (previous: %t): %w", pod.Name, container, previous, err)
+		return false, fmt.Errorf("unable to get %s of %s/%s (previous: %t): %w", what, pod.Name, container, previous, err)
 	}
 	defer stream.Close()
 
-	var head bytes.Buffer
+	var data bytes.Buffer
 	reader := bufio.NewReader(io.LimitReader(stream, limitBytes))
-	for lines := int64(0); lines < headLines; lines++ {
+	for n := int64(0); !head || n < lines; n++ {
 		line, err := reader.ReadBytes('\n')
-		head.Write(line)
+		data.Write(line)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("unable to read the first lines of the logs of %s/%s: %w", pod.Name, container, err)
+			return false, fmt.Errorf("unable to read %s of %s/%s: %w", what, pod.Name, container, err)
 		}
 	}
-	return c.AddText(name, head.Bytes())
+	truncated := int64(data.Len()) >= limitBytes || int64(bytes.Count(data.Bytes(), []byte{'\n'})) >= lines
+	return truncated, c.AddText(name, data.Bytes())
+}
+
+// CollectOperatorPods writes a summary of the Operator pods to
+// operator/pods.yaml and their logs to operator/logs.
+func CollectOperatorPods(ctx context.Context, c *Collection, pods []corev1.Pod) error {
+	summaries := make([]PodSummary, 0, len(pods))
+	for i := range pods {
+		summaries = append(summaries, SummarizePod(&pods[i]))
+		CollectPodLogs(ctx, c, "operator/logs", &pods[i])
+	}
+	return c.AddYAML("operator/pods.yaml", summaries)
 }

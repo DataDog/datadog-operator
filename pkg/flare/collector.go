@@ -38,27 +38,20 @@ const (
 
 // Env is what collectors use to read the cluster. Collectors only read.
 type Env struct {
-	// Reader reads Kubernetes objects. The Operator passes its API reader,
-	// which reads from the API server without starting informers.
+	// Reader reads Kubernetes objects; the Operator passes its API reader.
 	Reader client.Reader
 	// Clientset reads pod logs, events and the server version.
-	Clientset kubernetes.Interface
-	// OperatorNamespace is the namespace the Operator runs in.
+	Clientset         kubernetes.Interface
 	OperatorNamespace string
-	// OperatorPod is the Operator pod the flare is about (the one running
-	// the flare, or the leader for the kubectl plugin). It may be nil.
+	// OperatorPod is the Operator pod the flare is about. It may be nil.
 	OperatorPod *corev1.Pod
-	// ClusterName is the cluster name the Operator is configured with, if
-	// any.
 	ClusterName string
-	// LogTailLines caps the lines collected per container log.
-	LogTailLines int64
-	// LogLimitBytes caps the bytes collected per container log.
+	// Log limits per container log, Default* if 0. The head is collected
+	// when the tail doesn't hold the whole log.
+	LogTailLines  int64
 	LogLimitBytes int64
-	// LogHeadLines and LogHeadBytes cap the start of a container log,
-	// collected when the tail doesn't hold the whole log.
-	LogHeadLines int64
-	LogHeadBytes int64
+	LogHeadLines  int64
+	LogHeadBytes  int64
 }
 
 // Collection is what a running collector writes to.
@@ -68,14 +61,6 @@ type Collection struct {
 	now    func() time.Time
 	mu     sync.Mutex
 	errors []string
-}
-
-// Now returns the current time of the flare run.
-func (c *Collection) Now() time.Time {
-	if c.now == nil {
-		return time.Now()
-	}
-	return c.now()
 }
 
 // Warn records a non-fatal error: the collector goes on and its status is
@@ -122,8 +107,6 @@ type Manifest struct {
 	MaxBytes        int64             `json:"max_bytes"`
 	TotalBytes      int64             `json:"total_bytes"`
 	Info            map[string]string `json:"info,omitempty"`
-	// Org is the Datadog org the flare came from, as far as the Operator
-	// knows it.
 	Org             *OrgInfo          `json:"org,omitempty"`
 	Collectors      []CollectorResult `json:"collectors"`
 	FailedCollector []string          `json:"failed_collectors,omitempty"`
@@ -147,9 +130,7 @@ type RunOptions struct {
 }
 
 // Run runs the collectors one after the other until the time limit, and
-// returns the manifest. A collector that fails or times out doesn't stop the
-// others: the flare is partial and the manifest says which collectors failed.
-// Collectors that didn't start before the time limit are skipped.
+// returns the manifest. A failing collector doesn't stop the others.
 func Run(ctx context.Context, env Env, archive *Archive, collectors []Collector, opts RunOptions) *Manifest {
 	now := opts.Now
 	if now == nil {

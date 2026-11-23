@@ -6,13 +6,10 @@
 package remoteflare
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,21 +24,17 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	kubefake "k8s.io/client-go/kubernetes/fake"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/flare"
+	"github.com/DataDog/datadog-operator/pkg/flare/flaretest"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
@@ -61,46 +54,6 @@ type fakeCreds struct {
 
 func (f fakeCreds) GetAPIKeyCredentials() (config.Creds, error) {
 	return config.Creds{APIKey: f.apiKey, AppKey: testAppKey}, f.err
-}
-
-// intake is a fake flare intake.
-type intake struct {
-	server  *httptest.Server
-	mu      sync.Mutex
-	path    string
-	apiKey  string
-	fields  map[string][]string
-	archive []byte
-	status  int
-}
-
-func newIntake(t *testing.T) *intake {
-	in := &intake{status: http.StatusOK}
-	in.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodHead {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		in.mu.Lock()
-		defer in.mu.Unlock()
-		in.path = r.URL.Path
-		in.apiKey = r.Header.Get("Dd-Api-Key")
-		require.NoError(t, r.ParseMultipartForm(64<<20))
-		in.fields = r.MultipartForm.Value
-		file, err := r.MultipartForm.File["flare_file"][0].Open()
-		require.NoError(t, err)
-		in.archive, _ = io.ReadAll(file)
-		file.Close()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(in.status)
-		if in.status == http.StatusOK {
-			_, _ = w.Write([]byte(`{"case_id": 1234}`))
-		} else {
-			_, _ = w.Write([]byte(`{"error": "intake unavailable"}`))
-		}
-	}))
-	t.Cleanup(in.server.Close)
-	return in
 }
 
 // localEndpoints serves the Operator metrics and health probes.
@@ -165,27 +118,14 @@ func testObjects() []client.Object {
 
 type testSetup struct {
 	cfg      Config
-	intake   *intake
+	intake   *flaretest.Intake
 	logPods  *[]string
 	logMutex *sync.Mutex
 }
 
 func newTestSetup(t *testing.T) testSetup {
 	t.Helper()
-	s := runtime.NewScheme()
-	require.NoError(t, clientgoscheme.AddToScheme(s))
-	require.NoError(t, apiextensionsv1.AddToScheme(s))
-	require.NoError(t, v1alpha1.AddToScheme(s))
-	require.NoError(t, v2alpha1.AddToScheme(s))
-	objs := testObjects()
-	reader := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).Build()
-	var kubeObjs []runtime.Object
-	for _, obj := range objs {
-		if _, _, err := clientgoscheme.Scheme.ObjectKinds(obj); err == nil {
-			kubeObjs = append(kubeObjs, obj.DeepCopyObject())
-		}
-	}
-	clientset := kubefake.NewSimpleClientset(kubeObjs...)
+	reader, clientset := flaretest.Clients(t, testObjects()...)
 	var logPods []string
 	var logMutex sync.Mutex
 	clientset.PrependReactor("get", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
@@ -198,7 +138,7 @@ func newTestSetup(t *testing.T) testSetup {
 		return true, &runtime.Unknown{Raw: []byte(`{"level":"INFO","msg":"Starting","DD_API_KEY":"` + testAPIKey + `"}` + "\n")}, nil
 	})
 
-	in := newIntake(t)
+	in := flaretest.NewIntake(t)
 	local := localEndpoints(t)
 	addr := strings.TrimPrefix(local.URL, "http://")
 
@@ -217,7 +157,7 @@ func newTestSetup(t *testing.T) testSetup {
 			Namespace:             testNamespace,
 			PodName:               testPodName,
 			ClusterName:           "my-cluster",
-			FlareURL:              in.server.URL,
+			FlareURL:              in.Server.URL,
 			MetricsAddr:           addr,
 			HealthProbeAddr:       addr,
 			Features:              map[string]bool{"datadogAgent": true, "datadogMonitor": false},
@@ -227,7 +167,8 @@ func newTestSetup(t *testing.T) testSetup {
 			RemoteConfigState: func() any {
 				return remoteconfig.FlareState{Started: true, ClientID: "rc-client", UpdaterTags: []string{"cluster_id:" + testClusterID}, RemoteLogLevel: "debug"}
 			},
-			Flags: flags,
+			RemoteConfigOrg: func() remoteconfig.FlareOrg { return remoteconfig.FlareOrg{} },
+			Flags:           flags,
 			Environ: func() []string {
 				return []string{"DD_API_KEY=" + testAPIKey, "DD_SITE=datadoghq.eu", "DD_CLUSTER_AGENT_AUTH_TOKEN=" + testToken, "PATH=/usr/bin", "POD_NAME=" + testPodName}
 			},
@@ -246,39 +187,24 @@ func testTask() remoteconfig.FlareTask {
 	}
 }
 
-func unzip(t *testing.T, data []byte) map[string]string {
-	t.Helper()
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	require.NoError(t, err)
-	files := map[string]string{}
-	for _, f := range r.File {
-		rc, err := f.Open()
-		require.NoError(t, err)
-		content, _ := io.ReadAll(rc)
-		rc.Close()
-		files[f.Name] = string(content)
-	}
-	return files
-}
-
 func TestRunnerEndToEnd(t *testing.T) {
 	setup := newTestSetup(t)
 	runner := NewRunner(setup.cfg, logr.Discard())
 
 	require.NoError(t, runner.Run(context.Background(), testTask()))
 
-	in := setup.intake
-	assert.Equal(t, "/support/flare/98765", in.path)
-	assert.Equal(t, testAPIKey, in.apiKey)
-	assert.Equal(t, []string{"task-uuid-1"}, in.fields["rc_task_uuid"])
-	assert.Equal(t, []string{"datadog-operator." + testClusterID}, in.fields["hostname"])
-	assert.Equal(t, []string{"remote-config"}, in.fields["source"])
-	assert.Equal(t, []string{"user@example.com"}, in.fields["email"])
-	assert.Equal(t, []string{"98765"}, in.fields["case_id"])
-	assert.Equal(t, []string{"fleet-automation"}, in.fields["flare_source"])
-	assert.Equal(t, []string{"team:containers"}, in.fields["tags"])
+	in := setup.intake.Last()
+	assert.Equal(t, "/support/flare/98765", in.Path)
+	assert.Equal(t, testAPIKey, in.APIKey)
+	assert.Equal(t, []string{"task-uuid-1"}, in.Fields["rc_task_uuid"])
+	assert.Equal(t, []string{"datadog-operator." + testClusterID}, in.Fields["hostname"])
+	assert.Equal(t, []string{"remote-config"}, in.Fields["source"])
+	assert.Equal(t, []string{"user@example.com"}, in.Fields["email"])
+	assert.Equal(t, []string{"98765"}, in.Fields["case_id"])
+	assert.Equal(t, []string{"fleet-automation"}, in.Fields["flare_source"])
+	assert.Equal(t, []string{"team:containers"}, in.Fields["tags"])
 
-	files := unzip(t, in.archive)
+	files := flaretest.ReadZip(t, in.File)
 	root := "datadog-operator." + testClusterID + "/"
 	for _, name := range []string{
 		"manifest.json",
@@ -340,15 +266,16 @@ func TestRunnerPartialFlare(t *testing.T) {
 	setup := newTestSetup(t)
 	setup.cfg.PodName = "unknown-pod"
 	setup.cfg.MetricsAddr = "127.0.0.1:1"
-	setup.cfg.RemoteConfigState = nil
 	setup.cfg.Gatherer = prometheus.NewRegistry()
+	setup.cfg.MaxBytes = 600 * 1024
 	require.NoError(t, NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), testTask()))
 
-	files := unzip(t, setup.intake.archive)
+	files := flaretest.ReadZip(t, setup.intake.Last().File)
 	var manifest flare.Manifest
 	require.NoError(t, json.Unmarshal([]byte(files["datadog-operator."+testClusterID+"/manifest.json"]), &manifest))
 	assert.False(t, manifest.Complete)
-	assert.Subset(t, manifest.FailedCollector, []string{"operator/logs", "operator/deployment", "operator/remote-config", "operator/metrics"})
+	assert.LessOrEqual(t, manifest.TotalBytes, int64(600*1024))
+	assert.Subset(t, manifest.FailedCollector, []string{"operator/logs", "operator/deployment", "operator/metrics"})
 	assert.Contains(t, manifest.Info["pod_error"], "unknown-pod")
 	// The other collectors still ran.
 	assert.Contains(t, files, "datadog-operator."+testClusterID+"/datadog/datadogagents/datadog/datadog.yaml")
@@ -361,21 +288,13 @@ func TestRunnerTimeLimitStillSendsFlare(t *testing.T) {
 	setup.cfg.Timeout = time.Nanosecond
 	require.NoError(t, NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), testTask()))
 
-	files := unzip(t, setup.intake.archive)
+	files := flaretest.ReadZip(t, setup.intake.Last().File)
 	var manifest flare.Manifest
 	require.NoError(t, json.Unmarshal([]byte(files["datadog-operator."+testClusterID+"/manifest.json"]), &manifest))
 	assert.False(t, manifest.Complete)
 	for _, result := range manifest.Collectors {
 		assert.Equal(t, flare.StatusSkipped, result.Status, result.Name)
 	}
-}
-
-func TestRunnerSizeLimit(t *testing.T) {
-	setup := newTestSetup(t)
-	setup.cfg.MaxBytes = 600 * 1024
-	archive, _, manifest := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), testTask())
-	require.NotNil(t, archive)
-	assert.LessOrEqual(t, manifest.TotalBytes, int64(600*1024))
 }
 
 func TestRunnerSecureMetricsReadInProcess(t *testing.T) {
@@ -387,20 +306,15 @@ func TestRunnerSecureMetricsReadInProcess(t *testing.T) {
 	registry.MustRegister(counter)
 	setup.cfg.Gatherer = registry
 	data, _, _ := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), testTask())
-	metrics := unzip(t, data)["datadog-operator."+testClusterID+"/operator/metrics.txt"]
+	metrics := flaretest.ReadZip(t, data)["datadog-operator."+testClusterID+"/operator/metrics.txt"]
 	assert.Contains(t, metrics, "datadog_operator_test_total 3")
 	assert.Contains(t, metrics, "requires authentication")
 }
 
 func TestRunnerUploadFailures(t *testing.T) {
 	setup := newTestSetup(t)
-	setup.intake.status = http.StatusInternalServerError
-	err := NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), testTask())
-	require.ErrorContains(t, err, "500")
-
-	setup = newTestSetup(t)
 	setup.cfg.Credentials = fakeCreds{err: errors.New("no secret")}
-	err = NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), testTask())
+	err := NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), testTask())
 	require.ErrorContains(t, err, "API key")
 
 	setup = newTestSetup(t)
@@ -436,7 +350,7 @@ func TestLocalURL(t *testing.T) {
 		"[::]:8080":      "http://127.0.0.1:8080",
 		"localhost:8080": "http://localhost:8080",
 	} {
-		got, err := localURL("http", addr)
+		got, err := localURL(addr)
 		require.NoError(t, err)
 		assert.Equal(t, want, got, addr)
 	}
@@ -452,7 +366,7 @@ func TestRunnerManifestOrg(t *testing.T) {
 	task.ConfigPath = "datadog/2/AGENT_TASK/task-uuid-1/config"
 	require.NoError(t, NewRunner(setup.cfg, logr.Discard()).Run(context.Background(), task))
 
-	manifestJSON := unzip(t, setup.intake.archive)["datadog-operator."+testClusterID+"/manifest.json"]
+	manifestJSON := flaretest.ReadZip(t, setup.intake.Last().File)["datadog-operator."+testClusterID+"/manifest.json"]
 	var manifest flare.Manifest
 	require.NoError(t, json.Unmarshal([]byte(manifestJSON), &manifest))
 	require.NotNil(t, manifest.Org)
@@ -484,10 +398,8 @@ func TestRunnerManifestOrgUnknown(t *testing.T) {
 	assert.Contains(t, manifest.Org.OrgID.Reason, "employee source")
 	assert.Empty(t, manifest.Org.RemoteConfigOrgEnabled)
 
-	setup.cfg.RemoteConfigOrg = nil
 	task.ConfigPath = ""
 	_, _, manifest = NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
-	assert.Equal(t, flare.UnknownOrgValue("the Remote Configuration org data is not available"), manifest.Org.OrgUUID)
 	assert.Equal(t, flare.Unknown, manifest.Org.OrgID.Value)
 	assert.NotEmpty(t, manifest.Org.OrgID.Reason)
 }

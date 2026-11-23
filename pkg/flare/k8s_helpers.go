@@ -78,7 +78,7 @@ func cleanObject(obj map[string]any) map[string]any {
 		if annotations, ok := md["annotations"].(map[string]any); ok {
 			// The last applied configuration repeats the spec, and may
 			// hold values the structured redaction can't see.
-			delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+			delete(annotations, corev1.LastAppliedConfigAnnotation)
 		}
 	}
 	return obj
@@ -89,7 +89,7 @@ func cleanObject(obj map[string]any) map[string]any {
 func cleanTyped(obj metav1.Object) {
 	obj.SetManagedFields(nil)
 	if annotations := obj.GetAnnotations(); annotations != nil {
-		delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		delete(annotations, corev1.LastAppliedConfigAnnotation)
 		obj.SetAnnotations(annotations)
 	}
 }
@@ -154,7 +154,7 @@ func addEvents(c *Collection, name string, events []EventSummary, scope string) 
 	if len(events) > 0 {
 		return c.AddYAML(name, events)
 	}
-	note := fmt.Sprintf("# No events found %s at %s.\n[]\n", scope, c.Now().UTC().Format(time.RFC3339))
+	note := fmt.Sprintf("# No events found %s at %s.\n[]\n", scope, c.now().UTC().Format(time.RFC3339))
 	return c.AddText(name, []byte(note))
 }
 

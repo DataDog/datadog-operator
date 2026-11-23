@@ -15,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-operator/pkg/flare/flaretest"
 )
 
 func TestArchiveSizeLimit(t *testing.T) {
@@ -31,7 +33,7 @@ func TestArchiveSizeLimit(t *testing.T) {
 	manifest := &Manifest{}
 	data, err := a.Close(manifest)
 	require.NoError(t, err)
-	files := readZip(t, data)
+	files := flaretest.ReadZip(t, data)
 
 	assert.Len(t, files["flare/small.txt"], 400)
 	assert.Len(t, files["flare/big.txt"], 600)
@@ -52,7 +54,7 @@ func TestArchiveScrubsAndDeduplicates(t *testing.T) {
 	require.NoError(t, a.AddText("escape.txt", []byte("second")))
 	data, err := a.Close(nil)
 	require.NoError(t, err)
-	files := readZip(t, data)
+	files := flaretest.ReadZip(t, data)
 	assert.Contains(t, files, "escape.txt")
 	assert.Contains(t, files, "escape-1.txt")
 	assertNoSecrets(t, files, testAPIKey)
@@ -133,7 +135,7 @@ func TestRunTimeoutSkipsRemainingCollectors(t *testing.T) {
 
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
-	files := readZip(t, data)
+	files := flaretest.ReadZip(t, data)
 	assert.NotContains(t, files, "never.txt")
 	assert.Contains(t, files, ManifestFile)
 }

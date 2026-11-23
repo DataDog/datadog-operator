@@ -51,15 +51,15 @@ func newOrgDB(t *testing.T, entries map[string]string) (string, *bbolt.DB) {
 func TestStoredOrgUUID(t *testing.T) {
 	// The service keeps its database open and locked: the flare reads a copy.
 	path, _ := newOrgDB(t, map[string]string{"1-uuid": "old-uuid", "12-uuid": "latest-uuid", "2-uuid": "older-uuid", "bad-uuid": "ignored", "3-other": "ignored"})
-	uuid, err := StoredOrgUUID(path)
+	uuid, err := storedOrgUUID(path)
 	require.NoError(t, err)
 	assert.Equal(t, "latest-uuid", uuid)
 
 	path, _ = newOrgDB(t, nil)
-	_, err = StoredOrgUUID(path)
+	_, err = storedOrgUUID(path)
 	assert.ErrorContains(t, err, "holds no org UUID yet")
 
-	_, err = StoredOrgUUID(filepath.Join(t.TempDir(), "missing.db"))
+	_, err = storedOrgUUID(filepath.Join(t.TempDir(), "missing.db"))
 	assert.EqualError(t, err, "the Remote Configuration database doesn't exist yet")
 }
 

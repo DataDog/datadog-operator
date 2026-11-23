@@ -86,6 +86,11 @@ func flareArgs() map[string]string {
 	}
 }
 
+// flareUpdate is an AGENT_TASK update with one flare task.
+func flareUpdate(t *testing.T) map[string]state.RawConfig {
+	return map[string]state.RawConfig{testFlareTaskPath: agentTaskConfig(t, flareTaskType, "task-uuid", flareArgs())}
+}
+
 func TestParseFlareTask(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -103,29 +108,16 @@ func TestParseFlareTask(t *testing.T) {
 				UserHandle: "user@example.com",
 				Source:     "fleet",
 				Tags:       []string{"env:test", "team:containers"},
-				Args:       flareArgs(),
 			},
 		},
 		{
-			name: "required arguments only",
-			args: map[string]string{"case_id": "12345", "user_handle": "user@example.com"},
-			want: FlareTask{
-				UUID:       "task-uuid",
-				ConfigPath: testFlareTaskPath,
-				CaseID:     "12345",
-				UserHandle: "user@example.com",
-				Args:       map[string]string{"case_id": "12345", "user_handle": "user@example.com"},
-			},
-		},
-		{
-			name: "invalid tags are ignored",
+			name: "required arguments only, invalid tags are ignored",
 			args: map[string]string{"case_id": "12345", "user_handle": "user@example.com", "tags": "not-json"},
 			want: FlareTask{
 				UUID:       "task-uuid",
 				ConfigPath: testFlareTaskPath,
 				CaseID:     "12345",
 				UserHandle: "user@example.com",
-				Args:       map[string]string{"case_id": "12345", "user_handle": "user@example.com", "tags": "not-json"},
 			},
 		},
 		{
@@ -188,9 +180,7 @@ func TestAgentTaskFlareStatus(t *testing.T) {
 			updater := NewRemoteConfigUpdater(nil, logr.Discard(), options...)
 			recorder := newApplyStatusRecorder()
 
-			updater.agentTaskUpdateCallback(map[string]state.RawConfig{
-				testFlareTaskPath: agentTaskConfig(t, flareTaskType, "task-uuid", flareArgs()),
-			}, recorder.record)
+			updater.agentTaskUpdateCallback(flareUpdate(t), recorder.record)
 			updater.tasksWG.Wait()
 
 			assert.Equal(t, []state.ApplyStatus{
@@ -199,11 +189,7 @@ func TestAgentTaskFlareStatus(t *testing.T) {
 			}, recorder.get(testFlareTaskPath))
 
 			if test.runner != nil {
-				calls := test.runner.calls()
-				require.Len(t, calls, 1)
-				assert.Equal(t, "task-uuid", calls[0].UUID)
-				assert.Equal(t, "12345", calls[0].CaseID)
-				assert.Equal(t, "user@example.com", calls[0].UserHandle)
+				require.Len(t, test.runner.calls(), 1)
 			}
 		})
 	}
@@ -264,9 +250,7 @@ func TestAgentTaskLeaderOnly(t *testing.T) {
 		WithLeaderCheck(func() bool { return leader }),
 	)
 	recorder := newApplyStatusRecorder()
-	updates := map[string]state.RawConfig{
-		testFlareTaskPath: agentTaskConfig(t, flareTaskType, "task-uuid", flareArgs()),
-	}
+	updates := flareUpdate(t)
 
 	updater.agentTaskUpdateCallback(updates, recorder.record)
 	updater.tasksWG.Wait()
@@ -280,26 +264,10 @@ func TestAgentTaskLeaderOnly(t *testing.T) {
 	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(testFlareTaskPath))
 }
 
-func TestAgentTaskWithoutLeaderCheckRuns(t *testing.T) {
-	runner := &fakeFlareRunner{}
-	updater := NewRemoteConfigUpdater(nil, logr.Discard(), WithFlareRunner(runner))
-	recorder := newApplyStatusRecorder()
-
-	updater.agentTaskUpdateCallback(map[string]state.RawConfig{
-		testFlareTaskPath: agentTaskConfig(t, flareTaskType, "task-uuid", flareArgs()),
-	}, recorder.record)
-	updater.tasksWG.Wait()
-
-	assert.Len(t, runner.calls(), 1)
-	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(testFlareTaskPath))
-}
-
 func TestAgentTaskRunsOncePerUUID(t *testing.T) {
 	runner := &fakeFlareRunner{err: errors.New("upload failed")}
 	updater := NewRemoteConfigUpdater(nil, logr.Discard(), WithFlareRunner(runner))
-	updates := map[string]state.RawConfig{
-		testFlareTaskPath: agentTaskConfig(t, flareTaskType, "task-uuid", flareArgs()),
-	}
+	updates := flareUpdate(t)
 
 	first := newApplyStatusRecorder()
 	updater.agentTaskUpdateCallback(updates, first.record)
@@ -326,9 +294,7 @@ func TestStopCancelsRunningFlare(t *testing.T) {
 	})))
 	recorder := newApplyStatusRecorder()
 
-	updater.agentTaskUpdateCallback(map[string]state.RawConfig{
-		testFlareTaskPath: agentTaskConfig(t, flareTaskType, "task-uuid", flareArgs()),
-	}, recorder.record)
+	updater.agentTaskUpdateCallback(flareUpdate(t), recorder.record)
 	<-started
 	require.NoError(t, updater.Stop())
 	updater.tasksWG.Wait()

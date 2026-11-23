@@ -10,62 +10,41 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 )
 
 const (
-	// flareTaskType is the AGENT_TASK task_type Fleet Automation sends to
-	// request a flare. It matches the Datadog Agent's types.TaskFlare.
-	flareTaskType = "flare"
-	// flareTaskTimeout bounds a single flare run. It matches the Datadog
-	// Agent's agentTaskTimeout.
+	// flareTaskType and flareTaskTimeout match the Datadog Agent's
+	// types.TaskFlare and agentTaskTimeout.
+	flareTaskType    = "flare"
 	flareTaskTimeout = 5 * time.Minute
 )
 
-// ErrFlareNotImplemented is returned by the default FlareRunner, used when no
-// FlareRunner is configured. Fleet Automation sees it as the error of the
-// flare task, so a flare is never reported as sent when none can be sent.
-// The Operator configures pkg/flare/remoteflare.Runner.
+// ErrFlareNotImplemented is the error of flare tasks when no FlareRunner is
+// configured.
 var ErrFlareNotImplemented = errors.New("remote flare is not implemented yet in this version of the Datadog Operator")
 
 // FlareTask is a flare request received through a Remote Configuration
-// AGENT_TASK config. Its fields mirror the arguments the Datadog Agent reads
-// in pkg/flare/clusteragent.HandleRCFlareTask.
+// AGENT_TASK config, with the arguments the Datadog Agent reads in
+// pkg/flare/clusteragent.HandleRCFlareTask.
 type FlareTask struct {
-	// UUID identifies the task. The flare upload must send it as
-	// rc_task_uuid so Fleet Automation can match the flare to the task.
-	UUID string
-	// ConfigPath is the Remote Configuration path of the task config.
+	// UUID is sent as rc_task_uuid so Fleet Automation can match the flare
+	// to the task.
+	UUID       string
 	ConfigPath string
-	// CaseID is the support case the flare is attached to.
-	CaseID string
+	CaseID     string
 	// UserHandle is the email of the user who requested the flare.
 	UserHandle string
-	// Source is the optional flare source sent by Fleet Automation.
-	Source string
-	// Tags are the optional flare tags sent by Fleet Automation.
-	Tags []string
-	// Args holds every task argument, including the ones above, for
-	// arguments the Operator does not interpret yet (such as
-	// enable_profiling).
-	Args map[string]string
+	Source     string
+	Tags       []string
 }
 
 // FlareRunner creates and sends an Operator flare for a FlareTask. Run returns
 // nil only once the flare was sent.
 type FlareRunner interface {
 	Run(ctx context.Context, task FlareTask) error
-}
-
-// notImplementedFlareRunner is the default FlareRunner when none is
-// configured.
-type notImplementedFlareRunner struct{}
-
-func (notImplementedFlareRunner) Run(context.Context, FlareTask) error {
-	return ErrFlareNotImplemented
 }
 
 // parseFlareTask validates the arguments of a flare task.
@@ -95,18 +74,12 @@ func parseFlareTask(configPath string, task state.AgentTaskConfig) (FlareTask, e
 		UserHandle: userHandle,
 		Source:     args["source"],
 		Tags:       tags,
-		Args:       maps.Clone(args),
 	}, nil
 }
 
 // agentTaskUpdateCallback handles AGENT_TASK configs. Only flare tasks are
-// supported. A flare task is reported as:
-//   - unacknowledged once the Operator accepted it and started the flare,
-//   - acknowledged once the flare was sent,
-//   - error, with a message, if the task is invalid or the flare failed.
-//
-// Remote Configuration has no separate "in progress" state: unacknowledged
-// means received but not applied yet, and acknowledged means applied.
+// supported. A flare task is unacknowledged while it runs, acknowledged once
+// the flare was sent, and error if the task is invalid or the flare failed.
 func (r *RemoteConfigUpdater) agentTaskUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 	for configPath, rawConfig := range updates {
 		r.handleAgentTask(configPath, rawConfig, applyStatus)
@@ -167,28 +140,19 @@ func (r *RemoteConfigUpdater) handleAgentTask(configPath string, rawConfig state
 
 	// Run the flare in the background: Remote Configuration calls every
 	// product callback from its polling loop, under a lock.
-	runner := r.flareRunner
-	if runner == nil {
-		runner = notImplementedFlareRunner{}
-	}
-	stop := r.tasksStopChannel()
+	baseCtx := r.tasksContext()
 	r.tasksWG.Go(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), flareTaskTimeout)
+		ctx, cancel := context.WithTimeout(baseCtx, flareTaskTimeout)
 		defer cancel()
-		go func() {
-			select {
-			case <-stop:
-				cancel()
-			case <-ctx.Done():
-			}
-		}()
 
+		err := ErrFlareNotImplemented
+		if r.flareRunner != nil {
+			err = r.flareRunner.Run(ctx, flareTask)
+		}
 		status := state.ApplyStatus{State: state.ApplyStateAcknowledged}
-		if err := runner.Run(ctx, flareTask); err != nil {
+		if err != nil {
 			r.logger.Error(err, "Remote Configuration flare task failed", "uuid", flareTask.UUID, "caseID", flareTask.CaseID)
 			status = state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()}
-		} else {
-			r.logger.Info("Remote Configuration flare task completed", "uuid", flareTask.UUID, "caseID", flareTask.CaseID)
 		}
 		r.reportTaskStatus(key, configPath, status, applyStatus)
 	})
@@ -205,13 +169,12 @@ func (r *RemoteConfigUpdater) isLeader() bool {
 	return r.leaderCheck == nil || r.leaderCheck()
 }
 
-// tasksStopChannel returns the channel Stop closes to cancel running agent
-// tasks.
-func (r *RemoteConfigUpdater) tasksStopChannel() <-chan struct{} {
+// tasksContext returns the context Stop cancels to cancel running agent tasks.
+func (r *RemoteConfigUpdater) tasksContext() context.Context {
 	r.tasksMu.Lock()
 	defer r.tasksMu.Unlock()
-	if r.tasksStop == nil {
-		r.tasksStop = make(chan struct{})
+	if r.tasksCtx == nil {
+		r.tasksCtx, r.cancelTasks = context.WithCancel(context.Background())
 	}
-	return r.tasksStop
+	return r.tasksCtx
 }

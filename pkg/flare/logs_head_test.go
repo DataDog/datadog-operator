@@ -48,10 +48,7 @@ func TestCollectPodLogsHead(t *testing.T) {
 		Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}},
 		Status:     corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{Name: "manager", RestartCount: 1}}},
 	}
-	collect := Collector{Name: "logs", Collect: func(ctx context.Context, c *Collection) error {
-		CollectPodLogs(ctx, c, "logs", pod)
-		return nil
-	}}
+	collect := podLogsCollector("logs", "logs", pod)
 
 	t.Run("long log: tail and head of the current and previous containers", func(t *testing.T) {
 		env := testEnv(t, pod)
@@ -67,12 +64,11 @@ func TestCollectPodLogsHead(t *testing.T) {
 		assert.True(t, strings.HasSuffix(files["logs/op/manager.log"], "line 99\n"))
 
 		require.Len(t, requests, 4)
-		for _, opts := range requests[1:2] {
-			assert.Nil(t, opts.TailLines, "the head is read from the start of the log")
-			require.NotNil(t, opts.LimitBytes)
-			assert.LessOrEqual(t, *opts.LimitBytes, DefaultLogHeadBytes)
-			assert.False(t, opts.Previous)
-		}
+		head := requests[1]
+		assert.Nil(t, head.TailLines, "the head is read from the start of the log")
+		require.NotNil(t, head.LimitBytes)
+		assert.LessOrEqual(t, *head.LimitBytes, DefaultLogHeadBytes)
+		assert.False(t, head.Previous)
 		assert.True(t, requests[3].Previous)
 		assert.Nil(t, requests[3].TailLines)
 	})

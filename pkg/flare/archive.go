@@ -70,8 +70,6 @@ type ArchiveOptions struct {
 	Root string
 	// MaxBytes caps the sum of the scrubbed files. DefaultMaxBytes if 0.
 	MaxBytes int64
-	// Scrubber scrubs every file. NewScrubber() if nil.
-	Scrubber *Scrubber
 	// Now returns the file modification time. time.Now if nil.
 	Now func() time.Time
 }
@@ -80,13 +78,10 @@ type ArchiveOptions struct {
 func NewArchive(opts ArchiveOptions) *Archive {
 	a := &Archive{
 		root:     strings.Trim(opts.Root, "/"),
-		scrubber: opts.Scrubber,
+		scrubber: NewScrubber(),
 		maxBytes: opts.MaxBytes,
 		paths:    map[string]struct{}{},
 		now:      opts.Now,
-	}
-	if a.scrubber == nil {
-		a.scrubber = NewScrubber()
 	}
 	if a.maxBytes <= 0 {
 		a.maxBytes = DefaultMaxBytes
@@ -122,31 +117,11 @@ func (a *Archive) AddYAML(name string, obj any) error {
 	return a.AddText(name, data)
 }
 
-// AddJSON redacts and scrubs obj and writes it as indented JSON to name.
-func (a *Archive) AddJSON(name string, obj any) error {
-	redactedObj, err := RedactObject(obj)
-	if err != nil {
-		return fmt.Errorf("unable to serialize %s: %w", name, err)
-	}
-	data, err := json.MarshalIndent(redactedObj, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to serialize %s: %w", name, err)
-	}
-	return a.AddText(name, data)
-}
-
 // Remaining returns how many bytes collectors can still write.
 func (a *Archive) Remaining() int64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return max(a.maxBytes-manifestReserve-a.written, 0)
-}
-
-// Files returns the files written so far.
-func (a *Archive) Files() []FileInfo {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return append([]FileInfo(nil), a.files...)
 }
 
 func (a *Archive) write(name string, data []byte, reserve int64) error {

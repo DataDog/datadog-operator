@@ -74,12 +74,10 @@ func (r *Runner) collectConfig(_ context.Context, c *flare.Collection) error {
 
 func (r *Runner) collectLeaderElection(ctx context.Context, c *flare.Collection) error {
 	info := map[string]any{
-		"enabled": r.cfg.LeaderElectionEnabled,
-		"id":      r.cfg.LeaderElectionID,
-		"pod":     r.cfg.PodName,
-	}
-	if r.cfg.IsLeader != nil {
-		info["isLeader"] = r.cfg.IsLeader()
+		"enabled":  r.cfg.LeaderElectionEnabled,
+		"id":       r.cfg.LeaderElectionID,
+		"pod":      r.cfg.PodName,
+		"isLeader": r.cfg.IsLeader(),
 	}
 	var leaseErr error
 	if r.cfg.LeaderElectionEnabled && r.cfg.LeaderElectionID != "" {
@@ -94,14 +92,11 @@ func (r *Runner) collectLeaderElection(ctx context.Context, c *flare.Collection)
 }
 
 func (r *Runner) collectRemoteConfig(_ context.Context, c *flare.Collection) error {
-	if r.cfg.RemoteConfigState == nil {
-		return errors.New("the Remote Configuration state is not available")
-	}
 	return c.AddYAML("operator/remote-config.yaml", r.cfg.RemoteConfigState())
 }
 
 func (r *Runner) collectHealth(ctx context.Context, c *flare.Collection) error {
-	base, err := localURL("http", r.cfg.HealthProbeAddr)
+	base, err := localURL(r.cfg.HealthProbeAddr)
 	if err != nil {
 		return fmt.Errorf("unable to read the health probes: %w", err)
 	}
@@ -117,7 +112,7 @@ func (r *Runner) collectMetrics(ctx context.Context, c *flare.Collection) error 
 	source := ""
 	var data []byte
 	if !r.cfg.SecureMetrics && r.cfg.MetricsAddr != "0" && r.cfg.MetricsAddr != "" {
-		base, err := localURL("http", r.cfg.MetricsAddr)
+		base, err := localURL(r.cfg.MetricsAddr)
 		if err == nil {
 			var status string
 			status, data, err = r.localGet(ctx, base+"/metrics")
@@ -181,12 +176,7 @@ func (r *Runner) collectLogs(ctx context.Context, c *flare.Collection) error {
 	}
 	sort.SliceStable(pods[1:], func(i, j int) bool { return pods[1+i].Name < pods[1+j].Name })
 
-	summaries := make([]flare.PodSummary, 0, len(pods))
-	for i := range pods {
-		summaries = append(summaries, flare.SummarizePod(&pods[i]))
-		flare.CollectPodLogs(ctx, c, "operator/logs", &pods[i])
-	}
-	return c.AddYAML("operator/pods.yaml", summaries)
+	return flare.CollectOperatorPods(ctx, c, pods)
 }
 
 func (r *Runner) operatorPod(ctx context.Context) (*corev1.Pod, error) {
@@ -200,8 +190,8 @@ func (r *Runner) operatorPod(ctx context.Context) (*corev1.Pod, error) {
 	return pod, nil
 }
 
-// localURL returns the URL of a local endpoint bound to addr, such as :8080.
-func localURL(scheme, addr string) (string, error) {
+// localURL returns the HTTP URL of a local endpoint bound to addr, such as :8080.
+func localURL(addr string) (string, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return "", fmt.Errorf("invalid address %q: %w", addr, err)
@@ -209,7 +199,7 @@ func localURL(scheme, addr string) (string, error) {
 	if ip := net.ParseIP(host); host == "" || (ip != nil && ip.IsUnspecified()) {
 		host = "127.0.0.1"
 	}
-	return scheme + "://" + net.JoinHostPort(host, port), nil
+	return "http://" + net.JoinHostPort(host, port), nil
 }
 
 func (r *Runner) localGet(ctx context.Context, target string) (string, []byte, error) {

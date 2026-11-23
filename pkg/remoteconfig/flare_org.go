@@ -37,16 +37,13 @@ var datadogConfigPath = regexp.MustCompile(`^datadog/(\d+)/[^/]+/[^/]+/[^/]+$`)
 // FlareOrg is what the Remote Configuration client knows of the Datadog org
 // it's connected to, as written to Operator flares. It holds no keys.
 type FlareOrg struct {
-	// Started is true once the Remote Configuration client started.
 	Started bool
-	// Site is the site of the Remote Configuration client.
-	Site string
-	// OrgUUID is the org UUID the client stored in its database, or ""
-	// with OrgUUIDError saying why.
+	Site    string
+	// OrgUUID is "" with OrgUUIDError saying why when it's unknown.
 	OrgUUID      string
 	OrgUUIDError string
-	// OrgEnabled and APIKeyAuthorized are the last org status the service
-	// read ("true" or "false"), or "" if it read none.
+	// OrgEnabled and APIKeyAuthorized are "true", "false", or "" if the
+	// service read no org status yet.
 	OrgEnabled       string
 	APIKeyAuthorized string
 }
@@ -70,7 +67,7 @@ func (r *RemoteConfigUpdater) FlareOrg() FlareOrg {
 	case databasePath == "":
 		org.OrgUUIDError = "the Remote Configuration database is unknown"
 	default:
-		uuid, err := StoredOrgUUID(databasePath)
+		uuid, err := storedOrgUUID(databasePath)
 		if err != nil {
 			org.OrgUUIDError = err.Error()
 		}
@@ -80,10 +77,10 @@ func (r *RemoteConfigUpdater) FlareOrg() FlareOrg {
 	return org
 }
 
-// StoredOrgUUID returns the org UUID stored in a Remote Configuration
+// storedOrgUUID returns the org UUID stored in a Remote Configuration
 // database: the one of the latest root version. It reads a copy of the
 // database, so it doesn't wait for the lock of the service that has it open.
-func StoredOrgUUID(databasePath string) (string, error) {
+func storedOrgUUID(databasePath string) (string, error) {
 	copyPath, err := copyToTemp(databasePath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

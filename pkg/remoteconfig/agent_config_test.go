@@ -8,7 +8,6 @@ package remoteconfig
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -31,24 +30,6 @@ const (
 	testLogLevelPath = "datadog/2/AGENT_CONFIG/flare-log-level-abc/config"
 	testFeaturesPath = "datadog/2/AGENT_CONFIG/features/config"
 )
-
-type fakeLogLevelSetter struct {
-	err    error
-	levels []string
-	resets int
-}
-
-func (f *fakeLogLevelSetter) SetLogLevel(level string) error {
-	if f.err != nil {
-		return f.err
-	}
-	f.levels = append(f.levels, level)
-	return nil
-}
-
-func (f *fakeLogLevelSetter) ResetLogLevel() {
-	f.resets++
-}
 
 func newDatadogAgentFakeClient(t *testing.T, objects ...client.Object) client.Client {
 	t.Helper()
@@ -90,53 +71,55 @@ func flareLogLevelUpdate(t *testing.T, level string) map[string]state.RawConfig 
 }
 
 func TestAgentConfigLogLevelSetAndRevert(t *testing.T) {
-	setter := &fakeLogLevelSetter{}
-	updater := NewRemoteConfigUpdater(newDatadogAgentFakeClient(t), logr.Discard(), WithLogLevelSetter(setter))
+	level := zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	updater := NewRemoteConfigUpdater(newDatadogAgentFakeClient(t), logr.Discard(), WithLogLevel(level))
 
 	// No DatadogAgent exists: the log level must still be applied and
 	// reported without waiting for one.
 	recorder := newApplyStatusRecorder()
-	updater.agentConfigUpdateCallback(flareLogLevelUpdate(t, "debug"), recorder.record)
-	assert.Equal(t, []string{"debug"}, setter.levels)
+	updater.agentConfigUpdateCallback(flareLogLevelUpdate(t, "trace"), recorder.record)
+	assert.Equal(t, zapcore.DebugLevel-1, level.Level())
 	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(testLogLevelPath))
 	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(testOrderPath))
 
 	// The same configs again don't set the level again.
-	updater.agentConfigUpdateCallback(flareLogLevelUpdate(t, "debug"), newApplyStatusRecorder().record)
-	assert.Equal(t, []string{"debug"}, setter.levels)
-	assert.Zero(t, setter.resets)
+	level.SetLevel(zapcore.WarnLevel)
+	updater.agentConfigUpdateCallback(flareLogLevelUpdate(t, "trace"), newApplyStatusRecorder().record)
+	assert.Equal(t, zapcore.WarnLevel, level.Level())
 
 	// Fleet Automation removes the config when the flare log level expires.
 	updater.agentConfigUpdateCallback(map[string]state.RawConfig{}, newApplyStatusRecorder().record)
-	assert.Equal(t, 1, setter.resets)
+	assert.Equal(t, zapcore.InfoLevel, level.Level())
 
 	// Nothing to revert any more.
+	level.SetLevel(zapcore.WarnLevel)
 	updater.agentConfigUpdateCallback(map[string]state.RawConfig{}, newApplyStatusRecorder().record)
-	assert.Equal(t, 1, setter.resets)
+	assert.Equal(t, zapcore.WarnLevel, level.Level())
 }
 
 func TestAgentConfigLogLevelErrors(t *testing.T) {
 	tests := []struct {
-		name    string
-		setter  LogLevelSetter
-		wantErr string
+		name     string
+		logLevel bool
+		wantErr  string
 	}{
 		{
 			name:    "log level can't change at runtime",
 			wantErr: "changing the log level at runtime is not supported",
 		},
 		{
-			name:    "invalid log level",
-			setter:  &fakeLogLevelSetter{err: errors.New(`unsupported log level "loud"`)},
-			wantErr: `unsupported log level "loud"`,
+			name:     "invalid log level",
+			logLevel: true,
+			wantErr:  `unsupported log level "loud"`,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			level := zap.NewAtomicLevelAt(zapcore.InfoLevel)
 			var options []RemoteConfigUpdaterOption
-			if test.setter != nil {
-				options = append(options, WithLogLevelSetter(test.setter))
+			if test.logLevel {
+				options = append(options, WithLogLevel(level))
 			}
 			updater := NewRemoteConfigUpdater(newDatadogAgentFakeClient(t), logr.Discard(), options...)
 			recorder := newApplyStatusRecorder()
@@ -148,6 +131,7 @@ func TestAgentConfigLogLevelErrors(t *testing.T) {
 				assert.Equal(t, state.ApplyStateError, status.State, path)
 				assert.Contains(t, status.Error, test.wantErr, path)
 			}
+			assert.Equal(t, zapcore.InfoLevel, level.Level())
 		})
 	}
 }
@@ -155,8 +139,8 @@ func TestAgentConfigLogLevelErrors(t *testing.T) {
 func TestAgentConfigFeaturesAndLogLevel(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "default"}}
 	kubeClient := newDatadogAgentFakeClient(t, dda)
-	setter := &fakeLogLevelSetter{}
-	updater := NewRemoteConfigUpdater(kubeClient, logr.Discard(), WithLogLevelSetter(setter))
+	level := zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	updater := NewRemoteConfigUpdater(kubeClient, logr.Discard(), WithLogLevel(level))
 	recorder := newApplyStatusRecorder()
 
 	updater.agentConfigUpdateCallback(map[string]state.RawConfig{
@@ -168,7 +152,7 @@ func TestAgentConfigFeaturesAndLogLevel(t *testing.T) {
 	for _, path := range []string{testOrderPath, testFeaturesPath, testLogLevelPath} {
 		assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(path), path)
 	}
-	assert.Equal(t, []string{"debug"}, setter.levels)
+	assert.Equal(t, zapcore.DebugLevel, level.Level())
 
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKeyFromObject(dda), got))
@@ -183,7 +167,7 @@ func TestAgentConfigFeaturesAndLogLevel(t *testing.T) {
 		testOrderPath: orderConfig(t, nil, nil),
 	}, recorder.record)
 	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(testOrderPath))
-	assert.Equal(t, 1, setter.resets)
+	assert.Equal(t, zapcore.InfoLevel, level.Level())
 	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKeyFromObject(dda), got))
 	assert.Nil(t, got.Status.RemoteConfigConfiguration.Features.SBOM)
 }
@@ -211,23 +195,6 @@ func TestMergeLogLevel(t *testing.T) {
 			assert.Equal(t, test.want, mergeLogLevel(test.order, configs))
 		})
 	}
-}
-
-func TestAtomicLogLevel(t *testing.T) {
-	level := zap.NewAtomicLevelAt(zapcore.InfoLevel)
-	setter := NewAtomicLogLevel(level)
-
-	require.NoError(t, setter.SetLogLevel("debug"))
-	assert.Equal(t, zapcore.DebugLevel, level.Level())
-
-	require.NoError(t, setter.SetLogLevel("TRACE"))
-	assert.True(t, level.Enabled(zapcore.Level(-2)), "trace enables logr V(2) messages")
-
-	require.ErrorContains(t, setter.SetLogLevel("loud"), `unsupported log level "loud"`)
-	assert.Equal(t, zapcore.Level(-2), level.Level(), "an invalid level keeps the current level")
-
-	setter.ResetLogLevel()
-	assert.Equal(t, zapcore.InfoLevel, level.Level())
 }
 
 func TestParseAgentLogLevel(t *testing.T) {
