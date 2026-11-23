@@ -74,8 +74,6 @@ core,github.com/Masterminds/sprig/v3,MIT
 core,github.com/Masterminds/squirrel,MIT
 core,github.com/Microsoft/go-winio,MIT
 core,github.com/ProtonMail/go-crypto,BSD-3-Clause
-core,github.com/STARRY-S/zip,BSD-3-Clause
-core,github.com/andybalholm/brotli,MIT
 core,github.com/antlr4-go/antlr/v4,BSD-3-Clause
 core,github.com/asaskevich/govalidator,MIT
 core,github.com/aws/aws-sdk-go-v2,Apache-2.0
@@ -104,9 +102,6 @@ core,github.com/awslabs/operatorpkg,Apache-2.0
 core,github.com/benbjohnson/clock,MIT
 core,github.com/beorn7/perks/quantile,MIT
 core,github.com/blang/semver/v4,MIT
-core,github.com/bodgit/plumbing,BSD-3-Clause
-core,github.com/bodgit/sevenzip,BSD-3-Clause
-core,github.com/bodgit/windows,BSD-3-Clause
 core,github.com/cenkalti/backoff,MIT
 core,github.com/cenkalti/backoff/v5,MIT
 core,github.com/cespare/xxhash/v2,MIT
@@ -118,7 +113,6 @@ core,github.com/cloudflare/circl,BSD-3-Clause
 core,github.com/cyphar/filepath-securejoin,BSD-3-Clause
 core,github.com/cyphar/filepath-securejoin,MPL-2.0
 core,github.com/davecgh/go-spew/spew,ISC
-core,github.com/dsnet/compress,BSD-3-Clause
 core,github.com/dustin/go-humanize,MIT
 core,github.com/dylibso/observe-sdk/go,Apache-2.0
 core,github.com/ebitengine/purego,Apache-2.0
@@ -170,8 +164,6 @@ core,github.com/hako/durafmt,MIT
 core,github.com/hashicorp/go-cleanhttp,MPL-2.0
 core,github.com/hashicorp/go-retryablehttp,MPL-2.0
 core,github.com/hashicorp/go-version,MPL-2.0
-core,github.com/hashicorp/golang-lru/v2,MPL-2.0
-core,github.com/hashicorp/golang-lru/v2/simplelru,BSD-3-Clause
 core,github.com/huandu/xstrings,MIT
 core,github.com/ianlancetaylor/demangle,BSD-3-Clause
 core,github.com/inconshreveable/mousetrap,Apache-2.0
@@ -183,7 +175,6 @@ core,github.com/klauspost/compress,MIT
 core,github.com/klauspost/compress/internal/snapref,BSD-3-Clause
 core,github.com/klauspost/compress/s2,BSD-3-Clause
 core,github.com/klauspost/compress/zstd/internal/xxhash,MIT
-core,github.com/klauspost/pgzip,MIT
 core,github.com/lann/builder,MIT
 core,github.com/lann/ps,MIT
 core,github.com/lib/pq,MIT
@@ -193,9 +184,6 @@ core,github.com/mattn/go-isatty,MIT
 core,github.com/mattn/go-runewidth,MIT
 core,github.com/mdlayher/socket,MIT
 core,github.com/mdlayher/vsock,MIT
-core,github.com/mholt/archives,MIT
-core,github.com/mikelolasagasti/xz,BSD-0-Clause
-core,github.com/minio/minlz,Apache-2.0
 core,github.com/minio/simdjson-go,Apache-2.0
 core,github.com/mitchellh/copystructure,MIT
 core,github.com/mitchellh/go-wordwrap,MIT
@@ -209,7 +197,6 @@ core,github.com/modern-go/reflect2,Apache-2.0
 core,github.com/mohae/deepcopy,MIT
 core,github.com/monochromegane/go-gitignore,MIT
 core,github.com/munnerz/goautoneg,BSD-3-Clause
-core,github.com/nwaples/rardecode/v2,BSD-2-Clause
 core,github.com/olekukonko/cat,MIT
 core,github.com/olekukonko/errors,MIT
 core,github.com/olekukonko/ll,MIT
@@ -221,7 +208,6 @@ core,github.com/outcaste-io/ristretto/z,MIT
 core,github.com/patrickmn/go-cache,MIT
 core,github.com/peterbourgon/diskv,MIT
 core,github.com/philhofer/fwd,MIT
-core,github.com/pierrec/lz4/v4,BSD-3-Clause
 core,github.com/pkg/browser,BSD-2-Clause
 core,github.com/pkg/errors,BSD-2-Clause
 core,github.com/planetscale/vtprotobuf/protohelpers,BSD-3-Clause
@@ -244,9 +230,7 @@ core,github.com/santhosh-tekuri/jsonschema/v6,Apache-2.0
 core,github.com/secure-systems-lab/go-securesystemslib/cjson,MIT
 core,github.com/shirou/gopsutil/v4,BSD-3-Clause
 core,github.com/shopspring/decimal,MIT
-core,github.com/sorairolake/lzip-go,Apache-2.0
 core,github.com/spaolacci/murmur3,BSD-3-Clause
-core,github.com/spf13/afero,Apache-2.0
 core,github.com/spf13/cast,MIT
 core,github.com/spf13/cobra,Apache-2.0
 core,github.com/spf13/pflag,BSD-3-Clause
@@ -260,7 +244,6 @@ core,github.com/tinylib/msgp/msgp,MIT
 core,github.com/tklauser/go-sysconf,BSD-3-Clause
 core,github.com/tklauser/numcpus,Apache-2.0
 core,github.com/trailofbits/go-mutexasserts,MIT
-core,github.com/ulikunitz/xz,BSD-3-Clause
 core,github.com/x448/float16,MIT
 core,github.com/xlab/treeprint,MIT
 core,go.etcd.io/bbolt,MIT
@@ -293,7 +276,6 @@ core,go.uber.org/multierr,MIT
 core,go.uber.org/zap,MIT
 core,go.yaml.in/yaml/v2,Apache-2.0
 core,go.yaml.in/yaml/v3,MIT
-core,go4.org/readerutil,Apache-2.0
 core,golang.org/x/crypto,BSD-3-Clause
 core,golang.org/x/exp,BSD-3-Clause
 core,golang.org/x/mod/semver,BSD-3-Clause

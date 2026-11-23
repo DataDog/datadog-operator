@@ -7,7 +7,6 @@ package flare
 
 import (
 	"archive/zip"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -23,7 +22,6 @@ func TestArchiveDir(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(src, "sub"), 0755))
 
 	files := map[string]string{
-		"already-compressed.zip":        "existing ZIP bytes",
 		"datadog-custom-resources.yaml": "apiVersion: datadoghq.com/v2alpha1\n",
 		"pod-abc.json":                  `{"msg":"hello"}`,
 		"sub/nested.txt":                "nested\n",
@@ -33,7 +31,7 @@ func TestArchiveDir(t *testing.T) {
 	}
 
 	destination := filepath.Join(t.TempDir(), "flare.zip")
-	require.NoError(t, archiveDir(t.Context(), src, destination))
+	require.NoError(t, archiveDir(src, destination))
 
 	reader, err := zip.OpenReader(destination)
 	require.NoError(t, err)
@@ -41,7 +39,6 @@ func TestArchiveDir(t *testing.T) {
 
 	expectedNames := []string{
 		"",
-		"already-compressed.zip",
 		"datadog-custom-resources.yaml",
 		"pod-abc.json",
 		"sub/",
@@ -58,11 +55,7 @@ func TestArchiveDir(t *testing.T) {
 			continue
 		}
 
-		method := uint16(zip.Deflate)
-		if name == "already-compressed.zip" {
-			method = zip.Store
-		}
-		assert.Equal(t, method, entry.Method, entry.Name)
+		assert.Equal(t, uint16(zip.Deflate), entry.Method, entry.Name)
 		content, err := entry.Open()
 		require.NoError(t, err)
 		data, err := io.ReadAll(content)
@@ -83,7 +76,7 @@ func TestArchiveDirSkipsNonRegularFiles(t *testing.T) {
 	require.NoError(t, os.Symlink(filepath.Join(src, "pod-abc.json"), filepath.Join(src, "link.json")))
 
 	destination := filepath.Join(t.TempDir(), "flare.zip")
-	require.NoError(t, archiveDir(t.Context(), src, destination))
+	require.NoError(t, archiveDir(src, destination))
 
 	reader, err := zip.OpenReader(destination)
 	require.NoError(t, err)
@@ -106,7 +99,7 @@ func TestArchiveDirKeepsExistingArchive(t *testing.T) {
 	existing := []byte("archive from a concurrent flare")
 	require.NoError(t, os.WriteFile(destination, existing, 0644))
 
-	assert.ErrorIs(t, archiveDir(t.Context(), src, destination), os.ErrExist)
+	assert.ErrorIs(t, archiveDir(src, destination), os.ErrExist)
 
 	kept, err := os.ReadFile(destination)
 	require.NoError(t, err)
@@ -116,7 +109,7 @@ func TestArchiveDirKeepsExistingArchive(t *testing.T) {
 func TestArchiveDirMissingSource(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "flare.zip")
 
-	assert.ErrorIs(t, archiveDir(t.Context(), filepath.Join(t.TempDir(), "absent"), destination), os.ErrNotExist)
+	assert.ErrorIs(t, archiveDir(filepath.Join(t.TempDir(), "absent"), destination), os.ErrNotExist)
 
 	_, err := os.Stat(destination)
 	assert.True(t, os.IsNotExist(err), "a failed archive must not be left behind")
@@ -137,21 +130,8 @@ func TestArchiveDirUnreadableFile(t *testing.T) {
 
 	destination := filepath.Join(t.TempDir(), "flare.zip")
 
-	assert.Error(t, archiveDir(t.Context(), src, destination))
+	assert.Error(t, archiveDir(src, destination))
 
 	_, err := os.Stat(destination)
 	assert.True(t, os.IsNotExist(err), "a failed archive must not be left behind")
-}
-
-func TestWriteFlareZIPReportsFinalizationFailure(t *testing.T) {
-	writeErr := errors.New("cannot write ZIP central directory")
-	assert.ErrorIs(t, writeFlareZIP(t.Context(), failingZIPWriter{writeErr}, nil), writeErr)
-}
-
-type failingZIPWriter struct {
-	err error
-}
-
-func (w failingZIPWriter) Write([]byte) (int, error) {
-	return 0, w.err
 }
