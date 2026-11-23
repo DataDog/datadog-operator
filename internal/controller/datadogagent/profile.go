@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -69,9 +70,8 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	baseDefaultSpec := defaultDDAI.Spec.DeepCopy()
 	accumulatedDefaultSpec := defaultDDAI.Spec.DeepCopy()
 
-	// list and sort profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
-	if err = r.client.List(ctx, &profilesList); err != nil {
+	if err = r.client.List(ctx, &profilesList, client.InNamespace(dsNSName.Namespace)); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to list DatadogAgentProfiles: %w", err)
 	}
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)

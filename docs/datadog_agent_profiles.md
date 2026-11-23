@@ -58,6 +58,8 @@ Common scenarios:
 * Operator v1.5.0+
 * Tests were performed on Kubernetes versions >= `1.27.0`
 * The cluster must allow the Operator to `patch` nodes. Environments that block node modifications, such as GKE Autopilot, cannot use DAPs.
+* A DAP must be in the same namespace as the DDA it configures. Cross-namespace profiles are ignored. Move existing cross-namespace profiles into the DDA's namespace before upgrading; otherwise, they stop applying on reconciliation.
+* Grant DAP edit permissions only to users trusted to modify Agent configuration in that namespace.
 
 ## Enabling DatadogAgentProfiles
 

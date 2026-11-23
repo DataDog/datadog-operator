@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -31,6 +33,80 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+func Test_reconcileProfiles_Namespace(t *testing.T) {
+	for _, sameNamespaceProfile := range []bool{false, true} {
+		name := "cross-namespace profile only"
+		if sameNamespaceProfile {
+			name = "same-named profiles in different namespaces"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			sch := agenttestutils.TestScheme()
+			foreignProfile := testAPMMatrixProfile("tenant", "profile", metav1.NewTime(time.Unix(1, 0)), workerProfileRequirement(), testAPMMatrixLibVersionConfig("java", "1.43.0"))
+			node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "worker",
+				Labels: map[string]string{
+					"profile":                 "worker",
+					constants.ProfileLabelKey: foreignProfile.Name,
+				},
+			}}
+			// Simulate a pod previously created from the cross-namespace profile.
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "profile-agent", Namespace: "datadog",
+					Labels: map[string]string{
+						apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+						constants.ProfileLabelKey:                  foreignProfile.Name,
+					},
+				},
+				Spec: corev1.PodSpec{NodeName: node.Name},
+			}
+			objects := []k8sruntime.Object{foreignProfile, node, pod}
+			if sameNamespaceProfile {
+				localProfile := foreignProfile.DeepCopy()
+				localProfile.Namespace = "datadog"
+				localProfile.CreationTimestamp = metav1.NewTime(time.Unix(2, 0))
+				localProfile.Spec.Config = &v2alpha1.DatadogAgentSpec{}
+				objects = append(objects, localProfile)
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).
+				WithRuntimeObjects(objects...).
+				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+			r := &Reconciler{client: fakeClient, scheme: sch}
+			defaultDDAI := &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "datadog"},
+				Spec:       *testAPMMatrixBaseSpec(),
+			}
+			originalSpec := defaultDDAI.Spec.DeepCopy()
+			applied, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: "datadog", Name: "agent"}, intstr.FromInt(1), defaultDDAI)
+			require.NoError(t, err)
+			assert.Equal(t, *originalSpec, defaultDDAI.Spec, "foreign profiles must not contribute shared configuration")
+			require.NotEmpty(t, applied)
+			assert.True(t, agentprofile.IsDefaultProfile(applied[0].Namespace, applied[0].Name))
+			if sameNamespaceProfile {
+				require.Len(t, applied, 2)
+				assert.Equal(t, "datadog", applied[1].Namespace)
+				assert.Equal(t, foreignProfile.Name, applied[1].Name)
+			} else {
+				assert.Len(t, applied, 1)
+			}
+			gotProfile := &v1alpha1.DatadogAgentProfile{}
+			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: foreignProfile.Namespace, Name: foreignProfile.Name}, gotProfile))
+			assert.Equal(t, foreignProfile.Status, gotProfile.Status, "foreign profile status must not be changed")
+			gotNode := &corev1.Node{}
+			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
+			podErr := fakeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, &corev1.Pod{})
+			if sameNamespaceProfile {
+				assert.Equal(t, foreignProfile.Name, gotNode.Labels[constants.ProfileLabelKey])
+				require.NoError(t, podErr)
+			} else {
+				assert.NotContains(t, gotNode.Labels, constants.ProfileLabelKey)
+				assert.True(t, apierrors.IsNotFound(podErr), "previously applied cross-namespace profile pod must be deleted: %v", podErr)
+			}
+		})
+	}
+}
 
 func Test_computeProfileMerge(t *testing.T) {
 	sch := k8sruntime.NewScheme()
