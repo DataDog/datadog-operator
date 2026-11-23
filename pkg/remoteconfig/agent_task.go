@@ -26,6 +26,8 @@ const (
 // configured.
 var ErrFlareNotImplemented = errors.New("remote flare is not implemented yet in this version of the Datadog Operator")
 
+var errFlareRunning = errors.New("another flare is running: request the flare again once it is done")
+
 // FlareTask is a flare request received through a Remote Configuration
 // AGENT_TASK config, with the arguments the Datadog Agent reads in
 // pkg/flare/clusteragent.HandleRCFlareTask.
@@ -87,6 +89,13 @@ func (r *RemoteConfigUpdater) agentTaskUpdateCallback(updates map[string]state.R
 }
 
 func (r *RemoteConfigUpdater) handleAgentTask(configPath string, rawConfig state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+	// The Remote Configuration client doesn't recover panics in callbacks.
+	defer func() {
+		if p := recover(); p != nil {
+			r.logger.Error(fmt.Errorf("%v", p), "Panic while handling a Remote Configuration agent task", "path", configPath)
+			applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: fmt.Sprintf("the agent task panicked: %v", p)})
+		}
+	}()
 	// Tasks run once per cluster, on the leader. A non-leader neither runs
 	// the task nor reports a status for it.
 	if !r.isLeader() {
@@ -135,6 +144,17 @@ func (r *RemoteConfigUpdater) handleAgentTask(configPath string, rawConfig state
 		return
 	}
 
+	// One flare at a time, so that flares can't add up in the Operator memory.
+	r.tasksMu.Lock()
+	busy := r.flareRunning
+	r.flareRunning = true
+	r.tasksMu.Unlock()
+	if busy {
+		r.logger.Info("Rejecting Remote Configuration flare task: another flare is running", "uuid", flareTask.UUID, "caseID", flareTask.CaseID)
+		r.reportTaskStatus(key, configPath, state.ApplyStatus{State: state.ApplyStateError, Error: errFlareRunning.Error()}, applyStatus)
+		return
+	}
+
 	r.logger.Info("Received Remote Configuration flare task", "uuid", flareTask.UUID, "caseID", flareTask.CaseID)
 	applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 
@@ -145,10 +165,10 @@ func (r *RemoteConfigUpdater) handleAgentTask(configPath string, rawConfig state
 		ctx, cancel := context.WithTimeout(baseCtx, flareTaskTimeout)
 		defer cancel()
 
-		err := ErrFlareNotImplemented
-		if r.flareRunner != nil {
-			err = r.flareRunner.Run(ctx, flareTask)
-		}
+		err := r.runFlare(ctx, flareTask)
+		r.tasksMu.Lock()
+		r.flareRunning = false
+		r.tasksMu.Unlock()
 		status := state.ApplyStatus{State: state.ApplyStateAcknowledged}
 		if err != nil {
 			r.logger.Error(err, "Remote Configuration flare task failed", "uuid", flareTask.UUID, "caseID", flareTask.CaseID)
@@ -156,6 +176,20 @@ func (r *RemoteConfigUpdater) handleAgentTask(configPath string, rawConfig state
 		}
 		r.reportTaskStatus(key, configPath, status, applyStatus)
 	})
+}
+
+// runFlare runs a flare task. A panic in the flare is returned as an error,
+// so that a flare can't crash the Operator.
+func (r *RemoteConfigUpdater) runFlare(ctx context.Context, task FlareTask) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("the flare panicked: %v", p)
+		}
+	}()
+	if r.flareRunner == nil {
+		return ErrFlareNotImplemented
+	}
+	return r.flareRunner.Run(ctx, task)
 }
 
 func (r *RemoteConfigUpdater) reportTaskStatus(key, configPath string, status state.ApplyStatus, applyStatus func(string, state.ApplyStatus)) {

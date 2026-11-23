@@ -62,10 +62,11 @@ func collectCluster(ctx context.Context, c *Collection) error {
 	}
 
 	nodes := &corev1.NodeList{}
-	if err := c.Env.Reader.List(ctx, nodes); err != nil {
+	if err := c.Env.Reader.List(ctx, nodes, client.Limit(maxListItems)); err != nil {
 		failures++
 		c.Warn(fmt.Errorf("unable to list nodes: %w", err))
 	} else {
+		warnTruncated(c, "nodes", nodes)
 		info["nodes"] = summarizeNodes(nodes.Items)
 		info["distribution"] = distribution(serverVersion, nodes.Items)
 	}

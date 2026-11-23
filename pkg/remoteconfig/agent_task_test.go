@@ -307,3 +307,48 @@ type flareRunnerFunc func(context.Context, FlareTask) error
 func (f flareRunnerFunc) Run(ctx context.Context, task FlareTask) error {
 	return f(ctx, task)
 }
+
+func TestAgentTaskFlarePanicIsReported(t *testing.T) {
+	updater := NewRemoteConfigUpdater(nil, logr.Discard(), WithFlareRunner(flareRunnerFunc(func(context.Context, FlareTask) error {
+		panic("boom")
+	})))
+	recorder := newApplyStatusRecorder()
+
+	updater.agentTaskUpdateCallback(flareUpdate(t), recorder.record)
+	updater.tasksWG.Wait()
+
+	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateError, Error: "the flare panicked: boom"}, recorder.last(testFlareTaskPath))
+
+	// The next flare still runs.
+	updater.agentTaskUpdateCallback(map[string]state.RawConfig{"datadog/2/AGENT_TASK/other/config": agentTaskConfig(t, flareTaskType, "other-uuid", flareArgs())}, recorder.record)
+	updater.tasksWG.Wait()
+	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateError, Error: "the flare panicked: boom"}, recorder.last("datadog/2/AGENT_TASK/other/config"))
+}
+
+func TestAgentTaskOneFlareAtATime(t *testing.T) {
+	started, release := make(chan struct{}), make(chan struct{})
+	updater := NewRemoteConfigUpdater(nil, logr.Discard(), WithFlareRunner(flareRunnerFunc(func(context.Context, FlareTask) error {
+		close(started)
+		<-release
+		return nil
+	})))
+	recorder := newApplyStatusRecorder()
+	const secondPath = "datadog/2/AGENT_TASK/second/config"
+
+	updater.agentTaskUpdateCallback(flareUpdate(t), recorder.record)
+	<-started
+	updater.agentTaskUpdateCallback(map[string]state.RawConfig{secondPath: agentTaskConfig(t, flareTaskType, "second-uuid", flareArgs())}, recorder.record)
+	close(release)
+	updater.tasksWG.Wait()
+
+	assert.Equal(t, []state.ApplyStatus{{State: state.ApplyStateError, Error: errFlareRunning.Error()}}, recorder.get(secondPath))
+	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateAcknowledged}, recorder.last(testFlareTaskPath))
+}
+
+func TestAgentTaskCallbackPanicIsReported(t *testing.T) {
+	updater := NewRemoteConfigUpdater(nil, logr.Discard(), WithLeaderCheck(func() bool { panic("boom") }))
+	recorder := newApplyStatusRecorder()
+
+	require.NotPanics(t, func() { updater.agentTaskUpdateCallback(flareUpdate(t), recorder.record) })
+	assert.Equal(t, state.ApplyStatus{State: state.ApplyStateError, Error: "the agent task panicked: boom"}, recorder.last(testFlareTaskPath))
+}

@@ -80,7 +80,14 @@ func (r *RemoteConfigUpdater) FlareOrg() FlareOrg {
 // storedOrgUUID returns the org UUID stored in a Remote Configuration
 // database: the one of the latest root version. It reads a copy of the
 // database, so it doesn't wait for the lock of the service that has it open.
-func storedOrgUUID(databasePath string) (string, error) {
+func storedOrgUUID(databasePath string) (uuid string, err error) {
+	// The copy can be torn by a concurrent write, and bbolt panics on some
+	// corrupt pages.
+	defer func() {
+		if p := recover(); p != nil {
+			uuid, err = "", fmt.Errorf("unable to read the copy of the Remote Configuration database: %v", p)
+		}
+	}()
 	copyPath, err := copyToTemp(databasePath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -96,7 +103,6 @@ func storedOrgUUID(databasePath string) (string, error) {
 	}
 	defer db.Close()
 
-	var uuid string
 	var latest uint64
 	found := false
 	err = db.View(func(tx *bbolt.Tx) error {

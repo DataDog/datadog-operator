@@ -46,7 +46,7 @@ helm install my-datadog-operator datadog/datadog-operator -f values.yaml
 When Remote Configuration is enabled, the Datadog Operator also receives these Fleet Automation requests. They don't need any other setting.
 
 * **Log level**: a log level set from Fleet Automation (for example the temporary `debug` level set before a flare) changes the Operator log level at runtime. The Operator restores the level it started with (`-loglevel`) when the setting is removed.
-* **Flare requests**: the Operator collects a flare of its own view of the cluster and sends it to the support case. Only the leader replica handles a request, and each request runs once. Fleet Automation shows the request as done once the flare was sent, or as failed with the error.
+* **Flare requests**: the Operator collects a flare of its own view of the cluster and sends it to the support case. Only the leader replica handles a request, each request runs once, and one flare runs at a time: a request that arrives while another flare runs fails. Fleet Automation shows the request as done once the flare was sent, or as failed with the error.
 
 ### What an Operator flare contains
 

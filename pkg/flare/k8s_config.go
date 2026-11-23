@@ -121,9 +121,10 @@ func collectOperatorRBAC(ctx context.Context, c *Collection) {
 
 	operatorRBAC := map[string]any{"serviceAccount": pod.Namespace + "/" + saName}
 	clusterRoleBindings := &rbacv1.ClusterRoleBindingList{}
-	if err := c.Env.Reader.List(ctx, clusterRoleBindings); err != nil {
+	if err := c.Env.Reader.List(ctx, clusterRoleBindings, client.Limit(maxListItems)); err != nil {
 		c.Warn(fmt.Errorf("unable to list ClusterRoleBindings: %w", err))
 	} else {
+		warnTruncated(c, "ClusterRoleBindings", clusterRoleBindings)
 		var bindings []rbacv1.ClusterRoleBinding
 		var roles []any
 		for _, binding := range clusterRoleBindings.Items {
@@ -174,10 +175,11 @@ func collectWebhooks(ctx context.Context, c *Collection) error {
 		}
 	}
 	mutating := &admissionregistrationv1.MutatingWebhookConfigurationList{}
-	mutatingErr := c.Env.Reader.List(ctx, mutating)
+	mutatingErr := c.Env.Reader.List(ctx, mutating, client.Limit(maxListItems))
 	if mutatingErr != nil {
 		c.Warn(fmt.Errorf("unable to list MutatingWebhookConfigurations: %w", mutatingErr))
 	}
+	warnTruncated(c, "MutatingWebhookConfigurations", mutating)
 	for i := range mutating.Items {
 		for j := range mutating.Items[i].Webhooks {
 			mutating.Items[i].Webhooks[j].ClientConfig.CABundle = nil
@@ -185,10 +187,11 @@ func collectWebhooks(ctx context.Context, c *Collection) error {
 		add("mutating", &mutating.Items[i])
 	}
 	validating := &admissionregistrationv1.ValidatingWebhookConfigurationList{}
-	validatingErr := c.Env.Reader.List(ctx, validating)
+	validatingErr := c.Env.Reader.List(ctx, validating, client.Limit(maxListItems))
 	if validatingErr != nil {
 		c.Warn(fmt.Errorf("unable to list ValidatingWebhookConfigurations: %w", validatingErr))
 	}
+	warnTruncated(c, "ValidatingWebhookConfigurations", validating)
 	for i := range validating.Items {
 		for j := range validating.Items[i].Webhooks {
 			validating.Items[i].Webhooks[j].ClientConfig.CABundle = nil
