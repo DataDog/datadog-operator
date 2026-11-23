@@ -1424,7 +1424,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 1acbebac1ebe8147b1fa81d7866dae89
+    agent.datadoghq.com/agentspechash: 08a9ef280d6915347398b7f99bddbd1f
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1613,6 +1613,9 @@ spec:
           readOnly: true
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
+          readOnly: true
+        - mountPath: /host/etc/os-release
+          name: os-release-file
           readOnly: true
         - mountPath: /var/run/datadog
           name: dsdsocket
@@ -1968,6 +1971,9 @@ spec:
           path: /sys/fs/cgroup
         name: cgroups
       - hostPath:
+          path: /etc/os-release
+        name: os-release-file
+      - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate
         name: dsdsocket
@@ -2276,7 +2282,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 6b3ac2e2c342ad5b4ac03fb9a98970f8
+    agent.datadoghq.com/agentspechash: a0f00acb957cbaabd6ec01bd649c852c
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2398,7 +2404,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: registry.datadoghq.com/agent:7.85.4
+        image: registry.datadoghq.com/agent:7.85.5
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2453,7 +2459,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.85.4
+        image: registry.datadoghq.com/agent:7.85.5
         name: init-config
         resources: {}
         volumeMounts:
@@ -2482,7 +2488,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.85.4
+        image: registry.datadoghq.com/agent:7.85.5
         name: init-copy-check-assets
         resources: {}
         securityContext:

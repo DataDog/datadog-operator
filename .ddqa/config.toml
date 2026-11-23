@@ -182,6 +182,13 @@ github_team = "container-platform"
 github_labels = ["team/container-platform"]
 exclude_members = ["davidor"]
 
+[teams."Accelerator Telemetry"]
+jira_project = "AXT"
+jira_issue_type = "Task"
+jira_statuses = ["To Do", "In Progress", "Done"]
+github_team = "accelerator-telemetry"
+github_labels = ["team/accelerator-telemetry"]
+
 [teams."Agent Onboarding"]
 jira_project = "AGENTONB"
 jira_issue_type = "Task"

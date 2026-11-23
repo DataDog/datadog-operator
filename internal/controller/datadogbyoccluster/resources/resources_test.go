@@ -305,8 +305,10 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			"health":                  map[string]any{"listen_port": 7284},
 			"cloudprem":               values.cloudprem,
 			"docs_clustering": []any{
-				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
-				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
+				map[string]any{"fingerprint": []any{
+					map[string]any{"kind": "raw", "path": "source"},
+					map[string]any{"kind": "raw", "path": "service"},
+				}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 			},

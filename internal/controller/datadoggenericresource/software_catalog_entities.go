@@ -125,10 +125,6 @@ func (h *SoftwareCatalogEntityHandler) deleteResource(auth context.Context, inst
 	return deleteSoftwareCatalogEntity(auth, h.client, instance.Status.Id)
 }
 
-func (h *SoftwareCatalogEntityHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
-	return nil, nil
-}
-
 func getSoftwareCatalogEntity(auth context.Context, client *datadogV2.SoftwareCatalogApi, entityID string) (datadogV2.EntityData, error) {
 	if entityID == "" {
 		return datadogV2.EntityData{}, fmt.Errorf("cannot get software catalog entity: entityID is empty")

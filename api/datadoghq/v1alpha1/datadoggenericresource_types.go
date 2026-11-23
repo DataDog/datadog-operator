@@ -64,7 +64,7 @@ type DatadogGenericResourceStatus struct {
 	// fetched from the Datadog API. Values are resource-type dependent — for
 	// Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:
 	// breached, warning, ok, no_data. Only populated for resource types that
-	// expose live state.
+	// expose live state. PollingDisabled when state polling is disabled.
 	State string `json:"state,omitempty"`
 	// StateLastUpdateTime is the last time State was successfully refreshed from Datadog.
 	StateLastUpdateTime *metav1.Time `json:"stateLastUpdateTime,omitempty"`
