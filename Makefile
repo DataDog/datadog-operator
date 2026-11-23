@@ -392,13 +392,21 @@ lint-e2e: bin/$(PLATFORM)/golangci-lint ## Lint e2e tests (slow, run separately 
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	# Generate licenses for all target platforms (linux/darwin/windows)
-	GOOS=linux ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-linux.csv 2> errors
-	GOOS=darwin ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-darwin.csv 2>> errors
-	GOOS=windows ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-windows.csv 2>> errors
-	# Merge all platform-specific licenses into a single sorted file
-	head -1 /tmp/licenses-linux.csv > LICENSE-3rdparty.csv
-	tail -n +2 /tmp/licenses-linux.csv /tmp/licenses-darwin.csv /tmp/licenses-windows.csv | grep -v "^==>" | grep -v "^$$" | LC_ALL=C sort -u >> LICENSE-3rdparty.csv
+	# Match shipped OS, architecture, and cgo settings independently of the host.
+	@reports=$$(mktemp -d); trap 'rm -rf -- "$$reports"' EXIT; \
+	for target in {linux,darwin}/{amd64,arm64}/{0,1} windows/{amd64,arm64}/0; do \
+		IFS=/ read -r goos goarch cgo <<< "$$target"; \
+		printf 'Generating licenses for %s/%s (CGO_ENABLED=%s)\n' "$$goos" "$$goarch" "$$cgo"; \
+		if ! GOOS="$$goos" GOARCH="$$goarch" CGO_ENABLED="$$cgo" \
+			./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper \
+			--template ./hack/licenses.tpl > "$$reports/$$goos-$$goarch-$$cgo.csv" 2> "$$reports/errors"; then \
+			cat "$$reports/errors" >&2; \
+			exit 1; \
+		fi; \
+	done; \
+	head -n 1 "$$reports/linux-amd64-0.csv" > "$$reports/merged"; \
+	awk 'FNR > 1 && NF' "$$reports"/*.csv | LC_ALL=C sort -u >> "$$reports/merged"; \
+	cat "$$reports/merged" > LICENSE-3rdparty.csv
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
