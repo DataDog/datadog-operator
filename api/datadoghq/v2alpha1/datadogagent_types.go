@@ -90,6 +90,9 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// PrivateActionRunner configuration for the Node Agent and Cluster Agent.
+	// +optional
+	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
@@ -129,6 +132,53 @@ type DatadogFeatures struct {
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
 	KubernetesActions *KubernetesActionsFeatureConfig `json:"kubernetesActions,omitempty"`
+}
+
+// PrivateActionRunnerFeatureConfig contains Private Action Runner configuration.
+// When present, this block replaces the legacy enable and configdata annotations.
+// Advanced settings use override.nodeAgent.customConfigurations["datadog.yaml"] and
+// override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
+// Split mode and host systemd access remain configured through annotations.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerFeatureConfig struct {
+	// Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,
+	// with self-enrollment by default. Per-component Enabled takes precedence.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ActionsAllowlist contains additional action patterns allowed on both agents.
+	// Per-component ActionsAllowlist replaces this list when set, including an empty list.
+	// Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.
+	// Built-in actions remain controlled by private_action_runner.default_actions_enabled.
+	// +optional
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
+
+	// NodeAgent configures Private Action Runner on the Node Agent.
+	// Omitted settings inherit the shared feature settings.
+	// +optional
+	NodeAgent *PrivateActionRunnerComponentConfig `json:"nodeAgent,omitempty"`
+
+	// ClusterAgent configures Private Action Runner on the Cluster Agent.
+	// Omitted settings inherit the shared feature settings.
+	// +optional
+	ClusterAgent *PrivateActionRunnerComponentConfig `json:"clusterAgent,omitempty"`
+}
+
+// PrivateActionRunnerComponentConfig configures Private Action Runner for one component.
+// Advanced settings use the component's customConfigurations without changing their file-mount semantics.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerComponentConfig struct {
+	// Enabled overrides the shared Private Action Runner enablement for this component.
+	// Takes precedence over private_action_runner.enabled in customConfigurations.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ActionsAllowlist replaces the shared additional action patterns for this component.
+	// An explicit empty list clears inherited additional action patterns.
+	// Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+	// +optional
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
 }
 
 // KubernetesActionsFeatureConfig allows configuration of the Kubernetes Actions feature.
@@ -176,7 +226,7 @@ type KubernetesActionsRemoteConfigurationConfig struct {
 type KubernetesActionsPrivateActionRunnerConfig struct {
 	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
 	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
-	// configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.
 	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
 	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
 	// Default: true
