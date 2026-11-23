@@ -353,7 +353,7 @@ spec:
 : `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset.
 
 `features.kubernetesActions.communication.privateActionRunner.enabled`
-: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
+: Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true
 
 `features.kubernetesActions.communication.remoteConfiguration.enabled`
 : Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true
@@ -453,6 +453,24 @@ spec:
 
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
+
+`features.privateActionRunner.actionsAllowlist`
+: ActionsAllowlist contains additional action patterns allowed on both agents. Per-component ActionsAllowlist replaces this list when set, including an empty list. Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations. Built-in actions remain controlled by private_action_runner.default_actions_enabled.
+
+`features.privateActionRunner.clusterAgent.actionsAllowlist`
+: ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+
+`features.privateActionRunner.clusterAgent.enabled`
+: Overrides the shared Private Action Runner enablement for this component. Takes precedence over private_action_runner.enabled in customConfigurations.
+
+`features.privateActionRunner.enabled`
+: Enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Per-component Enabled takes precedence. Default: false
+
+`features.privateActionRunner.nodeAgent.actionsAllowlist`
+: ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+
+`features.privateActionRunner.nodeAgent.enabled`
+: Overrides the shared Private Action Runner enablement for this component. Takes precedence over private_action_runner.enabled in customConfigurations.
 
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true
