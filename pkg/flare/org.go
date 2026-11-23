@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -55,4 +57,46 @@ func SiteFromSettings(site, ddURL, from string) OrgValue {
 		return Known(ddURL, fmt.Sprintf("%s or %s from %s (%s is unset)", constants.DDddURL, constants.DDURL, from, constants.DDSite))
 	}
 	return Known(DefaultSite, fmt.Sprintf("default: %s, %s and %s are unset in %s", constants.DDSite, constants.DDddURL, constants.DDURL, from))
+}
+
+// PodOrgInfo returns the org information of an Operator pod spec: only the
+// site, since the org UUID and ID are only known to Remote Configuration.
+func PodOrgInfo(pod *corev1.Pod) *OrgInfo {
+	const notVisible = "only known to the Operator's Remote Configuration client: it's in flares requested from Fleet Automation, which the Operator collects itself, not in flares the kubectl plugin collects through the Kubernetes API"
+	info := &OrgInfo{
+		OrgUUID: UnknownOrgValue("the org UUID is " + notVisible),
+		OrgID:   UnknownOrgValue("the org ID is " + notVisible),
+	}
+	container := OperatorContainer(pod)
+	if container == nil {
+		info.Site = UnknownOrgValue("the Operator pod is unknown")
+		return info
+	}
+	from := fmt.Sprintf("the pod spec of %s, container %s", pod.Name, container.Name)
+	values := map[string]string{}
+	for _, env := range container.Env {
+		switch env.Name {
+		case constants.DDSite, constants.DDddURL, constants.DDURL:
+		default:
+			continue
+		}
+		if env.ValueFrom != nil {
+			// The value is in a Secret or ConfigMap, which flares don't
+			// read for the Operator container.
+			ref := podConfigEnv(env).From
+			info.Site = UnknownOrgValue(fmt.Sprintf("%s is set from %s in %s, which the flare doesn't read", env.Name, ref, from))
+			return info
+		}
+		values[env.Name] = env.Value
+	}
+	if len(container.EnvFrom) > 0 && len(values) == 0 {
+		info.Site = UnknownOrgValue(fmt.Sprintf("%s is not set in %s, which takes variables from Secrets or ConfigMaps (envFrom) the flare doesn't read", constants.DDSite, from))
+		return info
+	}
+	ddURL := values[constants.DDddURL]
+	if ddURL == "" {
+		ddURL = values[constants.DDURL]
+	}
+	info.Site = SiteFromSettings(values[constants.DDSite], ddURL, from)
+	return info
 }

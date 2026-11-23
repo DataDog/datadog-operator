@@ -10,20 +10,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Operator collectors and helpers of the remote flare.
+// Operator collectors and helpers shared by the remote flare and the kubectl plugin.
 
 const (
 	// LeaderElectionID is the name of the Operator's leader election Lease.
 	LeaderElectionID = "datadog-operator-lock"
 	// DefaultHealthProbePort is the port of the Operator health probes.
 	DefaultHealthProbePort = "8081"
+	// OperatorBinary is the path of the Operator binary in its image.
+	OperatorBinary = "/manager"
 )
 
 // HealthEndpoints are the health probe endpoints collected in flares.
@@ -92,6 +97,141 @@ func isCredentialEnv(name string) bool {
 	return false
 }
 
+// OperatorContainer returns the Operator container of an Operator pod: the
+// one that runs /manager or is named manager, else the first one.
+func OperatorContainer(pod *corev1.Pod) *corev1.Container {
+	if pod == nil || len(pod.Spec.Containers) == 0 {
+		return nil
+	}
+	for i := range pod.Spec.Containers {
+		container := &pod.Spec.Containers[i]
+		if container.Name == "manager" || (len(container.Command) > 0 && container.Command[0] == OperatorBinary) {
+			return container
+		}
+	}
+	return &pod.Spec.Containers[0]
+}
+
+// ContainerFlags returns the flags of a container's command and args, in
+// order, as name (without dashes) and value ("true" for a bare flag).
+func ContainerFlags(container *corev1.Container) [][2]string {
+	if container == nil {
+		return nil
+	}
+	args := append(append([]string{}, container.Command...), container.Args...)
+	var flags [][2]string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "-") || arg == "-" || arg == "--" {
+			continue
+		}
+		name, value, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		if !hasValue {
+			value = "true"
+			// Secret flags always take a value, which can start with a
+			// dash, such as --secretBackendArgs "--token x".
+			if i+1 < len(args) && (!strings.HasPrefix(args[i+1], "-") || isSecretFlag(name)) {
+				value = args[i+1]
+				i++
+			}
+		}
+		flags = append(flags, [2]string{name, value})
+	}
+	return flags
+}
+
+// ContainerFlag returns the value of the last occurrence of a flag in a
+// container's command and args.
+func ContainerFlag(container *corev1.Container, name string) (string, bool) {
+	value, found := "", false
+	for _, flag := range ContainerFlags(container) {
+		if flag[0] == name {
+			value, found = flag[1], true
+		}
+	}
+	return value, found
+}
+
+// OperatorPodConfig is the configuration of an Operator container in its pod
+// spec, with credentials redacted.
+type OperatorPodConfig struct {
+	Source    string            `json:"source"`
+	Pod       string            `json:"pod"`
+	Container string            `json:"container"`
+	Image     string            `json:"image"`
+	Command   []string          `json:"command,omitempty"`
+	Flags     map[string]string `json:"flags,omitempty"`
+	Env       []PodConfigEnv    `json:"env,omitempty"`
+	EnvFrom   []string          `json:"envFrom,omitempty"`
+}
+
+// PodConfigEnv is an environment variable of the Operator container: its
+// value, redacted for credentials, or where it's set from.
+type PodConfigEnv struct {
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
+	From  string `json:"from,omitempty"`
+}
+
+// OperatorPodConfigCollector collects the Operator configuration from its pod
+// spec, for the kubectl plugin.
+func OperatorPodConfigCollector() Collector {
+	return Collector{Name: "operator/config", Collect: func(_ context.Context, c *Collection) error {
+		pod := c.Env.OperatorPod
+		container := OperatorContainer(pod)
+		if container == nil {
+			return errors.New("the Operator pod is unknown")
+		}
+		config := &OperatorPodConfig{
+			Source:    "pod spec (Kubernetes API); flag defaults and in-process settings are not visible from outside the Operator",
+			Pod:       pod.Name,
+			Container: container.Name,
+			Image:     container.Image,
+			Flags:     map[string]string{},
+		}
+		for _, arg := range container.Command {
+			if !strings.HasPrefix(arg, "-") {
+				config.Command = append(config.Command, arg)
+			}
+		}
+		for _, flag := range ContainerFlags(container) {
+			config.Flags[flag[0]] = RedactFlagValue(flag[0], flag[1])
+		}
+		for _, env := range container.Env {
+			config.Env = append(config.Env, podConfigEnv(env))
+		}
+		for _, from := range container.EnvFrom {
+			switch {
+			case from.SecretRef != nil:
+				config.EnvFrom = append(config.EnvFrom, fmt.Sprintf("%sSecret %s", from.Prefix, from.SecretRef.Name))
+			case from.ConfigMapRef != nil:
+				config.EnvFrom = append(config.EnvFrom, fmt.Sprintf("%sConfigMap %s", from.Prefix, from.ConfigMapRef.Name))
+			}
+		}
+		return c.AddYAML("operator/config.yaml", config)
+	}}
+}
+
+func podConfigEnv(env corev1.EnvVar) PodConfigEnv {
+	entry := PodConfigEnv{Name: env.Name}
+	from := env.ValueFrom
+	switch {
+	case from == nil:
+		entry.Value = RedactEnvValue(env.Name, env.Value)
+	case from.SecretKeyRef != nil:
+		entry.From = fmt.Sprintf("Secret %s, key %s", from.SecretKeyRef.Name, from.SecretKeyRef.Key)
+	case from.ConfigMapKeyRef != nil:
+		entry.From = fmt.Sprintf("ConfigMap %s, key %s", from.ConfigMapKeyRef.Name, from.ConfigMapKeyRef.Key)
+	case from.FieldRef != nil:
+		entry.From = "field " + from.FieldRef.FieldPath
+	case from.ResourceFieldRef != nil:
+		entry.From = "resource " + from.ResourceFieldRef.Resource
+	default:
+		entry.From = "another source"
+	}
+	return entry
+}
+
 // GetLease returns the spec of the Operator's leader election Lease.
 func GetLease(ctx context.Context, reader client.Reader, namespace, name string) (*coordinationv1.LeaseSpec, error) {
 	lease := &coordinationv1.Lease{}
@@ -99,6 +239,29 @@ func GetLease(ctx context.Context, reader client.Reader, namespace, name string)
 		return nil, fmt.Errorf("unable to get the leader election lease %s/%s: %w", namespace, name, err)
 	}
 	return &lease.Spec, nil
+}
+
+// LeaderElectionCollector collects the Operator's leader election Lease,
+// and the pod that holds it, from the Kubernetes API.
+func LeaderElectionCollector(leaseName string) Collector {
+	return Collector{Name: "operator/leader-election", Collect: func(ctx context.Context, c *Collection) error {
+		if c.Env.Reader == nil {
+			return errors.New("no Kubernetes reader")
+		}
+		info := map[string]any{"id": leaseName}
+		if c.Env.OperatorPod != nil {
+			info["leaderPod"] = c.Env.OperatorPod.Name
+		}
+		spec, err := GetLease(ctx, c.Env.Reader, c.Env.OperatorNamespace, leaseName)
+		if err != nil {
+			// Older Operators use a ConfigMap lock, collected with the
+			// other ConfigMaps.
+			c.Warn(err)
+		} else {
+			info["lease"] = spec
+		}
+		return c.AddYAML("operator/leader-election.yaml", info)
+	}}
 }
 
 // HealthGetter reads a health probe endpoint, such as /readyz?verbose. It
@@ -129,4 +292,83 @@ func CollectHealthEndpoints(ctx context.Context, c *Collection, get HealthGetter
 		return errors.New("unable to read the health probes")
 	}
 	return c.AddText("operator/health.txt", out.Bytes())
+}
+
+// PodHealth is the health of a pod as the Kubernetes API shows it.
+type PodHealth struct {
+	Pod        string                  `json:"pod"`
+	Conditions []corev1.PodCondition   `json:"conditions,omitempty"`
+	Containers []ContainerHealthStatus `json:"containers,omitempty"`
+}
+
+// ContainerHealthStatus is the probe status of a container.
+type ContainerHealthStatus struct {
+	Name           string                `json:"name"`
+	Ready          bool                  `json:"ready"`
+	Started        *bool                 `json:"started,omitempty"`
+	RestartCount   int32                 `json:"restartCount"`
+	State          corev1.ContainerState `json:"state"`
+	LastState      corev1.ContainerState `json:"lastState,omitzero"`
+	ReadinessProbe *corev1.Probe         `json:"readinessProbe,omitempty"`
+	LivenessProbe  *corev1.Probe         `json:"livenessProbe,omitempty"`
+	StartupProbe   *corev1.Probe         `json:"startupProbe,omitempty"`
+}
+
+// SummarizePodHealth returns the health of a pod.
+func SummarizePodHealth(pod *corev1.Pod) PodHealth {
+	health := PodHealth{Pod: pod.Name, Conditions: pod.Status.Conditions}
+	probes := map[string]*corev1.Container{}
+	for i := range pod.Spec.Containers {
+		probes[pod.Spec.Containers[i].Name] = &pod.Spec.Containers[i]
+	}
+	for _, status := range pod.Status.ContainerStatuses {
+		container := ContainerHealthStatus{
+			Name:         status.Name,
+			Ready:        status.Ready,
+			Started:      status.Started,
+			RestartCount: status.RestartCount,
+			State:        status.State,
+			LastState:    status.LastTerminationState,
+		}
+		if spec := probes[status.Name]; spec != nil {
+			container.ReadinessProbe = spec.ReadinessProbe
+			container.LivenessProbe = spec.LivenessProbe
+			container.StartupProbe = spec.StartupProbe
+		}
+		health.Containers = append(health.Containers, container)
+	}
+	return health
+}
+
+// HealthProbePort returns the port of the Operator health probes: the HTTP
+// port of its readiness or liveness probe, else 8081.
+func HealthProbePort(pod *corev1.Pod) string {
+	container := OperatorContainer(pod)
+	if container == nil {
+		return DefaultHealthProbePort
+	}
+	for _, probe := range []*corev1.Probe{container.ReadinessProbe, container.LivenessProbe, container.StartupProbe} {
+		if probe == nil || probe.HTTPGet == nil {
+			continue
+		}
+		if port := resolvePort(container, probe.HTTPGet.Port); port != "" {
+			return port
+		}
+	}
+	return DefaultHealthProbePort
+}
+
+func resolvePort(container *corev1.Container, port intstr.IntOrString) string {
+	if port.Type == intstr.Int {
+		if port.IntVal > 0 {
+			return strconv.Itoa(int(port.IntVal))
+		}
+		return ""
+	}
+	for _, p := range container.Ports {
+		if p.Name == port.StrVal {
+			return strconv.Itoa(int(p.ContainerPort))
+		}
+	}
+	return ""
 }

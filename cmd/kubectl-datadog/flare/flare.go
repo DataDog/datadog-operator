@@ -6,40 +6,45 @@
 package flare
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
+	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
-	"strconv"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/flare"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
-	httpTimeout = 60 * time.Second
-	flareURL    = "https://%s-flare.agent.datadoghq.%s/support/flare"
+	leaderElectionID   = flare.LeaderElectionID
+	operatorLabel      = "app.kubernetes.io/name=datadog-operator"
+	defaultMetricsAddr = ":8080"
+	// flareHostname is the hostname of flares sent with the plugin.
+	flareHostname = "datadog-operator"
+	// fallbackVersion builds the flare intake URL when the Operator version
+	// is unknown. It isn't written to the manifest.
+	fallbackVersion = "0.1.0"
 )
 
 var (
@@ -154,9 +159,9 @@ func (o *options) validate() error {
 
 	switch ddSite {
 	case "", "u", "us", "US":
-		o.site = "com"
+		o.site = "datadoghq.com"
 	case "e", "eu", "EU":
-		o.site = "eu"
+		o.site = "datadoghq.eu"
 	default:
 		return fmt.Errorf("invalid datadog site %s", ddSite)
 	}
@@ -167,61 +172,72 @@ func (o *options) validate() error {
 // run runs the flare command
 func (o *options) run(cmd *cobra.Command) error {
 	ctx := cmd.Context()
-	// Prepare base directory
-	baseDir := filepath.Join(os.TempDir(), "datadog-operator")
-	if err := os.MkdirAll(baseDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	// Collect the existing datadogagent custom resource definitons
-	if err := o.createCRFiles(baseDir, cmd); err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't collect custom resources: %v", err))
-	}
-
-	// Collect logs from all operator pods
-	if err := o.createLogFiles(baseDir, cmd); err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't collect log files: %v", err))
-	}
-
-	// Collect operator deployment template
-	if err := o.createDeploymentTemplate(baseDir, cmd); err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't collect deployment template: %v", err))
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	// Identify the leader pod
-	leaderPod, err := o.getLeader()
+	leaderPod, err := getLeader(ctx, o.Client, o.Clientset, o.UserNamespace)
 	if err != nil {
 		cmd.Println(fmt.Sprintf("Couldn't identify operator leader pod: %v", err))
 	}
 
-	// Collect leader metrics
-	if err = o.createMetricsFile(leaderPod, baseDir, cmd); err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't collect operator pod metrics: %v", err))
+	env := flare.Env{
+		Reader:            o.Client,
+		Clientset:         o.Clientset,
+		OperatorNamespace: o.UserNamespace,
+		OperatorPod:       leaderPod,
+	}
+	archive := flare.NewArchive(flare.ArchiveOptions{Root: "datadog-operator"})
+
+	// The plugin only sees the Operator through the Kubernetes API, so it
+	// has no Remote Configuration state.
+	var operatorVersion *version.JSON
+	pluginCollectors := []flare.Collector{
+		{Name: "operator/version", Collect: func(ctx context.Context, c *flare.Collection) error {
+			info, collectErr := o.collectVersion(ctx, c, leaderPod)
+			operatorVersion = info
+			return collectErr
+		}},
+		flare.OperatorPodConfigCollector(),
+		flare.LeaderElectionCollector(leaderElectionID),
+		{Name: "operator/health", Collect: func(ctx context.Context, c *flare.Collection) error {
+			return o.collectHealth(ctx, c, leaderPod)
+		}},
+		{Name: "operator/metrics", Collect: func(ctx context.Context, c *flare.Collection) error {
+			return o.collectMetrics(ctx, c, leaderPod)
+		}},
+		{Name: "operator/logs", Timeout: 60 * time.Second, Collect: func(ctx context.Context, c *flare.Collection) error {
+			return collectOperatorLogs(ctx, c, o.Clientset, o.UserNamespace)
+		}},
+	}
+	collectors := slices.Concat(pluginCollectors, flare.ConfigCollectors(), flare.DatadogResourcesCollectors(), []flare.Collector{flare.WorkloadsCollector(), flare.ClusterCollector()})
+
+	manifest := flare.Run(ctx, env, archive, collectors, flare.RunOptions{})
+	for _, result := range manifest.Collectors {
+		if result.Status != flare.StatusOK {
+			cmd.Println(fmt.Sprintf("Collector %s: %s %s", result.Name, result.Status, strings.Join(result.Errors, "; ")))
+		}
 	}
 
-	// Collect leader status
-	if err = o.createStatusFile(leaderPod, baseDir, cmd); err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't collect operator pod status: %v", err))
+	// Only the site is known from the pod spec.
+	manifest.Org = flare.PodOrgInfo(leaderPod)
+
+	uploadVersion := fallbackVersion
+	if operatorVersion != nil {
+		manifest.OperatorVersion = operatorVersion.Version
+		uploadVersion = operatorVersion.Version
+	} else {
+		cmd.Println(fmt.Sprintf("Couldn't get the Operator version, using %s to send the flare", fallbackVersion))
 	}
 
-	// Collect operator version
-	if err = o.createVersionFile(ctx, leaderPod, baseDir, cmd); err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't collect operator version: %v", err))
-	}
-
-	// Create zip with the collected files
-	zipFilePath := getArchivePath()
-	if err = archiveDir(baseDir, zipFilePath); err != nil {
+	data, err := archive.Close(manifest)
+	if err != nil {
 		return err
 	}
-
-	// Get the operator version
-	version, err := o.getVersion(ctx, leaderPod)
-	if err != nil {
-		cmd.Println(fmt.Sprintf("Couldn't get operator version: %v", err))
-
-		// Fallback to a default version used to build the flare URL
-		version = "0.1.0"
+	zipFilePath := getArchivePath()
+	if err = os.WriteFile(zipFilePath, data, 0o600); err != nil {
+		return err
 	}
 
 	// ask for confirmation before sending the flare file and opening the support ticket
@@ -231,7 +247,19 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	// Send the flare
-	caseID, err := o.sendFlare(zipFilePath, version, cmd)
+	baseURL, err := flare.FlareURL(o.site, "", uploadVersion)
+	if err != nil {
+		return err
+	}
+	uploader := &flare.Uploader{BaseURL: baseURL, APIKey: apiKey}
+	caseID, err := uploader.Upload(ctx, flare.UploadRequest{
+		CaseID:          o.caseID,
+		Email:           email,
+		Hostname:        flareHostname,
+		OperatorVersion: uploadVersion,
+		ArchiveName:     filepath.Base(zipFilePath),
+		Archive:         data,
+	})
 	if err != nil {
 		return err
 	}
@@ -240,180 +268,224 @@ func (o *options) run(cmd *cobra.Command) error {
 	return nil
 }
 
-// createCRFiles gets the available datadogagent custom resource definitions
-func (o *options) createCRFiles(dir string, cmd *cobra.Command) error {
-	// List all custom resources
-	ddList := &v2alpha1.DatadogAgentList{}
-	if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
-		return err
-	}
-	if len(ddList.Items) == 0 {
-		return errors.New("custom resources not found")
-	}
-
-	// Get custom resources yaml
-	// Kubernetes API types use JSON tags, which this YAML marshaler honors.
-	template, err := yaml.Marshal(ddList.Items) //nolint:musttag
+// collectOperatorLogs collects the logs of all the Operator pods.
+func collectOperatorLogs(ctx context.Context, c *flare.Collection, clientset kubernetes.Interface, namespace string) error {
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: operatorLabel})
 	if err != nil {
 		return err
 	}
-
-	return redactAndSave(filepath.Join(dir, "datadog-custom-resources.yaml"), template, cmd)
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("no pod with label %s in namespace %s", operatorLabel, namespace)
+	}
+	return flare.CollectOperatorPods(ctx, c, pods.Items)
 }
 
-// redactAndSave uses a redacting writer to write a new file
-func redactAndSave(filePath string, data []byte, cmd *cobra.Command) error {
-	file, err := createFile(filePath)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err = file.Close(); err != nil {
-			cmd.Println(fmt.Sprintf("Couldn't close file: %v", err))
-		}
-	}()
-
-	writer := newRedactingWriter(file)
-
-	_, err = writer.Write(data)
-	return err
-}
-
-// createLogFiles gets log files of the operator pods
-func (o *options) createLogFiles(dir string, cmd *cobra.Command) error {
-	// List all Datadog operator pods
-	podOpts := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=datadog-operator",
-	}
-	pods, err := o.Clientset.CoreV1().Pods(o.UserNamespace).List(context.TODO(), podOpts)
-	if err != nil {
-		return err
-	}
-
-	// Create log files for all the pods found
-	for _, pod := range pods.Items {
-		err := o.savePodLogs(pod, dir, cmd)
-		if err != nil {
-			cmd.Println(fmt.Sprintf("Skipping logs of pod %s: %v", pod.Name, err))
-			continue
-		}
-	}
-
-	return nil
-}
-
-// createDeploymentTemplate gets the deployment template of the operator
-func (o *options) createDeploymentTemplate(dir string, cmd *cobra.Command) error {
-	// Get Datadog operator deployment
-	deploy, err := o.Clientset.ExtensionsV1beta1().Deployments(o.UserNamespace).Get(context.TODO(), "datadog-operator", metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	// Get deployment template file
-	template, err := yaml.Marshal(deploy)
-	if err != nil {
-		return err
-	}
-
-	return redactAndSave(filepath.Join(dir, "datadog-operator-deployment.yaml"), template, cmd)
-}
-
-// createMetricsFile gets metrics payload and stores it in a file
-func (o *options) createMetricsFile(pod *corev1.Pod, dir string, cmd *cobra.Command) error {
+// collectMetrics gets the metrics of the leader pod through the API server
+// proxy, from the metrics port the Operator is configured with.
+func (o *options) collectMetrics(ctx context.Context, c *flare.Collection, pod *corev1.Pod) error {
 	if pod == nil {
 		return errors.New("nil leader pod")
 	}
-
-	// Query the /metrics endpoint of the leader pod
-	result := o.Clientset.CoreV1().RESTClient().Get().
+	port, err := metricsPort(pod)
+	if err != nil {
+		return err
+	}
+	metrics, err := o.Clientset.CoreV1().RESTClient().Get().
 		Namespace(pod.Namespace).
 		Resource("pods").
-		Name(fmt.Sprintf("%s:8383", pod.Name)).
+		Name(fmt.Sprintf("%s:%s", pod.Name, port)).
 		SubResource("proxy").
 		Suffix("metrics").
-		Do(context.TODO())
-
-	metrics, err := result.Raw()
+		Do(ctx).
+		Raw()
 	if err != nil {
 		return err
 	}
-
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-metrics.txt", pod.Name)), metrics, cmd)
+	return c.AddText(fmt.Sprintf("operator/%s-metrics.txt", pod.Name), metrics)
 }
 
-// createStatusFile gets status of a pod and stores it in a file
-func (o *options) createStatusFile(pod *corev1.Pod, dir string, cmd *cobra.Command) error {
+// metricsPort returns the port of the metrics endpoint of an Operator pod,
+// from its -metrics-addr flag or DD_METRICS_ADDR environment variable.
+func metricsPort(pod *corev1.Pod) (string, error) {
+	addr := ""
+	for i := range pod.Spec.Containers {
+		container := &pod.Spec.Containers[i]
+		for _, env := range container.Env {
+			if env.Name == "DD_METRICS_ADDR" && env.Value != "" {
+				addr = env.Value
+			}
+		}
+		// Flags take precedence over the environment.
+		if value, ok := flare.ContainerFlag(container, "metrics-addr"); ok {
+			addr = value
+		}
+	}
+	if addr == "" {
+		addr = defaultMetricsAddr
+	}
+	if addr == "0" {
+		return "", errors.New("the metrics endpoint of the Operator is disabled")
+	}
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", fmt.Errorf("invalid metrics address %q: %w", addr, err)
+	}
+	return port, nil
+}
+
+// collectHealth collects the health of the leader pod: its conditions and
+// probe results from the pod status, and the verbose health probe endpoints
+// through the API server proxy.
+func (o *options) collectHealth(ctx context.Context, c *flare.Collection, pod *corev1.Pod) error {
 	if pod == nil {
 		return errors.New("nil leader pod")
 	}
-
-	// Get pod status in yaml
-	status, err := yaml.Marshal(pod.Status)
-	if err != nil {
+	if err := c.AddYAML("operator/health-pod-status.yaml", flare.SummarizePodHealth(pod)); err != nil {
 		return err
 	}
-
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-status.txt", pod.Name)), status, cmd)
+	port := flare.HealthProbePort(pod)
+	return flare.CollectHealthEndpoints(ctx, c, func(ctx context.Context, endpoint string) (string, []byte, error) {
+		return o.proxyGet(ctx, pod, port, endpoint)
+	})
 }
 
-// createVersionFile gets the version from the operator pod and stores it in a file
-func (o *options) createVersionFile(ctx context.Context, pod *corev1.Pod, dir string, cmd *cobra.Command) error {
-	if pod == nil {
-		return errors.New("nil leader pod")
+// proxyGet reads an HTTP endpoint of a pod through the API server proxy. It
+// returns the HTTP status and body of the pod's answer, even when it isn't
+// a success.
+func (o *options) proxyGet(ctx context.Context, pod *corev1.Pod, port, endpoint string) (string, []byte, error) {
+	endpointPath, query, _ := strings.Cut(endpoint, "?")
+	request := o.Clientset.CoreV1().RESTClient().Get().
+		Namespace(pod.Namespace).
+		Resource("pods").
+		Name(fmt.Sprintf("%s:%s", pod.Name, port)).
+		SubResource("proxy").
+		Suffix(strings.TrimPrefix(endpointPath, "/"))
+	for param := range strings.SplitSeq(query, "&") {
+		if param == "" {
+			continue
+		}
+		name, value, _ := strings.Cut(param, "=")
+		request = request.Param(name, value)
 	}
-
-	// Prepare command and execute it
-	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --version-format text"}
-	version, err := o.execInPod(ctx, versionCmd, pod)
-	if err != nil {
-		return err
+	result := request.Do(ctx)
+	code := 0
+	result.StatusCode(&code)
+	body, err := result.Raw()
+	// client-go doesn't set the status code of plain text errors, such as
+	// a 404 from the pod: it's in the error.
+	var status apierrors.APIStatus
+	if code == 0 && errors.As(err, &status) {
+		code = int(status.Status().Code)
 	}
-
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-version.txt", pod.Name)), version, cmd)
+	if code == 0 {
+		if err == nil {
+			err = errors.New("no HTTP status")
+		}
+		return "", nil, err
+	}
+	return fmt.Sprintf("%d %s", code, http.StatusText(code)), body, nil
 }
 
-// getOperatorVersion gets the version from the operator pod
-func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, error) {
-	if pod == nil {
-		return "", errors.New("nil leader pod")
-	}
-
-	// Prepare command and execute it
-	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --version-format json"}
-	versionJSON, err := o.execInPod(ctx, versionCmd, pod)
-	if err != nil {
-		return "", err
-	}
-
-	// Unmarshal payload
-	decoded := version.JSON{}
-	if err := json.Unmarshal(versionJSON, &decoded); err != nil {
-		return "", err
-	}
-	if decoded.Error != "" {
-		return "", errors.New(decoded.Error)
-	}
-	if decoded.Version == "" {
-		return "", errors.New("empty version")
-	}
-
-	version, _, _ := strings.Cut(decoded.Version, "_")
-	return strings.TrimLeft(version, "v"), nil
+// versionCommands are run in the Operator container to get its version:
+// the json format first, then the text format of Operators without
+// --version-format. The binary is exec'd directly: the image has no shell.
+var versionCommands = [][]string{
+	{flare.OperatorBinary, "--version", "--version-format", "json"},
+	{flare.OperatorBinary, "--version"},
 }
 
-func (o *options) getLeader() (*corev1.Pod, error) {
-	// Get operator lock configmap to identify the leader
-	cm, err := o.Clientset.CoreV1().ConfigMaps(o.UserNamespace).Get(context.TODO(), "datadog-operator-lock", metav1.GetOptions{})
+// collectVersion writes the version of the leader pod, from its binary or
+// else its image tag, to operator/version.yaml.
+func (o *options) collectVersion(ctx context.Context, c *flare.Collection, pod *corev1.Pod) (*version.JSON, error) {
+	info, source, err := resolveVersion(ctx, pod, o.execInPod)
 	if err != nil {
 		return nil, err
 	}
+	return writeVersion(c, pod, info, source)
+}
 
-	// Get leader from owner refs
+// writeVersion writes operator/version.yaml and returns the version,
+// normalized.
+func writeVersion(c *flare.Collection, pod *corev1.Pod, info *version.JSON, source string) (*version.JSON, error) {
+	if err := c.AddYAML("operator/version.yaml", map[string]any{
+		"pod":       pod.Name,
+		"source":    source,
+		"version":   info.Version,
+		"commit":    info.Commit,
+		"buildTime": info.BuildTime,
+		"goVersion": info.Go,
+		"platform":  info.Os,
+	}); err != nil {
+		return nil, err
+	}
+	info.Version = version.Normalize(info.Version)
+	return info, nil
+}
+
+// execFunc runs a command in a container of a pod and returns its stdout.
+type execFunc func(ctx context.Context, pod *corev1.Pod, container string, command []string) ([]byte, error)
+
+// resolveVersion returns the version of an Operator pod, and where it was
+// read from.
+func resolveVersion(ctx context.Context, pod *corev1.Pod, exec execFunc) (*version.JSON, string, error) {
+	container := flare.OperatorContainer(pod)
+	if container == nil {
+		return nil, "", errors.New("nil leader pod")
+	}
+	var errs []error
+	for _, command := range versionCommands {
+		out, err := exec(ctx, pod, container.Name, command)
+		if err == nil {
+			var info version.JSON
+			if info, err = version.Parse(out); err == nil {
+				return &info, "exec " + strings.Join(command, " "), nil
+			}
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", strings.Join(command, " "), err))
+	}
+	if tag := imageTag(container.Image); tag != "" {
+		return &version.JSON{Version: tag}, "image tag of " + container.Image, nil
+	}
+	return nil, "", fmt.Errorf("unable to get the Operator version: %w", errors.Join(errs...))
+}
+
+// imageTag returns the tag of an image if it looks like a version, such as
+// 1.22.0 for gcr.io/datadoghq/operator:1.22.0.
+func imageTag(image string) string {
+	image, _, _ = strings.Cut(image, "@")
+	slash := strings.LastIndex(image, "/")
+	colon := strings.LastIndex(image, ":")
+	if colon <= slash {
+		return ""
+	}
+	tag := image[colon+1:]
+	if !imageVersionRegexp.MatchString(tag) {
+		return ""
+	}
+	return tag
+}
+
+var imageVersionRegexp = regexp.MustCompile(`^v?\d+\.\d+\.\d+`)
+
+// getLeader returns the leader pod, from the leader election Lease, or the
+// ConfigMap older Operators used.
+func getLeader(ctx context.Context, reader client.Reader, clientset kubernetes.Interface, namespace string) (*corev1.Pod, error) {
 	leaderName := ""
-	for _, ref := range cm.GetOwnerReferences() {
-		leaderName = ref.Name
-		break
+	lease := &coordinationv1.Lease{}
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: leaderElectionID}, lease); err == nil {
+		if lease.Spec.HolderIdentity != nil {
+			// The identity is <pod name>_<uuid>.
+			leaderName, _, _ = strings.Cut(*lease.Spec.HolderIdentity, "_")
+		}
+	} else {
+		cm, cmErr := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, leaderElectionID, metav1.GetOptions{})
+		if cmErr != nil {
+			return nil, errors.Join(err, cmErr)
+		}
+		for _, ref := range cm.GetOwnerReferences() {
+			leaderName = ref.Name
+			break
+		}
 	}
 
 	if leaderName == "" {
@@ -421,15 +493,15 @@ func (o *options) getLeader() (*corev1.Pod, error) {
 	}
 
 	// Get operator leader pod
-	return o.Clientset.CoreV1().Pods(o.UserNamespace).Get(context.TODO(), leaderName, metav1.GetOptions{})
+	return clientset.CoreV1().Pods(namespace).Get(ctx, leaderName, metav1.GetOptions{})
 }
 
-// execInPod execs a given command in a given pod
-func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.Pod) ([]byte, error) {
+// execInPod runs a command in a container of a pod and returns its stdout.
+func (o *options) execInPod(ctx context.Context, pod *corev1.Pod, container string, command []string) ([]byte, error) {
 	req := o.Clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.Name).
-		Namespace(o.UserNamespace).
+		Namespace(pod.Namespace).
 		SubResource("exec")
 
 	scheme := runtime.NewScheme()
@@ -440,11 +512,12 @@ func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.P
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 	req.VersionedParams(&corev1.PodExecOptions{
-		Command: command,
-		Stdin:   false,
-		Stdout:  true,
-		Stderr:  false,
-		TTY:     false,
+		Container: container,
+		Command:   command,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
 	}, parameterCodec)
 
 	restConfig, err := o.ConfigFlags.ToRESTConfig()
@@ -457,35 +530,18 @@ func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.P
 		return []byte{}, err
 	}
 
-	var stdout bytes.Buffer
-	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
-		return []byte{}, err
+	var stdout, stderr bytes.Buffer
+	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: &stdout, Stderr: &stderr}); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			if len(msg) > 300 {
+				msg = msg[:300] + "..."
+			}
+			return nil, fmt.Errorf("%w: %s", err, msg)
+		}
+		return nil, err
 	}
 
 	return stdout.Bytes(), nil
-}
-
-// savePodLogs retrieves pod logs and save them in a file
-func (o *options) savePodLogs(pod corev1.Pod, dir string, cmd *cobra.Command) error {
-	podLogOpts := corev1.PodLogOptions{}
-	req := o.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-	podLogs, err := req.Stream(context.TODO())
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err = podLogs.Close(); err != nil {
-			cmd.Println(fmt.Sprintf("Couldn't close pod-logs stream: %v", err))
-		}
-	}()
-
-	// Convert podLogs stream into bytes
-	logBytes, err := common.StreamToBytes(podLogs)
-	if err != nil {
-		return err
-	}
-
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s.json", pod.Name)), logBytes, cmd)
 }
 
 // getArchivePath builds the zip file path in a temporary directory
@@ -494,236 +550,4 @@ func getArchivePath() string {
 	fileName := strings.Join([]string{"datadog", "operator", timeString}, "-")
 	fileName = strings.Join([]string{fileName, "zip"}, ".")
 	return filepath.Join(os.TempDir(), fileName)
-}
-
-func createFile(path string) (*os.File, error) {
-	flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-	return os.OpenFile(path, flags, 0644)
-}
-
-// archiveDir zips the content of dir into destination. Entries are prefixed
-// with the base name of dir, so that extracting the flare yields a single
-// top-level folder.
-func archiveDir(dir, destination string) error {
-	// O_EXCL rather than truncating: getArchivePath only has second precision,
-	// so two concurrent flares can pick the same name, and clobbering one would
-	// upload a corrupt archive.
-	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
-	if err != nil {
-		return err
-	}
-
-	writer := zip.NewWriter(out)
-	root := filepath.Base(dir)
-
-	err = filepath.Walk(dir, func(fpath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && !info.Mode().IsRegular() {
-			return nil
-		}
-
-		rel, err := filepath.Rel(dir, fpath)
-		if err != nil {
-			return err
-		}
-
-		header, err := zip.FileInfoHeader(info)
-		if err != nil {
-			return err
-		}
-		header.Name = path.Join(root, filepath.ToSlash(rel))
-		if info.IsDir() {
-			header.Name += "/"
-		} else {
-			header.Method = zip.Deflate
-		}
-
-		entry, err := writer.CreateHeader(header)
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-
-		file, err := os.Open(fpath)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		_, err = io.Copy(entry, file)
-		return err
-	})
-
-	// The central directory is only written on Close, so it must be reported.
-	if closeErr := writer.Close(); err == nil {
-		err = closeErr
-	}
-	if closeErr := out.Close(); err == nil {
-		err = closeErr
-	}
-
-	if err != nil {
-		// A truncated archive would mislead whoever finds it, and would block the
-		// next flare of the same second through the O_EXCL above.
-		_ = os.Remove(destination)
-	}
-
-	return err
-}
-
-type flareResponse struct {
-	CaseID int    `json:"case_id,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-// sendFlare sends a flare to Datadog
-func (o *options) sendFlare(archivePath, version string, cmd *cobra.Command) (string, error) {
-	url, err := o.buildFlareURL(version)
-	if err != nil {
-		return "", err
-	}
-
-	r, err := o.readAndPostFlareFile(archivePath, url, version, cmd)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err = r.Body.Close(); err != nil {
-			cmd.Println(fmt.Sprintf("Couldn't close request body: %v", err))
-		}
-	}()
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return "", err
-	}
-
-	flare := flareResponse{}
-	if err := json.Unmarshal(body, &flare); err != nil {
-		return "", err
-	}
-
-	if flare.Error != "" {
-		return "", errors.New(flare.Error)
-	}
-
-	return strconv.Itoa(flare.CaseID), nil
-}
-
-// readAndPostFlareFile prepares request and post the flare to Datadog
-func (o *options) readAndPostFlareFile(archivePath, url, version string, cmd *cobra.Command) (*http.Response, error) {
-	request, err := http.NewRequestWithContext(context.TODO(), "POST", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// We need to set the Content-Type header here, but we still haven't created the writer
-	// to obtain it from. Here we create one which only purpose is to give us a proper
-	// Content-Type. Note that this Content-Type header will contain a random multipart
-	// boundary, so we need to make sure that the actual writter uses the same boundary.
-	boundaryWriter := multipart.NewWriter(nil)
-	request.Header.Set("Content-Type", boundaryWriter.FormDataContentType())
-
-	// Manually set the Body and ContentLenght. http.NewRequest doesn't do all of this
-	// for us, since a PipeReader is not one of the Reader types it knows how to handle.
-	request.Body, err = o.getFlareReader(boundaryWriter.Boundary(), archivePath, version, cmd)
-	if err != nil {
-		return nil, err
-	}
-
-	// -1 here means 'unknown' and makes this a 'chunked' request. See https://github.com/golang/go/issues/18117
-	request.ContentLength = -1
-	// Setting a GetBody function makes the request replayable in case there is a redirect.
-	// Otherwise, since the body is a pipe, what has been already read can't be read again.
-	request.GetBody = func() (io.ReadCloser, error) {
-		return o.getFlareReader(boundaryWriter.Boundary(), archivePath, version, cmd)
-	}
-
-	client := &http.Client{
-		Timeout: httpTimeout,
-	}
-
-	return client.Do(request)
-}
-
-func (o *options) getFlareReader(multipartBoundary, archivePath, version string, cmd *cobra.Command) (io.ReadCloser, error) {
-	// No need to close the reader, http.Client does it for us
-	bodyReader, bodyWriter := io.Pipe()
-
-	writer := multipart.NewWriter(bodyWriter)
-	if err := writer.SetBoundary(multipartBoundary); err != nil {
-		return nil, err
-	}
-
-	// Write stuff to the pipe will block until it is read from the other end, so we don't load everything in memory
-	go func() {
-		// defer order matters to avoid empty result when reading the form.
-		defer func() {
-			if err := bodyWriter.Close(); err != nil {
-				cmd.Println(fmt.Sprintf("Couldn't close body writer: %v", err))
-			}
-		}()
-		defer func() {
-			if err := writer.Close(); err != nil {
-				cmd.Println(fmt.Sprintf("Couldn't close writer: %v", err))
-			}
-		}()
-
-		if o.caseID != "" {
-			_ = writer.WriteField("case_id", o.caseID)
-		}
-		if email != "" {
-			_ = writer.WriteField("email", email)
-		}
-
-		p, err := writer.CreateFormFile("flare_file", filepath.Base(archivePath))
-		if err != nil {
-			_ = bodyWriter.CloseWithError(err)
-			return
-		}
-		file, err := os.Open(archivePath)
-		if err != nil {
-			_ = bodyWriter.CloseWithError(err)
-			return
-		}
-		defer func() {
-			if err = file.Close(); err != nil {
-				cmd.Println(fmt.Sprintf("Couldn't close file: %v", err))
-			}
-		}()
-
-		_, err = io.Copy(p, file)
-		if err != nil {
-			_ = bodyWriter.CloseWithError(err)
-			return
-		}
-
-		_ = writer.WriteField("operator_version", version)
-
-		// Hostname discarded in operator flares
-		_ = writer.WriteField("hostname", "datadog-operator")
-	}()
-
-	return bodyReader, nil
-}
-
-func (o *options) buildFlareURL(version string) (string, error) {
-	url, err := url.Parse(fmt.Sprintf(flareURL, strings.ReplaceAll(version, ".", "-"), o.site))
-	if err != nil {
-		return "", err
-	}
-
-	if o.caseID != "" {
-		url.Path = path.Join(url.Path, o.caseID)
-	}
-
-	query := url.Query()
-	query.Set("api_key", apiKey)
-	url.RawQuery = query.Encode()
-
-	return url.String(), nil
 }

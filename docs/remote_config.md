@@ -65,6 +65,8 @@ A `manifest.json` file at the root of the archive lists what was collected and w
 * `org_id`: the org ID of the flare task's Remote Configuration path (`datadog/<org_id>/AGENT_TASK/...`).
 * `remote_config_org_enabled` and `remote_config_api_key_authorized`: the last Remote Configuration org status, as the Agent status shows it.
 
+Flares from the `kubectl datadog flare` command only know the site set in the Operator pod spec: the org UUID and org ID are only known to the Operator's Remote Configuration client.
+
 ### Privacy and limits
 
 * Secrets are never read. API and App keys, tokens, passwords, certificates and credentials in URLs are scrubbed from every file before it's added to the archive, with the Datadog Agent scrubber. Values of sensitive keys (such as `apiKey`, `clusterAgentToken` or `caBundle`) and of sensitive environment variables are replaced.
