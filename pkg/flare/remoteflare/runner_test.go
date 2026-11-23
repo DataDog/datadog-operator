@@ -12,6 +12,7 @@ import (
 	"flag"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -305,8 +306,9 @@ func TestRunnerSecureMetricsReadInProcess(t *testing.T) {
 	counter.Add(3)
 	registry.MustRegister(counter)
 	setup.cfg.Gatherer = registry
-	data, _, _ := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), testTask())
-	metrics := flaretest.ReadZip(t, data)["datadog-operator."+testClusterID+"/operator/metrics.txt"]
+	data, _, _, err := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), testTask())
+	require.NoError(t, err)
+	metrics := flaretest.ReadZipFile(t, data)["datadog-operator."+testClusterID+"/operator/metrics.txt"]
 	assert.Contains(t, metrics, "datadog_operator_test_total 3")
 	assert.Contains(t, metrics, "requires authentication")
 }
@@ -388,7 +390,9 @@ func TestRunnerManifestOrgUnknown(t *testing.T) {
 	}
 	task := testTask()
 	task.ConfigPath = "employee/AGENT_TASK/task-uuid-1/config"
-	_, _, manifest := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
+	archivePath, _, manifest, err := NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(archivePath) })
 
 	require.NotNil(t, manifest.Org)
 	assert.Equal(t, "datadoghq.eu", manifest.Org.Site.Value)
@@ -399,7 +403,9 @@ func TestRunnerManifestOrgUnknown(t *testing.T) {
 	assert.Empty(t, manifest.Org.RemoteConfigOrgEnabled)
 
 	task.ConfigPath = ""
-	_, _, manifest = NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
+	archivePath, _, manifest, err = NewRunner(setup.cfg, logr.Discard()).Collect(context.Background(), task)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Remove(archivePath) })
 	assert.Equal(t, flare.Unknown, manifest.Org.OrgID.Value)
 	assert.NotEmpty(t, manifest.Org.OrgID.Reason)
 }

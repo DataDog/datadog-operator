@@ -108,7 +108,7 @@ func TestCollectOperatorLogs(t *testing.T) {
 	assert.Equal(t, pkgflare.StatusError, manifest.Collectors[1].Status)
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
-	files := flaretest.ReadZip(t, data)
+	files := flaretest.ReadZipFile(t, data)
 	assert.Contains(t, files, "operator/logs/datadog-operator-abc/manager.log")
 	assert.Contains(t, files, "operator/pods.yaml")
 }
@@ -197,7 +197,7 @@ func TestCollectVersionFile(t *testing.T) {
 	assert.Equal(t, "1.23.0", got.Version, "normalized for the intake host and the manifest")
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
-	files := flaretest.ReadZip(t, data)
+	files := flaretest.ReadZipFile(t, data)
 	require.Contains(t, files, "root/operator/version.yaml")
 	// The git commit has the shape of an application key, but is kept.
 	assert.Contains(t, files["root/operator/version.yaml"], "commit: "+gitCommit)

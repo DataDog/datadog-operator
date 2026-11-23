@@ -33,7 +33,7 @@ func runCollectors(t *testing.T, env Env, collectors ...Collector) (map[string]s
 	data, err := archive.Close(manifest)
 	require.NoError(t, err)
 	files := map[string]string{}
-	for name, content := range flaretest.ReadZip(t, data) {
+	for name, content := range flaretest.ReadZipFile(t, data) {
 		files[strings.TrimPrefix(name, "root/")] = content
 	}
 	return files, manifest

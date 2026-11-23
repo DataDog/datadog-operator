@@ -11,6 +11,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -56,7 +58,7 @@ func TestUploadRequestShape(t *testing.T) {
 		Tags:            []string{"a:b", "c:d"},
 		OperatorVersion: "1.22.0",
 		ArchiveName:     "flare.zip",
-		Archive:         []byte("zip-bytes"),
+		ArchivePath:     archiveFile(t, "zip-bytes"),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "1234", caseID)
@@ -94,7 +96,7 @@ func TestUploadErrors(t *testing.T) {
 			intake := flaretest.NewIntake(t)
 			intake.Status, intake.Response = tt.status, tt.response
 			uploader := &Uploader{BaseURL: intake.Server.URL, APIKey: testAPIKey}
-			_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", Archive: []byte("x")})
+			_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", ArchivePath: archiveFile(t, "x")})
 			require.ErrorContains(t, err, tt.wantErr)
 			assert.NotContains(t, err.Error(), testAPIKey)
 			// A POST that reached the intake is never retried.
@@ -111,7 +113,7 @@ func TestUploadRetriesConnectionFailures(t *testing.T) {
 	intake := flaretest.NewIntake(t)
 	failing := &http.Client{Transport: &failAfterHead{base: http.DefaultTransport}}
 	uploader := &Uploader{BaseURL: intake.Server.URL, APIKey: testAPIKey, HTTPClient: failing, RetryDelay: 1}
-	_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", Archive: []byte("x")})
+	_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", ArchivePath: archiveFile(t, "x")})
 	require.Error(t, err)
 	assert.Equal(t, int32(uploadAttempts), failing.Transport.(*failAfterHead).posts.Load())
 }
@@ -157,7 +159,7 @@ func TestUploadUnexpectedContentType(t *testing.T) {
 		_, _ = w.Write([]byte(strings.Repeat("x", 300)))
 	}))
 	defer server.Close()
-	_, err := (&Uploader{BaseURL: server.URL, APIKey: testAPIKey}).Upload(context.Background(), UploadRequest{Hostname: "h"})
+	_, err := (&Uploader{BaseURL: server.URL, APIKey: testAPIKey}).Upload(context.Background(), UploadRequest{Hostname: "h", ArchivePath: archiveFile(t, "x")})
 	require.ErrorContains(t, err, "unexpected content type")
 }
 
@@ -169,4 +171,12 @@ func TestIsRetryableUploadError(t *testing.T) {
 	assert.False(t, isRetryableUploadError(errors.New("other")))
 	assert.Equal(t, "https://x/y", stripQuery("https://x/y?api_key=1"))
 	assert.Equal(t, "%zz", stripQuery("%zz"))
+}
+
+// archiveFile writes content to a temporary archive file.
+func archiveFile(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "flare.zip")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	return path
 }

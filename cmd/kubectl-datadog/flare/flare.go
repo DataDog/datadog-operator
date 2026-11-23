@@ -231,12 +231,14 @@ func (o *options) run(cmd *cobra.Command) error {
 		cmd.Println(fmt.Sprintf("Couldn't get the Operator version, using %s to send the flare", fallbackVersion))
 	}
 
-	data, err := archive.Close(manifest)
+	archivePath, err := archive.Close(manifest)
 	if err != nil {
 		return err
 	}
+	// The archive is in the same directory, so this is a rename.
 	zipFilePath := getArchivePath()
-	if err = os.WriteFile(zipFilePath, data, 0o600); err != nil {
+	if err = os.Rename(archivePath, zipFilePath); err != nil {
+		_ = os.Remove(archivePath)
 		return err
 	}
 
@@ -258,7 +260,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		Hostname:        flareHostname,
 		OperatorVersion: uploadVersion,
 		ArchiveName:     filepath.Base(zipFilePath),
-		Archive:         data,
+		ArchivePath:     zipFilePath,
 	})
 	if err != nil {
 		return err

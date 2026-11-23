@@ -10,7 +10,6 @@ package remoteflare
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -141,14 +140,19 @@ func NewRunner(cfg Config, logger logr.Logger) *Runner {
 // only if the flare couldn't be sent.
 func (r *Runner) Run(ctx context.Context, task remoteconfig.FlareTask) error {
 	start := r.cfg.Now()
-	archiveData, hostname, manifest := r.Collect(ctx, task)
-	if archiveData == nil {
-		return errors.New("unable to create the flare archive")
+	archivePath, hostname, manifest, err := r.Collect(ctx, task)
+	if err != nil {
+		return err
 	}
-	r.logger.Info("Collected the Operator flare", "uuid", task.UUID, "caseID", task.CaseID, "bytes", len(archiveData), "complete", manifest.Complete, "failedCollectors", manifest.FailedCollector, "duration", r.cfg.Now().Sub(start).Round(time.Millisecond).String())
+	defer os.Remove(archivePath)
+	var size int64
+	if info, statErr := os.Stat(archivePath); statErr == nil {
+		size = info.Size()
+	}
+	r.logger.Info("Collected the Operator flare", "uuid", task.UUID, "caseID", task.CaseID, "bytes", size, "complete", manifest.Complete, "failedCollectors", manifest.FailedCollector, "duration", r.cfg.Now().Sub(start).Round(time.Millisecond).String())
 
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("the flare task was canceled before the flare was sent: %w", err)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return fmt.Errorf("the flare task was canceled before the flare was sent: %w", ctxErr)
 	}
 	creds, err := r.cfg.Credentials.GetAPIKeyCredentials()
 	if err != nil {
@@ -172,7 +176,7 @@ func (r *Runner) Run(ctx context.Context, task remoteconfig.FlareTask) error {
 		Tags:            task.Tags,
 		OperatorVersion: version.Version,
 		ArchiveName:     fmt.Sprintf("datadog-operator-flare-%s.zip", start.UTC().Format("2006-01-02-15-04-05")),
-		Archive:         archiveData,
+		ArchivePath:     archivePath,
 	})
 	if err != nil {
 		return err
@@ -181,9 +185,9 @@ func (r *Runner) Run(ctx context.Context, task remoteconfig.FlareTask) error {
 	return nil
 }
 
-// Collect collects the flare and returns the zip archive, the flare hostname
-// and the manifest.
-func (r *Runner) Collect(ctx context.Context, task remoteconfig.FlareTask) ([]byte, string, *flare.Manifest) {
+// Collect collects the flare and returns the path of the zip archive, which
+// the caller removes, the flare hostname and the manifest.
+func (r *Runner) Collect(ctx context.Context, task remoteconfig.FlareTask) (string, string, *flare.Manifest, error) {
 	timeout := r.cfg.Timeout
 	if timeout <= 0 {
 		timeout = flare.DefaultTimeout
@@ -211,6 +215,13 @@ func (r *Runner) Collect(ctx context.Context, task remoteconfig.FlareTask) ([]by
 	}
 
 	archive := flare.NewArchive(flare.ArchiveOptions{Root: hostname, MaxBytes: r.cfg.MaxBytes, Now: r.cfg.Now})
+	closed := false
+	defer func() {
+		// Remove the archive file if collection panicked.
+		if !closed {
+			archive.Discard()
+		}
+	}()
 	collectors := r.operatorCollectors()
 	collectors = append(collectors, flare.ConfigCollectors()...)
 	collectors = append(collectors, flare.DatadogResourcesCollectors()...)
@@ -234,12 +245,12 @@ func (r *Runner) Collect(ctx context.Context, task remoteconfig.FlareTask) ([]by
 	}
 	manifest.Org = r.orgInfo(task)
 
-	data, err := archive.Close(manifest)
+	archivePath, err := archive.Close(manifest)
+	closed = true
 	if err != nil {
-		r.logger.Error(err, "Unable to create the flare archive")
-		return nil, hostname, manifest
+		return "", hostname, manifest, fmt.Errorf("unable to create the flare archive: %w", err)
 	}
-	return data, hostname, manifest
+	return archivePath, hostname, manifest, nil
 }
 
 // orgInfo returns the org the flare came from: the site the Operator is
