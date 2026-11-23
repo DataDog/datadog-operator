@@ -13,7 +13,8 @@ Standard path for stable features with typed configuration in the CRD:
 
 ## Adding an Experimental Feature (annotation-based, no CRD change)
 
-For features that need rapid iteration without CRD schema changes. See `privateactionrunner`, `flightrecorder`, or `hostprofiler` for examples (valid for Operator 1.26 in April 2026).
+For features that need rapid iteration without CRD schema changes. See `flightrecorder` for an example.
+`privateactionrunner` also demonstrates migration to `spec.features`, while retaining legacy annotations when the feature block is absent.
 
 1. Define annotation keys in `internal/controller/datadogagent/feature/utils/utils.go` (e.g. `agent.datadoghq.com/<name>-enabled`, `agent.datadoghq.com/<name>-configdata`)
 2. In `Configure()`, read annotations via `featureutils.HasFeatureEnableAnnotation()` / `featureutils.GetFeatureConfigAnnotation()` instead of reading from `ddaSpec.Features`
