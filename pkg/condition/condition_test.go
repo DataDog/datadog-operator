@@ -7,12 +7,14 @@ package condition
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
@@ -185,4 +187,60 @@ func TestCombineDaemonSetStatusFailedWins(t *testing.T) {
 			assert.Equal(t, tt.expectedState, combined.State)
 		})
 	}
+}
+
+func TestAppendDatadogAgentInternalStatusConditions(t *testing.T) {
+	now := v1.NewTime(time.Unix(100, 0))
+	later := v1.NewTime(time.Unix(200, 0))
+	status := &v1alpha1.DatadogAgentInternalStatus{}
+	UpdateDatadogAgentInternalStatusConditions(status, now, "Conflict", v1.ConditionTrue, "Disabled", "old component", true)
+	UpdateDatadogAgentInternalStatusConditions(status, now, "Ready", v1.ConditionTrue, "Ready", "unchanged", true)
+
+	messages := make(map[string][]string)
+	AppendDatadogAgentInternalStatusConditions(status, messages, later, "Conflict", v1.ConditionTrue, "Disabled", "DCA disabled", true)
+	AppendDatadogAgentInternalStatusConditions(status, messages, later, "Conflict", v1.ConditionTrue, "Disabled", "CCR disabled", true)
+	AppendDatadogAgentInternalStatusConditions(status, messages, later, "Conflict", v1.ConditionTrue, "Disabled", "DCA disabled", true)
+	assert.Equal(t, "DCA disabled; CCR disabled", GetDDAICondition(status, "Conflict").Message)
+	assert.Equal(t, now, GetDDAICondition(status, "Conflict").LastTransitionTime)
+	assert.Len(t, status.Conditions, 2)
+	assert.Equal(t, "unchanged", GetDDAICondition(status, "Ready").Message)
+
+	// An early return without evaluation preserves the previous status.
+	messages = make(map[string][]string)
+	assert.Equal(t, "DCA disabled; CCR disabled", GetDDAICondition(status, "Conflict").Message)
+	// The next reconciliation only finds one remaining conflict.
+	AppendDatadogAgentInternalStatusConditions(status, messages, later, "Conflict", v1.ConditionTrue, "Disabled", "CCR disabled", true)
+	assert.Equal(t, "CCR disabled", GetDDAICondition(status, "Conflict").Message)
+	assert.Equal(t, now, GetDDAICondition(status, "Conflict").LastTransitionTime)
+	// A new status or reason must not inherit messages with a different meaning.
+	AppendDatadogAgentInternalStatusConditions(status, messages, later, "Conflict", v1.ConditionFalse, "Resolved", "resolved", true)
+	assert.Equal(t, "resolved", GetDDAICondition(status, "Conflict").Message)
+	assert.Equal(t, later, GetDDAICondition(status, "Conflict").LastTransitionTime)
+	AppendDatadogAgentInternalStatusConditions(status, messages, later, "Conflict", v1.ConditionFalse, "OtherReason", "other", true)
+	assert.Equal(t, "other", GetDDAICondition(status, "Conflict").Message)
+}
+
+func TestAppendDatadogAgentInternalStatusConditionsIndependentConditionTypes(t *testing.T) {
+	status := &v1alpha1.DatadogAgentInternalStatus{}
+	messages := make(map[string][]string)
+	now := v1.NewTime(time.Unix(100, 0))
+	AppendDatadogAgentInternalStatusConditions(status, messages, now, "First", v1.ConditionTrue, "Failed", "one; two", true)
+	AppendDatadogAgentInternalStatusConditions(status, messages, now, "Second", v1.ConditionTrue, "Failed", "three", true)
+	AppendDatadogAgentInternalStatusConditions(status, messages, now, "First", v1.ConditionTrue, "Failed", "two", true)
+	assert.Equal(t, "one; two; two", GetDDAICondition(status, "First").Message)
+	assert.Equal(t, "three", GetDDAICondition(status, "Second").Message)
+	UpdateDatadogAgentInternalStatusConditions(status, now, "Absent", v1.ConditionFalse, "Ready", "ready", false)
+	assert.Nil(t, GetDDAICondition(status, "Absent"))
+	UpdateDatadogAgentInternalStatusConditions(status, now, "Absent", v1.ConditionFalse, "Ready", "ready", true)
+	assert.Equal(t, v1.ConditionFalse, GetDDAICondition(status, "Absent").Status)
+}
+
+func TestAppendDatadogAgentInternalStatusConditionsAppendAfterSkippedFalseCondition(t *testing.T) {
+	status := &v1alpha1.DatadogAgentInternalStatus{}
+	messages := make(map[string][]string)
+	now := v1.NewTime(time.Unix(100, 0))
+	AppendDatadogAgentInternalStatusConditions(status, messages, now, "Conflict", v1.ConditionFalse, "Resolved", "resolved", false)
+	assert.Empty(t, status.Conditions)
+	AppendDatadogAgentInternalStatusConditions(status, messages, now, "Conflict", v1.ConditionTrue, "Disabled", "disabled", true)
+	assert.Equal(t, "disabled", GetDDAICondition(status, "Conflict").Message)
 }

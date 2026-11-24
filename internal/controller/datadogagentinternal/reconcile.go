@@ -63,6 +63,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
+	conditionMessages := make(map[string][]string)
 
 	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, r.reconcilerOptionsToFeatureOptions(ctx, instance))
 	// update list of enabled features for metrics forwarder
@@ -111,6 +112,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 			Features:           append(configuredFeatures, enabledFeatures...),
 			ResourceManagers:   resourceManagers,
 			Status:             newStatus,
+			ConditionMessages:  conditionMessages,
 			Provider:           provider,
 		}
 
@@ -126,9 +128,13 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 
 	// 2.b. Node Agent. provider is read from the DDAI annotation above — the DDA
 	// controller stamps gke-autopilot there for both the OOTB and experimental opt-in paths.
-	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider)
+	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider, conditionMessages)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
+	}
+	// All components, including the Node Agent, have now checked for conflicts.
+	if len(conditionMessages[common.OverrideReconcileConflictConditionType]) == 0 {
+		condition.DeleteDatadogAgentInternalStatusCondition(newStatus, common.OverrideReconcileConflictConditionType)
 	}
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
