@@ -6,24 +6,31 @@
 package apm
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
+	"github.com/go-logr/logr/funcr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -33,6 +40,97 @@ const (
 	apmSocketHostPath  = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
 	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + common.APMSocketName
 )
+
+func TestAPMListenerWarnings(t *testing.T) {
+	for _, tc := range []struct {
+		name                              string
+		hostNetwork, disabled, autopilot  bool
+		allDisabled, empty, inactiveFirst bool
+		portA, portB                      int32
+		wantWarning                       bool
+	}{
+		{name: "normal pods have matching listeners despite different host ports", portA: 9126, portB: 8126},
+		{name: "host network listener mismatch", hostNetwork: true, portA: 9126, portB: 8126, wantWarning: true},
+		{name: "matching host network listeners", hostNetwork: true, portA: 9126, portB: 9126},
+		{name: "APM disabled nodes are excluded", hostNetwork: true, portA: 9126, portB: 8126, disabled: true},
+		{name: "Autopilot forces host port exposure", hostNetwork: true, autopilot: true, portA: 9126, portB: 8126, wantWarning: true},
+		{name: "no DDAIs", empty: true},
+		{name: "all APM disabled", allDisabled: true, hostNetwork: true, portA: 9126, portB: 8126},
+		{name: "inactive DDAI before active listeners", inactiveFirst: true, hostNetwork: true, portA: 9126, portB: 8126, wantWarning: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ddais := []*v1alpha1.DatadogAgentInternal{}
+			for i, port := range []int32{tc.portA, tc.portB} {
+				ddai := &v1alpha1.DatadogAgentInternal{
+					ObjectMeta: v1.ObjectMeta{Name: fmt.Sprintf("profile-%d", i), Namespace: "default"},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Features: &v2alpha1.DatadogFeatures{APM: &v2alpha1.APMFeatureConfig{Enabled: ptr.To(!(tc.disabled && i == 1)), HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(!tc.autopilot), Port: ptr.To(port)}}},
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{v2alpha1.NodeAgentComponentName: {HostNetwork: ptr.To(tc.hostNetwork)}},
+					},
+				}
+				if tc.autopilot {
+					ddai.Annotations = map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider}
+				}
+				ddais = append(ddais, ddai)
+			}
+			if tc.allDisabled {
+				for _, ddai := range ddais {
+					ddai.Spec.Features.APM.Enabled = ptr.To(false)
+				}
+			}
+			if tc.empty {
+				ddais = nil
+			}
+			if tc.inactiveFirst {
+				ddais = append([]*v1alpha1.DatadogAgentInternal{{}}, ddais...)
+			}
+			var before []*v1alpha1.DatadogAgentInternal
+			for _, ddai := range ddais {
+				before = append(before, ddai.DeepCopy())
+			}
+			var messages []string
+			logger := funcr.New(func(_, message string) { messages = append(messages, message) }, funcr.Options{}).WithValues("reconcileID", "profile-test")
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: v1.ObjectMeta{Name: "datadog", Namespace: "default"}}
+			defaults.DefaultDatadogAgentSpec(&dda.Spec)
+			managers := feature.NewResourceManagers(store.NewStore(dda, &store.StoreOptions{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.32.0"}, nil, nil),
+				Scheme:       agenttestutils.TestScheme(),
+			}))
+			require.NoError(t, applyAPMDDASharedDependencies(ctrl.LoggerInto(t.Context(), logger), dda, &dda.Spec, ddais, nil, managers))
+			service, found := managers.Store().Get(kubernetes.ServicesKind, dda.Namespace, constants.GetLocalAgentServiceName(dda.Name, &dda.Spec))
+			if tc.empty || tc.allDisabled {
+				assert.False(t, found, "inactive APM must not create a Service")
+			} else {
+				require.True(t, found)
+				ports := service.(*corev1.Service).Spec.Ports
+				require.Len(t, ports, 1, "multiple listeners still use one Service port")
+				assert.Equal(t, int32(8126), ports[0].Port)
+				assert.Equal(t, "traceport", ports[0].Name)
+				assert.Equal(t, "traceport", ports[0].TargetPort.StrVal)
+			}
+			assert.Equal(t, before, ddais, "warnings must not rewrite node settings")
+			if tc.wantWarning {
+				require.Len(t, messages, 1)
+				assert.Contains(t, messages[0], "APM port mismatch")
+				assert.Contains(t, messages[0], "profile-test", "warning must retain the context logger fields")
+				assert.Contains(t, messages[0], "profile-0")
+				assert.Contains(t, messages[0], "profile-1")
+				assert.Contains(t, messages[0], "9126")
+				assert.Contains(t, messages[0], "8126")
+				first := messages[0]
+				messages = nil
+				reversed := append([]*v1alpha1.DatadogAgentInternal(nil), ddais...)
+				for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
+					reversed[i], reversed[j] = reversed[j], reversed[i]
+				}
+				require.NoError(t, applyAPMDDASharedDependencies(ctrl.LoggerInto(t.Context(), logger), dda, &dda.Spec, reversed, nil, managers))
+				require.Equal(t, []string{first}, messages, "profile order must not change the warning")
+			} else {
+				assert.Empty(t, messages)
+			}
+		})
+	}
+}
 
 func TestShouldEnableAPM(t *testing.T) {
 	tests := []struct {
@@ -101,9 +199,42 @@ func TestAPMConfigureSSIWithoutNodeAPM(t *testing.T) {
 	feat := buildAPMFeature(&feature.Options{}).(*apmFeature)
 	reqComp := feat.Configure(dda, &dda.Spec, nil)
 
-	assert.False(t, reqComp.Agent.IsEnabled())
+	assert.True(t, reqComp.Agent.IsEnabled())
+	assert.NotContains(t, reqComp.Agent.Containers, apicommon.TraceAgentContainerName)
 	assert.True(t, reqComp.ClusterAgent.IsEnabled())
 	assert.True(t, feat.shouldEnableLanguageDetection())
+}
+
+func TestAPMProfileLanguageDetectionDoesNotRequireOwnDCA(t *testing.T) {
+	ddai := &v1alpha1.DatadogAgentInternal{Spec: v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
+			APM: &v2alpha1.APMFeatureConfig{
+				Enabled: ptr.To(false),
+				SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+					Enabled:           ptr.To(true),
+					LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+		},
+	}}
+	f := buildAPMFeature(&feature.Options{}).(*apmFeature)
+	required := f.Configure(ddai, &ddai.Spec, nil)
+	assert.True(t, required.Agent.IsEnabled())
+	assert.False(t, required.ClusterAgent.IsEnabled())
+	assert.NotContains(t, required.Agent.Containers, apicommon.TraceAgentContainerName)
+	assert.False(t, f.shouldEnableLanguageDetection(), "this DDAI must not configure DCA detection or RBAC")
+
+	normal := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	require.NoError(t, f.ManageNodeAgent(normal))
+	assert.Contains(t, normal.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName], &corev1.EnvVar{Name: DDLanguageDetectionReportingEnabled, Value: "true"})
+	single := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	require.NoError(t, f.ManageSingleContainerNodeAgent(single))
+	assert.Contains(t, single.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName], &corev1.EnvVar{Name: DDLanguageDetectionReportingEnabled, Value: "true"})
+	assert.Empty(t, single.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName], "single-container detection must target its actual core container")
 }
 
 func TestAPMFeature(t *testing.T) {
@@ -764,6 +895,9 @@ func testAgentUDS(agentContainerName apicommon.AgentContainerName, nonLocalTraff
 				},
 			)
 
+			if agentContainerName == apicommon.UnprivilegedSingleAgentContainerName {
+				expectedAgentEnvs = append([]*corev1.EnvVar{{Name: DDLanguageDetectionReportingEnabled, Value: "false"}}, expectedAgentEnvs...)
+			}
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			assert.True(
 				t,
@@ -1216,6 +1350,12 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 					Value: apmSocketLocalPath,
 				},
 			}
+			if agentContainerName == apicommon.UnprivilegedSingleAgentContainerName {
+				expectedAgentEnvs = append([]*corev1.EnvVar{
+					{Name: DDLanguageDetectionReportingEnabled, Value: "false"},
+				}, expectedAgentEnvs...)
+			}
+
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),

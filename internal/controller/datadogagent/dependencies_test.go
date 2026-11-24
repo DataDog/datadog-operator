@@ -6,6 +6,7 @@
 package datadogagent
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func TestAddDDASharedDependenciesIncludesProfileAPMPort(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{baseDDAI, profileDDAI}, managers)
+	err := (&Reconciler{}).addDDASharedDependencies(t.Context(), dda, []*v1alpha1.DatadogAgentInternal{baseDDAI, profileDDAI}, nil, managers)
 	require.NoError(t, err)
 
 	obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
@@ -49,10 +50,10 @@ func TestAddDDASharedDependenciesIncludesProfileAPMPort(t *testing.T) {
 	require.NotNil(t, apmPort)
 	assert.Equal(t, corev1.ProtocolTCP, apmPort.Protocol)
 	assert.Equal(t, int32(constants.DefaultApmPort), apmPort.Port)
-	assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+	assert.Equal(t, intstr.FromString(constants.DefaultApmPortName), apmPort.TargetPort)
 }
 
-func TestAddDDASharedDependenciesRejectsConflictingProfilePorts(t *testing.T) {
+func TestAddDDASharedDependenciesUsesBasePortWithoutProfileContributions(t *testing.T) {
 	dda := testutils.NewInitializedDatadogAgentBuilder("default", "datadog").WithAPMEnabled(false).BuildWithDefaults()
 
 	profileSpecA := dda.Spec.DeepCopy()
@@ -64,15 +65,58 @@ func TestAddDDASharedDependenciesRejectsConflictingProfilePorts(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{
+	err := (&Reconciler{}).addDDASharedDependencies(t.Context(), dda, []*v1alpha1.DatadogAgentInternal{
 		testDDAIWithSpec("datadog-profile-a", dda.Namespace, profileSpecA),
 		testDDAIWithSpec("datadog-profile-b", dda.Namespace, profileSpecB),
-	}, managers)
+	}, nil, managers)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "default/datadog-profile-b DDA shared dependencies failed")
-	assert.Contains(t, err.Error(), "port \"traceport\" conflicts")
-	assert.Contains(t, err.Error(), "service port conflict")
+	require.NoError(t, err)
+	obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+	require.True(t, found)
+	port := findServicePortByName(obj.(*corev1.Service).Spec.Ports, constants.DefaultApmPortName)
+	require.NotNil(t, port)
+	assert.Equal(t, int32(constants.DefaultApmPort), port.Port)
+
+}
+
+// Use the chosen Service port while keeping each DDAI's node ports unchanged.
+func TestAddDDASharedDependenciesUsesResolvedProfilePort(t *testing.T) {
+	for _, baseAPMEnabled := range []bool{false, true} {
+		for _, hostNetwork := range []bool{false, true} {
+			t.Run(fmt.Sprintf("base APM enabled=%t/host network=%t", baseAPMEnabled, hostNetwork), func(t *testing.T) {
+				dda := testutils.NewInitializedDatadogAgentBuilder("default", "datadog").WithAPMEnabled(baseAPMEnabled).BuildWithDefaults()
+				sharedSpec := dda.Spec.DeepCopy()
+				sharedSpec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)}
+				baseDDAI := testDDAIWithSpec("datadog", dda.Namespace, &dda.Spec)
+
+				explicitProfile := dda.Spec.DeepCopy()
+				enableAPMForDependencyTest(explicitProfile, ptr.To[int32](9126))
+				defaultedProfile := dda.Spec.DeepCopy()
+				enableAPMForDependencyTest(defaultedProfile, nil)
+				defaultedProfile.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {HostNetwork: ptr.To(hostNetwork)},
+				}
+				before := defaultedProfile.DeepCopy()
+				depsStore := newDependencyTestStore(dda)
+				// The explicit default spec must work regardless of list order.
+				ddais := []*v1alpha1.DatadogAgentInternal{
+					testDDAIWithSpec("datadog-defaulted", dda.Namespace, defaultedProfile),
+					testDDAIWithSpec("datadog-explicit", dda.Namespace, explicitProfile),
+					baseDDAI,
+				}
+				err := (&Reconciler{}).addDDASharedDependencies(t.Context(), dda, ddais, sharedSpec, feature.NewResourceManagers(depsStore))
+				assert.Equal(t, before, &ddais[0].Spec)
+				require.NoError(t, err)
+				obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+				require.True(t, found)
+				service := obj.(*corev1.Service)
+				port := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				require.NotNil(t, port)
+				assert.Equal(t, int32(9126), port.Port)
+				assert.Equal(t, intstr.FromString(constants.DefaultApmPortName), port.TargetPort)
+			})
+		}
+	}
 }
 
 func TestAddDDASharedDependenciesDoesNotMutateDDAISpec(t *testing.T) {
@@ -85,7 +129,7 @@ func TestAddDDASharedDependenciesDoesNotMutateDDAISpec(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{ddai}, managers)
+	err := (&Reconciler{}).addDDASharedDependencies(t.Context(), dda, []*v1alpha1.DatadogAgentInternal{ddai}, nil, managers)
 	require.NoError(t, err)
 
 	assert.Nil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
@@ -130,4 +174,44 @@ func findServicePortByName(ports []corev1.ServicePort, name string) *corev1.Serv
 		}
 	}
 	return nil
+}
+
+// Shared dependencies must preserve node configuration regardless of DDAI order.
+func TestSharedDependenciesPreserveAPMNodeConfig(t *testing.T) {
+	for _, defaultFirst := range []bool{false, true} {
+		t.Run(fmt.Sprintf("defaultFirst=%t", defaultFirst), func(t *testing.T) {
+			dda := testutils.NewInitializedDatadogAgentBuilder("default", "datadog").WithAPMEnabled(true).BuildWithDefaults()
+			dda.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{Enabled: new(true), Port: new(int32(8126))}
+			dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled = new(false)
+			shared := dda.Spec.DeepCopy()
+			shared.Features.APM.HostPortConfig.Port = new(int32(9126))
+			defaultDDAI := testDDAIWithSpec("datadog", dda.Namespace, &dda.Spec)
+			profile := testDDAIWithSpec("profile-a", dda.Namespace, shared.DeepCopy())
+			profile.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled = new(true)
+			profileBefore := profile.DeepCopy()
+			defaultBefore := defaultDDAI.DeepCopy()
+			baseBefore := dda.DeepCopy()
+			ddais := []*v1alpha1.DatadogAgentInternal{profile, defaultDDAI}
+			if defaultFirst {
+				ddais[0], ddais[1] = ddais[1], ddais[0]
+			}
+			depsStore := newDependencyTestStore(dda)
+			require.NoError(t, (&Reconciler{}).addDDASharedDependencies(t.Context(), dda, ddais, shared, feature.NewResourceManagers(depsStore)))
+			assert.Equal(t, int32(8126), *defaultDDAI.Spec.Features.APM.HostPortConfig.Port)
+			assert.False(t, *defaultDDAI.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)
+			assert.Empty(t, defaultDDAI.Annotations)
+			assert.Equal(t, profileBefore, profile)
+			assert.Equal(t, defaultBefore, defaultDDAI, "dependency reconciliation must not change the default DDAI")
+			assert.Equal(t, baseBefore, dda)
+			obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+			require.True(t, found)
+			port := findServicePortByName(obj.(*corev1.Service).Spec.Ports, constants.DefaultApmPortName)
+			require.NotNil(t, port)
+			assert.Equal(t, int32(9126), port.Port)
+			assert.Equal(t, intstr.FromString("traceport"), port.TargetPort)
+			// Removing the profile must not introduce metadata for shared configuration.
+			require.NoError(t, (&Reconciler{}).addDDASharedDependencies(t.Context(), dda, []*v1alpha1.DatadogAgentInternal{defaultDDAI}, nil, feature.NewResourceManagers(newDependencyTestStore(dda))))
+			assert.Empty(t, defaultDDAI.Annotations)
+		})
+	}
 }
