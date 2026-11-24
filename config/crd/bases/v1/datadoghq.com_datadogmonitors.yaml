@@ -350,6 +350,13 @@ spec:
                       description: IsDowntimed shows the downtime status of the monitor.
                       type: boolean
                   type: object
+                etag:
+                  description: |-
+                    Etag is the ETag of the last monitor read whose definition had
+                    RemoteDefinitionHash. Reads send it in If-None-Match, so a Not Modified
+                    response shows that the monitor, including its state, has not changed
+                    since that read.
+                  type: string
                 id:
                   description: ID is the monitor ID generated in Datadog
                   type: integer

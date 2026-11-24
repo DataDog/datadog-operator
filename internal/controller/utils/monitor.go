@@ -7,14 +7,45 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"net/http"
 	"slices"
 	"strings"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
+
+// MonitorRead is the result of a conditional monitor read.
+type MonitorRead struct {
+	// Monitor is the monitor returned by the API. It is empty when NotModified.
+	Monitor datadogV1.Monitor
+	// ETag identifies the response body: Datadog computes it from the whole
+	// body, so it changes with the monitor state and the query parameters too.
+	ETag string
+	// NotModified reports a 304: the response would be the one that the sent
+	// ETag was read from.
+	NotModified bool
+}
+
+// GetMonitorIfChanged reads a monitor, sending etag in If-None-Match when it is
+// not empty. A 304 is returned as NotModified rather than as an error. The
+// caller closes the response body. The client must come from
+// datadogclient.NewAPIClient or use datadogclient.NewETagTransport, or the
+// ETag is not sent.
+func GetMonitorIfChanged(auth context.Context, client *datadogV1.MonitorsApi, monitorID int64, etag string, params datadogV1.GetMonitorOptionalParameters) (MonitorRead, *http.Response, error) {
+	m, httpResp, err := client.GetMonitor(datadogclient.WithIfNoneMatch(auth, etag), monitorID, params)
+	if etag != "" && httpResp != nil && httpResp.StatusCode == http.StatusNotModified {
+		return MonitorRead{ETag: etag, NotModified: true}, httpResp, nil
+	}
+	if err != nil {
+		return MonitorRead{}, httpResp, err
+	}
+	return MonitorRead{Monitor: m, ETag: httpResp.Header.Get("ETag")}, httpResp, nil
+}
 
 // MonitorDefinitionFields are the top-level monitor fields that creates and
 // updates set. State, timestamps and other server-managed fields are excluded so

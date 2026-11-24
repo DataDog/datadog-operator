@@ -171,11 +171,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			remoteHash := ""
+			var read remoteRead
 			if hasher, ok := handler.(remoteDefinitionHasher); ok {
-				remoteHash, err = hasher.getRemoteDefinitionHash(auth, instance)
+				read, err = hasher.readRemoteDefinition(auth, instance)
 			} else {
 				err = handler.getResource(auth, instance)
+			}
+			if err == nil && read.State != nil && !r.statePollingDisabled {
+				// Record the state of the read too, so that a state poll that gets
+				// Not Modified for the ETag recorded below keeps a current state.
+				applyResourceState(*read.State, status, now)
+				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
 			}
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
@@ -186,10 +192,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
 				// create()/update() advance it themselves once the sync actually succeeds.
-			} else if remoteHash != "" && remoteHash == instance.Status.RemoteDefinitionHash {
+			} else if recordETag(read, status) {
 				// Nobody edited the resource since our last write, so reapplying the
 				// spec would be a no-op.
-				logger.V(1).Info("Remote resource unchanged since the last update; skipping force-sync update", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+				logger.V(1).Info("Remote resource unchanged since the last update; skipping force-sync update", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type, "notModified", read.NotModified)
 				condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeError)
 				status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 				status.LastForceSyncTime = &now
@@ -249,15 +255,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	} else if shouldRefreshStatus {
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
 		if hasLiveState {
-			state, refreshErr := refresher.refreshState(auth, instance)
+			read, refreshErr := refresher.refreshState(auth, instance)
 			if refreshErr != nil {
 				logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				// Preserve last-known state and surface the failure via the StateSynced condition.
 				// Do not fail reconcile.
 				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
-			} else if state != nil {
-				applyResourceState(*state, status, now)
-				condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+			} else {
+				recordETag(read, status)
+				if read.NotModified {
+					// The state has not changed since the read that returned the ETag.
+					status.StateLastUpdateTime = &now
+				} else if read.State != nil {
+					applyResourceState(*read.State, status, now)
+				}
+				if read.NotModified || read.State != nil {
+					condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+				}
 			}
 		}
 	}
@@ -281,6 +295,7 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	// Until an update succeeds, the remote resource may not match the spec, so
 	// force syncs must not be skipped.
 	status.RemoteDefinitionHash = ""
+	status.Etag = ""
 
 	var remoteHash string
 	var err error
@@ -351,6 +366,8 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
 	status.RemoteDefinitionHash = result.RemoteDefinitionHash
+	// Write responses carry no ETag; the next read records one.
+	status.Etag = ""
 
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
 	r.recordEvent(instance, event)
@@ -393,6 +410,22 @@ func setStatePollingDisabled(status *v1alpha1.DatadogGenericResourceStatus, now 
 	status.StateLastUpdateTime = nil
 	msg := fmt.Sprintf("State polling is disabled by %s", ctrutils.StatePollingEnabledEnvVar)
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, ctrutils.StatePollingDisabledState, msg)
+}
+
+// recordETag keeps the ETag of a read only while the definition it returned has
+// the hash recorded after our last write, so that a Not Modified response proves
+// that nobody has edited the resource since. It reports whether the definition
+// has that hash. A Not Modified read leaves the ETag unchanged.
+func recordETag(read remoteRead, status *v1alpha1.DatadogGenericResourceStatus) bool {
+	if read.NotModified {
+		return true
+	}
+	unchanged := read.Hash != "" && read.Hash == status.RemoteDefinitionHash
+	status.Etag = ""
+	if unchanged {
+		status.Etag = read.ETag
+	}
+	return unchanged
 }
 
 // applyResourceState merges a refreshed Datadog-side state into the CR status,

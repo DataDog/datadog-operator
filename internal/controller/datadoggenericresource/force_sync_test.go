@@ -7,7 +7,9 @@ package datadoggenericresource
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -31,17 +33,27 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 // fakeMonitorAPI stores a single monitor. Like the Datadog API, an update
 // replaces each top-level field it sends and keeps the others, and every read
 // returns fresh state fields that are not part of the definition.
+//
+// With etags set, reads instead return the stored state, an ETag computed from
+// the response body like the Datadog API does, and 304 Not Modified when the
+// request sends that ETag in If-None-Match.
 type fakeMonitorAPI struct {
 	mu                 sync.Mutex
 	monitor            map[string]any
 	reads              int
 	readsWithoutAssets atomic.Int32
 	puts               atomic.Int32
+
+	etags       bool
+	ifNoneMatch []string
+	notModified int
 }
 
 func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +71,7 @@ func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.monitor["id"] = 1001
 		f.monitor["created"] = time.Now().Format(time.RFC3339)
 		f.monitor["creator"] = map[string]any{"handle": "test@example.com"}
+		f.monitor["overall_state"] = "No Data"
 	case http.MethodPut:
 		f.puts.Add(1)
 		maps.Copy(f.monitor, body)
@@ -66,6 +79,19 @@ func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.reads++
 		if r.URL.Query().Get("with_assets") != "true" {
 			f.readsWithoutAssets.Add(1)
+		}
+		if f.etags {
+			f.ifNoneMatch = append(f.ifNoneMatch, r.Header.Get("If-None-Match"))
+			body, _ := json.Marshal(f.monitor)
+			etag := fmt.Sprintf(`"%x"`, md5.Sum(body))
+			w.Header().Set("ETag", etag)
+			if r.Header.Get("If-None-Match") == etag {
+				f.notModified++
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			_, _ = w.Write(body)
+			return
 		}
 		f.monitor["overall_state"] = []string{"OK", "Alert"}[f.reads%2]
 	}
@@ -78,6 +104,35 @@ func (f *fakeMonitorAPI) editRemote(edit func(map[string]any)) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	edit(f.monitor)
+}
+
+// newMonitorTestReconciler returns a reconciler whose monitor handler talks to
+// a fakeMonitorAPI.
+func newMonitorTestReconciler(t *testing.T) (*Reconciler, *fakeMonitorAPI) {
+	t.Helper()
+	api := &fakeMonitorAPI{}
+	server := httptest.NewServer(api)
+	t.Cleanup(server.Close)
+
+	t.Setenv("DD_URL", server.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logf.Log.WithName(t.Name()),
+		record.NewBroadcaster().NewRecorder(scheme.Scheme, corev1.EventSource{Component: t.Name()}),
+	)
+	cfg := datadogapi.NewConfiguration()
+	cfg.HTTPClient = &http.Client{Transport: datadogclient.NewETagTransport(server.Client().Transport)}
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		datadoghqv1alpha1.Monitor: &MonitorHandler{client: datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(cfg))},
+	}
+	return r, api
 }
 
 func TestReconcileGenericResource_MonitorForceSyncSkipsUpdateWhileRemoteUnchanged(t *testing.T) {
@@ -106,28 +161,7 @@ func TestReconcileGenericResource_MonitorForceSyncSkipsUpdateWhileRemoteUnchange
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			api := &fakeMonitorAPI{}
-			server := httptest.NewServer(api)
-			defer server.Close()
-
-			t.Setenv("DD_URL", server.URL)
-			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
-			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
-
-			s := scheme.Scheme
-			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
-			r := NewReconciler(
-				fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
-				config.NewCredentialManager(fake.NewClientBuilder().Build()),
-				s,
-				logf.Log.WithName(t.Name()),
-				record.NewBroadcaster().NewRecorder(scheme.Scheme, corev1.EventSource{Component: t.Name()}),
-			)
-			cfg := datadogapi.NewConfiguration()
-			cfg.HTTPClient = server.Client()
-			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
-				datadoghqv1alpha1.Monitor: &MonitorHandler{client: datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(cfg))},
-			}
+			r, api := newMonitorTestReconciler(t)
 
 			obj := mockGenericResource()
 			obj.Spec.Type = datadoghqv1alpha1.Monitor
@@ -197,4 +231,132 @@ func TestReconcileGenericResource_MonitorForceSyncSkipsUpdateWhileRemoteUnchange
 			}
 		})
 	}
+}
+
+func TestReconcileGenericResource_MonitorETags(t *testing.T) {
+	r, api := newMonitorTestReconciler(t)
+	api.etags = true
+
+	obj := mockGenericResource()
+	obj.Spec.Type = datadoghqv1alpha1.Monitor
+	obj.Spec.JsonSpec = `{"name":"m","type":"metric alert","query":"avg(last_5m):avg:system.load.1{*} > 1","message":"msg","tags":["b:2","a:1"],"options":{"thresholds":{"critical":1}}}`
+	require.NoError(t, r.client.Create(context.TODO(), obj))
+	req := newRequest(resourcesNamespace, resourcesName)
+	get := func() *datadoghqv1alpha1.DatadogGenericResource {
+		t.Helper()
+		require.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(obj), obj))
+		return obj
+	}
+	// reconcile makes the force sync or the state poll due and reconciles once.
+	reconcile := func(forceSync bool) *datadoghqv1alpha1.DatadogGenericResource {
+		t.Helper()
+		obj := get()
+		now := metav1.Now()
+		stale := metav1.NewTime(time.Now().Add(-2 * defaultForceSyncPeriod))
+		obj.Status.LastForceSyncTime = &now
+		obj.Status.StateLastUpdateTime = &stale
+		if forceSync {
+			obj.Status.LastForceSyncTime = &stale
+		}
+		require.NoError(t, r.client.Status().Update(context.TODO(), obj))
+		_, err := reconcileRequest(r, context.TODO(), req)
+		require.NoError(t, err)
+		return get()
+	}
+	lastIfNoneMatch := func() string {
+		t.Helper()
+		api.mu.Lock()
+		defer api.mu.Unlock()
+		require.NotEmpty(t, api.ifNoneMatch)
+		return api.ifNoneMatch[len(api.ifNoneMatch)-1]
+	}
+
+	// Add the finalizer, then create the monitor.
+	for range 2 {
+		_, err := reconcileRequest(r, context.TODO(), req)
+		require.NoError(t, err)
+	}
+	require.NotEmpty(t, get().Status.RemoteDefinitionHash)
+	assert.Empty(t, get().Status.Etag, "write responses carry no ETag")
+
+	// The first force sync reads the whole monitor and records its ETag.
+	synced := reconcile(true)
+	assert.Empty(t, lastIfNoneMatch())
+	assert.Equal(t, int32(0), api.puts.Load())
+	etag := synced.Status.Etag
+	require.NotEmpty(t, etag)
+	assert.Equal(t, "No Data", synced.Status.State, "the force sync records the state that its ETag covers")
+
+	t.Run("force sync of an unchanged monitor gets Not Modified", func(t *testing.T) {
+		synced := reconcile(true)
+		assert.Equal(t, etag, lastIfNoneMatch())
+		assert.Equal(t, 1, api.notModified)
+		assert.Equal(t, int32(0), api.puts.Load())
+		assert.Equal(t, etag, synced.Status.Etag)
+		assert.WithinDuration(t, time.Now(), synced.Status.LastForceSyncTime.Time, time.Minute)
+	})
+
+	t.Run("state poll of an unchanged monitor keeps its state", func(t *testing.T) {
+		before := get().Status.State
+		polled := reconcile(false)
+		assert.Equal(t, 2, api.notModified)
+		assert.Equal(t, before, polled.Status.State)
+		assert.WithinDuration(t, time.Now(), polled.Status.StateLastUpdateTime.Time, time.Minute)
+		assert.Equal(t, etag, polled.Status.Etag)
+	})
+
+	t.Run("state change is read and its ETag recorded", func(t *testing.T) {
+		api.editRemote(func(m map[string]any) { m["overall_state"] = "Alert" })
+		polled := reconcile(false)
+		assert.Equal(t, etag, lastIfNoneMatch())
+		assert.Equal(t, 2, api.notModified)
+		assert.Equal(t, "Alert", polled.Status.State)
+		assert.NotEqual(t, etag, polled.Status.Etag)
+		assert.NotEmpty(t, polled.Status.Etag)
+
+		reconcile(true)
+		assert.Equal(t, 3, api.notModified, "a force sync can use the ETag of a state poll")
+		assert.Equal(t, int32(0), api.puts.Load())
+	})
+
+	t.Run("out-of-band edit seen by a state poll is still reverted", func(t *testing.T) {
+		api.editRemote(func(m map[string]any) { m["message"] = "edited out of band" })
+		polled := reconcile(false)
+		assert.Empty(t, polled.Status.Etag, "the ETag of a drifted definition is not kept")
+
+		synced := reconcile(true)
+		assert.Empty(t, lastIfNoneMatch())
+		assert.Equal(t, int32(1), api.puts.Load())
+		assert.Empty(t, synced.Status.Etag, "an update clears the ETag")
+
+		synced = reconcile(true)
+		assert.NotEmpty(t, synced.Status.Etag)
+		reconcile(true)
+		assert.Equal(t, 4, api.notModified)
+		assert.Equal(t, int32(1), api.puts.Load())
+	})
+
+	t.Run("state change read by a force sync is recorded", func(t *testing.T) {
+		api.editRemote(func(m map[string]any) { m["overall_state"] = "Warn" })
+		synced := reconcile(true)
+		assert.Equal(t, "Warn", synced.Status.State)
+		before := api.notModified
+		polled := reconcile(false)
+		assert.Equal(t, before+1, api.notModified)
+		assert.Equal(t, "Warn", polled.Status.State)
+	})
+
+	t.Run("state poll without a polled state does not send the ETag", func(t *testing.T) {
+		obj := get()
+		obj.Status.State = ctrutils.StatePollingDisabledState
+		require.NoError(t, r.client.Status().Update(context.TODO(), obj))
+		api.editRemote(func(m map[string]any) { m["overall_state"] = "OK" })
+		before := api.notModified
+		polled := reconcile(false)
+		assert.Empty(t, lastIfNoneMatch())
+		assert.Equal(t, before, api.notModified)
+		assert.Equal(t, "OK", polled.Status.State)
+	})
+
+	assert.Equal(t, int32(0), api.readsWithoutAssets.Load(), "every read requests assets, so their ETags match")
 }

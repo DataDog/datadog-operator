@@ -6,6 +6,8 @@
 package datadogclient
 
 import (
+	"net/http"
+
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
@@ -17,6 +19,8 @@ import (
 func NewAPIClient() *datadogapi.APIClient {
 	config := datadogapi.NewConfiguration()
 	config.UserAgent = "Datadog Operator/" + version.GetVersion()
+	// Lets callers send If-None-Match, which the generated API methods cannot.
+	config.HTTPClient = &http.Client{Transport: NewETagTransport(nil)}
 	return datadogapi.NewAPIClient(config)
 }
 

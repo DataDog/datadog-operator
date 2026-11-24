@@ -58,6 +58,11 @@ type DatadogGenericResourceStatus struct {
 	// after the last successful create or update, for resource types that support it.
 	// A force sync skips the update while the remote resource still has this hash.
 	RemoteDefinitionHash string `json:"remoteDefinitionHash,omitempty"`
+	// Etag is the ETag of the last read of the resource whose definition had
+	// RemoteDefinitionHash, for resource types that support it. Reads send it in
+	// If-None-Match, so a Not Modified response shows that the resource,
+	// including its state, has not changed since that read.
+	Etag string `json:"etag,omitempty"`
 	// LastForceSyncTime is the last time the API object was last force synced with the custom resource
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
 	// State is the live Datadog-side state of the underlying resource as last

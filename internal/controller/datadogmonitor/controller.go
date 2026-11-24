@@ -189,7 +189,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	shouldCreate := false
 	shouldUpdate := false
 	shouldRefreshState := false
-	var m datadogV1.Monitor
+	var read controllerutils.MonitorRead
 
 	// Decide which remote work is due. Lifecycle and specification work takes
 	// precedence over the eventual-consistency state poll.
@@ -202,7 +202,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			// the Datadog UI), fall back to create so the CR can self-heal
 			// instead of looping on 404.
 			logger.V(1).Info("DatadogMonitor manifest has changed")
-			_, err = r.get(auth, instance, newStatus)
+			// A Not Modified response also proves that the monitor exists.
+			_, err = r.get(auth, instance, newStatus, newStatus.Etag)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -217,7 +218,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			// A force sync periodically reapplies the desired monitor definition
 			// to correct out-of-band changes. Check that the remote monitor still
 			// exists first so an out-of-band deletion takes the create path.
-			m, err = r.get(auth, instance, newStatus)
+			read, err = r.get(auth, instance, newStatus, newStatus.Etag)
+			if !read.NotModified && err == nil && !r.statePollingDisabled {
+				// Record the state of the read too, so that a state poll that gets
+				// Not Modified for the ETag recorded below keeps a current state.
+				updateMonitorState(read, now, newStatus)
+			}
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -225,10 +231,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				} else {
 					result.RequeueAfter = defaultErrRequeuePeriod
 				}
-			} else if hash := remoteDefinitionHash(logger, m); hash != "" && hash == instance.Status.RemoteDefinitionHash {
+			} else if recordETag(logger, read, newStatus) {
 				// Nobody edited the monitor since our last write, so reapplying the
 				// definition would be a no-op.
-				logger.V(1).Info("Monitor unchanged since the last update; skipping force-sync update", "Monitor ID", instance.Status.ID)
+				logger.V(1).Info("Monitor unchanged since the last update; skipping force-sync update", "Monitor ID", instance.Status.ID, "notModified", read.NotModified)
 				newStatus.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 				newStatus.MonitorLastForceSyncTime = &now
 			} else {
@@ -259,7 +265,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		// State polling is eventual-consistency work, so its scheduled follow-up
 		// stays behind lifecycle and specification changes in the work queue.
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
-		m, err = r.get(auth, instance, newStatus)
+		// Without a polled state, for example after a create or while polling was
+		// disabled, a Not Modified response would leave the state unknown.
+		etag := newStatus.Etag
+		if newStatus.MonitorState == "" {
+			etag = ""
+		}
+		read, err = r.get(auth, instance, newStatus, etag)
 		if err != nil {
 			logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -268,8 +280,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				// polling to lifecycle work, which must return at normal priority.
 				result.Priority = nil
 			}
+		} else {
+			recordETag(logger, read, newStatus)
 		}
-		updateMonitorState(m, now, newStatus)
+		updateMonitorState(read, now, newStatus)
 	}
 
 	// Create and update actions
@@ -416,6 +430,8 @@ func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMon
 	status.MonitorStateSyncStatus = ""
 	status.CurrentHash = instanceSpecHash
 	status.RemoteDefinitionHash = remoteDefinitionHash(logger, m)
+	// Write responses carry no ETag; the next read records one.
+	status.Etag = ""
 
 	// Set Created Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeCreated, corev1.ConditionTrue, "DatadogMonitor Created")
@@ -428,6 +444,7 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 	// Until an update succeeds, the remote monitor may not match the spec, so
 	// force syncs must not be skipped.
 	status.RemoteDefinitionHash = ""
+	status.Etag = ""
 
 	// Validate monitor in Datadog
 	if err := validateMonitor(auth, logger, r.datadogClient, datadogMonitor); err != nil {
@@ -456,14 +473,32 @@ func (r *Reconciler) update(auth context.Context, logger logr.Logger, datadogMon
 	return nil
 }
 
-func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus) (datadogV1.Monitor, error) {
+// get reads the monitor, sending etag in If-None-Match when it is not empty.
+func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, etag string) (controllerutils.MonitorRead, error) {
 	// Get monitor from Datadog and update resource status if needed
-	m, err := getMonitor(auth, r.datadogClient, datadogMonitor.Status.ID)
+	read, err := getMonitor(auth, r.datadogClient, datadogMonitor.Status.ID, etag)
 	if err != nil {
 		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusGetError
-		return m, err
+		return read, err
 	}
-	return m, nil
+	return read, nil
+}
+
+// recordETag keeps the ETag of a monitor read only while the definition it
+// returned has the hash recorded after our last write, so that a Not Modified
+// response proves that nobody has edited the monitor since. It reports whether
+// the definition has that hash. A Not Modified read leaves the ETag unchanged.
+func recordETag(logger logr.Logger, read controllerutils.MonitorRead, status *datadoghqv1alpha1.DatadogMonitorStatus) bool {
+	if read.NotModified {
+		return true
+	}
+	hash := remoteDefinitionHash(logger, read.Monitor)
+	unchanged := hash != "" && hash == status.RemoteDefinitionHash
+	status.Etag = ""
+	if unchanged {
+		status.Etag = read.ETag
+	}
+	return unchanged
 }
 
 // remoteDefinitionHash returns the definition hash of a monitor returned by the
@@ -477,8 +512,11 @@ func remoteDefinitionHash(logger logr.Logger, m datadogV1.Monitor) string {
 	return hash
 }
 
-func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
-	convertStateToStatus(m, status, now)
+func updateMonitorState(read controllerutils.MonitorRead, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
+	// A Not Modified read returns no monitor, and the state has not changed.
+	if !read.NotModified {
+		convertStateToStatus(read.Monitor, status, now)
+	}
 	status.MonitorStateLastUpdateTime = &now
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 }
