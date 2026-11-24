@@ -108,6 +108,14 @@ func TestUploadErrors(t *testing.T) {
 	require.ErrorContains(t, err, "no API key")
 }
 
+func TestUploadMissingArchive(t *testing.T) {
+	intake := flaretest.NewIntake(t)
+	uploader := &Uploader{BaseURL: intake.Server.URL, APIKey: testAPIKey}
+	_, err := uploader.Upload(context.Background(), UploadRequest{Hostname: "h", ArchivePath: filepath.Join(t.TempDir(), "missing.zip")})
+	require.ErrorContains(t, err, "unable to read the flare archive")
+	assert.Equal(t, int32(0), intake.Posts.Load(), "nothing is posted without an archive")
+}
+
 func TestUploadRetriesConnectionFailures(t *testing.T) {
 	// The HEAD request succeeds, then the intake is unreachable.
 	intake := flaretest.NewIntake(t)

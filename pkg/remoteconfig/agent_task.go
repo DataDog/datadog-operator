@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -92,7 +93,7 @@ func (r *RemoteConfigUpdater) handleAgentTask(configPath string, rawConfig state
 	// The Remote Configuration client doesn't recover panics in callbacks.
 	defer func() {
 		if p := recover(); p != nil {
-			r.logger.Error(fmt.Errorf("%v", p), "Panic while handling a Remote Configuration agent task", "path", configPath)
+			r.logger.Error(fmt.Errorf("%v", p), "Panic while handling a Remote Configuration agent task", "path", configPath, "stack", string(debug.Stack()))
 			applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: fmt.Sprintf("the agent task panicked: %v", p)})
 		}
 	}()
@@ -184,6 +185,7 @@ func (r *RemoteConfigUpdater) runFlare(ctx context.Context, task FlareTask) (err
 	defer func() {
 		if p := recover(); p != nil {
 			err = fmt.Errorf("the flare panicked: %v", p)
+			r.logger.Error(err, "Recovered a panic in a flare task", "uuid", task.UUID, "stack", string(debug.Stack()))
 		}
 	}()
 	if r.flareRunner == nil {

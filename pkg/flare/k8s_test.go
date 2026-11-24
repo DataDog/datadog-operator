@@ -134,7 +134,25 @@ func TestWorkloadsCollector(t *testing.T) {
 		Message:        "Back-off restarting failed container",
 	}
 
-	files, manifest := runCollectors(t, testEnv(t, ds, dca, unmanaged, pod, event), WorkloadsCollector())
+	// Events of the workload itself and of its replica sets are kept; events
+	// of other pods aren't.
+	dsEvent := &corev1.Event{
+		ObjectMeta:     metav1.ObjectMeta{Name: "e2", Namespace: "datadog"},
+		InvolvedObject: corev1.ObjectReference{Kind: "DaemonSet", Name: "datadog-agent"},
+		Reason:         "SuccessfulCreate",
+	}
+	rsEvent := &corev1.Event{
+		ObjectMeta:     metav1.ObjectMeta{Name: "e3", Namespace: "datadog"},
+		InvolvedObject: corev1.ObjectReference{Kind: "ReplicaSet", Name: "datadog-cluster-agent-7d4b9"},
+		Reason:         "ScalingReplicaSet",
+	}
+	otherPodEvent := &corev1.Event{
+		ObjectMeta:     metav1.ObjectMeta{Name: "e4", Namespace: "datadog"},
+		InvolvedObject: corev1.ObjectReference{Kind: "Pod", Name: "unrelated-pod"},
+		Reason:         "OtherPodEvent",
+	}
+
+	files, manifest := runCollectors(t, testEnv(t, ds, dca, unmanaged, pod, event, dsEvent, rsEvent, otherPodEvent), WorkloadsCollector())
 	require.Len(t, manifest.Collectors, 1)
 	assert.Equal(t, StatusOK, manifest.Collectors[0].Status, manifest.Collectors[0].Errors)
 
@@ -147,7 +165,13 @@ func TestWorkloadsCollector(t *testing.T) {
 	assert.Contains(t, pods, "CrashLoopBackOff")
 	assert.Contains(t, pods, "node: node-1")
 	assert.Contains(t, files["workloads/events/datadog/daemonset-datadog-agent.yaml"], "BackOff")
-	assert.Contains(t, files["workloads/events/datadog/deployment-datadog-cluster-agent.yaml"], "# No events found for Deployment datadog-cluster-agent, its pods and replica sets in namespace datadog at ")
+	dsEvents := files["workloads/events/datadog/daemonset-datadog-agent.yaml"]
+	assert.Contains(t, dsEvents, "SuccessfulCreate")
+	assert.NotContains(t, dsEvents, "OtherPodEvent")
+	assert.NotContains(t, dsEvents, "ScalingReplicaSet")
+	dcaEvents := files["workloads/events/datadog/deployment-datadog-cluster-agent.yaml"]
+	assert.Contains(t, dcaEvents, "ScalingReplicaSet")
+	assert.NotContains(t, dcaEvents, "OtherPodEvent")
 	assertNoSecrets(t, files, testAPIKey)
 }
 
@@ -425,4 +449,25 @@ func TestWarnTruncated(t *testing.T) {
 	truncated.Continue = "next"
 	warnTruncated(c, "nodes", truncated)
 	assert.Equal(t, []string{"only the first 2000 nodes were collected"}, c.recordedErrors())
+}
+
+func TestCollectOperatorPods(t *testing.T) {
+	pods := []corev1.Pod{
+		{ObjectMeta: metav1.ObjectMeta{Name: "datadog-operator-a", Namespace: "datadog"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "datadog-operator-b", Namespace: "datadog"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "manager"}}}},
+	}
+	files, _ := runCollectors(t, testEnv(t, &pods[0], &pods[1]), Collector{Name: "operator/pods", Collect: func(ctx context.Context, c *Collection) error {
+		return CollectOperatorPods(ctx, c, pods)
+	}})
+
+	summary := files["operator/pods.yaml"]
+	assert.Contains(t, summary, "datadog-operator-a")
+	assert.Contains(t, summary, "datadog-operator-b")
+	for _, pod := range []string{"datadog-operator-a", "datadog-operator-b"} {
+		found := false
+		for name := range files {
+			found = found || strings.HasPrefix(name, "operator/logs/"+pod)
+		}
+		assert.True(t, found, "logs of %s are collected", pod)
+	}
 }

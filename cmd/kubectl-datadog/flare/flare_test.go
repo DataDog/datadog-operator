@@ -8,6 +8,8 @@ package flare
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +17,9 @@ import (
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -214,4 +218,51 @@ func TestImageTag(t *testing.T) {
 	} {
 		assert.Equal(t, want, imageTag(image), image)
 	}
+}
+
+func TestProxyCollectors(t *testing.T) {
+	// A fake API server that proxies to the Operator pod's endpoints.
+	var queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.RawQuery)
+		switch r.URL.Path {
+		case "/api/v1/namespaces/datadog/pods/op:8383/proxy/metrics":
+			_, _ = w.Write([]byte("controller_runtime_reconcile_total 3\n"))
+		case "/api/v1/namespaces/datadog/pods/op:8081/proxy/healthz":
+			_, _ = w.Write([]byte("[+]ping ok\nhealthz check passed\n"))
+		default:
+			// The pod's 404 for an endpoint without checks, as plain text.
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("404 page not found\n"))
+		}
+	}))
+	defer server.Close()
+	clientset, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+	o := &options{}
+	o.Clientset = clientset
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "op", Namespace: "datadog"},
+		Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "manager", Args: []string{"-metrics-addr=:8383"}}}},
+	}
+
+	archive := pkgflare.NewArchive(pkgflare.ArchiveOptions{})
+	manifest := pkgflare.Run(context.Background(), pkgflare.Env{}, archive, []pkgflare.Collector{
+		{Name: "metrics", Collect: func(ctx context.Context, c *pkgflare.Collection) error { return o.collectMetrics(ctx, c, pod) }},
+		{Name: "health", Collect: func(ctx context.Context, c *pkgflare.Collection) error { return o.collectHealth(ctx, c, pod) }},
+	}, pkgflare.RunOptions{})
+	for _, result := range manifest.Collectors {
+		assert.Equal(t, pkgflare.StatusOK, result.Status, "%s: %v", result.Name, result.Errors)
+	}
+	data, err := archive.Close(manifest)
+	require.NoError(t, err)
+	files := flaretest.ReadZipFile(t, data)
+
+	assert.Contains(t, files["operator/op-metrics.txt"], "controller_runtime_reconcile_total 3")
+	health := files["operator/health.txt"]
+	assert.Contains(t, health, "GET /healthz?verbose: 200 OK\n[+]ping ok")
+	assert.Contains(t, health, "GET /readyz?verbose: 404 Not Found (no checks are registered for this endpoint)")
+	assert.Contains(t, queries, "verbose=", "the endpoint query is passed to the pod")
+	assert.Contains(t, files, "operator/health-pod-status.yaml")
 }
