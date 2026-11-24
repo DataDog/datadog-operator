@@ -109,7 +109,7 @@ func TestSampledResourceCollector(t *testing.T) {
 	files, manifest := runCollectors(t, Env{Reader: reader}, sampledResourceCollector("datadog/datadogagentprofiles", datadogAgentProfileGVK))
 
 	require.Len(t, manifest.Collectors, 1)
-	assert.Equal(t, []string{"collected the first 20 of 340 DatadogAgentProfile"}, manifest.Collectors[0].Errors)
+	assert.Equal(t, []string{"collected the first 100 of 340 DatadogAgentProfile"}, manifest.Collectors[0].Errors)
 	sampled := 0
 	for name := range files {
 		if strings.HasPrefix(name, "datadog/datadogagentprofiles/") {

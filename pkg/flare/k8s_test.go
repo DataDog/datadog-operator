@@ -80,8 +80,6 @@ func TestDatadogResourcesCollectors(t *testing.T) {
 	assert.Contains(t, files, "datadog/datadogagentprofiles/datadog/linux.yaml")
 	assert.Contains(t, files, "datadog/datadogagentinternals/NONE.txt")
 
-	assert.Contains(t, files, "datadog/datadogcsidrivers/NONE.txt")
-
 	counts := files["datadog/resources-count.yaml"]
 	assert.Contains(t, counts, "DatadogMonitor: 1")
 	assert.Contains(t, counts, "DatadogSLO: 0")
@@ -94,7 +92,7 @@ func TestDatadogResourcesCollectors(t *testing.T) {
 	assert.Contains(t, files["datadog/events/datadogagent.yaml"], "Create DaemonSet")
 	// A kind without events still has its file, so that "no events" can be
 	// told from "not collected".
-	for _, kind := range []string{"datadogagentprofile", "datadogagentinternal", "datadogcsidriver", "datadogmonitor", "datadogslo", "datadogdashboard", "datadoggenericresource"} {
+	for _, kind := range []string{"datadogagentprofile", "datadogagentinternal", "datadogmonitor", "datadogslo", "datadogdashboard", "datadoggenericresource"} {
 		noEvents := files["datadog/events/"+kind+".yaml"]
 		assert.Contains(t, noEvents, "# No events found for ", kind)
 		assert.Contains(t, noEvents, " in all namespaces at ", kind)

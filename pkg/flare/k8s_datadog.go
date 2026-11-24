@@ -23,7 +23,6 @@ var (
 	datadogAgentGVK         = schema.GroupVersionKind{Group: datadogGroup, Version: "v2alpha1", Kind: "DatadogAgent"}
 	datadogAgentInternalGVK = schema.GroupVersionKind{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogAgentInternal"}
 	datadogAgentProfileGVK  = schema.GroupVersionKind{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogAgentProfile"}
-	datadogCSIDriverGVK     = schema.GroupVersionKind{Group: datadogGroup, Version: "v1alpha1", Kind: "DatadogCSIDriver"}
 
 	// countedGVKs are the resources that are only counted: they can number
 	// in the thousands, and their sync errors are in the Operator logs and
@@ -39,7 +38,7 @@ var (
 // maxSampledResources caps the resources collected in full per kind. The API
 // server returns at most this many per request, so memory doesn't grow with
 // the number of resources.
-const maxSampledResources = 20
+const maxSampledResources = 100
 
 // DatadogResourcesCollectors returns the collectors of the Datadog custom
 // resources (up to maxSampledResources in full for the Agent kinds, a count
@@ -49,7 +48,6 @@ func DatadogResourcesCollectors() []Collector {
 		sampledResourceCollector("datadog/datadogagents", datadogAgentGVK),
 		sampledResourceCollector("datadog/datadogagentinternals", datadogAgentInternalGVK),
 		sampledResourceCollector("datadog/datadogagentprofiles", datadogAgentProfileGVK),
-		sampledResourceCollector("datadog/datadogcsidrivers", datadogCSIDriverGVK),
 		{Name: "datadog/resources-count", Collect: collectResourceCounts},
 		{Name: "datadog/events", Collect: collectDatadogEvents},
 	}
@@ -137,8 +135,8 @@ func countResources(ctx context.Context, reader client.Reader, gvk schema.GroupV
 }
 
 func collectDatadogEvents(ctx context.Context, c *Collection) error {
-	kinds := make([]string, 0, 4+len(countedGVKs))
-	kinds = append(kinds, datadogAgentGVK.Kind, datadogAgentInternalGVK.Kind, datadogAgentProfileGVK.Kind, datadogCSIDriverGVK.Kind)
+	kinds := make([]string, 0, 3+len(countedGVKs))
+	kinds = append(kinds, datadogAgentGVK.Kind, datadogAgentInternalGVK.Kind, datadogAgentProfileGVK.Kind)
 	for _, gvk := range countedGVKs {
 		kinds = append(kinds, gvk.Kind)
 	}
