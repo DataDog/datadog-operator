@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -94,7 +95,16 @@ func Test_reconcileProfiles_Namespace(t *testing.T) {
 			}
 			gotProfile := &v1alpha1.DatadogAgentProfile{}
 			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: foreignProfile.Namespace, Name: foreignProfile.Name}, gotProfile))
-			assert.Equal(t, foreignProfile.Status, gotProfile.Status, "foreign profile status must not be changed")
+			assert.Equal(t, metav1.ConditionFalse, gotProfile.Status.Applied, "foreign profile must not report Applied")
+			appliedCondition := meta.FindStatusCondition(gotProfile.Status.Conditions, agentprofile.AppliedConditionType)
+			require.NotNil(t, appliedCondition)
+			assert.Equal(t, agentprofile.NoDatadogAgentConditionReason, appliedCondition.Reason)
+			assert.Nil(t, gotProfile.Status.CreateStrategy)
+			if sameNamespaceProfile {
+				localProfile := &v1alpha1.DatadogAgentProfile{}
+				require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: foreignProfile.Name}, localProfile))
+				assert.Equal(t, metav1.ConditionTrue, localProfile.Status.Applied)
+			}
 			gotNode := &corev1.Node{}
 			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
 			podErr := fakeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, &corev1.Pod{})
@@ -158,7 +168,7 @@ func Test_reconcileProfiles_MultipleNamespaces(t *testing.T) {
 			}
 
 			// Finalizing one namespace must preserve the other namespace's assignment.
-			require.NoError(t, r.profilesCleanup(ctx, "agent-a"))
+			require.NoError(t, r.profilesCleanup(ctx, "agent-a", "agent"))
 			gotNode := &corev1.Node{}
 			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
 			assert.NotContains(t, gotNode.Labels, agentprofile.NodeLabelKey("agent-a"))
@@ -2249,5 +2259,54 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 			assert.Equal(t, tt.expectReason, found.Reason)
 			assert.Equal(t, tt.expectMessage, found.Message)
 		})
+	}
+}
+
+// Test_markProfilesWithoutDatadogAgent checks that only profiles in namespaces
+// without a live DatadogAgent are marked as not applied.
+func Test_markProfilesWithoutDatadogAgent(t *testing.T) {
+	ctx := context.Background()
+	sch := agenttestutils.TestScheme()
+	now := metav1.Now()
+	appliedStatus := v1alpha1.DatadogAgentProfileStatus{
+		Applied:        metav1.ConditionTrue,
+		CreateStrategy: &v1alpha1.CreateStrategy{Status: v1alpha1.CompletedStatus},
+		Conditions: []metav1.Condition{
+			agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"),
+		},
+	}
+	profile := func(namespace string) *v1alpha1.DatadogAgentProfile {
+		return &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "profile"},
+			Status:     *appliedStatus.DeepCopy(),
+		}
+	}
+	deletingDDA := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
+		Namespace: "deleting", Name: "agent", DeletionTimestamp: &now, Finalizers: []string{"test"},
+	}}
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).
+		WithObjects(
+			&v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: "agent"}},
+			deletingDDA,
+			profile("current"), profile("other"), profile("orphan"), profile("deleting"),
+		).
+		WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+	r := &Reconciler{client: fakeClient, scheme: sch}
+
+	r.markProfilesWithoutDatadogAgent(ctx, "current", now)
+
+	for namespace, wantApplied := range map[string]bool{"current": true, "other": true, "orphan": false, "deleting": false} {
+		got := &v1alpha1.DatadogAgentProfile{}
+		require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: "profile"}, got))
+		if wantApplied {
+			assert.Equal(t, metav1.ConditionTrue, got.Status.Applied, namespace)
+			assert.NotNil(t, got.Status.CreateStrategy, namespace)
+			continue
+		}
+		assert.Equal(t, metav1.ConditionFalse, got.Status.Applied, namespace)
+		assert.Nil(t, got.Status.CreateStrategy, namespace)
+		cond := meta.FindStatusCondition(got.Status.Conditions, agentprofile.AppliedConditionType)
+		require.NotNil(t, cond, namespace)
+		assert.Equal(t, agentprofile.NoDatadogAgentConditionReason, cond.Reason, namespace)
 	}
 }

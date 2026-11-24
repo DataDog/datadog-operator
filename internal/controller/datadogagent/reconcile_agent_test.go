@@ -244,7 +244,9 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 		description    string
 		profilesByNode map[string]types.NamespacedName
 		nodes          []client.Object
-		wantNodeLabels map[string]map[string]string
+		// legacyLabelInUse simulates DaemonSets still selecting with the legacy label.
+		legacyLabelInUse bool
+		wantNodeLabels   map[string]map[string]string
 	}{
 		{
 			name:        "label multiple profile nodes and default node",
@@ -646,6 +648,42 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			}}},
 			wantNodeLabels: map[string]map[string]string{"node": nil},
 		},
+		{
+			name:        "keep legacy label while a DaemonSet still selects with it",
+			description: "removing the legacy label before the DaemonSets migrate evicts every profile pod at once",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-profile": {Namespace: "foo", Name: "profile"},
+				"node-default": {Name: "default"},
+			},
+			nodes: []client.Object{
+				&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+					Name: "node-profile", Labels: map[string]string{constants.ProfileLabelKey: "profile"},
+				}},
+				&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+					Name: "node-default", Labels: map[string]string{constants.ProfileLabelKey: "old-profile"},
+				}},
+			},
+			legacyLabelInUse: true,
+			wantNodeLabels: map[string]map[string]string{
+				"node-profile": {
+					constants.ProfileLabelKey:        "profile",
+					agentprofile.NodeLabelKey("foo"): "profile",
+				},
+				"node-default": {constants.ProfileLabelKey: "old-profile"},
+			},
+		},
+		{
+			name: "remove legacy label once DaemonSets use the namespace-scoped label",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-profile": {Namespace: "foo", Name: "profile"},
+			},
+			nodes: []client.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "node-profile", Labels: map[string]string{constants.ProfileLabelKey: "profile"},
+			}}},
+			wantNodeLabels: map[string]map[string]string{
+				"node-profile": {agentprofile.NodeLabelKey("foo"): "profile"},
+			},
+		},
 	}
 
 	for _, tt := range testCases {
@@ -656,7 +694,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 				client: fakeClient,
 			}
 
-			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode, "foo")
+			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode, "foo", tt.legacyLabelInUse)
 			assert.NoError(t, err)
 
 			nodeList := &corev1.NodeList{}

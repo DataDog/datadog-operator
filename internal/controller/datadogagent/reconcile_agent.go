@@ -26,7 +26,9 @@ import (
 )
 
 // labelNodesWithProfiles updates profile assignments only for this Agent namespace.
-func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string) error {
+// legacyLabelInUse keeps the legacy shared label on nodes while DaemonSets still
+// select with it (see agentprofile.LegacyProfileLabelInUse).
+func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string, legacyLabelInUse bool) error {
 	profileLabelKey := agentprofile.NodeLabelKey(namespace)
 	for nodeName, profileNamespacedName := range profilesByNode {
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
@@ -60,8 +62,9 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			}
 		}
 
-		// Remove the legacy shared assignment labels during migration.
-		if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists {
+		// Remove the legacy shared assignment labels during migration, once no
+		// DaemonSet selects nodes with it.
+		if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists && !legacyLabelInUse {
 			labelsToRemove[constants.ProfileLabelKey] = true
 		}
 		if _, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]; oldProfileLabelExists {

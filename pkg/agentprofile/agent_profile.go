@@ -60,7 +60,10 @@ func CheckProfileNodeConflicts(profile metav1.ObjectMeta, profileRequirements []
 // AssignNodesToProfile assigns matching nodes to the profile in profilesByNode and records
 // create-strategy data in csInfo. It must only be called after CheckProfileNodeConflicts
 // returns nil, so it never returns an error.
-func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) {
+// legacyLabelInUse is true while DaemonSets still select nodes with the legacy
+// shared label. Nodes whose legacy label names the profile then already run its
+// pod, so the create strategy counts them as labeled.
+func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo, legacyLabelInUse bool) {
 	profileNSName := types.NamespacedName{
 		Namespace: profile.Namespace,
 		Name:      profile.Name,
@@ -76,8 +79,8 @@ func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labe
 		}
 		profilesByNode[node.Name] = profileNSName
 		if CreateStrategyEnabled() {
-			profileLabelValue, labelExists := node.Labels[NodeLabelKey(profile.Namespace)]
-			needsLabel := !labelExists || profileLabelValue != profile.Name
+			needsLabel := node.Labels[NodeLabelKey(profile.Namespace)] != profile.Name &&
+				(!legacyLabelInUse || node.Labels[constants.ProfileLabelKey] != profile.Name)
 			if needsLabel {
 				csInfo[profileNSName].nodesNeedingLabel = append(csInfo[profileNSName].nodesNeedingLabel, node.Name)
 			} else {

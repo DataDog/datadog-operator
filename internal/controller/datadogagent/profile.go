@@ -91,6 +91,13 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	// csInfo holds create strategy data per profile
 	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
 
+	// During the migration to namespace-scoped node labels, nodes keep the
+	// legacy shared label until no DaemonSet selects with it.
+	legacyLabelInUse, err := agentprofile.LegacyProfileLabelInUse(ctx, r.client, nil)
+	if err != nil {
+		return appliedProfiles, fmt.Errorf("unable to check legacy profile label usage: %w", err)
+	}
+
 	for _, profile := range sortedProfiles {
 		originalStatus := profile.Status.DeepCopy()
 		logger.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
@@ -130,7 +137,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 		// The profile is valid and its shared overlay was accepted.
 		// Commit node assignment and shared overlay changes.
-		agentprofile.AssignNodesToProfile(profile.ObjectMeta, requirements, nodeList, profilesByNode, csInfo)
+		agentprofile.AssignNodesToProfile(profile.ObjectMeta, requirements, nodeList, profilesByNode, csInfo, legacyLabelInUse)
 		accumulatedDefaultSpec = candidateDefaultSpec
 		setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied")
 		r.syncProfileStatus(ctx, &profile, originalStatus, now)
@@ -145,7 +152,9 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		return appliedProfiles, err
 	}
 
-	if err := r.labelNodesWithProfiles(ctx, profilesByNode, dsNSName.Namespace); err != nil {
+	r.markProfilesWithoutDatadogAgent(ctx, dsNSName.Namespace, now)
+
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode, dsNSName.Namespace, legacyLabelInUse); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
 	}
 
@@ -154,6 +163,43 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	}
 
 	return appliedProfiles, nil
+}
+
+// markProfilesWithoutDatadogAgent marks profiles in namespaces without a
+// DatadogAgent as not applied. Profiles only apply to DatadogAgents in their own
+// namespace, so without this, a profile that used to apply across namespaces
+// would keep reporting Applied=True after it stopped being used.
+func (r *Reconciler) markProfilesWithoutDatadogAgent(ctx context.Context, ddaNamespace string, now metav1.Time) {
+	logger := ctrl.LoggerFrom(ctx)
+
+	ddaList := v2alpha1.DatadogAgentList{}
+	if err := r.client.List(ctx, &ddaList); err != nil {
+		logger.Error(err, "unable to list DatadogAgents")
+		return
+	}
+	namespacesWithDDA := map[string]struct{}{ddaNamespace: {}}
+	for _, dda := range ddaList.Items {
+		if dda.DeletionTimestamp == nil {
+			namespacesWithDDA[dda.Namespace] = struct{}{}
+		}
+	}
+
+	profilesList := v1alpha1.DatadogAgentProfileList{}
+	if err := r.client.List(ctx, &profilesList); err != nil {
+		logger.Error(err, "unable to list DatadogAgentProfiles")
+		return
+	}
+	for i := range profilesList.Items {
+		profile := &profilesList.Items[i]
+		if _, ok := namespacesWithDDA[profile.Namespace]; ok {
+			continue
+		}
+		originalStatus := profile.Status.DeepCopy()
+		setProfileCondition(profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.NoDatadogAgentConditionReason,
+			"No DatadogAgent in this namespace. DatadogAgentProfiles only apply to DatadogAgents in the same namespace.")
+		profile.Status.CreateStrategy = nil
+		r.syncProfileStatus(ctx, profile, originalStatus, now)
+	}
 }
 
 // enforceCreateStrategy updates create-strategy status for applied profiles and
