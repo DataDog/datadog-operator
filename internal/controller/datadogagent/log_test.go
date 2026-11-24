@@ -94,7 +94,7 @@ func TestHelpersUseContextLogger(t *testing.T) {
 			name:    "node label changes",
 			objects: []runtime.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"existing": "label"}}}},
 			run: func(ctx context.Context, r *Reconciler) error {
-				return r.labelNodesWithProfiles(ctx, map[string]types.NamespacedName{"node": {Name: "profile", Namespace: "ns"}}, "ns")
+				return r.labelNodesWithProfiles(ctx, map[string]types.NamespacedName{"node": {Name: "profile", Namespace: "ns"}}, "ns", false)
 			},
 		},
 		{

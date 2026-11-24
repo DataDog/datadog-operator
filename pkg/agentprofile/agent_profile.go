@@ -76,8 +76,10 @@ func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labe
 		}
 		profilesByNode[node.Name] = profileNSName
 		if CreateStrategyEnabled() {
-			profileLabelValue, labelExists := node.Labels[NodeLabelKey(profile.Namespace)]
-			needsLabel := !labelExists || profileLabelValue != profile.Name
+			// Nodes assigned before the namespace-scoped label existed already
+			// run the profile pod, so the create strategy must not throttle them.
+			needsLabel := node.Labels[NodeLabelKey(profile.Namespace)] != profile.Name &&
+				node.Labels[constants.ProfileLabelKey] != profile.Name
 			if needsLabel {
 				csInfo[profileNSName].nodesNeedingLabel = append(csInfo[profileNSName].nodesNeedingLabel, node.Name)
 			} else {

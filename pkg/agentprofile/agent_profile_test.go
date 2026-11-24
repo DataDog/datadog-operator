@@ -16,6 +16,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/go-logr/logr"
 
 	"github.com/stretchr/testify/assert"
@@ -907,6 +908,39 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 				"node3": {Namespace: testNamespace, Name: "profile"},
 			},
 			expectedNodesNeedingLabel:   []string{"node2", "node3"},
+			expectedNodesAlreadyLabeled: 1,
+			expectedError:               nil,
+		},
+		{
+			name:                  "create strategy, legacy shared label counts as labeled",
+			createStrategyEnabled: true,
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []corev1.Node{
+				createNodeWithLabels("node1", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "profile",
+				}),
+				createNodeWithLabels("node2", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "other-profile",
+				}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedNodesNeedingLabel:   []string{"node2"},
 			expectedNodesAlreadyLabeled: 1,
 			expectedError:               nil,
 		},

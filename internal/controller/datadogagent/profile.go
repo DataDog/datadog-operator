@@ -91,6 +91,13 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	// csInfo holds create strategy data per profile
 	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
 
+	// During the migration to namespace-scoped node labels, nodes keep the
+	// legacy shared label until no DaemonSet selects with it.
+	legacyLabelInUse, err := agentprofile.LegacyProfileLabelInUse(ctx, r.client)
+	if err != nil {
+		return appliedProfiles, fmt.Errorf("unable to check legacy profile label usage: %w", err)
+	}
+
 	for _, profile := range sortedProfiles {
 		originalStatus := profile.Status.DeepCopy()
 		logger.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
@@ -145,7 +152,9 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		return appliedProfiles, err
 	}
 
-	if err := r.labelNodesWithProfiles(ctx, profilesByNode, dsNSName.Namespace); err != nil {
+	r.markCrossNamespaceProfiles(ctx, dsNSName.Namespace, now)
+
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode, dsNSName.Namespace, legacyLabelInUse); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
 	}
 
@@ -154,6 +163,31 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	}
 
 	return appliedProfiles, nil
+}
+
+// markCrossNamespaceProfiles marks profiles outside the DatadogAgent namespace
+// as not applied. Profiles only apply to the DatadogAgent in their own
+// namespace, so without this, a profile that used to apply across namespaces
+// would keep reporting Applied=True after it stopped being used.
+func (r *Reconciler) markCrossNamespaceProfiles(ctx context.Context, ddaNamespace string, now metav1.Time) {
+	logger := ctrl.LoggerFrom(ctx)
+
+	profilesList := v1alpha1.DatadogAgentProfileList{}
+	if err := r.client.List(ctx, &profilesList); err != nil {
+		logger.Error(err, "unable to list DatadogAgentProfiles")
+		return
+	}
+	for i := range profilesList.Items {
+		profile := &profilesList.Items[i]
+		if profile.Namespace == ddaNamespace {
+			continue
+		}
+		originalStatus := profile.Status.DeepCopy()
+		setProfileCondition(profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.NoDatadogAgentConditionReason,
+			"No DatadogAgent in this namespace. DatadogAgentProfiles only apply to DatadogAgents in the same namespace.")
+		profile.Status.CreateStrategy = nil
+		r.syncProfileStatus(ctx, profile, originalStatus, now)
+	}
 }
 
 // enforceCreateStrategy updates create-strategy status for applied profiles and
