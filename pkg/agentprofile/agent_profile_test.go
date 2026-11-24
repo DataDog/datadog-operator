@@ -594,7 +594,6 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 	tests := []struct {
 		name                    string
 		createStrategyEnabled   bool
-		legacyLabelInUse        bool
 		profileMeta             metav1.ObjectMeta
 		profileRequirementsSpec []struct {
 			key      string
@@ -913,9 +912,8 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			expectedError:               nil,
 		},
 		{
-			name:                  "create strategy, legacy shared label counts as labeled during migration",
+			name:                  "create strategy, legacy shared label counts as labeled",
 			createStrategyEnabled: true,
-			legacyLabelInUse:      true,
 			profileMeta: metav1.ObjectMeta{
 				Name:      "profile",
 				Namespace: testNamespace,
@@ -946,34 +944,6 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			expectedNodesAlreadyLabeled: 1,
 			expectedError:               nil,
 		},
-		{
-			name:                  "create strategy, legacy shared label ignored once no DaemonSet uses it",
-			createStrategyEnabled: true,
-			profileMeta: metav1.ObjectMeta{
-				Name:      "profile",
-				Namespace: testNamespace,
-			},
-			profileRequirementsSpec: []struct {
-				key      string
-				operator selection.Operator
-				values   []string
-			}{
-				{key: "os", operator: selection.In, values: []string{"linux"}},
-			},
-			nodes: []corev1.Node{
-				createNodeWithLabels("node1", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
-				}),
-			},
-			existingProfileAppliedByNode: map[string]types.NamespacedName{},
-			expectedProfileAppliedByNode: map[string]types.NamespacedName{
-				"node1": {Namespace: testNamespace, Name: "profile"},
-			},
-			expectedNodesNeedingLabel:   []string{"node1"},
-			expectedNodesAlreadyLabeled: 0,
-			expectedError:               nil,
-		},
 	}
 
 	for _, tt := range tests {
@@ -999,7 +969,7 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			e := CheckProfileNodeConflicts(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode)
 			assert.Equal(t, tt.expectedError, e)
 			if e == nil {
-				AssignNodesToProfile(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode, csInfo, tt.legacyLabelInUse)
+				AssignNodesToProfile(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode, csInfo)
 			}
 			assert.Equal(t, tt.expectedProfileAppliedByNode, tt.existingProfileAppliedByNode)
 

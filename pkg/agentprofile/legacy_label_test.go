@@ -54,7 +54,6 @@ func TestLegacyProfileLabelInUse(t *testing.T) {
 	tests := []struct {
 		name    string
 		objects []client.Object
-		ignore  func(*appsv1.DaemonSet) bool
 		want    bool
 	}{
 		{
@@ -97,18 +96,12 @@ func TestLegacyProfileLabelInUse(t *testing.T) {
 			objects: []client.Object{testDaemonSet("user-ds", false, requiredAffinity(constants.ProfileLabelKey, corev1.NodeSelectorOpIn, "profile"))},
 			want:    false,
 		},
-		{
-			name:    "DaemonSet skipped by ignore",
-			objects: []client.Object{testDaemonSet("profile-agent", true, requiredAffinity(constants.ProfileLabelKey, corev1.NodeSelectorOpIn, "profile"))},
-			ignore:  func(ds *appsv1.DaemonSet) bool { return ds.Name == "profile-agent" },
-			want:    false,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.objects...).Build()
-			got, err := LegacyProfileLabelInUse(context.Background(), c, tt.ignore)
+			got, err := LegacyProfileLabelInUse(context.Background(), c)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})

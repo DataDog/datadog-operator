@@ -7,7 +7,6 @@ import (
 
 	"k8s.io/utils/ptr"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
@@ -15,11 +14,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,67 +182,5 @@ func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
 		recorder:   record.NewBroadcaster().NewRecorder(s, corev1.EventSource{}),
 		forwarders: dummyManager{},
 		options:    ReconcilerOptions{},
-	}
-}
-
-// legacyAffinityDaemonSet returns an operator-managed DaemonSet that still
-// selects nodes with the legacy shared profile label.
-func legacyAffinityDaemonSet(namespace, ddaName string) *appsv1.DaemonSet {
-	return &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      "profile-agent",
-			Labels: map[string]string{
-				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-				apicommon.AgentDeploymentNameLabelKey:    ddaName,
-			},
-		},
-		Spec: appsv1.DaemonSetSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
-			Affinity: &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{
-						Key: constants.ProfileLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{"profile"},
-					}}}},
-				},
-			}},
-		}}},
-	}
-}
-
-// Test_profilesCleanup_legacyLabel checks that deleting a DatadogAgent keeps
-// the legacy shared label while another DatadogAgent's DaemonSets still select
-// with it, and ignores its own DaemonSets, which are about to be deleted.
-func Test_profilesCleanup_legacyLabel(t *testing.T) {
-	tests := []struct {
-		name            string
-		daemonSet       *appsv1.DaemonSet
-		wantLegacyLabel bool
-	}{
-		{name: "no DaemonSet uses the legacy label", wantLegacyLabel: false},
-		{name: "own DaemonSet is ignored", daemonSet: legacyAffinityDaemonSet("foo", "dda"), wantLegacyLabel: false},
-		{name: "another DatadogAgent's DaemonSet keeps it", daemonSet: legacyAffinityDaemonSet("bar", "dda"), wantLegacyLabel: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			objects := []client.Object{testutils.NewNode("node", map[string]string{
-				constants.ProfileLabelKey:        "profile",
-				agentprofile.NodeLabelKey("foo"): "profile",
-			})}
-			if tt.daemonSet != nil {
-				objects = append(objects, tt.daemonSet)
-			}
-			reconciler := reconcilerForFinalizerTest(objects)
-
-			assert.NoError(t, reconciler.profilesCleanup(context.Background(), "foo", "dda"))
-
-			node := &corev1.Node{}
-			assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node"}, node))
-			assert.NotContains(t, node.Labels, agentprofile.NodeLabelKey("foo"))
-			if tt.wantLegacyLabel {
-				assert.Equal(t, "profile", node.Labels[constants.ProfileLabelKey])
-			} else {
-				assert.NotContains(t, node.Labels, constants.ProfileLabelKey)
-			}
-		})
 	}
 }

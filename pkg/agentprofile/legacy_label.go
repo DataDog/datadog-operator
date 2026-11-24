@@ -23,18 +23,12 @@ import (
 // namespace-scoped label existed use it. Removing the label from nodes while
 // they exist makes the DaemonSet controller delete every profile pod at once,
 // ignoring maxUnavailable, and schedule default pods on profile nodes.
-//
-// ignore, when set, skips DaemonSets that are about to be deleted, so that
-// they don't keep the label on nodes forever.
-func LegacyProfileLabelInUse(ctx context.Context, c client.Reader, ignore func(*appsv1.DaemonSet) bool) (bool, error) {
+func LegacyProfileLabelInUse(ctx context.Context, c client.Reader) (bool, error) {
 	dsList := &appsv1.DaemonSetList{}
 	if err := c.List(ctx, dsList, client.MatchingLabels{kubernetes.AppKubernetesManageByLabelKey: "datadog-operator"}); err != nil {
 		return false, err
 	}
 	return slices.ContainsFunc(dsList.Items, func(ds appsv1.DaemonSet) bool {
-		if ignore != nil && ignore(&ds) {
-			return false
-		}
 		return affinityUsesNodeLabel(ds.Spec.Template.Spec.Affinity, constants.ProfileLabelKey)
 	}), nil
 }

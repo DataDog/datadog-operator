@@ -168,7 +168,7 @@ func Test_reconcileProfiles_MultipleNamespaces(t *testing.T) {
 			}
 
 			// Finalizing one namespace must preserve the other namespace's assignment.
-			require.NoError(t, r.profilesCleanup(ctx, "agent-a", "agent"))
+			require.NoError(t, r.profilesCleanup(ctx, "agent-a"))
 			gotNode := &corev1.Node{}
 			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
 			assert.NotContains(t, gotNode.Labels, agentprofile.NodeLabelKey("agent-a"))
@@ -2262,51 +2262,41 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 	}
 }
 
-// Test_markProfilesWithoutDatadogAgent checks that only profiles in namespaces
-// without a live DatadogAgent are marked as not applied.
-func Test_markProfilesWithoutDatadogAgent(t *testing.T) {
+// Test_markCrossNamespaceProfiles checks that only profiles outside the
+// DatadogAgent namespace are marked as not applied.
+func Test_markCrossNamespaceProfiles(t *testing.T) {
 	ctx := context.Background()
 	sch := agenttestutils.TestScheme()
 	now := metav1.Now()
-	appliedStatus := v1alpha1.DatadogAgentProfileStatus{
-		Applied:        metav1.ConditionTrue,
-		CreateStrategy: &v1alpha1.CreateStrategy{Status: v1alpha1.CompletedStatus},
-		Conditions: []metav1.Condition{
-			agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"),
-		},
-	}
 	profile := func(namespace string) *v1alpha1.DatadogAgentProfile {
 		return &v1alpha1.DatadogAgentProfile{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "profile"},
-			Status:     *appliedStatus.DeepCopy(),
+			Status: v1alpha1.DatadogAgentProfileStatus{
+				Applied:        metav1.ConditionTrue,
+				CreateStrategy: &v1alpha1.CreateStrategy{Status: v1alpha1.CompletedStatus},
+				Conditions: []metav1.Condition{
+					agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"),
+				},
+			},
 		}
 	}
-	deletingDDA := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
-		Namespace: "deleting", Name: "agent", DeletionTimestamp: &now, Finalizers: []string{"test"},
-	}}
 	fakeClient := fake.NewClientBuilder().WithScheme(sch).
-		WithObjects(
-			&v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: "agent"}},
-			deletingDDA,
-			profile("current"), profile("other"), profile("orphan"), profile("deleting"),
-		).
+		WithObjects(profile("datadog"), profile("team-a")).
 		WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
 	r := &Reconciler{client: fakeClient, scheme: sch}
 
-	r.markProfilesWithoutDatadogAgent(ctx, "current", now)
+	r.markCrossNamespaceProfiles(ctx, "datadog", now)
 
-	for namespace, wantApplied := range map[string]bool{"current": true, "other": true, "orphan": false, "deleting": false} {
-		got := &v1alpha1.DatadogAgentProfile{}
-		require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: "profile"}, got))
-		if wantApplied {
-			assert.Equal(t, metav1.ConditionTrue, got.Status.Applied, namespace)
-			assert.NotNil(t, got.Status.CreateStrategy, namespace)
-			continue
-		}
-		assert.Equal(t, metav1.ConditionFalse, got.Status.Applied, namespace)
-		assert.Nil(t, got.Status.CreateStrategy, namespace)
-		cond := meta.FindStatusCondition(got.Status.Conditions, agentprofile.AppliedConditionType)
-		require.NotNil(t, cond, namespace)
-		assert.Equal(t, agentprofile.NoDatadogAgentConditionReason, cond.Reason, namespace)
-	}
+	local := &v1alpha1.DatadogAgentProfile{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "profile"}, local))
+	assert.Equal(t, metav1.ConditionTrue, local.Status.Applied)
+	assert.NotNil(t, local.Status.CreateStrategy)
+
+	foreign := &v1alpha1.DatadogAgentProfile{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "team-a", Name: "profile"}, foreign))
+	assert.Equal(t, metav1.ConditionFalse, foreign.Status.Applied)
+	assert.Nil(t, foreign.Status.CreateStrategy)
+	cond := meta.FindStatusCondition(foreign.Status.Conditions, agentprofile.AppliedConditionType)
+	require.NotNil(t, cond)
+	assert.Equal(t, agentprofile.NoDatadogAgentConditionReason, cond.Reason)
 }

@@ -15,11 +15,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -209,7 +207,7 @@ func Test_profilesCleanup(t *testing.T) {
 				testutils.NewNode("node-default", nil),
 			})
 
-			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo", "ddai"))
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo"))
 
 			for nodeName, want := range tt.wantLabelled {
 				node := &corev1.Node{}
@@ -240,7 +238,7 @@ func Test_profilesCleanup_emptyLabelValue(t *testing.T) {
 				testutils.NewNode("node-empty", map[string]string{agentprofile.NodeLabelKey("foo"): ""}),
 			})
 
-			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo", "ddai"))
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo"))
 
 			node := &corev1.Node{}
 			assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-empty"}, node))
@@ -290,58 +288,5 @@ func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
 		recorder:   record.NewBroadcaster().NewRecorder(s, corev1.EventSource{}),
 		forwarders: dummyManager{},
 		options:    ReconcilerOptions{},
-	}
-}
-
-// Test_profilesCleanup_legacyLabel checks that deleting a profile DDAI keeps
-// the legacy shared label while another DaemonSet still selects with it, and
-// ignores the DDAI's own DaemonSet, which is about to be deleted.
-func Test_profilesCleanup_legacyLabel(t *testing.T) {
-	legacyDaemonSet := func(namespace, owner string) *appsv1.DaemonSet {
-		return &appsv1.DaemonSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:       namespace,
-				Name:            owner + "-agent",
-				Labels:          map[string]string{kubernetes.AppKubernetesManageByLabelKey: "datadog-operator"},
-				OwnerReferences: []metav1.OwnerReference{{Kind: "DatadogAgentInternal", Name: owner}},
-			},
-			Spec: appsv1.DaemonSetSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
-				Affinity: &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{{
-							Key: constants.ProfileLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{"profile-a"},
-						}}}},
-					},
-				}},
-			}}},
-		}
-	}
-	tests := []struct {
-		name            string
-		daemonSet       *appsv1.DaemonSet
-		wantLegacyLabel bool
-	}{
-		{name: "no DaemonSet uses the legacy label", wantLegacyLabel: false},
-		{name: "own DaemonSet is ignored", daemonSet: legacyDaemonSet("foo", "profile-a"), wantLegacyLabel: false},
-		{name: "same-named DDAI in another namespace keeps it", daemonSet: legacyDaemonSet("bar", "profile-a"), wantLegacyLabel: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			objects := []client.Object{testutils.NewNode("node", map[string]string{constants.ProfileLabelKey: "profile-a"})}
-			if tt.daemonSet != nil {
-				objects = append(objects, tt.daemonSet)
-			}
-			reconciler := reconcilerForFinalizerTest(objects)
-
-			assert.NoError(t, reconciler.profilesCleanup(context.Background(), "profile-a", "foo", "profile-a"))
-
-			node := &corev1.Node{}
-			assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node"}, node))
-			if tt.wantLegacyLabel {
-				assert.Equal(t, "profile-a", node.Labels[constants.ProfileLabelKey])
-			} else {
-				assert.NotContains(t, node.Labels, constants.ProfileLabelKey)
-			}
-		})
 	}
 }

@@ -7,12 +7,9 @@ package datadogagentinternal
 
 import (
 	"context"
-	"slices"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -42,7 +39,7 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 		return err
 	}
 
-	if err := r.profilesCleanup(ctx, obj.GetLabels()[constants.ProfileLabelKey], obj.GetNamespace(), obj.GetName()); err != nil {
+	if err := r.profilesCleanup(ctx, obj.GetLabels()[constants.ProfileLabelKey], obj.GetNamespace()); err != nil {
 		return err
 	}
 
@@ -52,18 +49,8 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 
 // profilesCleanup removes the profile label from the nodes of the profile whose
 // DDAI is deleted. The default DDAI has no profile name, so it cleans no nodes.
-func (r *Reconciler) profilesCleanup(ctx context.Context, profileName, namespace, ddaiName string) error {
+func (r *Reconciler) profilesCleanup(ctx context.Context, profileName, namespace string) error {
 	profileLabelKey := agentprofile.NodeLabelKey(namespace)
-	// Keep the legacy shared label while another DaemonSet still selects with
-	// it. This DDAI's own DaemonSets are about to be deleted, so they are ignored.
-	legacyLabelInUse, err := agentprofile.LegacyProfileLabelInUse(ctx, r.client, func(ds *appsv1.DaemonSet) bool {
-		return ds.Namespace == namespace && slices.ContainsFunc(ds.OwnerReferences, func(ref metav1.OwnerReference) bool {
-			return ref.Kind == "DatadogAgentInternal" && ref.Name == ddaiName
-		})
-	})
-	if err != nil {
-		return err
-	}
 	nodeList := corev1.NodeList{}
 	if err := r.client.List(ctx, &nodeList); err != nil {
 		return err
@@ -74,7 +61,7 @@ func (r *Reconciler) profilesCleanup(ctx context.Context, profileName, namespace
 		sharedProfileLabelValue, sharedProfileLabelExists := node.Labels[constants.ProfileLabelKey]
 		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
 		removeProfileLabel := profileLabelExists && profileLabelValue == profileName
-		removeSharedProfileLabel := !legacyLabelInUse && sharedProfileLabelExists && sharedProfileLabelValue == profileName
+		removeSharedProfileLabel := sharedProfileLabelExists && sharedProfileLabelValue == profileName
 		if !removeProfileLabel && !removeSharedProfileLabel && !oldProfileLabelExists {
 			continue
 		}
