@@ -7,6 +7,8 @@ package datadogagentinternal
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,6 +123,17 @@ func Test_hashConfigMapContents_Consistent(t *testing.T) {
 	rebuilt["cm-a"] = configMapContent{Data: map[string]string{"z": "26", "a": "1"}, BinaryData: map[string][]byte{"bin": {0, 1, 2}}}
 
 	assert.Equal(t, want, hashConfigMapContents(rebuilt))
+
+	// Verify exact FNV-1a 64-bit compatibility with stdlib hash/fnv.New64a().
+	h := fnv.New64a()
+	for _, s := range []string{"cm-a", "a", "1", "z", "26", "bin"} {
+		_, _ = h.Write([]byte(s))
+	}
+	_, _ = h.Write([]byte{0, 1, 2})
+	for _, s := range []string{"cm-b", "foo", "bar", "cm-c", "x", "hello", "y", "world"} {
+		_, _ = h.Write([]byte(s))
+	}
+	assert.Equal(t, fmt.Sprintf("%016x", h.Sum64()), want)
 }
 
 func Test_annotateConfigMapsChecksum_ContentChangeChangesHash(t *testing.T) {
