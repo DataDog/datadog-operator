@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -22,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -554,4 +556,156 @@ func Test_objectIdentityKV(t *testing.T) {
 			"ddai_datadogAgent", "dda-name",
 		}, kv)
 	})
+}
+
+func Test_computeProfileMerge_EquivalentToFieldManagerApply(t *testing.T) {
+	sch := newBenchScheme()
+	crd, err := getDDAICRDFromConfig(sch)
+	assert.NoError(t, err)
+
+	baseDDAI := newBenchBaseDDAI()
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(baseDDAI, crd).Build()
+	recorder := record.NewBroadcaster().NewRecorder(sch, corev1.EventSource{Component: "equiv"})
+	fm, err := newFieldManager(context.Background(), fakeClient, sch, getDDAIGVK())
+	assert.NoError(t, err)
+
+	r := &Reconciler{
+		client:       fakeClient,
+		scheme:       sch,
+		recorder:     recorder,
+		fieldManager: fm,
+	}
+
+	profiles := newBenchProfiles(4)
+	// Add a profile that overrides Global + Features + ClusterAgent as well.
+	profiles = append(profiles, &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "profile-complex",
+			Namespace: "datadog-agent",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/provider": "gke-cos",
+			},
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{Key: "pool", Operator: corev1.NodeSelectorOpIn, Values: []string{"complex"}},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{
+					Tags: []string{"custom:tag"},
+					CommonLabels: map[string]string{
+						"team": "override-team",
+					},
+				},
+				Features: &v2alpha1.DatadogFeatures{
+					APM: &v2alpha1.APMFeatureConfig{Enabled: ptr.To(false)},
+				},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Env: []corev1.EnvVar{
+							{Name: "DD_CUSTOM_VAR_01", Value: "replaced"},
+							{Name: "DD_NEW_VAR", Value: "added"},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	ctx := context.Background()
+	for _, p := range profiles {
+		t.Run(p.Name, func(t *testing.T) {
+			// Reference output using upstream FieldManager.Apply directly.
+			refProfileDDAI := baseDDAI.DeepCopy()
+			refBaseDDAI := baseDDAI.DeepCopy()
+			pCopy := p.DeepCopy()
+			setProfileSpec(refProfileDDAI, pCopy)
+			assert.NoError(t, setProfileDDAIMeta(refProfileDDAI, pCopy))
+			refBaseDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
+			refProfileDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
+
+			refRaw, err := fm.fieldManager.Apply(refBaseDDAI, refProfileDDAI, defaultOperatorManager, true)
+			assert.NoError(t, err)
+			refObj := refRaw.(*v1alpha1.DatadogAgentInternal)
+			refObj.ManagedFields = nil
+			refSpecMD5, err := comparison.GenerateMD5ForSpec(refObj.Spec)
+			assert.NoError(t, err)
+			refObj.ObjectMeta.Annotations[constants.MD5DDAIDeploymentAnnotationKey] = refSpecMD5
+
+			gotObj, err := r.computeProfileMerge(ctx, baseDDAI, p)
+			assert.NoError(t, err)
+
+			// Verify identical Name, Namespace, Labels, Finalizers, Annotations (including MD5 hash), and semantically identical Spec.
+			assert.Equal(t, refObj.Name, gotObj.Name)
+			assert.Equal(t, refObj.Namespace, gotObj.Namespace)
+			assert.Equal(t, refObj.Labels, gotObj.Labels)
+			assert.Equal(t, refObj.Finalizers, gotObj.Finalizers)
+			assert.Equal(t, refObj.Annotations, gotObj.Annotations)
+			assert.True(t, apiequality.Semantic.DeepEqual(refObj.Spec, gotObj.Spec), "merged spec mismatch for profile %s", p.Name)
+		})
+	}
+}
+
+func Test_applyProfilesToDDAISpec_CacheCorrectnessAndEviction(t *testing.T) {
+	sch := newBenchScheme()
+	crd, err := getDDAICRDFromConfig(sch)
+	assert.NoError(t, err)
+
+	baseDDAI := newBenchBaseDDAI()
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(baseDDAI, crd).Build()
+	recorder := record.NewBroadcaster().NewRecorder(sch, corev1.EventSource{Component: "cache-test"})
+	fm, err := newFieldManager(context.Background(), fakeClient, sch, getDDAIGVK())
+	assert.NoError(t, err)
+
+	r := &Reconciler{
+		client:       fakeClient,
+		scheme:       sch,
+		recorder:     recorder,
+		fieldManager: fm,
+	}
+
+	ctx := context.Background()
+	profiles := newBenchProfiles(3) // default + 2 user profiles
+
+	// 1. Cold call populates cache
+	ddais1, err := r.applyProfilesToDDAISpec(ctx, baseDDAI, baseDDAI.DeepCopy(), profiles)
+	assert.NoError(t, err)
+	assert.Len(t, ddais1, 3)
+	assert.Len(t, r.profileMergeCache, 3)
+
+	// 2. Mutating returned objects must not corrupt cached entries
+	origRV := ddais1[1].ResourceVersion
+	ddais1[1].ResourceVersion = "mutated-rv"
+	ddais1[1].Spec.Override[v2alpha1.NodeAgentComponentName].Env[0].Value = "mutated-val"
+
+	// 3. Steady-state call hits cache and returns clean copy
+	ddais2, err := r.applyProfilesToDDAISpec(ctx, baseDDAI, baseDDAI.DeepCopy(), profiles)
+	assert.NoError(t, err)
+	assert.Len(t, ddais2, 3)
+	assert.Equal(t, origRV, ddais2[1].ResourceVersion)
+	assert.Equal(t, "override-01", ddais2[1].Spec.Override[v2alpha1.NodeAgentComponentName].Env[0].Value)
+
+	// 4. Updating profile ResourceVersion invalidates that profile's cache entry
+	profilesUpdated := []*v1alpha1.DatadogAgentProfile{profiles[0], profiles[1].DeepCopy(), profiles[2]}
+	profilesUpdated[1].ResourceVersion = "9999"
+	profilesUpdated[1].Spec.Config.Override[v2alpha1.NodeAgentComponentName].Env[0].Value = "updated-override"
+	ddais3, err := r.applyProfilesToDDAISpec(ctx, baseDDAI, baseDDAI.DeepCopy(), profilesUpdated)
+	assert.NoError(t, err)
+	assert.Equal(t, "updated-override", ddais3[1].Spec.Override[v2alpha1.NodeAgentComponentName].Env[0].Value)
+
+	// 5. Updating baseDDAI spec invalidates all entries
+	baseModified := baseDDAI.DeepCopy()
+	baseModified.Spec.Global.ClusterName = ptr.To("new-cluster-name")
+	ddais4, err := r.applyProfilesToDDAISpec(ctx, baseModified, baseModified.DeepCopy(), profilesUpdated)
+	assert.NoError(t, err)
+	assert.Equal(t, "new-cluster-name", *ddais4[0].Spec.Global.ClusterName)
+	assert.Equal(t, "new-cluster-name", *ddais4[1].Spec.Global.ClusterName)
+
+	// 6. Removing a profile evicts its cache entry
+	ddais5, err := r.applyProfilesToDDAISpec(ctx, baseModified, baseModified.DeepCopy(), profilesUpdated[:2])
+	assert.NoError(t, err)
+	assert.Len(t, ddais5, 2)
+	assert.Len(t, r.profileMergeCache, 2)
 }
