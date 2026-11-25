@@ -46,7 +46,7 @@ require (
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0 // indirect
-	dario.cat/mergo v1.0.2 // indirect
+	dario.cat/mergo v1.0.2
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/DataDog/agent-payload/v5 v5.0.209
@@ -61,7 +61,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/pointer v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/version v0.83.2 // indirect
-	github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9 // indirect
+	github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.8-0.20260421145859-31a7e515a571 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
