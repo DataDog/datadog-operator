@@ -21,6 +21,14 @@ const (
 	datadogMonitorFinalizer = "finalizer.monitor.datadoghq.com"
 )
 
+// unregisterForwarder stops forwarding the monitor's metrics when its CR is
+// deleted, whether or not the monitor itself is deleted.
+func (r *Reconciler) unregisterForwarder(obj client.Object) {
+	if r.forwarders != nil {
+		r.forwarders.Unregister(obj)
+	}
+}
+
 func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		dm, ok := k8sObj.(*datadoghqv1alpha1.DatadogMonitor)
@@ -28,9 +36,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context) fi
 			return fmt.Errorf("unexpected object type %T", k8sObj)
 		}
 
-		if r.forwarders != nil {
-			r.forwarders.Unregister(dm)
-		}
+		r.unregisterForwarder(dm)
 
 		if dm.Status.Primary {
 			err := deleteMonitor(auth, r.datadogClient, dm.Status.ID)

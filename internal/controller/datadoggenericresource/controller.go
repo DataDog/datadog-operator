@@ -143,12 +143,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 	handler := r.getHandler(instance.Spec.Type)
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), r.requeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), r.requeuePeriod, defaultErrRequeuePeriod, finalizer.WithOrphanPolicy(r.recorder, nil))
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	status := instance.Status.DeepCopy()
+	if v1alpha1.IsOrphaned(instance) {
+		// No Datadog API call while orphaned. Removing the annotation triggers
+		// a reconcile, so there is no need to requeue.
+		logger.V(1).Info("DatadogGenericResource has the orphan management policy; skipping reconciliation")
+		condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeOrphaned, metav1.ConditionTrue, condition.OrphanedReason, condition.OrphanedMessage)
+		return r.updateStatusIfNeeded(ctx, instance, status, ctrl.Result{})
+	}
+	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeOrphaned)
+
 	statusSpecHash := instance.Status.CurrentHash
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 

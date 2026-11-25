@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -44,7 +43,7 @@ func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), sloControllerName)).
 		For(&v1alpha1.DatadogSLO{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{})
+		WithEventFilter(datadogResourcePredicate())
 
 	err := builder.Complete(r)
 	if err != nil {

@@ -165,10 +165,19 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.requeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.requeuePeriod, defaultErrRequeuePeriod, finalizer.WithOrphanPolicy(r.recorder, r.unregisterForwarder))
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
+
+	if datadoghqv1alpha1.IsOrphaned(instance) {
+		// No Datadog API call while orphaned. Removing the annotation triggers
+		// a reconcile, so there is no need to requeue.
+		logger.V(1).Info("DatadogMonitor has the orphan management policy; skipping reconciliation")
+		condition.UpdateDatadogMonitorConditions(newStatus, now, datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned, corev1.ConditionTrue, condition.OrphanedMessage)
+		return r.updateOrphanedStatus(ctx, logger, instance, newStatus)
+	}
+	removeMonitorCondition(newStatus, datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned)
 
 	// Validate the DatadogMonitor spec
 	if err = datadoghqv1alpha1.IsValidDatadogMonitor(&instance.Spec); err != nil {
@@ -544,6 +553,25 @@ func setStatePollingDisabled(now metav1.Time, status *datadoghqv1alpha1.DatadogM
 		}
 	}
 	status.Conditions = append(status.Conditions, condition.NewDatadogMonitorCondition(t, corev1.ConditionFalse, now, ctrutils.StatePollingDisabledState, msg))
+}
+
+// updateOrphanedStatus writes the status of an orphaned DatadogMonitor. Unlike
+// updateStatusIfNeeded, it leaves the Error and Active conditions as they were
+// and doesn't requeue.
+func (r *Reconciler) updateOrphanedStatus(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus) (ctrl.Result, error) {
+	if apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		return ctrl.Result{}, nil
+	}
+	instance.Status = *status
+	if err := r.client.Status().Update(ctx, instance); err != nil {
+		if apierrors.IsConflict(err) {
+			logger.Error(err, "unable to update DatadogMonitor status due to update conflict")
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
+		logger.Error(err, "unable to update DatadogMonitor status")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
 }
 
 func removeMonitorCondition(status *datadoghqv1alpha1.DatadogMonitorStatus, t datadoghqv1alpha1.DatadogMonitorConditionType) {

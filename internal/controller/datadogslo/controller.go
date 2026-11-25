@@ -111,12 +111,22 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		r.deleteResource(logger, auth),
 		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
+		finalizer.WithOrphanPolicy(r.recorder, nil),
 	)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogSLOFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	status := instance.Status.DeepCopy()
+	if v1alpha1.IsOrphaned(instance) {
+		// No Datadog API call while orphaned. Removing the annotation triggers
+		// a reconcile, so there is no need to requeue.
+		logger.V(1).Info("DatadogSLO has the orphan management policy; skipping reconciliation")
+		condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeOrphaned, metav1.ConditionTrue, condition.OrphanedReason, condition.OrphanedMessage)
+		return r.updateStatusIfNeeded(logger, instance, status, ctrl.Result{})
+	}
+	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeOrphaned)
+
 	statusSpecHash := instance.Status.CurrentHash
 
 	// Validate the SLO spec

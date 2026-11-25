@@ -100,6 +100,8 @@ kubectl delete datadogmonitor datadog-monitor-test
 helm delete my-datadog-operator
 ```
 
+To delete the Kubernetes resource but keep the monitor in your Datadog account, add the `datadoghq.com/management-policy: orphan` annotation first. See [Stop managing a Datadog resource](management_policy.md).
+
 ## Usage and Troubleshooting
 
 To verify monitor creation and check the monitor state, run

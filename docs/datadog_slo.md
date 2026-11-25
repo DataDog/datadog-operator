@@ -89,6 +89,8 @@ kubectl delete datadogslo example-slo
 helm delete my-datadog-operator
 ```
 
+To delete the Kubernetes resource but keep the SLO in your Datadog account, add the `datadoghq.com/management-policy: orphan` annotation first. See [Stop managing a Datadog resource](management_policy.md).
+
 
 [1]: https://docs.datadoghq.com/service_management/service_level_objectives/
 [2]: https://helm.sh

@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogdashboard"
@@ -47,7 +46,7 @@ func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), dashboardControllerName)).
 		For(&v1alpha1.DatadogDashboard{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{})
+		WithEventFilter(datadogResourcePredicate())
 
 	err := builder.Complete(r)
 

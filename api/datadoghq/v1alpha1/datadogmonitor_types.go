@@ -318,6 +318,10 @@ const (
 	DatadogMonitorConditionTypeError DatadogMonitorConditionType = "Error"
 	// DatadogMonitorConditionTypeStateSynced reports why the monitor state is not being polled
 	DatadogMonitorConditionTypeStateSynced DatadogMonitorConditionType = "StateSynced"
+	// DatadogMonitorConditionTypeOrphaned means the DatadogMonitor has the
+	// datadoghq.com/management-policy: orphan annotation, so the Operator
+	// doesn't manage its monitor.
+	DatadogMonitorConditionTypeOrphaned DatadogMonitorConditionType = "Orphaned"
 )
 
 // DatadogMonitorState represents the overall DatadogMonitor state
