@@ -7,7 +7,6 @@
 package indexes
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -52,7 +51,7 @@ func BuildPlan(desired []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec, current 
 		routingTable = append(routingTable, pomsky.RoutingRule{Filter: spec.Filter, IndexID: id})
 		mainListed = mainListed || spec.Name == pomsky.MainIndexName
 
-		index := pomsky.Index{ID: id, Retention: cmp.Or(spec.Retention, datadoghqv1alpha1.DatadogBYOCClusterIndexRetentionDefault)}
+		index := pomsky.Index{ID: id, Retention: spec.Retention}
 		existing, exists := currentByID[id]
 		switch {
 		case !exists && spec.Name != pomsky.MainIndexName:

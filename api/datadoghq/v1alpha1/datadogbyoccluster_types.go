@@ -76,9 +76,6 @@ type DatadogBYOCClusterSpec struct {
 	Indexes []DatadogBYOCClusterIndexSpec `json:"indexes,omitempty"`
 }
 
-// DatadogBYOCClusterIndexRetentionDefault is the retention period of an index that does not set one.
-const DatadogBYOCClusterIndexRetentionDefault = "30 days"
-
 // DatadogBYOCClusterIndexSpec defines a log index.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterIndexSpec struct {

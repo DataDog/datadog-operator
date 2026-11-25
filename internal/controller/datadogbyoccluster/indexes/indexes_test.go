@@ -36,7 +36,7 @@ func TestBuildPlan(t *testing.T) {
 		},
 		{
 			name:    "creates missing indexes and routes to main last",
-			desired: []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "90 days"}, {Name: "security", Filter: "source:cloudtrail"}},
+			desired: []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "90 days"}, {Name: "security", Filter: "source:cloudtrail", Retention: "30 days"}},
 			current: []pomsky.Index{{ID: "datadog", Retention: "30 days"}},
 			currentRules: []pomsky.RoutingRule{
 				{Filter: "*", IndexID: "datadog"},
@@ -124,16 +124,6 @@ func TestBuildPlan(t *testing.T) {
 			desired: []indexSpec{{Name: "main", Filter: "*", Retention: "30 days"}},
 			current: nil,
 			want:    Plan{RoutingTable: mainWithCatchAll},
-		},
-		{
-			name:    "an empty retention is the default",
-			desired: []indexSpec{{Name: "payment", Filter: "service:payment"}},
-			current: []pomsky.Index{{ID: "datadog", Retention: "30 days"}, {ID: "datadog-payment", Retention: "30 days"}},
-			currentRules: []pomsky.RoutingRule{
-				{Filter: "service:payment", IndexID: "datadog-payment"},
-				{Filter: "*", IndexID: "datadog"},
-			},
-			want: Plan{},
 		},
 	}
 	for _, tt := range tests {
