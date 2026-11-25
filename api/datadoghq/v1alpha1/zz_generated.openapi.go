@@ -3005,7 +3005,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Indexes declares the log indexes of the cluster and the order in which logs are routed to them. A log goes to the first index whose filter matches it, and logs that match no index are dropped. When the list contains no entry named main, the Operator appends a catch-all rule (filter *) that routes the remaining logs to main.\n\nWhen set, the Operator owns the routing table and the indexes it lists: it overwrites the routing table, reverts changes made in the Datadog UI to the listed indexes, and deletes indexes that are not listed. The Operator never creates or deletes main, which Pomsky creates for every cluster. When main is listed, its filter, position and retention follow the list. When empty, the Operator leaves the indexes and the routing table untouched so that they can be managed in the UI.",
+							Description: "Indexes lists the log indexes in routing order: a log goes to the first index whose filter matches it. Unless main is listed, a catch-all rule routes the remaining logs to main; otherwise they are dropped. When set, the Operator owns the routing table and the indexes: it reverts changes made in the Datadog UI and deletes unlisted indexes, but never creates or deletes main. When empty, they are left to the UI.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
