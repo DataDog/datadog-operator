@@ -216,6 +216,8 @@ While `spec.id` is set, the Operator **never creates a replacement object**:
 | `spec.id` has the wrong format for `spec.type` | Error condition with reason `AdoptionInvalidID`, and no Datadog API call until the spec changes. Monitor and notebook IDs are integers, dashboard and synthetic test IDs look like `abc-def-ghi`, downtime and monitor notification rule IDs are UUIDs. |
 | `spec.type` is `software_catalog_entity` | Error condition with reason `AdoptionUnsupportedType`. Entities are upserted by kind, namespace and name, so a `DatadogGenericResource` without `spec.id` already updates an existing entity. |
 | Another `DatadogGenericResource` in the cluster manages or adopts the same object | Error condition with reason `AdoptionConflict`, naming the other resource. A resource that already manages the object keeps it. Between two resources waiting to adopt it, the oldest one adopts it. |
+| A `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO` in the cluster has the same ID in its `.status.id`, even if its controller is disabled or it is being deleted | Error condition with reason `AdoptionLegacyOwner`, naming the legacy resource. Nothing happens to the object. Annotate the legacy resource with `datadoghq.com/management-policy=orphan` and delete it: the adoption goes ahead on the next retry, within the requeue period (60 seconds by default). |
+| The Operator can't list `datadogmonitors`, `datadogdashboards`, or `datadogslos` | Error condition with reason `AdoptionLegacyCheckError`, naming the missing permission. The adoption waits, because the Operator can't check that no legacy resource manages the object. |
 | The adopted object is deleted in Datadog | Error condition with reason `AdoptedResourceNotFound`. The object is not recreated: restore it, or remove `spec.id` to let the Operator create a new one. |
 | `spec.id` is changed after the adoption | Error condition with reason `IDMismatch`, and no Datadog API call. Revert the change, or delete and recreate the resource. |
 | `spec.id` is removed after the adoption | The Operator keeps managing the same object, but a later deletion in Datadog recreates it with a new ID. |
@@ -225,6 +227,7 @@ Deleting an adopted resource deletes the Datadog object, like any other `Datadog
 
 Things to know before adopting:
 
+* The check against legacy resources uses a list of each legacy kind taken once per Operator start, when the first resource of that type is adopted. A legacy resource that only gets its ID afterwards isn't detected until the next restart.
 * Only one manager should write to an object. Remove the object from the previous manager first: for Terraform, run `terraform state rm` or use a `removed` block with `lifecycle { destroy = false }`; for a `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO`, delete it with the [orphan management policy](../management_policy.md) so that the object isn't deleted. Managers in other clusters or tools are not detected.
 * Datadog UI edits are reverted at each force sync, as for any `DatadogGenericResource`.
 * If you downgrade the Operator, finish adoptions first. An older CRD drops `spec.id`, so a resource that isn't adopted yet (empty `.status.id`) would create a new object.

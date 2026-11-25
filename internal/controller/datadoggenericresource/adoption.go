@@ -36,6 +36,10 @@ const (
 	reasonIDMismatch              = "IDMismatch"
 	// Adoption is blocked by another owner in the cluster.
 	reasonAdoptionConflict = "AdoptionConflict"
+	// A DatadogMonitor, DatadogDashboard or DatadogSLO manages the object, or
+	// the Operator couldn't check whether one does.
+	reasonAdoptionLegacyOwner      = "AdoptionLegacyOwner"
+	reasonAdoptionLegacyCheckError = "AdoptionLegacyCheckError"
 	// The GET of the resource to adopt failed.
 	reasonAdoptionTargetNotFound = "AdoptionTargetNotFound"
 	reasonAdoptionForbidden      = "AdoptionForbidden"
@@ -185,6 +189,19 @@ func (r *Reconciler) adopt(ctx context.Context, auth context.Context, handler Re
 		err := fmt.Errorf("can't adopt %s %s: %s", instance.Spec.Type, id, owner)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, reasonAdoptionConflict, err)
 		return &retryAfterError{err: err, after: r.forceSyncPeriod}
+	}
+
+	// Two controllers must never manage the same object. Retry at the requeue
+	// period rather than the force sync period: during a migration, the legacy
+	// CR is expected to go away shortly.
+	if owner, err := r.legacyOwners.owner(ctx, instance.Spec.Type, id); err != nil {
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, reasonAdoptionLegacyCheckError, err)
+		return &retryAfterError{err: err, after: r.requeuePeriod}
+	} else if owner != "" {
+		err := fmt.Errorf("can't adopt %s %s: %s", instance.Spec.Type, id, owner)
+		logger.Info("Adoption blocked by a legacy resource", "id", id, "type", instance.Spec.Type, "reason", owner)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, reasonAdoptionLegacyOwner, err)
+		return &retryAfterError{err: err, after: r.requeuePeriod}
 	}
 
 	probe := instance.DeepCopy()

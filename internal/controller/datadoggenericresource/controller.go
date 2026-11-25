@@ -50,6 +50,7 @@ var (
 type Reconciler struct {
 	client          client.Client
 	apiReader       client.Reader
+	legacyOwners    *legacyOwnerIndex
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
 	requeuePeriod   time.Duration
@@ -80,6 +81,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 	return &Reconciler{
 		client:          client,
 		apiReader:       options.APIReader,
+		legacyOwners:    newLegacyOwnerIndex(options.APIReader),
 		credsManager:    credsManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
 		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
