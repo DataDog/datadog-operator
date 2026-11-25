@@ -228,7 +228,7 @@ Deleting an adopted resource deletes the Datadog object, like any other `Datadog
 Things to know before adopting:
 
 * The check against legacy resources uses a list of each legacy kind taken once per Operator start, when the first resource of that type is adopted. A legacy resource that only gets its ID afterwards isn't detected until the next restart.
-* Only one manager should write to an object. Remove the object from the previous manager first: for Terraform, run `terraform state rm` or use a `removed` block with `lifecycle { destroy = false }`; for a `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO`, delete it with the [orphan management policy](../management_policy.md) so that the object isn't deleted. Managers in other clusters or tools are not detected.
+* Only one manager should write to an object. Remove the object from the previous manager first: for Terraform, run `terraform state rm` or use a `removed` block with `lifecycle { destroy = false }`; for a `DatadogMonitor`, use [`kubectl datadog monitor migrate`](../kubectl-plugin.md#monitor-migrate), which does the whole migration; for a `DatadogDashboard` or `DatadogSLO`, delete it with the [orphan management policy](../management_policy.md) so that the object isn't deleted. Managers in other clusters or tools are not detected.
 * Datadog UI edits are reverted at each force sync, as for any `DatadogGenericResource`.
 * If you downgrade the Operator, finish adoptions first. An older CRD drops `spec.id`, so a resource that isn't adopted yet (empty `.status.id`) would create a new object.
 

@@ -23,7 +23,10 @@ import (
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
-func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogV1.Monitor, *datadogV1.MonitorUpdateRequest) {
+// BuildMonitor builds the create and update payloads that the controller sends
+// to Datadog for dm. Tools that convert a DatadogMonitor reuse it so that they
+// send the same definition.
+func BuildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogV1.Monitor, *datadogV1.MonitorUpdateRequest) {
 	monitorType := datadogV1.MonitorType(dm.Spec.Type)
 	name := dm.Spec.Name
 	msg := dm.Spec.Message
@@ -265,7 +268,7 @@ func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID i
 }
 
 func validateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) error {
-	m, _ := buildMonitor(logger, dm)
+	m, _ := BuildMonitor(logger, dm)
 	_, httpResp, err := client.ValidateMonitor(auth, *m)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
@@ -278,7 +281,7 @@ func validateMonitor(auth context.Context, logger logr.Logger, client *datadogV1
 }
 
 func createMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) (datadogV1.Monitor, error) {
-	m, _ := buildMonitor(logger, dm)
+	m, _ := BuildMonitor(logger, dm)
 	mCreated, httpResp, err := client.CreateMonitor(auth, *m)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
@@ -291,7 +294,7 @@ func createMonitor(auth context.Context, logger logr.Logger, client *datadogV1.M
 }
 
 func updateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) (datadogV1.Monitor, error) {
-	_, u := buildMonitor(logger, dm)
+	_, u := BuildMonitor(logger, dm)
 
 	mUpdated, httpResp, err := client.UpdateMonitor(auth, int64(dm.Status.ID), *u)
 	if httpResp != nil {

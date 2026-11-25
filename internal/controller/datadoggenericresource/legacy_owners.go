@@ -166,7 +166,11 @@ func (x *legacyOwnerIndex) owner(ctx context.Context, resourceType v1alpha1.Supp
 		// Its finalizer may still delete the object.
 		state = " and is being deleted"
 	}
-	return fmt.Sprintf("%s %s manages it%s. Annotate it with %s=%s and delete it so that it releases the object without deleting it; the adoption then goes ahead", lk.kind, key, state, v1alpha1.ManagementPolicyAnnotationKey, v1alpha1.ManagementPolicyOrphan), nil
+	hint := ""
+	if resourceType == v1alpha1.Monitor {
+		hint = fmt.Sprintf(", or run \"kubectl datadog monitor migrate %s -n %s\"", key.Name, key.Namespace)
+	}
+	return fmt.Sprintf("%s %s manages it%s. Annotate it with %s=%s and delete it so that it releases the object without deleting it%s; the adoption then goes ahead", lk.kind, key, state, v1alpha1.ManagementPolicyAnnotationKey, v1alpha1.ManagementPolicyOrphan, hint), nil
 }
 
 // build lists the legacy kind once. On error nothing is cached, so the next
