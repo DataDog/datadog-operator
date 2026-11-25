@@ -7,6 +7,7 @@ package agentprofile
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,9 +28,18 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const testNamespace = "default"
+
+func TestNodeLabelKey(t *testing.T) {
+	for _, namespace := range []string{"datadog", "tenant-a", strings.Repeat("a", 63)} {
+		assert.Empty(t, validation.IsQualifiedName(NodeLabelKey(namespace)))
+	}
+	assert.Equal(t, "datadog.agent.datadoghq.com/datadogagentprofile", NodeLabelKey("datadog"))
+	assert.NotEqual(t, NodeLabelKey("tenant-a"), NodeLabelKey("tenant-b"))
+}
 
 func TestGetMaxUnavailableFromSpec(t *testing.T) {
 	overrideValue := intstr.FromString("25%")
@@ -849,12 +859,12 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			},
 			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "profile",
 				}),
 				createNodeWithLabels("node2", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "profile",
 				}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
@@ -882,13 +892,13 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 			},
 			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "profile",
 				}),
 				createNodeWithLabels("node2", map[string]string{"os": "linux"}),
 				createNodeWithLabels("node3", map[string]string{
-					"os":                      "linux",
-					constants.ProfileLabelKey: "wrong-profile",
+					"os":                        "linux",
+					NodeLabelKey(testNamespace): "wrong-profile",
 				}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
@@ -898,6 +908,39 @@ func TestCheckAndAssignNodesToProfile(t *testing.T) {
 				"node3": {Namespace: testNamespace, Name: "profile"},
 			},
 			expectedNodesNeedingLabel:   []string{"node2", "node3"},
+			expectedNodesAlreadyLabeled: 1,
+			expectedError:               nil,
+		},
+		{
+			name:                  "create strategy, legacy shared label counts as labeled",
+			createStrategyEnabled: true,
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []corev1.Node{
+				createNodeWithLabels("node1", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "profile",
+				}),
+				createNodeWithLabels("node2", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "other-profile",
+				}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedNodesNeedingLabel:   []string{"node2"},
 			expectedNodesAlreadyLabeled: 1,
 			expectedError:               nil,
 		},

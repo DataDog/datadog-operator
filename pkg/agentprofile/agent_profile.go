@@ -76,8 +76,10 @@ func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labe
 		}
 		profilesByNode[node.Name] = profileNSName
 		if CreateStrategyEnabled() {
-			profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
-			needsLabel := !labelExists || profileLabelValue != profile.Name
+			// Nodes assigned before the namespace-scoped label existed already
+			// run the profile pod, so the create strategy must not throttle them.
+			needsLabel := node.Labels[NodeLabelKey(profile.Namespace)] != profile.Name &&
+				node.Labels[constants.ProfileLabelKey] != profile.Name
 			if needsLabel {
 				csInfo[profileNSName].nodesNeedingLabel = append(csInfo[profileNSName].nodesNeedingLabel, node.Name)
 			} else {
@@ -136,9 +138,15 @@ func DefaultProfile() v1alpha1.DatadogAgentProfile {
 	}
 }
 
-func AffinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
+// NodeLabelKey returns the profile assignment label for an Agent namespace.
+// The namespace is part of the DNS prefix so even a 63-character namespace fits.
+func NodeLabelKey(namespace string) string {
+	return namespace + "." + constants.ProfileLabelKey
+}
+
+func AffinityOverride(profile *v1alpha1.DatadogAgentProfile, namespace string) *v1.Affinity {
 	if IsDefaultProfile(profile.Namespace, profile.Name) {
-		return affinityOverrideForDefaultProfile()
+		return affinityOverrideForDefaultProfile(namespace)
 	}
 
 	affinity := &v1.Affinity{
@@ -153,7 +161,7 @@ func AffinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
 				{
-					MatchExpressions: append(profile.Spec.ProfileAffinity.ProfileNodeAffinity, profileLabelKeyNSR(profile.Name)),
+					MatchExpressions: append(profile.Spec.ProfileAffinity.ProfileNodeAffinity, profileLabelKeyNSR(profile.Name, namespace)),
 				},
 			},
 		},
@@ -163,11 +171,10 @@ func AffinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
 }
 
 // profileLabelKeyNSR returns the NodeSelectorRequirement for a profile to be
-// applied to nodes with the following label:
-// agent.datadoghq.com/datadogagentprofile:<profile-name>
-func profileLabelKeyNSR(profileName string) v1.NodeSelectorRequirement {
+// applied to nodes assigned to it in the Agent namespace.
+func profileLabelKeyNSR(profileName, namespace string) v1.NodeSelectorRequirement {
 	return v1.NodeSelectorRequirement{
-		Key:      constants.ProfileLabelKey,
+		Key:      NodeLabelKey(namespace),
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{profileName},
 	}
@@ -175,8 +182,8 @@ func profileLabelKeyNSR(profileName string) v1.NodeSelectorRequirement {
 
 // affinityOverrideForDefaultProfile returns the affinity override that should
 // be applied to the default profile. The default profile should be applied to
-// all nodes that don't have the agent.datadoghq.com/datadogagentprofile label.
-func affinityOverrideForDefaultProfile() *v1.Affinity {
+// all nodes without a profile assignment in the Agent namespace.
+func affinityOverrideForDefaultProfile(namespace string) *v1.Affinity {
 	return &v1.Affinity{
 		NodeAffinity: &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -184,7 +191,7 @@ func affinityOverrideForDefaultProfile() *v1.Affinity {
 					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
 							{
-								Key:      constants.ProfileLabelKey,
+								Key:      NodeLabelKey(namespace),
 								Operator: v1.NodeSelectorOpDoesNotExist,
 							},
 						},

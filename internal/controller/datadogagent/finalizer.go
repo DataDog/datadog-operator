@@ -34,7 +34,7 @@ func (r *Reconciler) finalizeDad(ctx context.Context, obj client.Object) error {
 		r.forwarders.Unregister(obj)
 	}
 
-	if err := r.profilesCleanup(ctx); err != nil {
+	if err := r.profilesCleanup(ctx, obj.GetNamespace()); err != nil {
 		return err
 	}
 
@@ -43,25 +43,26 @@ func (r *Reconciler) finalizeDad(ctx context.Context, obj client.Object) error {
 }
 
 // profilesCleanup performs the cleanups required for the profiles feature. The
-// only thing that we need to do is to ensure that no nodes are left with the
-// profile label.
-func (r *Reconciler) profilesCleanup(ctx context.Context) error {
+// profile assignment labels for other Agent namespaces must be preserved.
+func (r *Reconciler) profilesCleanup(ctx context.Context, namespace string) error {
+	profileLabelKey := agentprofile.NodeLabelKey(namespace)
 	nodeList := corev1.NodeList{}
 	if err := r.client.List(ctx, &nodeList); err != nil {
 		return err
 	}
 
 	for _, node := range nodeList.Items {
-		_, profileLabelExists := node.Labels[constants.ProfileLabelKey]
+		_, profileLabelExists := node.Labels[profileLabelKey]
+		_, sharedProfileLabelExists := node.Labels[constants.ProfileLabelKey]
 		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
-		if !profileLabelExists && !oldProfileLabelExists {
+		if !profileLabelExists && !sharedProfileLabelExists && !oldProfileLabelExists {
 			continue
 		}
 
 		newLabels := map[string]string{}
 		for k, v := range node.Labels {
 			// Remove profile labels from nodes
-			if k == agentprofile.OldProfileLabelKey || k == constants.ProfileLabelKey {
+			if k == profileLabelKey || k == agentprofile.OldProfileLabelKey || k == constants.ProfileLabelKey {
 				continue
 			}
 			newLabels[k] = v

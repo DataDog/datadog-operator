@@ -244,7 +244,9 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 		description    string
 		profilesByNode map[string]types.NamespacedName
 		nodes          []client.Object
-		wantNodeLabels map[string]map[string]string
+		// legacyLabelInUse simulates DaemonSets still selecting with the legacy label.
+		legacyLabelInUse bool
+		wantNodeLabels   map[string]map[string]string
 	}{
 		{
 			name:        "label multiple profile nodes and default node",
@@ -285,11 +287,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": nil,
 			},
@@ -329,19 +331,19 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							constants.ProfileLabelKey: "profile-1",
-							"foo":                     "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							"foo":                            "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -386,20 +388,20 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							constants.ProfileLabelKey:       "profile-1",
-							agentprofile.OldProfileLabelKey: "profile-2",
-							"foo":                           "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							agentprofile.OldProfileLabelKey:  "profile-2",
+							"foo":                            "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -428,8 +430,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                       "1",
-							constants.ProfileLabelKey: "profile-2",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -445,20 +447,20 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							constants.ProfileLabelKey:       "profile-1",
-							agentprofile.OldProfileLabelKey: "profile-2",
-							"foo":                           "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							agentprofile.OldProfileLabelKey:  "profile-2",
+							"foo":                            "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -487,8 +489,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                       "1",
-							constants.ProfileLabelKey: "profile-1",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
 						},
 					},
 				},
@@ -496,7 +498,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-2",
 						Labels: map[string]string{
-							constants.ProfileLabelKey: "profile-2",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -511,11 +513,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -544,9 +546,9 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                             "1",
-							constants.ProfileLabelKey:       "profile-1",
-							agentprofile.OldProfileLabelKey: "profile-2",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							agentprofile.OldProfileLabelKey:  "profile-2",
 						},
 					},
 				},
@@ -554,7 +556,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-2",
 						Labels: map[string]string{
-							constants.ProfileLabelKey: "profile-2",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -562,19 +564,19 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							"foo":                     "bar",
-							constants.ProfileLabelKey: "profile-2",
+							"foo":                            "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -603,8 +605,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                       "1",
-							constants.ProfileLabelKey: "profile-2",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -625,15 +627,61 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
 				},
+			},
+		},
+		{
+			name: "remove the only node label when its profile no longer applies",
+			profilesByNode: map[string]types.NamespacedName{
+				"node": {Name: "default"},
+			},
+			nodes: []client.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "node", Labels: map[string]string{agentprofile.NodeLabelKey("foo"): "profile"},
+			}}},
+			wantNodeLabels: map[string]map[string]string{"node": nil},
+		},
+		{
+			name:        "keep legacy label while a DaemonSet still selects with it",
+			description: "removing the legacy label before the DaemonSets migrate evicts every profile pod at once",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-profile": {Namespace: "foo", Name: "profile"},
+				"node-default": {Name: "default"},
+			},
+			nodes: []client.Object{
+				&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+					Name: "node-profile", Labels: map[string]string{constants.ProfileLabelKey: "profile"},
+				}},
+				&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+					Name: "node-default", Labels: map[string]string{constants.ProfileLabelKey: "old-profile"},
+				}},
+			},
+			legacyLabelInUse: true,
+			wantNodeLabels: map[string]map[string]string{
+				"node-profile": {
+					constants.ProfileLabelKey:        "profile",
+					agentprofile.NodeLabelKey("foo"): "profile",
+				},
+				"node-default": {constants.ProfileLabelKey: "old-profile"},
+			},
+		},
+		{
+			name: "remove legacy label once DaemonSets use the namespace-scoped label",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-profile": {Namespace: "foo", Name: "profile"},
+			},
+			nodes: []client.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "node-profile", Labels: map[string]string{constants.ProfileLabelKey: "profile"},
+			}}},
+			wantNodeLabels: map[string]map[string]string{
+				"node-profile": {agentprofile.NodeLabelKey("foo"): "profile"},
 			},
 		},
 	}
@@ -646,7 +694,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 				client: fakeClient,
 			}
 
-			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode)
+			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode, "foo", tt.legacyLabelInUse)
 			assert.NoError(t, err)
 
 			nodeList := &corev1.NodeList{}
