@@ -168,7 +168,7 @@ func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv
 	available = updateComponentStatus(cluster, resources, workers)
 	// The workloads that serve the index API requeue the cluster when they become available.
 	if len(cluster.Spec.Indexes) > 0 && isIndexAPIAvailable(resources) {
-		if err := byocindexes.Sync(ctx, r.pomskyClient(cluster), cluster.Spec.Indexes); err != nil {
+		if err := byocindexes.NewManager(r.pomskyClient(cluster)).Sync(ctx, cluster.Spec.Indexes); err != nil {
 			return available, deleting, &reconcileFailure{reason: reasonIndexesSyncFailed, err: err}
 		}
 	}
