@@ -83,7 +83,7 @@ type DatadogBYOCClusterSpec struct {
 }
 
 // DatadogBYOCClusterIndexRetention is the retention period of a log index.
-// +kubebuilder:validation:Enum="3 days";"7 days";"15 days";"30 days";"45 days";"60 days";"90 days";"6 months";"1 year";"15 months";"2 years";"3 years";"4 years";"5 years";"6 years";"7 years"
+// +kubebuilder:validation:Pattern=`^[1-9][0-9]* (hour|day|week|month|year)s?$`
 type DatadogBYOCClusterIndexRetention string
 
 // DatadogBYOCClusterIndexRetentionDefault is the retention period of an index that does not set one.
@@ -105,7 +105,9 @@ type DatadogBYOCClusterIndexSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	Filter string `json:"filter"`
 
-	// Retention is the period for which the index keeps its logs.
+	// Retention is the period for which the index keeps its logs: a positive integer, a space and a unit of hours,
+	// days, weeks, months or years, for example 12 hours or 6 months. Pomsky applies retention hourly, so shorter
+	// units are not accepted.
 	// +optional
 	// +kubebuilder:default="30 days"
 	Retention DatadogBYOCClusterIndexRetention `json:"retention,omitempty"`

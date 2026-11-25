@@ -1822,7 +1822,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterIndexSpec(
 					},
 					"retention": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Retention is the period for which the index keeps its logs.",
+							Description: "Retention is the period for which the index keeps its logs: a positive integer, a space and a unit of hours, days, weeks, months or years, for example 12 hours or 6 months. Pomsky applies retention hourly, so shorter units are not accepted.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

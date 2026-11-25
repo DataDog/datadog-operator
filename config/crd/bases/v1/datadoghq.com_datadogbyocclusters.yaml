@@ -25412,23 +25412,7 @@ spec:
                         type: string
                       retention:
                         default: 30 days
-                        enum:
-                          - 3 days
-                          - 7 days
-                          - 15 days
-                          - 30 days
-                          - 45 days
-                          - 60 days
-                          - 90 days
-                          - 6 months
-                          - 1 year
-                          - 15 months
-                          - 2 years
-                          - 3 years
-                          - 4 years
-                          - 5 years
-                          - 6 years
-                          - 7 years
+                        pattern: ^[1-9][0-9]* (hour|day|week|month|year)s?$
                         type: string
                     required:
                       - filter
