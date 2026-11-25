@@ -104,16 +104,19 @@ func configurationFromFeature(spec *v2alpha1.PrivateActionRunnerFeatureConfig, c
 		return result, nil
 	}
 	extra := map[string]any{"enabled": true}
+	settings := &PrivateActionRunnerConfig{Enabled: true}
 	if allowlist != nil {
-		extra["actions_allowlist"] = append([]string{}, (*allowlist)...)
+		copied := append([]string{}, (*allowlist)...)
+		extra["actions_allowlist"] = copied
+		settings.ActionsAllowlist = copied
 	}
 	data, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: extra})
 	if err != nil {
 		return result, err
 	}
 	result.configData = string(data)
-	result.settings, err = parsePrivateActionRunnerConfig(result.configData)
-	return result, err
+	result.settings = settings
+	return result, nil
 }
 
 // readClusterEnrollmentSettings reads only the settings needed to provision identity RBAC.
