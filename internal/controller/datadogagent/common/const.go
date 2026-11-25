@@ -138,6 +138,14 @@ const (
 
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
+	// SystemProbeLifetimeLockPath is the file system-probe holds an exclusive
+	// flock on for its whole lifetime when ordered shutdown is enabled. It lives
+	// in the shared sysprobe-socket-dir emptyDir so other containers can wait on it.
+	SystemProbeLifetimeLockPath = SystemProbeSocketVolumePath + "/.running.lock"
+	// SystemProbeConfigFilePath is where the system-probe configuration is mounted.
+	SystemProbeConfigFilePath = "/etc/datadog-agent/system-probe.yaml"
+	// SystemProbeBinaryName is the system-probe executable, resolved through PATH.
+	SystemProbeBinaryName = "system-probe"
 
 	DebugfsVolumeName = "debugfs"
 	// same path on host and container

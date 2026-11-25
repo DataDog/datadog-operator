@@ -616,12 +616,9 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 
 func systemProbeContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(apicommon.SystemProbeContainerName),
-		Image: agentImage(),
-		Command: []string{
-			"system-probe",
-			fmt.Sprintf("--config=%s", systemProbeConfigVolumePath),
-		},
+		Name:         string(apicommon.SystemProbeContainerName),
+		Image:        agentImage(),
+		Command:      common.DefaultSystemProbeCommand(),
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForSystemProbe(),
 		SecurityContext: &corev1.SecurityContext{
