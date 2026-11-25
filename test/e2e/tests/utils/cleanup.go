@@ -58,6 +58,18 @@ func DeleteAllDatadogResources(ctx context.Context, k8sConfig *rest.Config, name
 	return nil
 }
 
+// DeleteAllDatadogAgents deletes all DatadogAgent resources in the specified
+// namespace and waits until they are gone. DatadogAgentInternals are left to the
+// DatadogAgent finalizer, which deletes them; deleting them directly only makes
+// the operator re-create them while the DatadogAgent still exists.
+func DeleteAllDatadogAgents(ctx context.Context, k8sConfig *rest.Config, namespace string) error {
+	dynamicClient, err := dynamic.NewForConfig(k8sConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+	return deleteAllDatadogAgentsWithClient(ctx, dynamicClient, namespace)
+}
+
 func deleteAllDatadogAgentsWithClient(ctx context.Context, dynamicClient dynamic.Interface, namespace string) error {
 	ddaClient := dynamicClient.Resource(DatadogAgentGVR).Namespace(namespace)
 

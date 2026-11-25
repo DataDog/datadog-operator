@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -56,9 +55,6 @@ const (
 	scenarioFieldManager = "k8s-suite-e2e"
 	scenarioTimeout      = 10 * time.Minute
 	scenarioPollInterval = 2 * time.Second
-	// identitySettleTimeout bounds the best-effort wait for the previous
-	// DatadogAgent's ServiceAccounts and token Secrets to be deleted.
-	identitySettleTimeout = 2 * time.Minute
 )
 
 var datadogAgentGVR = schema.GroupVersionResource{Group: "datadoghq.com", Version: "v2alpha1", Resource: "datadogagents"}
@@ -85,20 +81,16 @@ type scenarioState struct {
 	dynamic   dynamic.Interface
 	mapper    meta.RESTMapper
 	workloads map[objectRef]struct{}
-	// previousDDA is the name of the DatadogAgent the previous scenario applied.
-	previousDDA string
 }
 
 // applyScenario replaces the running DatadogAgent and test workloads with the
 // ones of sc. It mirrors what UpdateEnv used to do in two steps (remove the
 // previous DatadogAgent, then apply the new one), without Pulumi:
 //
-//  1. delete the previous DatadogAgent and wait until its pods, ServiceAccounts
-//     and token Secrets are gone. Applying a DatadogAgent on top of a previous
-//     one leaves the new agent pod stuck on resources still owned by the
-//     previous one: on K8s <1.20 the legacy SA-token controller stalls on the
-//     ServiceAccount delete+create churn (FailedMount on <sa>-token-<rand>), and
-//     host ports may not be released yet;
+//  1. delete the previous DatadogAgent, wait until it is gone (its finalizer
+//     deletes its DatadogAgentInternals) and until its pods are gone. A new
+//     agent applied while the previous agent pods are still terminating can get
+//     stuck on resources they hold, such as host ports;
 //  2. delete the previous workloads that sc doesn't list and apply sc's;
 //  3. apply the DatadogAgent, with the settings the e2e-framework used to add
 //     (cluster name, credentials, fakeintake URLs, image pull secret).
@@ -112,14 +104,9 @@ func (s *k8sSuite) applyScenario(t *testing.T, sc scenario) {
 	start := time.Now()
 	require.NoError(t, s.applyDDASecrets(ctx), "apply DatadogAgent secrets")
 
-	require.NoError(t, utils.DeleteAllDatadogResources(ctx, s.Env().KubernetesCluster.KubernetesClient.K8sConfig, common.NamespaceName),
+	require.NoError(t, utils.DeleteAllDatadogAgents(ctx, s.Env().KubernetesCluster.KubernetesClient.K8sConfig, common.NamespaceName),
 		"delete the previous DatadogAgent")
 	require.NoError(t, s.waitForAgentPodsDeletion(ctx), "wait for the previous agent pods to be deleted")
-	if state.previousDDA != "" {
-		if err := s.waitForIdentitiesDeletion(ctx, state.previousDDA); err != nil {
-			t.Logf("Warning: ServiceAccounts or token Secrets of DatadogAgent %s still present, continuing: %v", state.previousDDA, err)
-		}
-	}
 	t.Logf("Previous DatadogAgent removed in %s", time.Since(start).Round(time.Second))
 
 	workloads := map[objectRef]*unstructured.Unstructured{}
@@ -158,7 +145,6 @@ func (s *k8sSuite) applyScenario(t *testing.T, sc scenario) {
 	// Set before applying: a failed Apply may still have created the resource,
 	// and the suite cleanup must then delete it before the stack destroy.
 	s.ddaApplied = true
-	state.previousDDA = dda.GetName()
 	_, err = state.dynamic.Resource(datadogAgentGVR).Namespace(dda.GetNamespace()).
 		Apply(ctx, dda.GetName(), dda, metav1.ApplyOptions{FieldManager: scenarioFieldManager, Force: true})
 	require.NoError(t, err, "apply DatadogAgent %s", dda.GetName())
@@ -258,47 +244,6 @@ func (s *k8sSuite) waitForAgentPodsDeletion(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("%d agent pods left (e.g. %s): %w", len(list.Items), list.Items[0].Name, ctx.Err())
-		case <-time.After(scenarioPollInterval):
-		}
-	}
-}
-
-// waitForIdentitiesDeletion waits, for at most identitySettleTimeout, until the
-// ServiceAccounts the operator created for DatadogAgent ddaName (named
-// <ddaName>-<component>) and their legacy token Secrets are deleted.
-func (s *k8sSuite) waitForIdentitiesDeletion(ctx context.Context, ddaName string) error {
-	ctx, cancel := context.WithTimeout(ctx, identitySettleTimeout)
-	defer cancel()
-	coreV1 := s.Env().KubernetesCluster.Client().CoreV1()
-	prefix := ddaName + "-"
-	for {
-		left := []string{}
-		sas, err := coreV1.ServiceAccounts(common.NamespaceName).List(ctx, metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
-		for _, sa := range sas.Items {
-			if strings.HasPrefix(sa.Name, prefix) {
-				left = append(left, "ServiceAccount "+sa.Name)
-			}
-		}
-		secrets, err := coreV1.Secrets(common.NamespaceName).List(ctx, metav1.ListOptions{
-			FieldSelector: "type=" + string(corev1.SecretTypeServiceAccountToken),
-		})
-		if err != nil {
-			return err
-		}
-		for _, secret := range secrets.Items {
-			if strings.HasPrefix(secret.Annotations[corev1.ServiceAccountNameKey], prefix) {
-				left = append(left, "Secret "+secret.Name)
-			}
-		}
-		if len(left) == 0 {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("%v left: %w", left, ctx.Err())
 		case <-time.After(scenarioPollInterval):
 		}
 	}

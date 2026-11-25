@@ -71,11 +71,11 @@ func (s *k8sSuite) TestGenericK8s() {
 
 		start := time.Now()
 		if k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig; k8sConfig != nil {
-			if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
-				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+			if err := utils.DeleteAllDatadogAgents(ctx, k8sConfig, common.NamespaceName); err != nil {
+				t.Logf("Warning: failed to delete DatadogAgents during cleanup: %v", err)
 			}
 		}
-		t.Logf("Deleted Datadog resources before stack destroy in %s", time.Since(start).Round(time.Second))
+		t.Logf("Deleted DatadogAgents before stack destroy in %s", time.Since(start).Round(time.Second))
 	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
