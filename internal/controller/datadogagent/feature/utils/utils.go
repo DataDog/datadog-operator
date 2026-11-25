@@ -6,6 +6,11 @@
 package utils
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -127,6 +132,22 @@ func HasFeatureDisableAnnotation(dda metav1.Object, annotation string) bool {
 func GetFeatureConfigAnnotation(dda metav1.Object, annotation string) (string, bool) {
 	value, ok := dda.GetAnnotations()[annotation]
 	return value, ok
+}
+
+// DecodeStrictJSON decodes a single JSON value into out, rejecting unknown fields and trailing values.
+func DecodeStrictJSON(raw string, out any) error {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil {
+		return err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("multiple JSON values")
+		}
+		return err
+	}
+	return nil
 }
 
 // AgentSupportsADPDogstatsdDelegation returns true if the agent version is >= 7.75.0, meaning it

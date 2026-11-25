@@ -6,10 +6,7 @@
 package kaischeduler
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -61,21 +58,6 @@ type kaiSchedulerConfig struct {
 	ClusterAgentEvents *bool `json:"clusterAgentEvents,omitempty"`
 }
 
-func decodeKAISchedulerConfig(raw string, config *kaiSchedulerConfig) error {
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(config); err != nil {
-		return err
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		if err == nil {
-			return fmt.Errorf("multiple JSON values in KAI Scheduler configuration")
-		}
-		return err
-	}
-	return nil
-}
-
 // ID returns the ID of the Feature
 func (f *kaiSchedulerFeature) ID() feature.IDType {
 	return feature.KAISchedulerIDType
@@ -92,7 +74,7 @@ func (f *kaiSchedulerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 
 	var kai kaiSchedulerConfig
 	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KAISchedulerConfigAnnotation); ok {
-		if err := decodeKAISchedulerConfig(raw, &kai); err != nil {
+		if err := featureutils.DecodeStrictJSON(raw, &kai); err != nil {
 			f.logger.Error(err, "invalid KAI Scheduler configuration annotation")
 			return reqComp
 		}
@@ -102,7 +84,7 @@ func (f *kaiSchedulerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	if utils.IsAboveMinVersion(clusterAgentVersion, kaiSchedulerMinVersion, nil) {
 		f.clusterAgentEnabled = true
 		if kai.ClusterAgentEvents != nil && *kai.ClusterAgentEvents {
-			// A version that cannot be parsed is treated as too old, so the node check keeps sending the events.
+			// A version that cannot be parsed is treated as too old.
 			if utils.IsAboveMinVersion(clusterAgentVersion, clusterAgentEventsMinVersion, new(false)) {
 				f.clusterAgentEvents = true
 			} else {

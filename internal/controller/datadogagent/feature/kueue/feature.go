@@ -6,9 +6,7 @@
 package kueue
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -117,21 +115,6 @@ func (config *kueueConfig) validate() error {
 	return nil
 }
 
-func decodeKueueConfig(raw string, config *kueueConfig) error {
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(config); err != nil {
-		return err
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		if err == nil {
-			return fmt.Errorf("multiple JSON values in Kueue configuration")
-		}
-		return err
-	}
-	return nil
-}
-
 // ID returns the ID of the Feature
 func (f *kueueFeature) ID() feature.IDType {
 	return feature.KueueIDType
@@ -146,7 +129,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	}
 	var kueue kueueConfig
 	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KueueConfigAnnotation); ok {
-		if err := decodeKueueConfig(raw, &kueue); err != nil {
+		if err := featureutils.DecodeStrictJSON(raw, &kueue); err != nil {
 			f.logger.Error(err, "invalid Kueue configuration annotation")
 			return reqComp
 		}
@@ -215,9 +198,6 @@ func (f *kueueFeature) useClusterAgentEvents(kueue kueueConfig, ddaSpec *v2alpha
 	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), clusterAgentEventsMinVersion, new(false)) {
 		f.logger.Info("Kueue Workload events in the Cluster Agent require Cluster Agent >= 7.87.0; the node Agent check keeps sending them")
 		return false
-	}
-	if kueue.Conf != nil && (kueue.Conf.ConfigMap != nil || (kueue.Conf.ConfigData != nil && *kueue.Conf.ConfigData != "")) {
-		f.logger.Info("Warning: Kueue Workload events are sent by the Cluster Agent; set collect_workload_events: false in the custom Kueue check configuration or events are sent twice")
 	}
 	return true
 }
