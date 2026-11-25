@@ -76,11 +76,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling Datadog SLO")
 
-	auth, credErr := r.credsManager.GetAuth()
-	if credErr != nil {
-		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
-	}
-
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod
 
@@ -105,26 +100,28 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 	}
 
+	// Before anything that needs credentials.
+	if v1alpha1.IsOrphaned(instance) {
+		return r.reconcileOrphaned(ctx, instance, now)
+	}
+
+	auth, credErr := r.credsManager.GetAuth()
+	if credErr != nil {
+		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
+	}
+
 	final := finalizer.NewFinalizer(
 		logger,
 		r.client,
 		r.deleteResource(logger, auth),
 		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
-		finalizer.WithOrphanPolicy(r.recorder, nil),
 	)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogSLOFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	status := instance.Status.DeepCopy()
-	if v1alpha1.IsOrphaned(instance) {
-		// No Datadog API call while orphaned. Removing the annotation triggers
-		// a reconcile, so there is no need to requeue.
-		logger.V(1).Info("DatadogSLO has the orphan management policy; skipping reconciliation")
-		condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeOrphaned, metav1.ConditionTrue, condition.OrphanedReason, condition.OrphanedMessage)
-		return r.updateStatusIfNeeded(logger, instance, status, ctrl.Result{})
-	}
 	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeOrphaned)
 
 	statusSpecHash := instance.Status.CurrentHash
@@ -224,6 +221,21 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.Da
 	}
 
 	return false, nil
+}
+
+// reconcileOrphaned handles a DatadogSLO with the orphan management policy. It
+// makes no Datadog API call and needs no credentials. Removing the annotation
+// triggers a reconcile, so there is no need to requeue.
+func (r *Reconciler) reconcileOrphaned(ctx context.Context, instance *v1alpha1.DatadogSLO, now metav1.Time) (ctrl.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
+	final := finalizer.NewOrphanFinalizer(logger, r.client, defaultRequeuePeriod, defaultErrRequeuePeriod, r.recorder, nil)
+	if result, err := final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogSLOFinalizer); ctrutils.ShouldReturn(result, err) {
+		return result, err
+	}
+	logger.V(1).Info("DatadogSLO has the orphan management policy; skipping reconciliation")
+	status := instance.Status.DeepCopy()
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeOrphaned, metav1.ConditionTrue, condition.OrphanedReason, condition.OrphanedMessage)
+	return r.updateStatusIfNeeded(logger, instance, status, ctrl.Result{})
 }
 
 func updateErrStatus(status *v1alpha1.DatadogSLOStatus, now metav1.Time, syncStatus v1alpha1.DatadogSLOSyncStatus, reason string, err error) {

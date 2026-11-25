@@ -126,6 +126,12 @@ func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	if datadoghqv1alpha1.IsOrphaned(instance) {
+		// Before anything that needs credentials. No reconcile metrics either:
+		// they would register a metrics forwarder for the resource again.
+		return r.reconcileOrphaned(ctx, instance)
+	}
+
 	res, err := r.internalReconcile(ctx, instance)
 
 	if r.operatorMetricsEnabled {
@@ -165,18 +171,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.requeuePeriod, defaultErrRequeuePeriod, finalizer.WithOrphanPolicy(r.recorder, r.unregisterForwarder))
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.requeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
-	if datadoghqv1alpha1.IsOrphaned(instance) {
-		// No Datadog API call while orphaned. Removing the annotation triggers
-		// a reconcile, so there is no need to requeue.
-		logger.V(1).Info("DatadogMonitor has the orphan management policy; skipping reconciliation")
-		condition.UpdateDatadogMonitorConditions(newStatus, now, datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned, corev1.ConditionTrue, condition.OrphanedMessage)
-		return r.updateOrphanedStatus(ctx, logger, instance, newStatus)
-	}
 	removeMonitorCondition(newStatus, datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned)
 
 	// Validate the DatadogMonitor spec
@@ -303,7 +302,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		if getErr := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); getErr != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(getErr)
 		}
-		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) {
+		// A stale cache may not have the orphan annotation yet.
+		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) || datadoghqv1alpha1.IsOrphaned(latest) {
 			logger.Info("Skipping create because DatadogMonitor changed; requeuing")
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
 		}
@@ -555,10 +555,25 @@ func setStatePollingDisabled(now metav1.Time, status *datadoghqv1alpha1.DatadogM
 	status.Conditions = append(status.Conditions, condition.NewDatadogMonitorCondition(t, corev1.ConditionFalse, now, ctrutils.StatePollingDisabledState, msg))
 }
 
-// updateOrphanedStatus writes the status of an orphaned DatadogMonitor. Unlike
-// updateStatusIfNeeded, it leaves the Error and Active conditions as they were
-// and doesn't requeue.
-func (r *Reconciler) updateOrphanedStatus(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus) (ctrl.Result, error) {
+// reconcileOrphaned handles a DatadogMonitor with the orphan management
+// policy. It makes no Datadog API call and needs no credentials. Unlike
+// updateStatusIfNeeded, it leaves the Error and Active conditions as they were.
+// Removing the annotation triggers a reconcile, so there is no need to requeue.
+func (r *Reconciler) reconcileOrphaned(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
+	final := finalizer.NewOrphanFinalizer(logger, r.client, r.requeuePeriod, defaultErrRequeuePeriod, r.recorder, r.unregisterForwarder)
+	if result, err := final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
+		return result, err
+	}
+	logger.V(1).Info("DatadogMonitor has the orphan management policy; skipping reconciliation")
+
+	status := instance.Status.DeepCopy()
+	condition.UpdateDatadogMonitorConditions(status, metav1.NewTime(time.Now()), datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned, corev1.ConditionTrue, condition.OrphanedMessage)
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned {
+			status.Conditions[i].Reason = condition.OrphanedReason
+		}
+	}
 	if apiequality.Semantic.DeepEqual(&instance.Status, status) {
 		return ctrl.Result{}, nil
 	}

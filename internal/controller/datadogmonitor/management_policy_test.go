@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 )
 
 func TestReconcileDatadogMonitor_OrphanPolicy(t *testing.T) {
@@ -64,6 +65,7 @@ func TestReconcileDatadogMonitor_OrphanPolicy(t *testing.T) {
 	cond := orphaned(get())
 	require.NotNil(t, cond)
 	assert.Equal(t, corev1.ConditionTrue, cond.Status)
+	assert.Equal(t, condition.OrphanedReason, cond.Reason)
 
 	// Removing the annotation resumes reconciliation and applies the spec.
 	dm = get()
@@ -84,4 +86,56 @@ func TestReconcileDatadogMonitor_OrphanPolicy(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int32(0), api.deletes.Load())
 	assert.True(t, apierrors.IsNotFound(r.client.Get(context.TODO(), key, &datadoghqv1alpha1.DatadogMonitor{})))
+}
+
+func TestReconcileDatadogMonitor_OrphanWithoutCredentials(t *testing.T) {
+	r, api := newForceSyncTestReconciler(t)
+	dm := genericDatadogMonitor(r.client)
+	key := client.ObjectKeyFromObject(dm)
+	require.NoError(t, r.client.Get(context.TODO(), key, dm))
+	dm.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	dm.Finalizers = []string{datadogMonitorFinalizer}
+	require.NoError(t, r.client.Update(context.TODO(), dm))
+	t.Setenv("DD_API_KEY", "")
+	t.Setenv("DD_APP_KEY", "")
+
+	require.NoError(t, r.client.Get(context.TODO(), key, dm))
+	_, err := r.Reconcile(context.TODO(), dm)
+	require.NoError(t, err)
+	require.NoError(t, r.client.Get(context.TODO(), key, dm))
+	require.NotEmpty(t, dm.Status.Conditions, "the Orphaned condition is set without credentials")
+
+	require.NoError(t, r.client.Delete(context.TODO(), dm))
+	require.NoError(t, r.client.Get(context.TODO(), key, dm))
+	_, err = r.Reconcile(context.TODO(), dm)
+	require.NoError(t, err)
+	assert.True(t, apierrors.IsNotFound(r.client.Get(context.TODO(), key, &datadoghqv1alpha1.DatadogMonitor{})))
+	assert.Equal(t, int32(0), api.deletes.Load())
+}
+
+func TestReconcileDatadogMonitor_CreateSkippedWhenOrphanedInAPIServer(t *testing.T) {
+	r, api := newForceSyncTestReconciler(t)
+	dm := genericDatadogMonitor(r.client)
+	key := client.ObjectKeyFromObject(dm)
+	// Add the finalizer and the required tags, stopping before the create.
+	for range 2 {
+		require.NoError(t, r.client.Get(context.TODO(), key, dm))
+		_, err := r.Reconcile(context.TODO(), dm)
+		require.NoError(t, err)
+	}
+	require.NoError(t, r.client.Get(context.TODO(), key, dm))
+	require.Zero(t, dm.Status.ID)
+
+	// The API server has the annotation, but the reconcile works from a cache
+	// entry that doesn't have it yet.
+	stale := dm.DeepCopy()
+	dm.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	require.NoError(t, r.client.Update(context.TODO(), dm))
+	stale.ResourceVersion = dm.ResourceVersion
+	result, err := r.Reconcile(context.TODO(), stale)
+	require.NoError(t, err)
+	assert.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	assert.Nil(t, api.monitor, "no monitor is created")
 }

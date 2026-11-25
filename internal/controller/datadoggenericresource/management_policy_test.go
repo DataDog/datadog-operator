@@ -160,3 +160,32 @@ func TestReconcileGenericResource_OrphanReleasesStuckDeletion(t *testing.T) {
 	err = r.client.Get(ctx, req.NamespacedName, &datadoghqv1alpha1.DatadogGenericResource{})
 	assert.True(t, apierrors.IsNotFound(err))
 }
+
+func TestReconcileGenericResource_OrphanWithoutCredentials(t *testing.T) {
+	resetMockHandlerState()
+	r, _ := newMockReconciler(t)
+	ctx := context.TODO()
+	req := newRequest(resourcesNamespace, resourcesName)
+	obj := mockGenericResource()
+	obj.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	// A type without a handler: the orphan path must not need one either.
+	obj.Spec.Type = "removed_type"
+	obj.Status.Id = "123"
+	require.NoError(t, r.client.Create(ctx, obj))
+	t.Setenv("DD_API_KEY", "")
+	t.Setenv("DD_APP_KEY", "")
+
+	// Not deleting: the finalizer is added, then the Orphaned condition is set.
+	for range 2 {
+		_, err := reconcileRequest(r, ctx, req)
+		require.NoError(t, err)
+	}
+	assert.True(t, meta.IsStatusConditionTrue(getGenericResource(t, r).Status.Conditions, string(condition.DatadogConditionTypeOrphaned)))
+
+	// Deleting: released without credentials, the object is kept.
+	require.NoError(t, r.client.Delete(ctx, getGenericResource(t, r)))
+	_, err := reconcileRequest(r, ctx, req)
+	require.NoError(t, err)
+	assert.True(t, apierrors.IsNotFound(r.client.Get(ctx, req.NamespacedName, &datadoghqv1alpha1.DatadogGenericResource{})))
+	assert.Equal(t, 0, mockCalls())
+}

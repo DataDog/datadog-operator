@@ -94,3 +94,76 @@ func TestReconcileDatadogDashboard_OrphanPolicy(t *testing.T) {
 	assert.Equal(t, int32(0), deletes.Load())
 	assert.True(t, apierrors.IsNotFound(r.client.Get(ctx, req.NamespacedName, &datadoghqv1alpha1.DatadogDashboard{})))
 }
+
+func TestReconcileDatadogDashboard_OrphanResumeAndNoCredentials(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogDashboard{})
+	var puts atomic.Int32
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			puts.Add(1)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"abc-def-ghi","title":"test dashboard","layout_type":"ordered","widgets":[]}`))
+	}))
+	defer httpServer.Close()
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "api-key")
+	t.Setenv("DD_APP_KEY", "app-key")
+
+	r := &Reconciler{
+		client:        fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogDashboard{}).Build(),
+		datadogClient: datadogV1.NewDashboardsApi(datadogapi.NewAPIClient(testConfig)),
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(10),
+		log:           logf.Log.WithName(t.Name()),
+	}
+	ctx := context.TODO()
+	require.NoError(t, r.client.Create(ctx, genericDatadogDashboard()))
+	req := newRequest(resourcesNamespace, resourcesName)
+	get := func() *datadoghqv1alpha1.DatadogDashboard {
+		t.Helper()
+		got := &datadoghqv1alpha1.DatadogDashboard{}
+		require.NoError(t, r.client.Get(ctx, req.NamespacedName, got))
+		return got
+	}
+	for range 2 {
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+	}
+	require.Equal(t, "abc-def-ghi", get().Status.ID)
+
+	// Orphaned, then a spec change.
+	db := get()
+	db.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	db.Spec.Title = "changed while orphaned"
+	require.NoError(t, r.client.Update(ctx, db))
+	_, err := r.Reconcile(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, int32(0), puts.Load())
+
+	// Removing the annotation applies the change and clears the condition.
+	db = get()
+	db.Annotations = nil
+	require.NoError(t, r.client.Update(ctx, db))
+	_, err = r.Reconcile(ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), puts.Load())
+	assert.Nil(t, meta.FindStatusCondition(get().Status.Conditions, string(condition.DatadogConditionTypeOrphaned)))
+
+	// Without credentials, the annotation still releases a terminating CR.
+	db = get()
+	db.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	require.NoError(t, r.client.Update(ctx, db))
+	t.Setenv("DD_API_KEY", "")
+	t.Setenv("DD_APP_KEY", "")
+	// The credential manager caches the keys of earlier reconciles.
+	r.credsManager = config.NewCredentialManager(fake.NewClientBuilder().Build())
+	require.NoError(t, r.client.Delete(ctx, get()))
+	_, err = r.Reconcile(ctx, req)
+	require.NoError(t, err)
+	assert.True(t, apierrors.IsNotFound(r.client.Get(ctx, req.NamespacedName, &datadoghqv1alpha1.DatadogDashboard{})))
+}

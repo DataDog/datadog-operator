@@ -4,7 +4,7 @@ The `datadoghq.com/management-policy: orphan` annotation stops the Datadog Opera
 
 While a resource has the annotation:
 
-* The Operator makes no Datadog API call for it: no create, update, periodic force sync, or state refresh. Changes to the spec are not applied.
+* The Operator doesn't create, update, sync, poll, or delete the Datadog object, and doesn't need Datadog credentials to handle the resource. Changes to the spec are not applied.
 * The resource has an `Orphaned` condition set to `True`. Its other status fields keep their last values.
 * Deleting the resource removes the Operator's finalizer and leaves the Datadog object in place. The Operator records an `Orphaned` event.
 
@@ -19,7 +19,7 @@ kubectl annotate datadogmonitor/<name> datadoghq.com/management-policy=orphan
 kubectl delete datadogmonitor/<name>
 ```
 
-The annotation can also be added to a resource that is already being deleted, for example one that stays terminating because the Datadog API keeps rejecting the delete. The Operator then removes the finalizer without deleting the Datadog object.
+The annotation can also be added to a resource that is already being deleted, for example one that stays terminating because the Datadog API keeps rejecting the delete, or because the Operator's Datadog credentials are missing. The Operator then removes the finalizer without deleting the Datadog object.
 
 With GitOps tools such as Argo CD or Flux, the annotation must be on the live resource before the tool prunes it. Commit the annotation and wait for it to sync, then remove the manifest in a later commit. Adding the annotation in the same commit that removes the manifest doesn't work: that version of the manifest is never applied.
 

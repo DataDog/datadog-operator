@@ -8,11 +8,13 @@ package finalizer
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -20,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -272,4 +275,64 @@ func Test_HandleFinalizer_OrphanPolicy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_HandleFinalizer_OrphanSideEffectsAfterUpdate(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &testResource{})
+	finalizerName := "test_resource.finalizer"
+	metaNow := metav1.NewTime(time.Now())
+	obj := testResource{
+		TypeMeta: metav1.TypeMeta{Kind: "TestResource"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "test resource",
+			Annotations:       map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan},
+			DeletionTimestamp: &metaNow,
+			Finalizers:        []string{finalizerName},
+		},
+	}
+	var failUpdate atomic.Bool
+	failUpdate.Store(true)
+	fakeClient := fake.NewClientBuilder().WithObjects(&obj).WithInterceptorFuncs(interceptor.Funcs{
+		Update: func(ctx context.Context, c client.WithWatch, o client.Object, opts ...client.UpdateOption) error {
+			if failUpdate.Load() {
+				return fmt.Errorf("conflict")
+			}
+			return c.Update(ctx, o, opts...)
+		},
+	}).Build()
+	onOrphanCalls := 0
+	recorder := record.NewFakeRecorder(10)
+	f := NewOrphanFinalizer(testLogger, fakeClient, time.Second, time.Second, recorder, func(client.Object) { onOrphanCalls++ })
+
+	_, err := f.HandleFinalizer(context.TODO(), obj.DeepCopyObject().(client.Object), "123", finalizerName)
+	require.Error(t, err)
+	assert.Equal(t, 0, onOrphanCalls, "nothing runs until the finalizer is removed")
+	assert.Empty(t, recorder.Events)
+
+	failUpdate.Store(false)
+	_, err = f.HandleFinalizer(context.TODO(), obj.DeepCopyObject().(client.Object), "123", finalizerName)
+	require.NoError(t, err)
+	assert.Equal(t, 1, onOrphanCalls)
+	assert.Len(t, recorder.Events, 1)
+}
+
+func Test_NewOrphanFinalizer_RefusesToDelete(t *testing.T) {
+	testLogger := zap.New(zap.UseDevMode(true))
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &testResource{})
+	finalizerName := "test_resource.finalizer"
+	metaNow := metav1.NewTime(time.Now())
+	// Not orphaned: the finalizer must not be removed, since the Datadog
+	// object was not deleted.
+	obj := testResource{
+		TypeMeta:   metav1.TypeMeta{Kind: "TestResource"},
+		ObjectMeta: metav1.ObjectMeta{Name: "test resource", DeletionTimestamp: &metaNow, Finalizers: []string{finalizerName}},
+	}
+	fakeClient := fake.NewClientBuilder().WithObjects(&obj).Build()
+	f := NewOrphanFinalizer(testLogger, fakeClient, time.Second, time.Second, nil, nil)
+	_, err := f.HandleFinalizer(context.TODO(), &obj, "123", finalizerName)
+	require.Error(t, err)
+	assert.True(t, controllerutil.ContainsFinalizer(&obj, finalizerName))
 }

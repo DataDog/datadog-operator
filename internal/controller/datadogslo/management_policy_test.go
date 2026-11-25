@@ -96,3 +96,76 @@ func TestReconciler_OrphanPolicy(t *testing.T) {
 	assert.Equal(t, int32(0), deletes.Load())
 	assert.True(t, apierrors.IsNotFound(kubeClient.Get(ctx, req.NamespacedName, &v1alpha1.DatadogSLO{})))
 }
+
+func TestReconciler_OrphanResumeAndNoCredentials(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogSLO{})
+	var puts atomic.Int32
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			puts.Add(1)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(defaultDatadogSLOResponse())
+	}))
+	defer httpServer.Close()
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	kubeClient := fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.DatadogSLO{}).Build()
+	require.NoError(t, kubeClient.Create(context.TODO(), defaultSLO()))
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: datadogV1.NewServiceLevelObjectivesApi(datadogapi.NewAPIClient(testConfig)),
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		recorder:      record.NewFakeRecorder(10),
+		log:           zap.New(zap.UseDevMode(true)),
+	}
+	ctx := context.Background()
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: resourceNamespace, Name: resourceName}}
+	get := func() *v1alpha1.DatadogSLO {
+		t.Helper()
+		got := &v1alpha1.DatadogSLO{}
+		require.NoError(t, kubeClient.Get(ctx, req.NamespacedName, got))
+		return got
+	}
+	for range 2 {
+		_, err := r.Reconcile(ctx, req)
+		require.NoError(t, err)
+	}
+	require.Equal(t, "SLO123", get().Status.ID)
+
+	// Orphaned, then a spec change.
+	slo := get()
+	slo.Annotations = map[string]string{v1alpha1.ManagementPolicyAnnotationKey: v1alpha1.ManagementPolicyOrphan}
+	slo.Spec.Description = new("changed while orphaned")
+	require.NoError(t, kubeClient.Update(ctx, slo))
+	_, err := r.Reconcile(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, int32(0), puts.Load())
+
+	// Removing the annotation applies the change and clears the condition.
+	slo = get()
+	slo.Annotations = nil
+	require.NoError(t, kubeClient.Update(ctx, slo))
+	_, err = r.Reconcile(ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), puts.Load())
+	assert.Nil(t, meta.FindStatusCondition(get().Status.Conditions, string(condition.DatadogConditionTypeOrphaned)))
+
+	// Without credentials, the annotation still releases a terminating CR.
+	slo = get()
+	slo.Annotations = map[string]string{v1alpha1.ManagementPolicyAnnotationKey: v1alpha1.ManagementPolicyOrphan}
+	require.NoError(t, kubeClient.Update(ctx, slo))
+	t.Setenv("DD_API_KEY", "")
+	t.Setenv("DD_APP_KEY", "")
+	// The credential manager caches the keys of earlier reconciles.
+	r.credsManager = config.NewCredentialManager(fake.NewClientBuilder().Build())
+	require.NoError(t, kubeClient.Delete(ctx, get()))
+	_, err = r.Reconcile(ctx, req)
+	require.NoError(t, err)
+	assert.True(t, apierrors.IsNotFound(kubeClient.Get(ctx, req.NamespacedName, &v1alpha1.DatadogSLO{})))
+}
