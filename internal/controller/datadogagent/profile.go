@@ -92,35 +92,36 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	// profilesByNode maps node name to profile
 	// it is pre-populated with the default profile
 	profilesByNode := make(map[string]types.NamespacedName, len(nodeList))
-	for _, node := range nodeList {
-		profilesByNode[node.Name] = types.NamespacedName{Namespace: "", Name: "default"}
+	for i := range nodeList {
+		profilesByNode[nodeList[i].Name] = types.NamespacedName{Namespace: "", Name: "default"}
 	}
 
 	// csInfo holds create strategy data per profile
 	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
 
-	for _, profile := range sortedProfiles {
+	for i := range sortedProfiles {
+		profile := &sortedProfiles[i]
 		originalStatus := profile.Status.DeepCopy()
 		logger.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 
-		r.addDDAIStatusToProfileStatus(ctx, &profile, defaultDDAI.Name, defaultDDAI.Namespace, now)
+		r.addDDAIStatusToProfileStatus(ctx, profile, defaultDDAI.Name, defaultDDAI.Namespace, now)
 
-		requirements, err := agentprofile.ValidateProfileAndReturnRequirements(&profile)
+		requirements, err := agentprofile.ValidateProfileAndReturnRequirements(profile)
 		if err != nil {
 			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
-			setProfileCondition(&profile, agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error())
-			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, agentprofile.InvalidConditionReason, "Profile is invalid")
+			setProfileCondition(profile, agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error())
+			setProfileCondition(profile, agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, agentprofile.InvalidConditionReason, "Profile is invalid")
 			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			r.syncProfileStatus(ctx, &profile, originalStatus, now)
+			r.syncProfileStatus(ctx, profile, originalStatus, now)
 			continue
 		}
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
-		setProfileCondition(&profile, agentprofile.ValidConditionType, metav1.ConditionTrue, now, agentprofile.ValidConditionReason, "Valid manifest")
+		setProfileCondition(profile, agentprofile.ValidConditionType, metav1.ConditionTrue, now, agentprofile.ValidConditionReason, "Valid manifest")
 
 		if err := agentprofile.CheckProfileNodeConflicts(profile.ObjectMeta, requirements, nodeList, profilesByNode); err != nil {
-			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile")
+			setProfileCondition(profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile")
 			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			r.syncProfileStatus(ctx, &profile, originalStatus, now)
+			r.syncProfileStatus(ctx, profile, originalStatus, now)
 			continue
 		}
 
@@ -130,9 +131,9 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		// baseDefaultSpec = original default DDAI spec before any profile overlays were applied (used to detect user-configured vs defaulted configs)
 		candidateDefaultSpec := accumulatedDefaultSpec.DeepCopy()
 		if err := feature.ApplyProfileSharedConfigOverlays(candidateDefaultSpec, baseDefaultSpec, profile.Spec.Config); err != nil {
-			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, err.Error())
+			setProfileCondition(profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, err.Error())
 			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			r.syncProfileStatus(ctx, &profile, originalStatus, now)
+			r.syncProfileStatus(ctx, profile, originalStatus, now)
 			continue
 		}
 
@@ -140,9 +141,9 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		// Commit node assignment and shared overlay changes.
 		agentprofile.AssignNodesToProfile(profile.ObjectMeta, requirements, nodeList, profilesByNode, csInfo)
 		accumulatedDefaultSpec = candidateDefaultSpec
-		setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied")
-		r.syncProfileStatus(ctx, &profile, originalStatus, now)
-		appliedProfiles = append(appliedProfiles, &profile)
+		setProfileCondition(profile, agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied")
+		r.syncProfileStatus(ctx, profile, originalStatus, now)
+		appliedProfiles = append(appliedProfiles, profile)
 	}
 
 	// Persist the accepted shared config back to the default DDAI used later to
@@ -153,7 +154,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		return appliedProfiles, err
 	}
 
-	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode, nodeList); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
 	}
 

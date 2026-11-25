@@ -37,11 +37,17 @@ type DDASharedDependenciesFunc func(dda metav1.Object, ddaSpec *v2alpha1.Datadog
 
 // profileSharedConfigOverlays is populated by feature package init functions
 // through RegisterProfileSharedConfigOverlay.
-var profileSharedConfigOverlays = map[IDType]ProfileSharedConfigOverlayFunc{}
+var (
+	profileSharedConfigOverlays     = map[IDType]ProfileSharedConfigOverlayFunc{}
+	profileSharedConfigOverlayOrder []IDType
+)
 
 // ddaSharedDependencies is populated by feature package init functions through
 // RegisterDDASharedDependencies.
-var ddaSharedDependencies = map[IDType]DDASharedDependenciesFunc{}
+var (
+	ddaSharedDependencies    = map[IDType]DDASharedDependenciesFunc{}
+	ddaSharedDependencyOrder []IDType
+)
 
 // RegisterProfileSharedConfigOverlay registers profile shared-component merge
 // logic for a feature.
@@ -50,6 +56,8 @@ func RegisterProfileSharedConfigOverlay(id IDType, overlay ProfileSharedConfigOv
 		return fmt.Errorf("the profile shared config overlay %s is registered already", id)
 	}
 	profileSharedConfigOverlays[id] = overlay
+	profileSharedConfigOverlayOrder = append(profileSharedConfigOverlayOrder, id)
+	slices.Sort(profileSharedConfigOverlayOrder)
 	return nil
 }
 
@@ -59,6 +67,8 @@ func RegisterDDASharedDependencies(id IDType, dependency DDASharedDependenciesFu
 		return fmt.Errorf("DDA shared dependencies %s is registered already", id)
 	}
 	ddaSharedDependencies[id] = dependency
+	ddaSharedDependencyOrder = append(ddaSharedDependencyOrder, id)
+	slices.Sort(ddaSharedDependencyOrder)
 	return nil
 }
 
@@ -70,15 +80,7 @@ func ApplyProfileSharedConfigOverlays(dst, base, profile *v2alpha1.DatadogAgentS
 		return fmt.Errorf("profile shared config overlay target spec is nil")
 	}
 
-	// Registration happens from feature package init functions, so sort IDs to
-	// keep profile overlay behavior deterministic regardless of init order.
-	sortedKeys := make([]IDType, 0, len(profileSharedConfigOverlays))
-	for key := range profileSharedConfigOverlays {
-		sortedKeys = append(sortedKeys, key)
-	}
-	slices.Sort(sortedKeys)
-
-	for _, id := range sortedKeys {
+	for _, id := range profileSharedConfigOverlayOrder {
 		if err := profileSharedConfigOverlays[id](dst, base, profile); err != nil {
 			return fmt.Errorf("%s profile shared config overlay failed: %w", id, err)
 		}
@@ -90,15 +92,7 @@ func ApplyProfileSharedConfigOverlays(dst, base, profile *v2alpha1.DatadogAgentS
 // ApplyDDASharedDependencies applies all registered DDA shared dependency hooks
 // for one rendered DDAI spec.
 func ApplyDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers ResourceManagers) error {
-	// Registration happens from feature package init functions, so sort IDs to
-	// keep DDA shared dependency behavior deterministic regardless of init order.
-	sortedKeys := make([]IDType, 0, len(ddaSharedDependencies))
-	for key := range ddaSharedDependencies {
-		sortedKeys = append(sortedKeys, key)
-	}
-	slices.Sort(sortedKeys)
-
-	for _, id := range sortedKeys {
+	for _, id := range ddaSharedDependencyOrder {
 		if err := ddaSharedDependencies[id](dda, ddaSpec, ddai, ddaiSpec, managers); err != nil {
 			return fmt.Errorf("%s DDA shared dependencies failed: %w", id, err)
 		}

@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
@@ -319,6 +320,135 @@ func BenchmarkSSAMergeCRD(b *testing.B) {
 	for b.Loop() {
 		if _, err := r.ssaMergeCRD(ctx, baseDDAI, profileDDAI); err != nil {
 			b.Fatalf("ssaMergeCRD failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkLabelNodesWithProfiles_200Nodes_SteadyState(b *testing.B) {
+	ctx := context.Background()
+	const numNodes = 200
+	objs := make([]client.Object, 0, numNodes)
+	profilesByNode := make(map[string]types.NamespacedName, numNodes)
+
+	for i := range numNodes {
+		nodeName := fmt.Sprintf("node-%03d", i)
+		labels := map[string]string{
+			"kubernetes.io/hostname": nodeName,
+			"topology.kubernetes.io/zone": "us-east-1a",
+		}
+		if i%2 == 0 {
+			profileName := fmt.Sprintf("profile-pool-%02d", (i%19)+1)
+			labels[constants.ProfileLabelKey] = profileName
+			profilesByNode[nodeName] = types.NamespacedName{Namespace: "datadog-agent", Name: profileName}
+		} else {
+			profilesByNode[nodeName] = types.NamespacedName{Namespace: "", Name: "default"}
+		}
+		objs = append(objs, &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nodeName,
+				Labels: labels,
+			},
+		})
+	}
+
+	sch := newBenchScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
+	r := &Reconciler{client: fakeClient, scheme: sch}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if err := r.labelNodesWithProfiles(ctx, profilesByNode, nil); err != nil {
+			b.Fatalf("labelNodesWithProfiles failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkLabelNodesWithProfilesFromList_200Nodes_SteadyState(b *testing.B) {
+	ctx := context.Background()
+	const numNodes = 200
+	nodes := make([]corev1.Node, 0, numNodes)
+	profilesByNode := make(map[string]types.NamespacedName, numNodes)
+
+	for i := range numNodes {
+		nodeName := fmt.Sprintf("node-%03d", i)
+		labels := map[string]string{
+			"kubernetes.io/hostname":      nodeName,
+			"topology.kubernetes.io/zone": "us-east-1a",
+		}
+		if i%2 == 0 {
+			profileName := fmt.Sprintf("profile-pool-%02d", (i%19)+1)
+			labels[constants.ProfileLabelKey] = profileName
+			profilesByNode[nodeName] = types.NamespacedName{Namespace: "datadog-agent", Name: profileName}
+		} else {
+			profilesByNode[nodeName] = types.NamespacedName{Namespace: "", Name: "default"}
+		}
+		nodes = append(nodes, corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nodeName,
+				Labels: labels,
+			},
+		})
+	}
+
+	sch := newBenchScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).Build()
+	r := &Reconciler{client: fakeClient, scheme: sch}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if err := r.labelNodesWithProfiles(ctx, profilesByNode, nodes); err != nil {
+			b.Fatalf("labelNodesWithProfiles failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkReconcileProfiles_20Profiles_200Nodes_SteadyState(b *testing.B) {
+	ctx := context.Background()
+	const numNodes = 200
+	baseDDAI := newBenchBaseDDAI()
+	profiles := newBenchProfiles(20)
+
+	objs := make([]client.Object, 0, numNodes+20)
+	for _, p := range profiles[1:] {
+		objs = append(objs, p.DeepCopy())
+	}
+	for i := range numNodes {
+		nodeName := fmt.Sprintf("node-%03d", i)
+		poolIdx := (i % 19) + 1
+		labels := map[string]string{
+			"kubernetes.io/hostname":      nodeName,
+			"topology.kubernetes.io/zone": "us-east-1a",
+		}
+		if i%2 == 0 {
+			labels["node-pool"] = fmt.Sprintf("pool-%02d", poolIdx)
+			labels[constants.ProfileLabelKey] = fmt.Sprintf("profile-pool-%02d", poolIdx)
+		}
+		objs = append(objs, &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nodeName,
+				Labels: labels,
+			},
+		})
+	}
+
+	sch := newBenchScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+	r := &Reconciler{client: fakeClient, scheme: sch}
+	dsNSName := types.NamespacedName{Namespace: "datadog-agent", Name: "datadog-agent"}
+	maxUnavailable := intstr.FromString("10%")
+
+	// Warm up once so profile statuses settle
+	if _, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, baseDDAI.DeepCopy()); err != nil {
+		b.Fatalf("warmup reconcileProfiles failed: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, baseDDAI.DeepCopy()); err != nil {
+			b.Fatalf("reconcileProfiles failed: %v", err)
 		}
 	}
 }
