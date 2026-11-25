@@ -55,6 +55,24 @@ var MonitorDefinitionFields = []string{
 	"name", "type", "query", "message", "tags", "options", "priority", "restricted_roles", "draft_status",
 }
 
+// monitorHashSchemeVersion must change when MonitorDefinitionHash changes how
+// it hashes values, for example how it normalizes them. Changes to
+// MonitorDefinitionFields change the scheme on their own.
+const monitorHashSchemeVersion = "1"
+
+// monitorHashScheme prefixes every hash, so that a hash recorded by a release
+// that hashes definitions differently can be recognized without the monitor.
+var monitorHashScheme = func() string {
+	id, _ := comparison.GenerateMD5ForSpec(slices.Concat([]string{monitorHashSchemeVersion}, MonitorDefinitionFields))
+	return id[:8]
+}()
+
+// HasCurrentMonitorHashScheme reports whether hash was computed by
+// MonitorDefinitionHash in this release.
+func HasCurrentMonitorHashScheme(hash string) bool {
+	return strings.HasPrefix(hash, monitorHashScheme+":")
+}
+
 // MonitorDefinitionHash returns a hash of the definition of a monitor returned
 // by the Datadog API. A write response and a later read of the same definition
 // hash the same, so the hash recorded after a write detects out-of-band edits.
@@ -94,7 +112,11 @@ func MonitorDefinitionHash(monitor datadogV1.Monitor, extraFields ...string) (st
 			}
 		}
 	}
-	return comparison.GenerateMD5ForSpec(definition)
+	hash, err := comparison.GenerateMD5ForSpec(definition)
+	if err != nil {
+		return "", err
+	}
+	return monitorHashScheme + ":" + hash, nil
 }
 
 // sortStrings sorts a decoded JSON list of strings in place.

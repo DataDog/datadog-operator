@@ -14,6 +14,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -32,6 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
@@ -53,7 +55,7 @@ type fakeMonitorAPI struct {
 
 	etags       bool
 	ifNoneMatch []string
-	notModified int
+	notModified atomic.Int32
 }
 
 func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +88,7 @@ func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			etag := fmt.Sprintf(`"%x"`, md5.Sum(body))
 			w.Header().Set("ETag", etag)
 			if r.Header.Get("If-None-Match") == etag {
-				f.notModified++
+				f.notModified.Add(1)
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}
@@ -290,7 +292,7 @@ func TestReconcileGenericResource_MonitorETags(t *testing.T) {
 	t.Run("force sync of an unchanged monitor gets Not Modified", func(t *testing.T) {
 		synced := reconcile(true)
 		assert.Equal(t, etag, lastIfNoneMatch())
-		assert.Equal(t, 1, api.notModified)
+		assert.Equal(t, int32(1), api.notModified.Load())
 		assert.Equal(t, int32(0), api.puts.Load())
 		assert.Equal(t, etag, synced.Status.Etag)
 		assert.WithinDuration(t, time.Now(), synced.Status.LastForceSyncTime.Time, time.Minute)
@@ -299,7 +301,7 @@ func TestReconcileGenericResource_MonitorETags(t *testing.T) {
 	t.Run("state poll of an unchanged monitor keeps its state", func(t *testing.T) {
 		before := get().Status.State
 		polled := reconcile(false)
-		assert.Equal(t, 2, api.notModified)
+		assert.Equal(t, int32(2), api.notModified.Load())
 		assert.Equal(t, before, polled.Status.State)
 		assert.WithinDuration(t, time.Now(), polled.Status.StateLastUpdateTime.Time, time.Minute)
 		assert.Equal(t, etag, polled.Status.Etag)
@@ -309,13 +311,13 @@ func TestReconcileGenericResource_MonitorETags(t *testing.T) {
 		api.editRemote(func(m map[string]any) { m["overall_state"] = "Alert" })
 		polled := reconcile(false)
 		assert.Equal(t, etag, lastIfNoneMatch())
-		assert.Equal(t, 2, api.notModified)
+		assert.Equal(t, int32(2), api.notModified.Load())
 		assert.Equal(t, "Alert", polled.Status.State)
 		assert.NotEqual(t, etag, polled.Status.Etag)
 		assert.NotEmpty(t, polled.Status.Etag)
 
 		reconcile(true)
-		assert.Equal(t, 3, api.notModified, "a force sync can use the ETag of a state poll")
+		assert.Equal(t, int32(3), api.notModified.Load(), "a force sync can use the ETag of a state poll")
 		assert.Equal(t, int32(0), api.puts.Load())
 	})
 
@@ -332,7 +334,7 @@ func TestReconcileGenericResource_MonitorETags(t *testing.T) {
 		synced = reconcile(true)
 		assert.NotEmpty(t, synced.Status.Etag)
 		reconcile(true)
-		assert.Equal(t, 4, api.notModified)
+		assert.Equal(t, int32(4), api.notModified.Load())
 		assert.Equal(t, int32(1), api.puts.Load())
 	})
 
@@ -340,9 +342,9 @@ func TestReconcileGenericResource_MonitorETags(t *testing.T) {
 		api.editRemote(func(m map[string]any) { m["overall_state"] = "Warn" })
 		synced := reconcile(true)
 		assert.Equal(t, "Warn", synced.Status.State)
-		before := api.notModified
+		before := api.notModified.Load()
 		polled := reconcile(false)
-		assert.Equal(t, before+1, api.notModified)
+		assert.Equal(t, before+1, api.notModified.Load())
 		assert.Equal(t, "Warn", polled.Status.State)
 	})
 
@@ -351,11 +353,25 @@ func TestReconcileGenericResource_MonitorETags(t *testing.T) {
 		obj.Status.State = ctrutils.StatePollingDisabledState
 		require.NoError(t, r.client.Status().Update(context.TODO(), obj))
 		api.editRemote(func(m map[string]any) { m["overall_state"] = "OK" })
-		before := api.notModified
+		before := api.notModified.Load()
 		polled := reconcile(false)
 		assert.Empty(t, lastIfNoneMatch())
-		assert.Equal(t, before, api.notModified)
+		assert.Equal(t, before, api.notModified.Load())
 		assert.Equal(t, "OK", polled.Status.State)
+	})
+
+	t.Run("Not Modified with a hash of another scheme updates", func(t *testing.T) {
+		reconcile(true) // records an ETag
+		obj := get()
+		require.NotEmpty(t, obj.Status.Etag)
+		_, md5, _ := strings.Cut(obj.Status.RemoteDefinitionHash, ":")
+		obj.Status.RemoteDefinitionHash = "00000000:" + md5
+		require.NoError(t, r.client.Status().Update(context.TODO(), obj))
+		before, puts := api.notModified.Load(), api.puts.Load()
+		synced := reconcile(true)
+		assert.Equal(t, before+1, api.notModified.Load())
+		assert.Equal(t, puts+1, api.puts.Load(), "a hash of another scheme does not prove the definition unchanged")
+		assert.True(t, utils.HasCurrentMonitorHashScheme(synced.Status.RemoteDefinitionHash))
 	})
 
 	assert.Equal(t, int32(0), api.readsWithoutAssets.Load(), "every read requests assets, so their ETags match")

@@ -282,8 +282,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			}
 		} else {
 			recordETag(logger, read, newStatus)
+			updateMonitorState(read, now, newStatus)
 		}
-		updateMonitorState(read, now, newStatus)
 	}
 
 	// Create and update actions
@@ -490,7 +490,9 @@ func (r *Reconciler) get(auth context.Context, datadogMonitor *datadoghqv1alpha1
 // the definition has that hash. A Not Modified read leaves the ETag unchanged.
 func recordETag(logger logr.Logger, read controllerutils.MonitorRead, status *datadoghqv1alpha1.DatadogMonitorStatus) bool {
 	if read.NotModified {
-		return true
+		// The stored hash vouches for the definition only if this release
+		// computes hashes the same way.
+		return controllerutils.HasCurrentMonitorHashScheme(status.RemoteDefinitionHash)
 	}
 	hash := remoteDefinitionHash(logger, read.Monitor)
 	unchanged := hash != "" && hash == status.RemoteDefinitionHash

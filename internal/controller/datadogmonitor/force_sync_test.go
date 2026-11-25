@@ -33,6 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
@@ -51,10 +52,11 @@ type fakeMonitorAPI struct {
 	puts      atomic.Int32
 	validates atomic.Int32
 	failPuts  atomic.Bool
+	failGets  atomic.Bool
 
 	etags        bool
 	ifNoneMatch  []string
-	notModified  int
+	notModified  atomic.Int32
 	lastGetQuery string
 }
 
@@ -85,6 +87,10 @@ func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		maps.Copy(f.monitor, body)
+	case r.Method == http.MethodGet && f.failGets.Load():
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"errors":["boom"]}`))
+		return
 	case r.Method == http.MethodGet && f.etags:
 		f.reads++
 		f.ifNoneMatch = append(f.ifNoneMatch, r.Header.Get("If-None-Match"))
@@ -93,7 +99,7 @@ func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		etag := fmt.Sprintf(`"%x"`, md5.Sum(body))
 		w.Header().Set("ETag", etag)
 		if r.Header.Get("If-None-Match") == etag {
-			f.notModified++
+			f.notModified.Add(1)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
@@ -297,7 +303,9 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 	// The first force sync reads the whole monitor and records its ETag.
 	synced := reconcile(true)
 	assert.Empty(t, lastIfNoneMatch())
+	api.mu.Lock()
 	assert.Equal(t, "group_states=all", api.lastGetQuery)
+	api.mu.Unlock()
 	assert.Equal(t, int32(0), api.puts.Load())
 	etag := synced.Status.Etag
 	require.NotEmpty(t, etag)
@@ -306,7 +314,7 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 	t.Run("force sync of an unchanged monitor gets Not Modified", func(t *testing.T) {
 		synced := reconcile(true)
 		assert.Equal(t, etag, lastIfNoneMatch())
-		assert.Equal(t, 1, api.notModified)
+		assert.Equal(t, int32(1), api.notModified.Load())
 		assert.Equal(t, int32(0), api.puts.Load())
 		assert.Equal(t, etag, synced.Status.Etag)
 		assert.WithinDuration(t, time.Now(), synced.Status.MonitorLastForceSyncTime.Time, time.Minute)
@@ -315,7 +323,7 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 	t.Run("state poll of an unchanged monitor keeps its state", func(t *testing.T) {
 		before := get().Status.MonitorState
 		polled := reconcile(false)
-		assert.Equal(t, 2, api.notModified)
+		assert.Equal(t, int32(2), api.notModified.Load())
 		assert.Equal(t, before, polled.Status.MonitorState)
 		assert.Equal(t, datadoghqv1alpha1.MonitorStateSyncStatusOK, polled.Status.MonitorStateSyncStatus)
 		assert.WithinDuration(t, time.Now(), polled.Status.MonitorStateLastUpdateTime.Time, time.Minute)
@@ -326,14 +334,14 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 		api.editRemote(func(m map[string]any) { m["overall_state"] = "Alert" })
 		polled := reconcile(false)
 		assert.Equal(t, etag, lastIfNoneMatch())
-		assert.Equal(t, 2, api.notModified)
+		assert.Equal(t, int32(2), api.notModified.Load())
 		assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateAlert, polled.Status.MonitorState)
 		assert.NotEqual(t, etag, polled.Status.Etag)
 		assert.NotEmpty(t, polled.Status.Etag)
 		etag = polled.Status.Etag
 
 		reconcile(true)
-		assert.Equal(t, 3, api.notModified, "a force sync can use the ETag of a state poll")
+		assert.Equal(t, int32(3), api.notModified.Load(), "a force sync can use the ETag of a state poll")
 		assert.Equal(t, int32(0), api.puts.Load())
 	})
 
@@ -351,7 +359,7 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 		assert.NotEmpty(t, synced.Status.Etag)
 		assert.Equal(t, int32(1), api.puts.Load())
 		synced = reconcile(true)
-		assert.Equal(t, 4, api.notModified)
+		assert.Equal(t, int32(4), api.notModified.Load())
 		assert.Equal(t, int32(1), api.puts.Load())
 	})
 
@@ -359,9 +367,9 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 		api.editRemote(func(m map[string]any) { m["overall_state"] = "Warn" })
 		synced := reconcile(true)
 		assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateWarn, synced.Status.MonitorState)
-		before := api.notModified
+		before := api.notModified.Load()
 		polled := reconcile(false)
-		assert.Equal(t, before+1, api.notModified)
+		assert.Equal(t, before+1, api.notModified.Load())
 		assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateWarn, polled.Status.MonitorState)
 	})
 
@@ -371,24 +379,49 @@ func TestReconcileDatadogMonitor_ETags(t *testing.T) {
 		dm.Status.MonitorState = ""
 		require.NoError(t, r.client.Status().Update(context.TODO(), dm))
 		api.editRemote(func(m map[string]any) { m["overall_state"] = "OK" })
-		before := api.notModified
+		before := api.notModified.Load()
 		polled := reconcile(false)
 		assert.Empty(t, lastIfNoneMatch())
-		assert.Equal(t, before, api.notModified)
+		assert.Equal(t, before, api.notModified.Load())
 		assert.Equal(t, datadoghqv1alpha1.DatadogMonitorStateOK, polled.Status.MonitorState)
 	})
 
 	t.Run("spec change updates despite Not Modified", func(t *testing.T) {
 		reconcile(true) // records an ETag
-		before, puts := api.notModified, api.puts.Load()
+		before, puts := api.notModified.Load(), api.puts.Load()
 		dm := get()
 		require.NotEmpty(t, dm.Status.Etag)
 		dm.Spec.Message = "new message"
 		require.NoError(t, r.client.Update(context.TODO(), dm))
 		_, err := r.Reconcile(context.TODO(), get())
 		require.NoError(t, err)
-		assert.Equal(t, before+1, api.notModified, "the existence check gets Not Modified")
+		assert.Equal(t, before+1, api.notModified.Load(), "the existence check gets Not Modified")
 		assert.Equal(t, puts+1, api.puts.Load())
 		assert.Empty(t, get().Status.Etag)
+	})
+
+	t.Run("Not Modified with a hash of another scheme updates", func(t *testing.T) {
+		reconcile(true) // records an ETag
+		dm := get()
+		require.NotEmpty(t, dm.Status.Etag)
+		_, md5, _ := strings.Cut(dm.Status.RemoteDefinitionHash, ":")
+		dm.Status.RemoteDefinitionHash = "00000000:" + md5
+		require.NoError(t, r.client.Status().Update(context.TODO(), dm))
+		before, puts := api.notModified.Load(), api.puts.Load()
+		synced := reconcile(true)
+		assert.Equal(t, before+1, api.notModified.Load())
+		assert.Equal(t, puts+1, api.puts.Load(), "a hash of another scheme does not prove the definition unchanged")
+		assert.True(t, controllerutils.HasCurrentMonitorHashScheme(synced.Status.RemoteDefinitionHash))
+	})
+
+	t.Run("failed state poll keeps the last state", func(t *testing.T) {
+		before := get().Status
+		require.NotEmpty(t, before.MonitorState)
+		api.failGets.Store(true)
+		defer api.failGets.Store(false)
+		polled := reconcile(false)
+		assert.Equal(t, before.MonitorState, polled.Status.MonitorState)
+		assert.Equal(t, datadoghqv1alpha1.MonitorStateSyncStatusGetError, polled.Status.MonitorStateSyncStatus)
+		assert.True(t, polled.Status.MonitorStateLastUpdateTime.Time.Before(time.Now().Add(-time.Minute)), "a failed poll does not count as an update")
 	})
 }

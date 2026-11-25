@@ -418,7 +418,9 @@ func setStatePollingDisabled(status *v1alpha1.DatadogGenericResourceStatus, now 
 // has that hash. A Not Modified read leaves the ETag unchanged.
 func recordETag(read remoteRead, status *v1alpha1.DatadogGenericResourceStatus) bool {
 	if read.NotModified {
-		return true
+		// The stored hash vouches for the definition only if this release
+		// computes hashes the same way.
+		return utils.HasCurrentMonitorHashScheme(status.RemoteDefinitionHash)
 	}
 	unchanged := read.Hash != "" && read.Hash == status.RemoteDefinitionHash
 	status.Etag = ""
