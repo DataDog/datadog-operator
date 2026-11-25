@@ -19,6 +19,7 @@ var (
 	mockCreateErr          error
 	mockCreateCalls        int
 	mockGetCalls           int
+	mockGetIDs             []string
 	mockUpdateCalls        int
 	mockDeleteCalls        int
 	mockRefreshStateCalls  int
@@ -42,8 +43,9 @@ func (h *MockHandler) createResource(context.Context, *v1alpha1.DatadogGenericRe
 	}, nil
 }
 
-func (h *MockHandler) getResource(context.Context, *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) getResource(_ context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	mockGetCalls++
+	mockGetIDs = append(mockGetIDs, instance.Status.Id)
 	return mockGetErr
 }
 
@@ -74,6 +76,7 @@ func resetMockHandlerState() {
 	mockCreateErr = nil
 	mockCreateCalls = 0
 	mockGetCalls = 0
+	mockGetIDs = nil
 	mockUpdateCalls = 0
 	mockDeleteCalls = 0
 	mockRefreshStateCalls = 0

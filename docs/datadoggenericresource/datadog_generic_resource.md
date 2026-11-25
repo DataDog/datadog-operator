@@ -177,6 +177,58 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
 
+## Adopting an existing Datadog resource
+
+By default, a `DatadogGenericResource` creates a new Datadog object and stores its ID in `.status.id`. To manage an object that already exists instead, for example one created in the Datadog UI, with the API, with Terraform, or by a `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO`, set its ID in `spec.id`. The object keeps its ID, its history, and every reference to it, such as composite monitors, SLOs, and dashboard links.
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: checkout-latency
+spec:
+  type: monitor
+  id: "123456789"
+  jsonSpec: |-
+    {
+      "name": "Checkout latency",
+      "type": "query alert",
+      "query": "avg(last_5m):avg:trace.http.request.duration{service:checkout} > 0.5",
+      "message": "Checkout latency is high @slack-checkout",
+      "tags": ["team:checkout"],
+      "options": {"thresholds": {"critical": 0.5}}
+    }
+```
+
+`jsonSpec` is the source of truth: the Operator reads the object to check that it exists, records the ID in `.status.id` with an `Adopted` condition and event, then writes `jsonSpec` to the object. Build `jsonSpec` from the current definition of the object, as described in the [migration guide](datadog_generic_resource_migration.md#export-the-datadog-definition), so that the first update doesn't change it unexpectedly.
+
+```shell
+kubectl apply -f checkout-latency.yaml
+kubectl wait --for=condition=Adopted datadoggenericresource/checkout-latency
+```
+
+While `spec.id` is set, the Operator **never creates a replacement object**:
+
+| Situation | Behavior |
+| --- | --- |
+| The object doesn't exist, or `spec.type` doesn't match it | Error condition with reason `AdoptionTargetNotFound`. Nothing is created. The Operator retries at the force sync period. |
+| The API keys can't read the object (401, 403) | Error condition with reason `AdoptionForbidden`. Nothing is created. |
+| `spec.id` has the wrong format for `spec.type` | Error condition with reason `AdoptionInvalidID`, and no Datadog API call until the spec changes. Monitor and notebook IDs are integers, dashboard and synthetic test IDs look like `abc-def-ghi`, downtime and monitor notification rule IDs are UUIDs. |
+| `spec.type` is `software_catalog_entity` | Error condition with reason `AdoptionUnsupportedType`. Entities are upserted by kind, namespace and name, so a `DatadogGenericResource` without `spec.id` already updates an existing entity. |
+| Another `DatadogGenericResource` in the cluster manages or adopts the same object | Error condition with reason `AdoptionConflict`, naming the other resource. A resource that already manages the object keeps it. Between two resources waiting to adopt it, the oldest one adopts it. |
+| The adopted object is deleted in Datadog | Error condition with reason `AdoptedResourceNotFound`. The object is not recreated: restore it, or remove `spec.id` to let the Operator create a new one. |
+| `spec.id` is changed after the adoption | Error condition with reason `IDMismatch`, and no Datadog API call. Revert the change, or delete and recreate the resource. |
+| `spec.id` is removed after the adoption | The Operator keeps managing the same object, but a later deletion in Datadog recreates it with a new ID. |
+| `spec.id` is added to a resource that already manages the object, with the ID in `.status.id` | Accepted with no Datadog API call. This lets you write the ID back into your manifests. |
+
+Deleting an adopted resource deletes the Datadog object, like any other `DatadogGenericResource`. To keep it, use the [orphan management policy](../management_policy.md).
+
+Things to know before adopting:
+
+* Only one manager should write to an object. Remove the object from the previous manager first: for Terraform, run `terraform state rm` or use a `removed` block with `lifecycle { destroy = false }`; for a `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO`, delete it with the [orphan management policy](../management_policy.md) so that the object isn't deleted. Managers in other clusters or tools are not detected.
+* Datadog UI edits are reverted at each force sync, as for any `DatadogGenericResource`.
+* If you downgrade the Operator, finish adoptions first. An older CRD drops `spec.id`, so a resource that isn't adopted yet (empty `.status.id`) would create a new object.
+
 ## Controller tuning
 
 The `DatadogGenericResource` controller exposes several tuning options for large installations or load tests.

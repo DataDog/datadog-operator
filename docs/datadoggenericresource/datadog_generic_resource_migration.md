@@ -8,7 +8,7 @@ DDGR uses the JSON payload accepted by the Datadog API for each resource type. T
 
 * Enable the DDGR CRD and controller with `datadogCRDs.crds.datadogGenericResources=true` and `datadogGenericResource.enabled=true`.
 * Keep the original Kubernetes resource until you have validated the new DDGR-managed Datadog resource.
-* Expect DDGR to create a new Datadog object with a new Datadog ID. DDGR does not adopt an existing object by copying its ID into the manifest.
+* Without `spec.id`, DDGR creates a new Datadog object with a new Datadog ID. To keep the existing object and its ID instead, set `spec.id`, and delete the old resource with the orphan management policy first. See [Adopting an existing Datadog resource](datadog_generic_resource.md#adopting-an-existing-datadog-resource).
 * Plan any external references that use Datadog IDs. For example, composite monitors and SLOs that reference monitor IDs must be updated if the migration creates replacement monitors.
 
 ## Export the Datadog definition

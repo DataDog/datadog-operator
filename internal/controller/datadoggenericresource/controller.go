@@ -29,7 +29,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
@@ -156,8 +155,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	status := instance.Status.DeepCopy()
 	condition.RemoveStatusCondition(&status.Conditions, condition.DatadogConditionTypeOrphaned)
 
+	if !checkSpecID(instance, status, now) {
+		// Only a spec change, which triggers a reconcile, can fix this.
+		return r.updateStatusIfNeeded(ctx, instance, status, ctrl.Result{RequeueAfter: r.forceSyncPeriod})
+	}
+
 	statusSpecHash := instance.Status.CurrentHash
-	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
+	instanceSpecHash, err := specHash(&instance.Spec)
 
 	if err != nil {
 		logger.Error(err, "error generating hash")
@@ -165,12 +169,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		return r.updateStatusIfNeeded(ctx, instance, status, result)
 	}
 
+	shouldAdopt := false
 	shouldCreate := false
 	shouldUpdate := false
 	shouldRefreshStatus := false
 
 	if instance.Status.Id == "" {
-		shouldCreate = true
+		if instance.Spec.ID != "" {
+			shouldAdopt = true
+		} else {
+			shouldCreate = true
+		}
 	} else {
 		if instanceSpecHash != statusSpecHash {
 			logger.Info("DatadogGenericResource manifest has changed")
@@ -194,7 +203,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
-					shouldCreate = true
+					if instance.Spec.ID != "" {
+						// Never replace an adopted resource: the user decides
+						// whether to restore it or to drop spec.id.
+						setAdoptedResourceNotFound(status, now, instance, err)
+						result.RequeueAfter = r.forceSyncPeriod
+					} else {
+						shouldCreate = true
+					}
 				}
 				// Do not advance LastForceSyncTime here: leaving it stale lets the next
 				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
@@ -235,11 +251,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 	}
 
-	if shouldCreate || shouldUpdate {
+	if shouldAdopt || shouldCreate || shouldUpdate {
 
-		if shouldCreate {
+		switch {
+		case shouldAdopt:
+			err = r.adopt(ctx, auth, handler, instance, status, now)
+			if err == nil {
+				// Write jsonSpec to the adopted resource right away.
+				result.Requeue = true
+			}
+		case shouldCreate:
 			err = r.create(ctx, auth, handler, instance, status, now, instanceSpecHash)
-		} else if shouldUpdate {
+		case shouldUpdate:
 			err = r.update(ctx, auth, handler, instance, status, now, instanceSpecHash)
 		}
 
@@ -253,7 +276,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 		if err != nil {
 			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
-			if ctrutils.IsPermanentAPIError(err) {
+			if retryAfter, ok := errors.AsType[*retryAfterError](err); ok {
+				result.RequeueAfter = retryAfter.after
+			} else if ctrutils.IsPermanentAPIError(err) {
 				result.RequeueAfter = r.forceSyncPeriod
 			} else {
 				result.RequeueAfter = defaultErrRequeuePeriod
@@ -339,6 +364,13 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 		err = handler.updateResource(auth, instance)
 	}
 	if err != nil {
+		if strings.Contains(err.Error(), ctrutils.NotFoundString) && instance.Spec.ID != "" {
+			// Never replace an adopted resource: the user decides whether to
+			// restore it or to drop spec.id.
+			logger.Error(err, "adopted generic resource missing in Datadog during update; not recreating it", "generic resource Id", instance.Status.Id)
+			setAdoptedResourceNotFound(status, now, instance, err)
+			return err
+		}
 		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 			// If the remote resource was deleted out-of-band after we stored its ID,
 			// treat an update-time 404 as drift from the Kubernetes source of truth

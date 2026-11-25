@@ -3,12 +3,15 @@ package datadoggenericresource
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 type SyntheticsAPITestHandler struct {
@@ -26,6 +29,9 @@ func (h *SyntheticsAPITestHandler) createResource(auth context.Context, instance
 func (h *SyntheticsAPITestHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := getSyntheticsTest(auth, h.client, instance.Status.Id)
 	return err
+}
+func (h *SyntheticsAPITestHandler) getResourceToAdopt(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	return getSyntheticsTestOfType(auth, h.client, instance.Status.Id, datadogV1.SYNTHETICSTESTDETAILSTYPE_API)
 }
 func (h *SyntheticsAPITestHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateSyntheticsAPITest(auth, h.client, instance)
@@ -50,6 +56,9 @@ func (h *SyntheticsBrowserTestHandler) createResource(auth context.Context, inst
 func (h *SyntheticsBrowserTestHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := getSyntheticsTest(auth, h.client, instance.Status.Id)
 	return err
+}
+func (h *SyntheticsBrowserTestHandler) getResourceToAdopt(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	return getSyntheticsTestOfType(auth, h.client, instance.Status.Id, datadogV1.SYNTHETICSTESTDETAILSTYPE_BROWSER)
 }
 func (h *SyntheticsBrowserTestHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateSyntheticsBrowserTest(auth, h.client, instance)
@@ -93,6 +102,22 @@ func getSyntheticsTest(auth context.Context, client *datadogV1.SyntheticsApi, te
 		return datadogV1.SyntheticsTestDetailsWithoutSteps{}, translateClientError(err, httpResp, "error getting synthetic test")
 	}
 	return test, nil
+}
+
+// getSyntheticsTestOfType gets a test and checks its type. The endpoint
+// returns tests of every type, so without this check a browser test could be
+// adopted as an API test, or the other way around. A test of another type is
+// reported like a missing one. Only adoption checks the type: on a managed
+// test, a 404 would recreate it.
+func getSyntheticsTestOfType(auth context.Context, client *datadogV1.SyntheticsApi, testID string, want datadogV1.SyntheticsTestDetailsType) error {
+	test, err := getSyntheticsTest(auth, client, testID)
+	if err != nil {
+		return err
+	}
+	if got, ok := test.GetTypeOk(); ok && *got != want {
+		return ctrutils.NewAPIError(fmt.Errorf("synthetic test %s is a %s test, not a %s test: %s", testID, *got, want, ctrutils.NotFoundString), &http.Response{StatusCode: http.StatusNotFound})
+	}
+	return nil
 }
 
 // Synthetic tests (encompass browser and API tests): delete
