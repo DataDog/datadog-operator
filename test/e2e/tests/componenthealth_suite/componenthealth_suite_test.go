@@ -263,9 +263,10 @@ func podHasEnv(pod *corev1.Pod, name string) bool {
 	return false
 }
 
-// registerDatadogResourceCleanup deletes the DatadogAgent/DatadogAgentInternal
-// CRs while the operator is still running, so CRD teardown during Pulumi destroy
-// does not deadlock on operator finalizers (mirrors the untaint suite).
+// registerDatadogResourceCleanup deletes the DatadogAgent CRs (their finalizer
+// deletes the DatadogAgentInternals) while the operator is still running, so CRD
+// teardown during Pulumi destroy does not deadlock on operator finalizers
+// (mirrors the untaint suite).
 func (s *componentHealthSuite) registerDatadogResourceCleanup() {
 	s.T().Cleanup(func() {
 		k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig
@@ -274,8 +275,8 @@ func (s *componentHealthSuite) registerDatadogResourceCleanup() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
-			s.T().Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+		if err := utils.DeleteAllDatadogAgents(ctx, k8sConfig, common.NamespaceName); err != nil {
+			s.T().Logf("Warning: failed to delete DatadogAgents during cleanup: %v", err)
 		}
 	})
 }

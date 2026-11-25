@@ -23,8 +23,8 @@ func (s *untaintSuite) TestAgentOnlyUntaintFlow() {
 	}
 	ctx := s.T().Context()
 
-	// Delete DatadogAgent/DatadogAgentInternal CRs before the Pulumi stack
-	// destroy so CRD deletion doesn't deadlock on operator finalizers.
+	// Delete the DatadogAgent CRs (their finalizer deletes the DatadogAgentInternals)
+	// before the Pulumi stack destroy so CRD deletion doesn't deadlock on operator finalizers.
 	s.registerDatadogResourceCleanup()
 
 	// Deploy the workload at the parent-test level so its cleanup is scoped to the
@@ -67,8 +67,8 @@ func (s *untaintSuite) TestWaitForCSIUntaintFlow() {
 	}
 	ctx := s.T().Context()
 
-	// Delete DatadogAgent/DatadogAgentInternal CRs before the Pulumi stack
-	// destroy so CRD deletion doesn't deadlock on operator finalizers.
+	// Delete the DatadogAgent CRs (their finalizer deletes the DatadogAgentInternals)
+	// before the Pulumi stack destroy so CRD deletion doesn't deadlock on operator finalizers.
 	s.registerDatadogResourceCleanup()
 
 	// Deploy the workload at the parent-test level (see note in TestAgentOnlyUntaintFlow):
