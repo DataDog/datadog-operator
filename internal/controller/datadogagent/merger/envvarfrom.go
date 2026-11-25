@@ -45,8 +45,8 @@ func (impl *envFromVarManagerImpl) AddEnvFromVar(newEnvFromVar *corev1.EnvFromSo
 }
 
 func (impl *envFromVarManagerImpl) AddEnvFromVarWithMergeFunc(newEnvFromVar *corev1.EnvFromSource, mergeFunc EnvFromSourceFromMergeFunction) error {
-	for id, cont := range impl.podTmpl.Spec.Containers {
-		if _, ok := AllAgentContainers[common.AgentContainerName(cont.Name)]; ok {
+	for id := range impl.podTmpl.Spec.Containers {
+		if _, ok := AllAgentContainers[common.AgentContainerName(impl.podTmpl.Spec.Containers[id].Name)]; ok {
 			_, err := AddEnvFromSourceFromToContainer(&impl.podTmpl.Spec.Containers[id], newEnvFromVar, mergeFunc)
 			if err != nil {
 				return err
@@ -111,7 +111,8 @@ func OverrideCurrentEnvFromSourceFromMergeFunction(current, newEnv *corev1.EnvFr
 // AddEnvFromSourceFromToContainer use to add an EnvFromSource to container.
 func AddEnvFromSourceFromToContainer(container *corev1.Container, envFromSource *corev1.EnvFromSource, mergeFunc EnvFromSourceFromMergeFunction) ([]corev1.EnvFromSource, error) {
 	var found bool
-	for id, cEnvFromSource := range container.EnvFrom {
+	for id := range container.EnvFrom {
+		cEnvFromSource := &container.EnvFrom[id]
 		if cEnvFromSource.ConfigMapRef != nil && envFromSource.ConfigMapRef != nil && cEnvFromSource.ConfigMapRef.Name == envFromSource.ConfigMapRef.Name {
 			found = true
 		} else if cEnvFromSource.SecretRef != nil && envFromSource.SecretRef != nil && cEnvFromSource.SecretRef.Name == envFromSource.SecretRef.Name {
@@ -120,13 +121,14 @@ func AddEnvFromSourceFromToContainer(container *corev1.Container, envFromSource 
 
 		if found {
 			if mergeFunc == nil {
-				mergeFunc = DefaultEnvFromSourceFromMergeFunction
+				envFromSource.DeepCopyInto(cEnvFromSource)
+			} else {
+				newEnvFromSource, err := mergeFunc(cEnvFromSource, envFromSource)
+				if err != nil {
+					return nil, err
+				}
+				container.EnvFrom[id] = *newEnvFromSource
 			}
-			newEnvFromSource, err := mergeFunc(&cEnvFromSource, envFromSource)
-			if err != nil {
-				return nil, err
-			}
-			container.EnvFrom[id] = *newEnvFromSource
 		}
 	}
 	if !found {

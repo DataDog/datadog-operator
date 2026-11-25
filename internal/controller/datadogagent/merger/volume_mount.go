@@ -38,21 +38,21 @@ type volumeMountManagerImpl struct {
 }
 
 func (impl *volumeMountManagerImpl) AddVolumeMount(volumeMount *corev1.VolumeMount) {
-	_ = impl.AddVolumeMountWithMergeFunc(volumeMount, DefaultVolumeMountMergeFunction)
+	_ = impl.AddVolumeMountWithMergeFunc(volumeMount, nil)
 }
 
 func (impl *volumeMountManagerImpl) AddVolumeMountToContainer(volumeMount *corev1.VolumeMount, containerName common.AgentContainerName) {
-	for id, container := range impl.podTmpl.Spec.Containers {
-		if container.Name == string(containerName) {
-			_, _ = AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, DefaultVolumeMountMergeFunction)
+	for id := range impl.podTmpl.Spec.Containers {
+		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
+			_, _ = AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, nil)
 		}
 	}
 }
 
 func (impl *volumeMountManagerImpl) AddVolumeMountToInitContainer(volumeMount *corev1.VolumeMount, containerName common.AgentContainerName) {
-	for id, container := range impl.podTmpl.Spec.InitContainers {
-		if container.Name == string(containerName) {
-			_, _ = AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.InitContainers[id], volumeMount, DefaultVolumeMountMergeFunction)
+	for id := range impl.podTmpl.Spec.InitContainers {
+		if impl.podTmpl.Spec.InitContainers[id].Name == string(containerName) {
+			_, _ = AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.InitContainers[id], volumeMount, nil)
 		}
 	}
 }
@@ -64,8 +64,8 @@ func (impl *volumeMountManagerImpl) AddVolumeMountToContainers(volumeMount *core
 }
 
 func (impl *volumeMountManagerImpl) AddVolumeMountWithMergeFunc(volumeMount *corev1.VolumeMount, volumeMountMergeFunc VolumeMountMergeFunction) error {
-	for id, cont := range impl.podTmpl.Spec.Containers {
-		if _, ok := AllAgentContainers[common.AgentContainerName(cont.Name)]; ok {
+	for id := range impl.podTmpl.Spec.Containers {
+		if _, ok := AllAgentContainers[common.AgentContainerName(impl.podTmpl.Spec.Containers[id].Name)]; ok {
 			if _, err := AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, volumeMountMergeFunc); err != nil {
 				return err
 			}
@@ -75,8 +75,8 @@ func (impl *volumeMountManagerImpl) AddVolumeMountWithMergeFunc(volumeMount *cor
 }
 
 func (impl *volumeMountManagerImpl) AddVolumeMountToContainerWithMergeFunc(volumeMount *corev1.VolumeMount, containerName common.AgentContainerName, volumeMountMergeFunc VolumeMountMergeFunction) error {
-	for id, container := range impl.podTmpl.Spec.Containers {
-		if container.Name == string(containerName) {
+	for id := range impl.podTmpl.Spec.Containers {
+		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
 			_, err := AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, volumeMountMergeFunc)
 			return err
 		}
@@ -88,16 +88,17 @@ func (impl *volumeMountManagerImpl) AddVolumeMountToContainerWithMergeFunc(volum
 // the mergeFunc can be provided to change the default merge behavior
 func AddVolumeMountToContainerWithMergeFunc(container *corev1.Container, volumeMount *corev1.VolumeMount, mergeFunc VolumeMountMergeFunction) ([]corev1.VolumeMount, error) {
 	var found bool
-	for id, cVolumeMount := range container.VolumeMounts {
-		if volumeMount.Name == cVolumeMount.Name || volumeMount.MountPath == cVolumeMount.MountPath {
+	for id := range container.VolumeMounts {
+		if volumeMount.Name == container.VolumeMounts[id].Name || volumeMount.MountPath == container.VolumeMounts[id].MountPath {
 			if mergeFunc == nil {
-				mergeFunc = DefaultVolumeMountMergeFunction
+				volumeMount.DeepCopyInto(&container.VolumeMounts[id])
+			} else {
+				newVolumeMount, err := mergeFunc(&container.VolumeMounts[id], volumeMount)
+				if err != nil {
+					return nil, err
+				}
+				container.VolumeMounts[id] = *newVolumeMount
 			}
-			newVolumeMount, err := mergeFunc(&cVolumeMount, volumeMount)
-			if err != nil {
-				return nil, err
-			}
-			container.VolumeMounts[id] = *newVolumeMount
 			found = true
 		}
 	}

@@ -74,16 +74,17 @@ func ErrorOnMergeAttemptdPortMergeFunction(current, newPort *corev1.ContainerPor
 // AddPortToContainer used to add an Port to a container
 func AddPortToContainer(container *corev1.Container, newPort *corev1.ContainerPort, mergeFunc PortMergeFunction) ([]corev1.ContainerPort, error) {
 	var found bool
-	for id, cPort := range container.Ports {
-		if cPort.Name == newPort.Name {
+	for id := range container.Ports {
+		if container.Ports[id].Name == newPort.Name {
 			if mergeFunc == nil {
-				mergeFunc = DefaultPortMergeFunction
+				newPort.DeepCopyInto(&container.Ports[id])
+			} else {
+				mergedPort, err := mergeFunc(&container.Ports[id], newPort)
+				if err != nil {
+					return nil, err
+				}
+				container.Ports[id] = *mergedPort
 			}
-			mergedPort, err := mergeFunc(&cPort, newPort)
-			if err != nil {
-				return nil, err
-			}
-			container.Ports[id] = *mergedPort
 			found = true
 		}
 	}
