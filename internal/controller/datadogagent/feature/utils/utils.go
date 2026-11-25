@@ -54,6 +54,7 @@ const (
 	KueueConfigAnnotation         = "agent.datadoghq.com/kueue-config"
 
 	EnableKAISchedulerAnnotation = "agent.datadoghq.com/kai-scheduler-enabled"
+	KAISchedulerConfigAnnotation = "agent.datadoghq.com/kai-scheduler-config"
 
 	// DefaultAgentIpcPort and DefaultAgentIpcConfigRefreshInterval configure config sync, which
 	// serves resolved config (notably a secret-backed api_key) from the core agent to sub-processes.

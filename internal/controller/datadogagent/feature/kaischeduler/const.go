@@ -17,6 +17,8 @@ import (
 const (
 	// DDClusterAgentKAISchedulerEnabled enables KAI PodGroup collection in the Cluster Agent
 	DDClusterAgentKAISchedulerEnabled = "DD_CLUSTER_AGENT_KAI_SCHEDULER_ENABLED"
+	// DDClusterAgentKAISchedulerEventsEnabled makes the Cluster Agent leader emit the KAI PodGroup events
+	DDClusterAgentKAISchedulerEventsEnabled = "DD_CLUSTER_AGENT_KAI_SCHEDULER_EVENTS_ENABLED"
 	// DDGPUKAISchedulerEnabled enables the mapping of KAI fractional GPUs in the node Agent
 	DDGPUKAISchedulerEnabled = "DD_GPU_KAI_SCHEDULER_ENABLED"
 
@@ -24,6 +26,8 @@ const (
 
 	// Add "-0" so that prerelease versions are considered sufficient.
 	kaiSchedulerMinVersion = "7.86.0-0"
+	// Minimum Cluster Agent version with the job_scheduler_events check.
+	clusterAgentEventsMinVersion = "7.87.0-0"
 )
 
 // Cluster Agent: KAI PodGroup workloadmeta collector.

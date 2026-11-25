@@ -189,6 +189,72 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				},
 			}),
 		},
+		{
+			Name: "Kueue Cluster Agent events with Cluster Agent 7.87.0",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kueueAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterChecksEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, false), false),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName), DDClusterAgentKueueEventsEnabled),
+		},
+		{
+			Name: "Kueue Cluster Agent events with prerelease Cluster Agent overrides collectWorkloadEvents",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kueueAnnotations(`{"clusterAgentEvents":true,"collectWorkloadEvents":true}`)).
+				WithClusterChecksEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0-rc.1").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, false), false),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName), DDClusterAgentKueueEventsEnabled),
+		},
+		{
+			Name: "Kueue Cluster Agent events without cluster checks",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kueueAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterChecksEnabled(false).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: metadataOnlyDepsWantFunc,
+			ClusterAgent:         clusterAgentWantFunc(nil, DDClusterAgentKueueEventsEnabled),
+		},
+		{
+			Name: "Kueue Cluster Agent events with Cluster Agent too old keeps node events",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kueueAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterChecksEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
+		},
+		{
+			Name: "Kueue Cluster Agent events with unparsable Cluster Agent tag keeps node events",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kueueAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterChecksEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:my-custom-build").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
+		},
+		{
+			Name: "Kueue Cluster Agent events set to false",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kueueAnnotations(`{"clusterAgentEvents":false}`)).
+				WithClusterChecksEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
+		},
 	}
 	for _, tc := range []struct {
 		name   string
@@ -203,6 +269,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 		{name: "ConfigMap item without key", config: `{"conf":{"configMap":{"name":"user-kueue","items":[{"path":"conf.yaml"}]}}}`},
 		{name: "ConfigMap item without path", config: `{"conf":{"configMap":{"name":"user-kueue","items":[{"key":"conf.yaml"}]}}}`},
 		{name: "trailing JSON value", config: `{} {}`},
+		{name: "non-boolean clusterAgentEvents", config: `{"clusterAgentEvents":"yes"}`},
 	} {
 		tests = append(tests, test.FeatureTest{
 			Name: "Kueue rejects " + tc.name,
@@ -216,6 +283,13 @@ func Test_kueueFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildKueueFeature)
+}
+
+func kueueAnnotations(config string) map[string]string {
+	return map[string]string{
+		"agent.datadoghq.com/kueue-enabled": "true",
+		"agent.datadoghq.com/kueue-config":  config,
+	}
 }
 
 func basicVolume(cmName string) *corev1.Volume {
@@ -255,16 +329,17 @@ func assertClusterRoles(t testing.TB, s store.StoreClient, wantNodeRole bool) {
 	}
 }
 
-// clusterAgentWantFunc checks the Cluster Agent env var, and the check volume when wantVolume is set.
-func clusterAgentWantFunc(wantVolume *corev1.Volume) *test.ComponentTest {
+// clusterAgentWantFunc checks the Cluster Agent env vars (the enabled one plus extraEnvNames, set to "true"), and the check volume when wantVolume is set.
+func clusterAgentWantFunc(wantVolume *corev1.Volume, extraEnvNames ...string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			assert.Equal(t,
-				[]*corev1.EnvVar{{Name: DDClusterAgentKueueEnabled, Value: "true"}},
-				mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName],
-			)
+			wantEnv := []*corev1.EnvVar{{Name: DDClusterAgentKueueEnabled, Value: "true"}}
+			for _, name := range extraEnvNames {
+				wantEnv = append(wantEnv, &corev1.EnvVar{Name: name, Value: "true"})
+			}
+			assert.Equal(t, wantEnv, mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName])
 
 			mounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
 			if wantVolume == nil {

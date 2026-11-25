@@ -50,8 +50,10 @@ type kueueFeature struct {
 	// collection is enabled.
 	checkEnabled          bool
 	collectWorkloadEvents bool
-	serviceName           string
-	serviceNamespace      string
+	// clusterAgentEvents is true when the Cluster Agent leader emits the Workload events.
+	clusterAgentEvents bool
+	serviceName        string
+	serviceNamespace   string
 
 	clusterAgentServiceAccountName string
 	agentServiceAccountName        string
@@ -66,9 +68,12 @@ type kueueFeature struct {
 // kueueConfig is experimental and deliberately absent from the DatadogAgent CRD.
 // The annotation can be changed without committing to a stable API shape.
 type kueueConfig struct {
-	CollectWorkloadEvents *bool                  `json:"collectWorkloadEvents,omitempty"`
-	MetricsService        *kueueMetricsService   `json:"metricsService,omitempty"`
-	Conf                  *v2alpha1.CustomConfig `json:"conf,omitempty"`
+	CollectWorkloadEvents *bool `json:"collectWorkloadEvents,omitempty"`
+	// ClusterAgentEvents makes the Cluster Agent leader emit the Workload events
+	// (job_scheduler_events check) and turns them off in the node Agent check.
+	ClusterAgentEvents *bool                  `json:"clusterAgentEvents,omitempty"`
+	MetricsService     *kueueMetricsService   `json:"metricsService,omitempty"`
+	Conf               *v2alpha1.CustomConfig `json:"conf,omitempty"`
 }
 
 type kueueMetricsService struct {
@@ -158,6 +163,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 
 	reqComp.ClusterAgent.IsRequired = new(true)
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+	f.clusterAgentEvents = f.useClusterAgentEvents(kueue, ddaSpec)
 	f.clusterAgentServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	if !constants.IsClusterChecksEnabled(ddaSpec) {
@@ -179,7 +185,8 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 		f.logger.Info("Warning: global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
 	}
 
-	f.collectWorkloadEvents = kueue.CollectWorkloadEvents == nil || *kueue.CollectWorkloadEvents
+	// The node check must not emit the events the Cluster Agent already sends.
+	f.collectWorkloadEvents = !f.clusterAgentEvents && (kueue.CollectWorkloadEvents == nil || *kueue.CollectWorkloadEvents)
 	f.serviceName = defaultMetricsServiceName
 	f.serviceNamespace = defaultMetricsServiceNamespace
 	if svc := kueue.MetricsService; svc != nil {
@@ -195,6 +202,24 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	f.configMapName = constants.GetConfName(dda, f.customConfig, defaultKueueConf)
 
 	return reqComp
+}
+
+// useClusterAgentEvents returns true when the Workload events are requested in the Cluster Agent
+// and the Cluster Agent image contains the job_scheduler_events check. The node check keeps
+// sending the events otherwise, so they are never lost. A version that cannot be parsed is
+// treated as too old.
+func (f *kueueFeature) useClusterAgentEvents(kueue kueueConfig, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if kueue.ClusterAgentEvents == nil || !*kueue.ClusterAgentEvents {
+		return false
+	}
+	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), clusterAgentEventsMinVersion, new(false)) {
+		f.logger.Info("Kueue Workload events in the Cluster Agent require Cluster Agent >= 7.87.0; the node Agent check keeps sending them")
+		return false
+	}
+	if kueue.Conf != nil && (kueue.Conf.ConfigMap != nil || (kueue.Conf.ConfigData != nil && *kueue.Conf.ConfigData != "")) {
+		f.logger.Info("Warning: Kueue Workload events are sent by the Cluster Agent; set collect_workload_events: false in the custom Kueue check configuration or events are sent twice")
+	}
+	return true
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -238,6 +263,12 @@ func (f *kueueFeature) ManageClusterAgent(managers feature.PodTemplateManagers) 
 		Name:  DDClusterAgentKueueEnabled,
 		Value: "true",
 	})
+	if f.clusterAgentEvents {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDClusterAgentKueueEventsEnabled,
+			Value: "true",
+		})
+	}
 
 	if !f.checkEnabled {
 		return nil

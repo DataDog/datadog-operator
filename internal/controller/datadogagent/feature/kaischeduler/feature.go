@@ -6,7 +6,10 @@
 package kaischeduler
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +43,8 @@ func buildKAISchedulerFeature(options *feature.Options) feature.Feature {
 
 type kaiSchedulerFeature struct {
 	clusterAgentEnabled bool
+	// clusterAgentEvents is true when the Cluster Agent leader emits the PodGroup events.
+	clusterAgentEvents bool
 	// gpuEnabled is true when GPU monitoring is enabled, so the node Agent maps KAI fractional GPUs.
 	gpuEnabled bool
 
@@ -48,6 +53,27 @@ type kaiSchedulerFeature struct {
 	owner metav1.Object
 
 	logger logr.Logger
+}
+
+// kaiSchedulerConfig is experimental and deliberately absent from the DatadogAgent CRD.
+type kaiSchedulerConfig struct {
+	// ClusterAgentEvents makes the Cluster Agent leader emit the PodGroup events (job_scheduler_events check).
+	ClusterAgentEvents *bool `json:"clusterAgentEvents,omitempty"`
+}
+
+func decodeKAISchedulerConfig(raw string, config *kaiSchedulerConfig) error {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(config); err != nil {
+		return err
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("multiple JSON values in KAI Scheduler configuration")
+		}
+		return err
+	}
+	return nil
 }
 
 // ID returns the ID of the Feature
@@ -64,8 +90,25 @@ func (f *kaiSchedulerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 		return reqComp
 	}
 
-	if utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), kaiSchedulerMinVersion, nil) {
+	var kai kaiSchedulerConfig
+	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KAISchedulerConfigAnnotation); ok {
+		if err := decodeKAISchedulerConfig(raw, &kai); err != nil {
+			f.logger.Error(err, "invalid KAI Scheduler configuration annotation")
+			return reqComp
+		}
+	}
+
+	clusterAgentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
+	if utils.IsAboveMinVersion(clusterAgentVersion, kaiSchedulerMinVersion, nil) {
 		f.clusterAgentEnabled = true
+		if kai.ClusterAgentEvents != nil && *kai.ClusterAgentEvents {
+			// A version that cannot be parsed is treated as too old, so the node check keeps sending the events.
+			if utils.IsAboveMinVersion(clusterAgentVersion, clusterAgentEventsMinVersion, new(false)) {
+				f.clusterAgentEvents = true
+			} else {
+				f.logger.Info("KAI Scheduler PodGroup events in the Cluster Agent require Cluster Agent >= 7.87.0; not enabling them")
+			}
+		}
 		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		f.clusterAgentServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
@@ -110,6 +153,12 @@ func (f *kaiSchedulerFeature) ManageClusterAgent(managers feature.PodTemplateMan
 		Name:  DDClusterAgentKAISchedulerEnabled,
 		Value: "true",
 	})
+	if f.clusterAgentEvents {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDClusterAgentKAISchedulerEventsEnabled,
+			Value: "true",
+		})
+	}
 	return nil
 }
 
