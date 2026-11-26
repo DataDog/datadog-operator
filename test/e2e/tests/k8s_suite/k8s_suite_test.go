@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
-	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
 
 	"path/filepath"
@@ -23,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
-	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,83 +51,31 @@ func agentStatusCommand(args ...string) []string {
 type k8sSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	local bool
+
+	// scenario and ddaApplied track what applyScenario applied.
+	scenario   *scenarioState
+	ddaApplied bool
 }
 
 func (s *k8sSuite) TestGenericK8s() {
-	defaultOperatorOpts := []operatorparams.Option{
-		operatorparams.WithNamespace(common.NamespaceName),
-		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		// RBAC/CRDs are installed via our e2e kustomize (`config/new-e2e`, namePrefix: datadog-operator-e2e-).
-		// Ensure the Helm-installed operator uses the same ServiceAccount (and doesn't create its own RBAC),
-		// otherwise it may run under a different SA (e.g. datadog-operator-linux) lacking new permissions.
-		operatorparams.WithHelmValues(`installCRDs: false
-rbac:
-  create: false
-serviceAccount:
-  create: false
-  name: datadog-operator-e2e-controller-manager
-`),
-	}
-
-	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
-		provisioners.WithK8sVersion(common.K8sVersion),
-		provisioners.WithOperatorOptions(defaultOperatorOpts...),
-		provisioners.WithLocal(s.local),
-	}
-
-	defaultDDAOpts := []agentwithoperatorparams.Option{
-		agentwithoperatorparams.WithNamespace(common.NamespaceName),
-	}
-
-	// --- Suite-level cleanup (registered before any subtests run) ---
-	//
-	// We need to ensure the final env of the suite is left without a DatadogAgent before the
-	// underlying Pulumi teardown happens; otherwise CRD deletion may race with DDA deletion.
-	//
-	// This runs ONCE, at the very end of the whole suite (not after each subtest).
+	// Delete the DatadogAgent before the Pulumi stack destroy, otherwise CRD
+	// deletion may race with DatadogAgent deletion (finalizers). Runs once, at the
+	// end of the whole suite.
 	t := s.T()
-	var lastTestName string
-	updateEnv := func(testName string, opts []provisioners.KubernetesProvisionerOption) {
-		lastTestName = testName
-		s.UpdateEnv(provisioners.KubernetesProvisioner(opts...))
-	}
-	// applyDDA tears down any in-stack DatadogAgent before installing the new
-	// one. Used instead of updateEnv whenever a subtest applies a DDA.
-	//
-	// Why the explicit two-step swap: applying a new DDA on top of a previous
-	// one does delete+create concurrently, which can leave the new agent
-	// DaemonSet pod stuck on resources still owned by the previous DDA. The
-	// most visible cases are:
-	//   - K8s <1.20: the legacy SA-token controller can't keep up with the SA
-	//     delete+create churn during the swap, so the new agent pod sits in
-	//     FailedMount on its auto-generated <sa>-token-<rand> Secret;
-	//   - host-port subtests (APM hostPort, DSD UDP): the previous agent pod
-	//     hasn't released the port yet when the new pod tries to bind.
-	// Both manifest as "agent pod never reaches Running" on the new DDA.
-	applyDDA := func(testName string, opts []provisioners.KubernetesProvisionerOption) {
-		cleanupOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName(testName),
-			provisioners.WithoutDDA(),
-		}
-		cleanupOpts = append(cleanupOpts, defaultProvisionerOpts...)
-		updateEnv(testName, cleanupOpts)
-		updateEnv(testName, opts)
-	}
 	t.Cleanup(func() {
-		if lastTestName == "" {
+		if !s.ddaApplied {
 			return
 		}
-
-		// Delete all Datadog custom resources before Pulumi stack destroy
-		// to avoid CRD deletion timeout due to finalizers.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
+		start := time.Now()
 		if k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig; k8sConfig != nil {
-			if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
-				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+			if err := utils.DeleteAllDatadogAgents(ctx, k8sConfig, common.NamespaceName); err != nil {
+				t.Logf("Warning: failed to delete DatadogAgents during cleanup: %v", err)
 			}
 		}
+		t.Logf("Deleted DatadogAgents before stack destroy in %s", time.Since(start).Round(time.Second))
 	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
@@ -143,23 +88,10 @@ serviceAccount:
 		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
 		assert.NoError(s.T(), err)
 
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-minimum",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-minimal-dda"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		applyDDA("e2e-operator-minimal-dda", provisionerOptions)
+		s.applyScenario(t, scenario{
+			ddaName: "dda-minimum",
+			ddaPath: ddaConfigPath,
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -211,23 +143,10 @@ serviceAccount:
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-process-passwd.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-agent-process-passwd",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-process-passwd"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		applyDDA("e2e-operator-process-passwd", provisionerOptions)
+		s.applyScenario(t, scenario{
+			ddaName: "datadog-agent-process-passwd",
+			ddaPath: ddaConfigPath,
+		})
 
 		selector := common.NodeAgentSelector + ",agent.datadoghq.com/name=datadog-agent-process-passwd"
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
@@ -251,23 +170,10 @@ serviceAccount:
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-ccr-enabled",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-ksm-ccr"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		applyDDA("e2e-operator-ksm-ccr", provisionerOptions)
+		s.applyScenario(t, scenario{
+			ddaName: "datadog-ccr-enabled",
+			ddaPath: ddaConfigPath,
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -294,21 +200,11 @@ serviceAccount:
 		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
 		assert.NoError(s.T(), err)
 
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-autodiscovery"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-			provisioners.WithLocal(s.local),
-		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
-
-		// Add nginx with annotations
-		applyDDA("e2e-operator-autodiscovery", provisionerOptions)
+		s.applyScenario(t, scenario{
+			ddaName:   "dda-autodiscovery",
+			ddaPath:   ddaConfigPath,
+			workloads: []string{strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")},
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -338,23 +234,10 @@ serviceAccount:
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-agent-logs",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-logs-collection"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		applyDDA("e2e-operator-logs-collection", provisionerOptions)
+		s.applyScenario(t, scenario{
+			ddaName: "datadog-agent-logs",
+			ddaPath: ddaConfigPath,
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -381,27 +264,11 @@ serviceAccount:
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-agent-apm",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		ddaProvisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-apm"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{
-				Name: "tracegen-deploy",
-				Path: strings.Join([]string{common.ManifestsPath, "apm", "tracegen-deploy.yaml"}, "/"),
-			}),
-			provisioners.WithLocal(s.local),
-		}
-		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
-
-		// Deploy APM DatadogAgent and tracegen
-		applyDDA("e2e-operator-apm", ddaProvisionerOptions)
+		s.applyScenario(t, scenario{
+			ddaName:   "datadog-agent-apm",
+			ddaPath:   ddaConfigPath,
+			workloads: []string{strings.Join([]string{common.ManifestsPath, "apm", "tracegen-deploy.yaml"}, "/")},
+		})
 
 		// Verify traces collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -436,20 +303,11 @@ serviceAccount:
 		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := append([]agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-dsd-udp",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}, defaultDDAOpts...)
-
-		provisionerOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-udp"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
-		}
-		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		applyDDA("e2e-operator-dsd-udp", provisionerOpts)
+		s.applyScenario(t, scenario{
+			ddaName:   "dda-dsd-udp",
+			ddaPath:   ddaConfigPath,
+			workloads: []string{senderPath},
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -481,20 +339,11 @@ serviceAccount:
 		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := append([]agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-dsd-udp-adp",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}, defaultDDAOpts...)
-
-		provisionerOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-udp-adp"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
-		}
-		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		applyDDA("e2e-operator-dsd-udp-adp", provisionerOpts)
+		s.applyScenario(t, scenario{
+			ddaName:   "dda-dsd-udp-adp",
+			ddaPath:   ddaConfigPath,
+			workloads: []string{senderPath},
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -527,20 +376,11 @@ serviceAccount:
 		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-uds-sender.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := append([]agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-dsd-uds",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}, defaultDDAOpts...)
-
-		provisionerOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-uds"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-uds-sender", Path: senderPath}),
-		}
-		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		applyDDA("e2e-operator-dsd-uds", provisionerOpts)
+		s.applyScenario(t, scenario{
+			ddaName:   "dda-dsd-uds",
+			ddaPath:   ddaConfigPath,
+			workloads: []string{senderPath},
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -573,20 +413,11 @@ serviceAccount:
 		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-uds-sender.yaml"))
 		assert.NoError(s.T(), err)
 
-		ddaOpts := append([]agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-dsd-uds-adp",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}, defaultDDAOpts...)
-
-		provisionerOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-uds-adp"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-uds-sender", Path: senderPath}),
-		}
-		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		applyDDA("e2e-operator-dsd-uds-adp", provisionerOpts)
+		s.applyScenario(t, scenario{
+			ddaName:   "dda-dsd-uds-adp",
+			ddaPath:   ddaConfigPath,
+			workloads: []string{senderPath},
+		})
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)

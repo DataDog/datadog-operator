@@ -242,13 +242,14 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
-	# -p 2 caps how many e2e test binaries build/link in parallel. This target globs
-	# ./... (to keep E2E_RUN_REGEX able to target any suite), so it compiles every
-	# suite binary; each links the full agent dependency tree, and uncapped
-	# parallelism peaked over the 16Gi job limit (OOMKilled) once the suite count
-	# grew. The scoped targets below build a single binary and need no cap.
+	# By default only the k8s_suite package is built: TestAWSKindSuite lives there,
+	# and building every suite binary only to report "no tests to run" took ~1 min.
+	# With E2E_RUN_REGEX, ./... is globbed so the regex can target any suite; -p 2
+	# then caps how many test binaries build/link in parallel, as each links the
+	# full agent dependency tree and uncapped parallelism peaked over the 16Gi job
+	# limit (OOMKilled).
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ -p 2 ./... -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/k8s_suite/ -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
 		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ -p 2 ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \

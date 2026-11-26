@@ -41,7 +41,19 @@ import (
 const (
 	provisionerBaseID      = "aws-kind"
 	defaultProvisionerName = "kind"
+
+	// ImagePullRegistry is the private registry the kind-on-VM provisioner
+	// configures for image pulls (with ImagePullUsername and common.ImgPullPassword).
+	ImagePullRegistry = "669783387624.dkr.ecr.us-east-1.amazonaws.com"
+	// ImagePullUsername is the username paired with ImagePullRegistry.
+	ImagePullUsername = "AWS"
 )
+
+// UsesKindVM reports whether KubernetesProvisioner provisions kind on an AWS VM
+// (always the case in CI) rather than a local kind cluster.
+func UsesKindVM(local bool) bool {
+	return !local || strings.ToLower(os.Getenv("GITLAB_CI")) == "true"
+}
 
 // KubernetesProvisionerParams contains all the parameters needed to create a Kubernetes environment
 type KubernetesProvisionerParams struct {
@@ -129,8 +141,8 @@ func newKindVMExtraConfig(params *KubernetesProvisionerParams) runner.ConfigMap 
 	extraConfig := params.extraConfigParams
 	extraConfig.Merge(runner.ConfigMap{
 		"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
-		"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-		"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
+		"ddagent:imagePullRegistry": auto.ConfigValue{Value: ImagePullRegistry},
+		"ddagent:imagePullUsername": auto.ConfigValue{Value: ImagePullUsername},
 		"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
 	})
 	return extraConfig
@@ -269,9 +281,8 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 
 	params := newKubernetesProvisionerParams()
 	_ = optional.ApplyOptions(params, opts)
-	inCI := os.Getenv("GITLAB_CI")
 
-	if !params.local || strings.ToLower(inCI) == "true" {
+	if UsesKindVM(params.local) {
 		runOpts := newKindVMRunOpts(params)
 		extraConfig := newKindVMExtraConfig(params)
 		provisioner = kindvmprovisioner.Provisioner(
