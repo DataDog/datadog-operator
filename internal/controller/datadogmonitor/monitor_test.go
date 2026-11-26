@@ -33,6 +33,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const dateFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
@@ -223,21 +224,59 @@ func Test_getMonitor(t *testing.T) {
 	mID := 12345
 	expectedMonitor := genericMonitor(mID)
 	jsonMonitor, _ := expectedMonitor.MarshalJSON()
+	const currentETag = `"current"`
+	var gotIfNoneMatch, gotGroupStates string
 	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIfNoneMatch = r.Header.Get("If-None-Match")
+		gotGroupStates = r.URL.Query().Get("group_states")
+		w.Header().Set("ETag", currentETag)
+		if gotIfNoneMatch == currentETag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(jsonMonitor)
 	}))
 	defer httpServer.Close()
 
 	testConfig := datadogapi.NewConfiguration()
-	testConfig.HTTPClient = httpServer.Client()
+	testConfig.HTTPClient = &http.Client{Transport: datadogclient.NewETagTransport(httpServer.Client().Transport)}
 	apiClient := datadogapi.NewAPIClient(testConfig)
 	client := datadogV1.NewMonitorsApi(apiClient)
 	testAuth := setupTestAuth(httpServer.URL)
 
-	val, err := getMonitor(testAuth, client, mID)
-	assert.Nil(t, err)
-	assert.Equal(t, expectedMonitor, val)
+	tests := []struct {
+		name            string
+		etag            string
+		wantIfNoneMatch string
+		want            controllerutils.MonitorRead
+	}{
+		{
+			name: "no stored ETag",
+			want: controllerutils.MonitorRead{Monitor: expectedMonitor, ETag: currentETag},
+		},
+		{
+			name:            "stale ETag",
+			etag:            `"stale"`,
+			wantIfNoneMatch: `"stale"`,
+			want:            controllerutils.MonitorRead{Monitor: expectedMonitor, ETag: currentETag},
+		},
+		{
+			name:            "current ETag",
+			etag:            currentETag,
+			wantIfNoneMatch: currentETag,
+			want:            controllerutils.MonitorRead{ETag: currentETag, NotModified: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val, err := getMonitor(testAuth, client, mID, tt.etag)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, val)
+			assert.Equal(t, tt.wantIfNoneMatch, gotIfNoneMatch)
+			assert.Equal(t, "all", gotGroupStates)
+		})
+	}
 }
 
 func Test_validateMonitor(t *testing.T) {

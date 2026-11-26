@@ -57,12 +57,12 @@ func (h *MockHandler) deleteResource(context.Context, *v1alpha1.DatadogGenericRe
 	return mockDeleteErr
 }
 
-func (h *MockHandler) refreshState(context.Context, *v1alpha1.DatadogGenericResource) (*string, error) {
+func (h *MockHandler) refreshState(context.Context, *v1alpha1.DatadogGenericResource) (remoteRead, error) {
 	mockRefreshStateCalls++
 	if mockRefreshStateErr != nil {
-		return nil, mockRefreshStateErr
+		return remoteRead{}, mockRefreshStateErr
 	}
-	return mockRefreshStateResult, nil
+	return remoteRead{State: mockRefreshStateResult}, nil
 }
 
 func resetMockHandlerState() {

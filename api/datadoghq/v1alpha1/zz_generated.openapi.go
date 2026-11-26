@@ -4328,6 +4328,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 							Format:      "",
 						},
 					},
+					"etag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Etag is the ETag of the last read of the resource whose definition had RemoteDefinitionHash, for resource types that support it. Reads send it in If-None-Match, so a Not Modified response shows that the resource, including its state, has not changed since that read.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"lastForceSyncTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastForceSyncTime is the last time the API object was last force synced with the custom resource",
@@ -5286,6 +5293,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorStatus(ref com
 					"remoteDefinitionHash": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RemoteDefinitionHash is the hash of the monitor definition returned by Datadog after the last successful create or update. A force sync skips the update while the remote monitor still has this hash.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"etag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Etag is the ETag of the last monitor read whose definition had RemoteDefinitionHash. Reads send it in If-None-Match, so a Not Modified response shows that the monitor, including its state, has not changed since that read.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
