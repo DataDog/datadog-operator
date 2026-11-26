@@ -27,9 +27,8 @@ import (
 
 // labelNodesWithProfiles updates profile assignments only for this Agent namespace.
 // legacyLabelInUse keeps the legacy shared label on nodes while DaemonSets still
-// select with it (see agentprofile.LegacyProfileLabelInUse). When nodes is
-// provided (e.g. from an already-fetched NodeList), existing labels are checked
-// in-memory before issuing any API calls.
+// select with it (see agentprofile.LegacyProfileLabelInUse). nodes is the
+// already-listed node slice; nodes missing from it are fetched individually.
 func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string, legacyLabelInUse bool, nodes []corev1.Node) error {
 	profileLabelKey := agentprofile.NodeLabelKey(namespace)
 
@@ -57,43 +56,35 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			}
 		}
 
-		// Determine if any profile label actually needs to be added, updated, or removed
-		// before allocating any maps or deep-copying the Node.
-		var removeProfileLabel, removeLegacyProfileLabel, removeOldProfileLabel, setProfileLabel bool
+		labelsToRemove := map[string]bool{}
+		labelsToAddOrChange := map[string]string{}
+
+		// If the profile is the default one and the label exists in the node,
+		// it should be removed.
 		if isDefaultProfile {
-			// If the profile is the default one and the label exists in the node,
-			// it should be removed.
-			_, removeProfileLabel = node.Labels[profileLabelKey]
-		} else if node.Labels[profileLabelKey] != profileNamespacedName.Name {
+			if _, profileLabelExists := node.Labels[profileLabelKey]; profileLabelExists {
+				labelsToRemove[profileLabelKey] = true
+			}
+		} else {
 			// If the profile is not the default one and the label does not exist in
 			// the node, it should be added. If the label value is outdated, it
 			// should be updated.
-			setProfileLabel = true
+			if profileLabelValue := node.Labels[profileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+				labelsToAddOrChange[profileLabelKey] = profileNamespacedName.Name
+			}
 		}
+
 		// Remove the legacy shared assignment labels during migration, once no
 		// DaemonSet selects nodes with it.
-		if !legacyLabelInUse {
-			_, removeLegacyProfileLabel = node.Labels[constants.ProfileLabelKey]
-		}
-		_, removeOldProfileLabel = node.Labels[agentprofile.OldProfileLabelKey]
-
-		if !removeProfileLabel && !removeLegacyProfileLabel && !removeOldProfileLabel && !setProfileLabel {
-			continue
-		}
-
-		labelsToRemove := map[string]bool{}
-		if removeProfileLabel {
-			labelsToRemove[profileLabelKey] = true
-		}
-		if removeLegacyProfileLabel {
+		if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists && !legacyLabelInUse {
 			labelsToRemove[constants.ProfileLabelKey] = true
 		}
-		if removeOldProfileLabel {
+		if _, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]; oldProfileLabelExists {
 			labelsToRemove[agentprofile.OldProfileLabelKey] = true
 		}
-		labelsToAddOrChange := map[string]string{}
-		if setProfileLabel {
-			labelsToAddOrChange[profileLabelKey] = profileNamespacedName.Name
+
+		if len(labelsToRemove) == 0 && len(labelsToAddOrChange) == 0 {
+			continue
 		}
 
 		ctrl.LoggerFrom(ctx).V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
