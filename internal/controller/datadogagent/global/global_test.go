@@ -1487,14 +1487,14 @@ func Test_ValidateFIPSVersions(t *testing.T) {
 		{
 			name: "error: ddot-ebpf with fips",
 			containers: []corev1.Container{
-				{Image: "gcr.io/datadoghq/ddot-ebpf:7.84.0-fips"},
+				{Image: "gcr.io/datadoghq/ddot-ebpf:7.86.0-fips"},
 			},
 			wantErrors: 1,
 		},
 		{
 			name: "no error: ddot-ebpf without fips",
 			containers: []corev1.Container{
-				{Image: "gcr.io/datadoghq/ddot-ebpf:7.84.0"},
+				{Image: "gcr.io/datadoghq/ddot-ebpf:7.86.0"},
 			},
 			wantErrors: 0,
 		},
