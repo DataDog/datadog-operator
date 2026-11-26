@@ -27,6 +27,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// computeProfileMergeSingle merges a single profile, validating the source DDAI
+// schema itself instead of reusing the per-batch check from applyProfilesToDDAISpec.
+func (r *Reconciler) computeProfileMergeSingle(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
+	return r.computeProfileMerge(ctx, ddai, profile, r.isDDAISchemaValid(ddai), nil)
+}
+
 func Test_ssaMergeCRD(t *testing.T) {
 	sch := k8sruntime.NewScheme()
 	_ = scheme.AddToScheme(sch)
@@ -614,6 +620,44 @@ func Test_computeProfileMerge_EquivalentToFieldManagerApply(t *testing.T) {
 		},
 	})
 
+	// Profiles that configure components which are auto-disabled for user
+	// profiles: the subtree merge handles these separately from the nodeAgent.
+	profiles = append(profiles, &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "profile-auto-disabled-overrides", Namespace: "datadog-agent"},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{Key: "pool", Operator: corev1.NodeSelectorOpIn, Values: []string{"auto-disabled"}},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {
+						Replicas: ptr.To[int32](3),
+						Env:      []corev1.EnvVar{{Name: "DD_DCA_VAR", Value: "profile"}},
+					},
+					v2alpha1.ClusterChecksRunnerComponentName: {
+						Disabled: ptr.To(false),
+					},
+				},
+			},
+		},
+	}, &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "profile-features-only", Namespace: "datadog-agent"},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{Key: "pool", Operator: corev1.NodeSelectorOpIn, Values: []string{"features-only"}},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					NPM: &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	})
+
 	ctx := context.Background()
 	for _, p := range profiles {
 		t.Run(p.Name, func(t *testing.T) {
@@ -634,7 +678,7 @@ func Test_computeProfileMerge_EquivalentToFieldManagerApply(t *testing.T) {
 			assert.NoError(t, err)
 			refObj.ObjectMeta.Annotations[constants.MD5DDAIDeploymentAnnotationKey] = refSpecMD5
 
-			gotObj, err := r.computeProfileMerge(ctx, baseDDAI, p)
+			gotObj, err := r.computeProfileMergeSingle(ctx, baseDDAI, p)
 			assert.NoError(t, err)
 
 			// Verify identical Name, Namespace, Labels, Finalizers, Annotations (including MD5 hash), and semantically identical Spec.

@@ -282,7 +282,7 @@ func BenchmarkComputeProfileMerge_DefaultProfile(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := r.computeProfileMerge(ctx, baseDDAI, &defaultProfile); err != nil {
+		if _, err := r.computeProfileMergeSingle(ctx, baseDDAI, &defaultProfile); err != nil {
 			b.Fatalf("computeProfileMerge failed: %v", err)
 		}
 	}
@@ -297,7 +297,7 @@ func BenchmarkComputeProfileMerge_UserProfile(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := r.computeProfileMerge(ctx, baseDDAI, profile); err != nil {
+		if _, err := r.computeProfileMergeSingle(ctx, baseDDAI, profile); err != nil {
 			b.Fatalf("computeProfileMerge failed: %v", err)
 		}
 	}

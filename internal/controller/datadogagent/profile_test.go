@@ -444,7 +444,7 @@ func Test_computeProfileMerge(t *testing.T) {
 				crd)
 			assert.NoError(t, err)
 
-			ddai, err := r.computeProfileMerge(context.Background(), &tt.ddai, &tt.profile)
+			ddai, err := r.computeProfileMergeSingle(context.Background(), &tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.Name, ddai.Name)
 			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
@@ -516,7 +516,7 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 				fieldManager: fieldManager,
 			}
 
-			mergedDDAI, err := r.computeProfileMerge(context.Background(), ddai, profile)
+			mergedDDAI, err := r.computeProfileMergeSingle(context.Background(), ddai, profile)
 			require.NoError(t, err)
 			require.NotNil(t, mergedDDAI.Spec.Global)
 			require.NotNil(t, mergedDDAI.Spec.Global.Registry)
@@ -615,7 +615,7 @@ func Test_computeProfileMergeHostProfiler(t *testing.T) {
 				fieldManager: fieldManager,
 			}
 
-			mergedDDAI, err := r.computeProfileMerge(context.Background(), ddai, profile)
+			mergedDDAI, err := r.computeProfileMergeSingle(context.Background(), ddai, profile)
 			require.NoError(t, err)
 			require.NotNil(t, mergedDDAI.Spec.Features)
 			assert.Equal(t, tt.want, mergedDDAI.Spec.Features.HostProfiler)

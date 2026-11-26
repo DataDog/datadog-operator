@@ -262,11 +262,11 @@ type profileMergeCacheKey struct {
 	profileName   string
 }
 
+// profileMergeCacheEntry is valid as long as the field manager (CRD schema),
+// the source DDAI fingerprint and the profile fingerprint are unchanged.
 type profileMergeCacheEntry struct {
 	fieldManager   *crdFieldManager
 	sourceHash     [16]byte
-	profileUID     types.UID
-	profileRV      string
 	profileContent [16]byte
 	merged         *v1alpha1.DatadogAgentInternal
 }
@@ -296,6 +296,13 @@ func writeSortedStringMap(h hash.Hash, m map[string]string) {
 	}
 }
 
+// fingerprintSourceDDAI and fingerprintProfileContent must cover every input
+// that computeProfileMerge reads from the source DDAI and the profile. If the
+// merge (for example setProfileSpec or setProfileDDAIMeta) starts reading a new
+// field, add it here too, or the profile merge cache will return stale results.
+//
+// The source DDAI is built in memory from the DatadogAgent, so its metadata is
+// limited to the fields hashed below.
 func fingerprintSourceDDAI(ddai *v1alpha1.DatadogAgentInternal) ([16]byte, bool) {
 	var out [16]byte
 	if ddai == nil || hasPopulatedManagedFields(ddai) {
@@ -348,21 +355,14 @@ func fingerprintProfileContent(profile *v1alpha1.DatadogAgentProfile) ([16]byte,
 	return out, true
 }
 
-func (r *Reconciler) lookupProfileMergeCache(key profileMergeCacheKey, sourceHash [16]byte, profile *v1alpha1.DatadogAgentProfile, profileContent [16]byte, useRV bool) (*v1alpha1.DatadogAgentInternal, bool) {
+func (r *Reconciler) lookupProfileMergeCache(key profileMergeCacheKey, sourceHash, profileContent [16]byte) (*v1alpha1.DatadogAgentInternal, bool) {
 	r.profileMergeMu.RLock()
 	entry, ok := r.profileMergeCache[key]
 	r.profileMergeMu.RUnlock()
 	if !ok {
 		return nil, false
 	}
-	if entry.fieldManager != r.fieldManager || entry.sourceHash != sourceHash {
-		return nil, false
-	}
-	if useRV {
-		if entry.profileUID != profile.UID || entry.profileRV != profile.ResourceVersion {
-			return nil, false
-		}
-	} else if entry.profileContent != profileContent {
+	if entry.fieldManager != r.fieldManager || entry.sourceHash != sourceHash || entry.profileContent != profileContent {
 		return nil, false
 	}
 	return entry.merged.DeepCopy(), true
@@ -449,9 +449,8 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, baseDDAI, defa
 		}
 		activeKeys[cacheKey] = struct{}{}
 
-		useRV := !isDefault && profile.UID != "" && profile.ResourceVersion != ""
 		var profileContent [16]byte
-		if cacheable && !useRV {
+		if cacheable {
 			var ok bool
 			profileContent, ok = fingerprintProfileContent(profile)
 			if !ok {
@@ -460,7 +459,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, baseDDAI, defa
 		}
 
 		if cacheable {
-			if cached, hit := r.lookupProfileMergeCache(cacheKey, sourceHash, profile, profileContent, useRV); hit {
+			if cached, hit := r.lookupProfileMergeCache(cacheKey, sourceHash, profileContent); hit {
 				ddais = append(ddais, cached)
 				continue
 			}
@@ -511,30 +510,18 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, baseDDAI, defa
 			preTypedNodeBase = typedNodeAgentBase
 		}
 
-		var mergedDDAI *v1alpha1.DatadogAgentInternal
-		var err error
-		if isDefault && !defaultSchemaChecked && baseDDAI != defaultDDAI {
-			defaultSchemaChecked = true
-			mergedDDAI, err = r.computeProfileMerge(ctx, sourceDDAI, profile)
-		} else {
-			mergedDDAI, err = r.computeProfileMergeInternal(ctx, sourceDDAI, profile, schemaValid, preTypedNodeBase)
-		}
+		mergedDDAI, err := r.computeProfileMerge(ctx, sourceDDAI, profile, schemaValid, preTypedNodeBase)
 		if err != nil {
 			return nil, err
 		}
 
 		if cacheable {
-			entry := profileMergeCacheEntry{
+			r.storeProfileMergeCache(cacheKey, profileMergeCacheEntry{
 				fieldManager:   r.fieldManager,
 				sourceHash:     sourceHash,
 				profileContent: profileContent,
 				merged:         mergedDDAI.DeepCopy(),
-			}
-			if useRV {
-				entry.profileUID = profile.UID
-				entry.profileRV = profile.ResourceVersion
-			}
-			r.storeProfileMergeCache(cacheKey, entry)
+			})
 		}
 
 		ddais = append(ddais, mergedDDAI)
@@ -557,11 +544,9 @@ func (r *Reconciler) isDDAISchemaValid(ddai *v1alpha1.DatadogAgentInternal) bool
 	return err == nil
 }
 
-func (r *Reconciler) computeProfileMerge(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
-	return r.computeProfileMergeInternal(ctx, ddai, profile, r.isDDAISchemaValid(ddai), nil)
-}
-
-func (r *Reconciler) computeProfileMergeInternal(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile, baseSchemaValid bool, preTypedNodeBase *typed.TypedValue) (*v1alpha1.DatadogAgentInternal, error) {
+// computeProfileMerge merges one profile into ddai. baseSchemaValid and
+// preTypedNodeBase are computed once per batch by applyProfilesToDDAISpec.
+func (r *Reconciler) computeProfileMerge(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile, baseSchemaValid bool, preTypedNodeBase *typed.TypedValue) (*v1alpha1.DatadogAgentInternal, error) {
 	isDefault := agentprofile.IsDefaultProfile(profile.Namespace, profile.Name)
 
 	// Fast path when baseDDAI already conforms to the installed CRD schema:
