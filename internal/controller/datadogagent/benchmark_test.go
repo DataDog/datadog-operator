@@ -338,7 +338,7 @@ func BenchmarkLabelNodesWithProfiles_200Nodes_SteadyState(b *testing.B) {
 		}
 		if i%2 == 0 {
 			profileName := fmt.Sprintf("profile-pool-%02d", (i%19)+1)
-			labels[constants.ProfileLabelKey] = profileName
+			labels[agentprofile.NodeLabelKey("datadog-agent")] = profileName
 			profilesByNode[nodeName] = types.NamespacedName{Namespace: "datadog-agent", Name: profileName}
 		} else {
 			profilesByNode[nodeName] = types.NamespacedName{Namespace: "", Name: "default"}
@@ -358,7 +358,7 @@ func BenchmarkLabelNodesWithProfiles_200Nodes_SteadyState(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if err := r.labelNodesWithProfiles(ctx, profilesByNode, nil); err != nil {
+		if err := r.labelNodesWithProfiles(ctx, profilesByNode, "datadog-agent", false, nil); err != nil {
 			b.Fatalf("labelNodesWithProfiles failed: %v", err)
 		}
 	}
@@ -378,7 +378,7 @@ func BenchmarkLabelNodesWithProfilesFromList_200Nodes_SteadyState(b *testing.B) 
 		}
 		if i%2 == 0 {
 			profileName := fmt.Sprintf("profile-pool-%02d", (i%19)+1)
-			labels[constants.ProfileLabelKey] = profileName
+			labels[agentprofile.NodeLabelKey("datadog-agent")] = profileName
 			profilesByNode[nodeName] = types.NamespacedName{Namespace: "datadog-agent", Name: profileName}
 		} else {
 			profilesByNode[nodeName] = types.NamespacedName{Namespace: "", Name: "default"}
@@ -398,7 +398,7 @@ func BenchmarkLabelNodesWithProfilesFromList_200Nodes_SteadyState(b *testing.B) 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if err := r.labelNodesWithProfiles(ctx, profilesByNode, nodes); err != nil {
+		if err := r.labelNodesWithProfiles(ctx, profilesByNode, "datadog-agent", false, nodes); err != nil {
 			b.Fatalf("labelNodesWithProfiles failed: %v", err)
 		}
 	}
@@ -423,7 +423,7 @@ func BenchmarkReconcileProfiles_20Profiles_200Nodes_SteadyState(b *testing.B) {
 		}
 		if i%2 == 0 {
 			labels["node-pool"] = fmt.Sprintf("pool-%02d", poolIdx)
-			labels[constants.ProfileLabelKey] = fmt.Sprintf("profile-pool-%02d", poolIdx)
+			labels[agentprofile.NodeLabelKey("datadog-agent")] = fmt.Sprintf("profile-pool-%02d", poolIdx)
 		}
 		objs = append(objs, &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{

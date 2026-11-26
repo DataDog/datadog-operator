@@ -3,8 +3,10 @@ package config
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/go-logr/logr/funcr"
 	"golang.org/x/exp/maps"
 
 	"github.com/stretchr/testify/assert"
@@ -75,7 +77,7 @@ func Test_CacheConfig(t *testing.T) {
 				genericResourceObj:    {configured: true, namespaces: []string{"genericNs"}},
 				monitorObj:            {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
 				sloObj:                {configured: true, namespaces: []string{"nsWithSpace"}},
-				profileObj:            {configured: true, namespaces: []string{"profileNs"}},
+				profileObj:            {configured: true, namespaces: []string{"agentNs"}},
 				podObj:                {configured: true, namespaces: []string{"agentNs"}},
 				nodeObj:               {configured: true, namespaces: nil},
 				csiDriverObj:          {configured: true, namespaces: []string{"csiDriverNs"}},
@@ -193,7 +195,7 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Agent, DAP enabled; Agent, Pod use default config; DAP uses Profile namespace; Node uses nil namespace",
+			name: "Agent, DAP enabled; DAP uses common namespace and ignores Profile namespace",
 
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:        true,
@@ -212,7 +214,7 @@ func Test_CacheConfig(t *testing.T) {
 				genericResourceObj: {configured: false},
 				monitorObj:         {configured: false},
 				sloObj:             {configured: false},
-				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
+				profileObj:         {configured: true, namespaces: []string{"datadog"}},
 				podObj:             {configured: true, namespaces: []string{"datadog"}},
 				nodeObj:            {configured: true, namespaces: nil},
 				csiDriverObj:       {configured: false},
@@ -220,7 +222,7 @@ func Test_CacheConfig(t *testing.T) {
 		},
 
 		{
-			name: "Agent, DAP enabled; Agent, Pod use Agent namespace; DAP uses Profile namespace; Node uses nil namespace",
+			name: "Agent, DAP enabled; DAP uses Agent namespaces and ignores Profile namespace",
 
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:        true,
@@ -241,7 +243,7 @@ func Test_CacheConfig(t *testing.T) {
 				genericResourceObj: {configured: false},
 				monitorObj:         {configured: false},
 				sloObj:             {configured: false},
-				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
+				profileObj:         {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				nodeObj:            {configured: true, namespaces: nil},
 				csiDriverObj:       {configured: false},
@@ -326,6 +328,35 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "DAP uses cluster-wide Agent scope when namespace settings are absent",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:        true,
+				DatadogAgentProfileEnabled: true,
+			},
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{cache.AllNamespaces}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{cache.AllNamespaces}},
+				profileObj: {configured: true, namespaces: []string{cache.AllNamespaces}},
+			},
+		},
+		{
+			name: "DAP uses explicit cluster-wide Agent scope and ignores empty Profile namespace",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:        true,
+				DatadogAgentProfileEnabled: true,
+			},
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:        "datadog",
+				AgentWatchNamespaceEnvVar:   "",
+				profileWatchNamespaceEnvVar: "",
+			},
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{cache.AllNamespaces}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{cache.AllNamespaces}},
+				profileObj: {configured: true, namespaces: []string{cache.AllNamespaces}},
+			},
+		},
+		{
 			name: "Managed Agent installation namespace is included in Agent resource caches",
 
 			watchOptions: WatchOptions{
@@ -346,7 +377,7 @@ func Test_CacheConfig(t *testing.T) {
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:         {configured: true, namespaces: []string{"agentNs", "addonNs"}},
 				agentInternalObj: {configured: true, namespaces: []string{"agentNs", "addonNs"}},
-				profileObj:       {configured: true, namespaces: []string{"profileNs", "addonNs"}},
+				profileObj:       {configured: true, namespaces: []string{"agentNs", "addonNs"}},
 				podObj:           {configured: true, namespaces: []string{"agentNs", "addonNs"}},
 				csiDriverObj:     {configured: true, namespaces: []string{"csiNs"}},
 				csiDaemonSetObj:  {configured: true, namespaces: []string{"agentNs", "addonNs", "csiNs"}},
@@ -354,7 +385,6 @@ func Test_CacheConfig(t *testing.T) {
 		},
 	}
 
-	logger := logf.Log.WithName(t.Name())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
@@ -362,7 +392,14 @@ func Test_CacheConfig(t *testing.T) {
 				os.Setenv(envVar, envVal)
 			}
 
+			var logs strings.Builder
+			logger := funcr.New(func(_, message string) {
+				logs.WriteString(message + "\n")
+			}, funcr.Options{})
 			cacheOptions := CacheOptions(logger, tt.watchOptions)
+			_, legacySet := tt.envConfig[profileWatchNamespaceEnvVar]
+			wantWarning := legacySet && tt.watchOptions.DatadogAgentProfileEnabled
+			assert.Equal(t, wantWarning, strings.Contains(logs.String(), "DD_AGENT_PROFILE_WATCH_NAMESPACE is deprecated and ignored"))
 
 			assert.ElementsMatch(t, tt.wantDefaultNamepsace.namespaces, maps.Keys(cacheOptions.DefaultNamespaces))
 			for objKey, wantConfig := range tt.wantObjectConfig {

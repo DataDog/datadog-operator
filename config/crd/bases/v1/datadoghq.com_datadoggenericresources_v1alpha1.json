@@ -122,6 +122,10 @@
           "description": "CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know\nif the JsonSpec has changed and needs an update.",
           "type": "string"
         },
+        "etag": {
+          "description": "Etag is the ETag of the last read of the resource whose definition had\nRemoteDefinitionHash, for resource types that support it. Reads send it in\nIf-None-Match, so a Not Modified response shows that the resource,\nincluding its state, has not changed since that read.",
+          "type": "string"
+        },
         "id": {
           "description": "Id is the object unique identifier generated in Datadog.",
           "type": "string"

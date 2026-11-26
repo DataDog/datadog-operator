@@ -28,6 +28,8 @@ const (
 	AppliedConditionReason = "Applied"
 	// ConflictConditionReason is for DatadogAgentProfiles that conflict with an existing DatadogAgentProfile
 	ConflictConditionReason = "Conflict"
+	// NoDatadogAgentConditionReason is for DatadogAgentProfiles in a namespace without a DatadogAgent
+	NoDatadogAgentConditionReason = "NoDatadogAgentInNamespace"
 
 	// DDAIReconcileErrorConditionType surfaces a reconcile error from the profile's DatadogAgentInternal
 	DDAIReconcileErrorConditionType = "DatadogAgentInternalReconcileError"

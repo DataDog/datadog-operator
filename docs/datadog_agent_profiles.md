@@ -58,6 +58,10 @@ Common scenarios:
 * Operator v1.5.0+
 * Tests were performed on Kubernetes versions >= `1.27.0`
 * The cluster must allow the Operator to `patch` nodes. Environments that block node modifications, such as GKE Autopilot, cannot use DAPs.
+* A DAP must be in the same namespace as the DDA it configures. Cross-namespace profiles are ignored. Move existing cross-namespace profiles into the DDA's namespace before upgrading; otherwise, they stop applying on reconciliation. A DAP in a watched namespace other than the DDA's reports `Applied: False` with reason `NoDatadogAgentInNamespace`. DAPs outside the watch namespaces are not visible to the Operator, so their status is not updated.
+* Grant DAP edit permissions only to users trusted to modify Agent configuration in that namespace.
+
+DAPs use the same watch namespaces as DDAs: `DD_AGENT_WATCH_NAMESPACE`, falling back to `WATCH_NAMESPACE`, or all namespaces if neither is set. `DD_AGENT_PROFILE_WATCH_NAMESPACE` is deprecated and ignored; remove it from your configuration.
 
 ## Enabling DatadogAgentProfiles
 

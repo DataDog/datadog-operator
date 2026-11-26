@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 
@@ -78,7 +77,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -151,7 +150,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -170,7 +169,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"3"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -276,7 +275,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -295,7 +294,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1", "2"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -406,7 +405,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -425,7 +424,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -568,7 +567,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -587,7 +586,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profiles[0].Name},
 										},
@@ -623,7 +622,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"2"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profiles[1].Name},
 										},
@@ -760,7 +759,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -779,7 +778,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profiles[0].Name},
 										},
@@ -895,7 +894,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName: {
 						Limits: map[v1.ResourceName]resource.Quantity{
@@ -923,7 +922,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -1026,7 +1025,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: affinityForDefaultProfile(),
+				affinity: affinityForDefaultProfile(namespace),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
 					apicommon.CoreAgentContainerName:  {},
 					apicommon.TraceAgentContainerName: {},
@@ -1050,7 +1049,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"2"},
 										},
 										{
-											Key:      constants.ProfileLabelKey,
+											Key:      agentprofile.NodeLabelKey(namespace),
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -1233,8 +1232,8 @@ func testProfilesFunc(testScenario profilesTestScenario) func() {
 					for _, node := range nodeList.Items {
 						_, expectLabel := testScenario.expectedLabeledNodes[node.Name]
 
-						if expectLabel && node.Labels[constants.ProfileLabelKey] != "true" ||
-							!expectLabel && node.Labels[constants.ProfileLabelKey] != "" {
+						if expectLabel && node.Labels[agentprofile.NodeLabelKey(testScenario.agent.Namespace)] != "true" ||
+							!expectLabel && node.Labels[agentprofile.NodeLabelKey(testScenario.agent.Namespace)] != "" {
 							return false
 						}
 					}
@@ -1396,7 +1395,7 @@ func sortAffinityRequirements(affinity *v1.Affinity) {
 	})
 }
 
-func affinityForDefaultProfile() *v1.Affinity {
+func affinityForDefaultProfile(namespace string) *v1.Affinity {
 	return &v1.Affinity{
 		NodeAffinity: &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -1404,7 +1403,7 @@ func affinityForDefaultProfile() *v1.Affinity {
 					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
 							{
-								Key:      constants.ProfileLabelKey,
+								Key:      agentprofile.NodeLabelKey(namespace),
 								Operator: v1.NodeSelectorOpDoesNotExist,
 							},
 						},

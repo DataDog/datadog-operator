@@ -367,6 +367,10 @@
           },
           "type": "object"
         },
+        "etag": {
+          "description": "Etag is the ETag of the last monitor read whose definition had\nRemoteDefinitionHash. Reads send it in If-None-Match, so a Not Modified\nresponse shows that the monitor, including its state, has not changed\nsince that read.",
+          "type": "string"
+        },
         "id": {
           "description": "ID is the monitor ID generated in Datadog",
           "type": "integer"

@@ -98,8 +98,8 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		defer cancel()
 
 		if k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig; k8sConfig != nil {
-			if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
-				s.T().Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+			if err := utils.DeleteAllDatadogAgents(ctx, k8sConfig, common.NamespaceName); err != nil {
+				s.T().Logf("Warning: failed to delete DatadogAgents during cleanup: %v", err)
 			}
 		}
 	})

@@ -25,10 +25,14 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-// labelNodesWithProfiles sets the "agent.datadoghq.com/datadogagentprofile" label only in
-// the nodes where a profile is applied. When nodes is provided (e.g. from an already-fetched
-// NodeList), existing labels are checked in-memory before issuing any API calls.
-func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, nodes []corev1.Node) error {
+// labelNodesWithProfiles updates profile assignments only for this Agent namespace.
+// legacyLabelInUse keeps the legacy shared label on nodes while DaemonSets still
+// select with it (see agentprofile.LegacyProfileLabelInUse). When nodes is
+// provided (e.g. from an already-fetched NodeList), existing labels are checked
+// in-memory before issuing any API calls.
+func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string, legacyLabelInUse bool, nodes []corev1.Node) error {
+	profileLabelKey := agentprofile.NodeLabelKey(namespace)
+
 	var nodeByName map[string]*corev1.Node
 	if len(nodes) > 0 {
 		nodeByName = make(map[string]*corev1.Node, len(nodes))
@@ -55,20 +59,33 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 
 		// Determine if any profile label actually needs to be added, updated, or removed
 		// before allocating any maps or deep-copying the Node.
-		var removeProfileLabel, removeOldProfileLabel, setProfileLabel bool
+		var removeProfileLabel, removeLegacyProfileLabel, removeOldProfileLabel, setProfileLabel bool
 		if isDefaultProfile {
-			_, removeProfileLabel = node.Labels[constants.ProfileLabelKey]
-		} else if node.Labels[constants.ProfileLabelKey] != profileNamespacedName.Name {
+			// If the profile is the default one and the label exists in the node,
+			// it should be removed.
+			_, removeProfileLabel = node.Labels[profileLabelKey]
+		} else if node.Labels[profileLabelKey] != profileNamespacedName.Name {
+			// If the profile is not the default one and the label does not exist in
+			// the node, it should be added. If the label value is outdated, it
+			// should be updated.
 			setProfileLabel = true
+		}
+		// Remove the legacy shared assignment labels during migration, once no
+		// DaemonSet selects nodes with it.
+		if !legacyLabelInUse {
+			_, removeLegacyProfileLabel = node.Labels[constants.ProfileLabelKey]
 		}
 		_, removeOldProfileLabel = node.Labels[agentprofile.OldProfileLabelKey]
 
-		if !removeProfileLabel && !removeOldProfileLabel && !setProfileLabel {
+		if !removeProfileLabel && !removeLegacyProfileLabel && !removeOldProfileLabel && !setProfileLabel {
 			continue
 		}
 
 		labelsToRemove := map[string]bool{}
 		if removeProfileLabel {
+			labelsToRemove[profileLabelKey] = true
+		}
+		if removeLegacyProfileLabel {
 			labelsToRemove[constants.ProfileLabelKey] = true
 		}
 		if removeOldProfileLabel {
@@ -76,7 +93,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 		labelsToAddOrChange := map[string]string{}
 		if setProfileLabel {
-			labelsToAddOrChange[constants.ProfileLabelKey] = profileNamespacedName.Name
+			labelsToAddOrChange[profileLabelKey] = profileNamespacedName.Name
 		}
 
 		ctrl.LoggerFrom(ctx).V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
@@ -89,10 +106,6 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			newLabels[k] = v
 		}
 		maps.Copy(newLabels, labelsToAddOrChange)
-
-		if len(newLabels) == 0 {
-			continue
-		}
 
 		modifiedNode := node.DeepCopy()
 		modifiedNode.Labels = newLabels

@@ -39,7 +39,7 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 		return err
 	}
 
-	if err := r.profilesCleanup(ctx, obj.GetLabels()[constants.ProfileLabelKey]); err != nil {
+	if err := r.profilesCleanup(ctx, obj.GetLabels()[constants.ProfileLabelKey], obj.GetNamespace()); err != nil {
 		return err
 	}
 
@@ -49,24 +49,27 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 
 // profilesCleanup removes the profile label from the nodes of the profile whose
 // DDAI is deleted. The default DDAI has no profile name, so it cleans no nodes.
-func (r *Reconciler) profilesCleanup(ctx context.Context, profileName string) error {
+func (r *Reconciler) profilesCleanup(ctx context.Context, profileName, namespace string) error {
+	profileLabelKey := agentprofile.NodeLabelKey(namespace)
 	nodeList := corev1.NodeList{}
 	if err := r.client.List(ctx, &nodeList); err != nil {
 		return err
 	}
 
 	for _, node := range nodeList.Items {
-		profileLabelValue, profileLabelExists := node.Labels[constants.ProfileLabelKey]
+		profileLabelValue, profileLabelExists := node.Labels[profileLabelKey]
+		sharedProfileLabelValue, sharedProfileLabelExists := node.Labels[constants.ProfileLabelKey]
 		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
 		removeProfileLabel := profileLabelExists && profileLabelValue == profileName
-		if !removeProfileLabel && !oldProfileLabelExists {
+		removeSharedProfileLabel := sharedProfileLabelExists && sharedProfileLabelValue == profileName
+		if !removeProfileLabel && !removeSharedProfileLabel && !oldProfileLabelExists {
 			continue
 		}
 
 		newLabels := map[string]string{}
 		for k, v := range node.Labels {
 			// Remove profile labels from nodes
-			if k == agentprofile.OldProfileLabelKey || (k == constants.ProfileLabelKey && removeProfileLabel) {
+			if k == agentprofile.OldProfileLabelKey || (k == profileLabelKey && removeProfileLabel) || (k == constants.ProfileLabelKey && removeSharedProfileLabel) {
 				continue
 			}
 			newLabels[k] = v

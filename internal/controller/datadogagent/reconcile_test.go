@@ -2561,7 +2561,7 @@ func Test_DDAI_Reconcile(t *testing.T) {
 													Values:   []string{"foo-profile"},
 												},
 												{
-													Key:      constants.ProfileLabelKey,
+													Key:      agentprofile.NodeLabelKey(dda.Namespace),
 													Operator: corev1.NodeSelectorOpIn,
 													Values:   []string{"foo-profile"},
 												},
@@ -2786,7 +2786,7 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 							{
 								MatchExpressions: []corev1.NodeSelectorRequirement{
 									{
-										Key:      constants.ProfileLabelKey,
+										Key:      agentprofile.NodeLabelKey(dda.Namespace),
 										Operator: corev1.NodeSelectorOpDoesNotExist,
 									},
 								},

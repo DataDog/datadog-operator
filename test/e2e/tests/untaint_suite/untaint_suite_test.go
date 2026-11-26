@@ -200,9 +200,9 @@ func (s *untaintSuite) applyDDA() {
 	s.UpdateEnv(provisioners.KubernetesProvisioner(buildProvisionerOptions(s.local, s.waitForCSI, true)...))
 }
 
-// registerDatadogResourceCleanup deletes every DatadogAgent and
-// DatadogAgentInternal in the operator namespace at the end of the test, while
-// the operator is still running so it can clear their finalizers. Without this,
+// registerDatadogResourceCleanup deletes every DatadogAgent in the operator
+// namespace at the end of the test, while the operator is still running so its
+// finalizer deletes their DatadogAgentInternals and clears their finalizers. Without this,
 // the operator (Helm release) is torn down first during the Pulumi stack destroy
 // and the operator-created DatadogAgentInternal is left with a dangling
 // finalizer; deleting the datadogagents/datadogagentinternals CRDs then blocks
@@ -220,8 +220,8 @@ func (s *untaintSuite) registerDatadogResourceCleanup() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
-			s.T().Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+		if err := utils.DeleteAllDatadogAgents(ctx, k8sConfig, common.NamespaceName); err != nil {
+			s.T().Logf("Warning: failed to delete DatadogAgents during cleanup: %v", err)
 		}
 	})
 }
