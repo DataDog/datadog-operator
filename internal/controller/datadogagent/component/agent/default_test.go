@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 func findVolume(volumes []corev1.Volume, name string) *corev1.Volume {
@@ -478,6 +479,7 @@ func TestHostProfilerContainer(t *testing.T) {
 
 	c := containers[1]
 	assert.Equal(t, string(apicommon.HostProfiler), c.Name)
+	assert.Equal(t, images.GetLatestHostProfilerImage(), c.Image)
 	assert.NotNil(t, c.SecurityContext)
 	// The component layer only sets ReadOnlyRootFilesystem; the feature's ManageNodeAgent sets
 	// AllowPrivilegeEscalation, SeccompProfile, and Capabilities.
