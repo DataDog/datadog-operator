@@ -6,9 +6,7 @@
 package kueue
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -50,8 +48,10 @@ type kueueFeature struct {
 	// collection is enabled.
 	checkEnabled          bool
 	collectWorkloadEvents bool
-	serviceName           string
-	serviceNamespace      string
+	// clusterAgentEvents is true when the Cluster Agent leader emits the Workload events.
+	clusterAgentEvents bool
+	serviceName        string
+	serviceNamespace   string
 
 	clusterAgentServiceAccountName string
 	agentServiceAccountName        string
@@ -66,9 +66,12 @@ type kueueFeature struct {
 // kueueConfig is experimental and deliberately absent from the DatadogAgent CRD.
 // The annotation can be changed without committing to a stable API shape.
 type kueueConfig struct {
-	CollectWorkloadEvents *bool                  `json:"collectWorkloadEvents,omitempty"`
-	MetricsService        *kueueMetricsService   `json:"metricsService,omitempty"`
-	Conf                  *v2alpha1.CustomConfig `json:"conf,omitempty"`
+	CollectWorkloadEvents *bool `json:"collectWorkloadEvents,omitempty"`
+	// ClusterAgentEvents makes the Cluster Agent leader emit the Workload events
+	// (job_scheduler_events check) and turns them off in the node Agent check.
+	ClusterAgentEvents *bool                  `json:"clusterAgentEvents,omitempty"`
+	MetricsService     *kueueMetricsService   `json:"metricsService,omitempty"`
+	Conf               *v2alpha1.CustomConfig `json:"conf,omitempty"`
 }
 
 type kueueMetricsService struct {
@@ -112,21 +115,6 @@ func (config *kueueConfig) validate() error {
 	return nil
 }
 
-func decodeKueueConfig(raw string, config *kueueConfig) error {
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(config); err != nil {
-		return err
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		if err == nil {
-			return fmt.Errorf("multiple JSON values in Kueue configuration")
-		}
-		return err
-	}
-	return nil
-}
-
 // ID returns the ID of the Feature
 func (f *kueueFeature) ID() feature.IDType {
 	return feature.KueueIDType
@@ -141,7 +129,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	}
 	var kueue kueueConfig
 	if raw, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.KueueConfigAnnotation); ok {
-		if err := decodeKueueConfig(raw, &kueue); err != nil {
+		if err := featureutils.DecodeStrictJSON(raw, &kueue); err != nil {
 			f.logger.Error(err, "invalid Kueue configuration annotation")
 			return reqComp
 		}
@@ -151,22 +139,27 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {
-		f.logger.Info("Kueue feature requires Cluster Agent >= 7.82.0; not enabling it")
+	clusterAgentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
+	if !utils.IsAboveMinVersion(clusterAgentVersion, kueueMinVersion, nil) {
+		f.logger.V(1).Info("Kueue feature needs a newer Cluster Agent; not enabling it",
+			"version", clusterAgentVersion, "minVersion", kueueMinVersion)
 		return reqComp
 	}
 
 	reqComp.ClusterAgent.IsRequired = new(true)
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+	f.clusterAgentEvents = f.useClusterAgentEvents(kueue, clusterAgentVersion)
 	f.clusterAgentServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	if !constants.IsClusterChecksEnabled(ddaSpec) {
-		f.logger.Info("Kueue check requires features.clusterChecks.enabled; only Kueue metadata collection is enabled in the Cluster Agent")
+		f.logger.V(1).Info("Kueue check requires features.clusterChecks.enabled; only Kueue metadata collection is enabled in the Cluster Agent")
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), kueueMinVersion, nil) {
-		f.logger.Info("Kueue check requires Agent >= 7.82.0; only Kueue metadata collection is enabled in the Cluster Agent")
+	agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+	if !utils.IsAboveMinVersion(agentVersion, kueueMinVersion, nil) {
+		f.logger.V(1).Info("Kueue check needs a newer Agent; only Kueue metadata collection is enabled in the Cluster Agent",
+			"version", agentVersion, "minVersion", kueueMinVersion)
 		return reqComp
 	}
 
@@ -176,10 +169,11 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	f.agentServiceAccountName = constants.GetAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	if ddaSpec.Global != nil && apiutils.BoolValue(ddaSpec.Global.DisableNonResourceRules) {
-		f.logger.Info("Warning: global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
+		f.logger.V(1).Info("Warning: global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
 	}
 
-	f.collectWorkloadEvents = kueue.CollectWorkloadEvents == nil || *kueue.CollectWorkloadEvents
+	// The node check must not emit the events the Cluster Agent already sends.
+	f.collectWorkloadEvents = !f.clusterAgentEvents && (kueue.CollectWorkloadEvents == nil || *kueue.CollectWorkloadEvents)
 	f.serviceName = defaultMetricsServiceName
 	f.serviceNamespace = defaultMetricsServiceNamespace
 	if svc := kueue.MetricsService; svc != nil {
@@ -195,6 +189,22 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	f.configMapName = constants.GetConfName(dda, f.customConfig, defaultKueueConf)
 
 	return reqComp
+}
+
+// useClusterAgentEvents returns true when the Workload events are requested in the Cluster Agent
+// and the Cluster Agent image contains the job_scheduler_events check. The node check keeps
+// sending the events otherwise, so they are never lost. A version that cannot be parsed is
+// treated as too old.
+func (f *kueueFeature) useClusterAgentEvents(kueue kueueConfig, clusterAgentVersion string) bool {
+	if kueue.ClusterAgentEvents == nil || !*kueue.ClusterAgentEvents {
+		return false
+	}
+	if !utils.IsAboveMinVersion(clusterAgentVersion, clusterAgentEventsMinVersion, new(false)) {
+		f.logger.V(1).Info("Kueue Workload events in the Cluster Agent need a newer Cluster Agent; the node Agent check keeps sending them",
+			"version", clusterAgentVersion, "minVersion", clusterAgentEventsMinVersion)
+		return false
+	}
+	return true
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -238,6 +248,12 @@ func (f *kueueFeature) ManageClusterAgent(managers feature.PodTemplateManagers) 
 		Name:  DDClusterAgentKueueEnabled,
 		Value: "true",
 	})
+	if f.clusterAgentEvents {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDClusterAgentKueueEventsEnabled,
+			Value: "true",
+		})
+	}
 
 	if !f.checkEnabled {
 		return nil

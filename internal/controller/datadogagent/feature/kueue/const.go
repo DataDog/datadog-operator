@@ -18,6 +18,9 @@ const (
 	// DDClusterAgentKueueEnabled enables Kueue metadata collection in the Cluster Agent
 	DDClusterAgentKueueEnabled = "DD_CLUSTER_AGENT_KUEUE_ENABLED"
 
+	// DDClusterAgentKueueEventsEnabled makes the Cluster Agent leader emit the Kueue Workload events
+	DDClusterAgentKueueEventsEnabled = "DD_CLUSTER_AGENT_KUEUE_EVENTS_ENABLED"
+
 	kueueConfFileName     = "kueue.yaml"
 	kueueCheckFolderName  = "kueue.d"
 	kueueRBACPrefix       = "kueue"
@@ -28,6 +31,9 @@ const (
 
 	// Add "-0" so that prerelease versions are considered sufficient.
 	kueueMinVersion = "7.82.0-0"
+
+	// Minimum Cluster Agent version with the job_scheduler_events check.
+	clusterAgentEventsMinVersion = "7.87.0-0"
 
 	// Autodiscovery template variables, resolved per Kueue pod by the Cluster Agent.
 	kueueOpenMetricsEndpoint = "https://%%host%%:%%port%%/metrics"

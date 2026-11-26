@@ -266,3 +266,30 @@ func TestIsKubernetesActionsPAREnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeStrictJSON(t *testing.T) {
+	type config struct {
+		Enabled *bool `json:"enabled,omitempty"`
+	}
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		wantErr bool
+	}{
+		{name: "valid", raw: `{"enabled":true}`},
+		{name: "empty object", raw: `{}`},
+		{name: "unknown field", raw: `{"enable":true}`, wantErr: true},
+		{name: "wrong type", raw: `{"enabled":"yes"}`, wantErr: true},
+		{name: "second JSON value", raw: `{} {}`, wantErr: true},
+		{name: "trailing garbage", raw: `{} x`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := DecodeStrictJSON(tc.raw, &config{})
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
