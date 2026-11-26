@@ -49,7 +49,6 @@ type privateActionRunnerFeature struct {
 	reader                    client.Reader
 	nodeEnabled               bool
 	configuredFromSpec        bool
-	nodeConfig                *PrivateActionRunnerConfig
 	nodeConfigData            string
 	splitEnabled              bool
 	systemdConfig             systemdHostConfig
@@ -123,7 +122,6 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 func (f *privateActionRunnerFeature) configureNodeAgent(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, node componentConfig) feature.RequiredComponent {
 	f.nodeEnabled = true
-	f.nodeConfig = node.settings
 	f.nodeConfigData = node.configData
 	f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 	f.packetCaptureConfig, f.packetCaptureConfigErr = packetCaptureConfigFromAnnotations(dda.GetAnnotations())
@@ -384,13 +382,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 			{Name: DDPAREnabled, Value: "true"},
 			{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"},
 		}
-		nodeConfig := f.nodeConfig
-		if nodeConfig == nil {
-			var err error
-			nodeConfig, err = parsePrivateActionRunnerConfig(f.nodeConfigData)
-			if err != nil {
-				return fmt.Errorf("invalid Private Action Runner configuration: %w", err)
-			}
+		nodeConfig, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
+		if err != nil {
+			return fmt.Errorf("invalid Private Action Runner configuration: %w", err)
 		}
 		if nodeConfig.TaskConcurrency != nil {
 			coreEnvs = append(coreEnvs, &corev1.EnvVar{Name: DDPARTaskConcurrency, Value: strconv.FormatInt(int64(*nodeConfig.TaskConcurrency), 10)})
