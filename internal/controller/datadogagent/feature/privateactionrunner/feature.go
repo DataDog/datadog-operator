@@ -59,6 +59,7 @@ type privateActionRunnerFeature struct {
 	clusterConfigData         string
 	clusterServiceAccountName string
 	k8sRemediationEnabled     bool
+	k8sRemediationConfigured  bool
 	configErr                 error
 }
 
@@ -183,7 +184,8 @@ func (f *privateActionRunnerFeature) configureClusterAgent(dda metav1.Object, dd
 		}
 	}
 	f.clusterConfig = clusterConfig
-	f.k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
+	f.k8sRemediationEnabled = featureutils.IsKubernetesRemediationEnabled(dda, ddaSpec)
+	f.k8sRemediationConfigured = f.k8sRemediationEnabled || (ddaSpec.Features != nil && ddaSpec.Features.PrivateActionRunner != nil && ddaSpec.Features.PrivateActionRunner.KubernetesRemediationsEnabled != nil)
 	f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	return required
 }
@@ -285,6 +287,13 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{Name: DDPAREnabled, Value: "false"})
 		}
 		return nil
+	}
+
+	if f.k8sRemediationConfigured {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDPARKubernetesRemediationsEnabled,
+			Value: strconv.FormatBool(f.k8sRemediationEnabled),
+		})
 	}
 
 	configMapName := f.getClusterAgentConfigMapName()

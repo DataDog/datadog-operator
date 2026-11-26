@@ -2894,6 +2894,13 @@ spec:
                                 with self-enrollment by default. Per-component Enabled takes precedence.
                                 Default: false
                               type: boolean
+                            kubernetesRemediationsEnabled:
+                              description: |-
+                                KubernetesRemediationsEnabled enables the built-in Kubernetes remediation actions
+                                and their RBAC permissions on the Cluster Agent Private Action Runner.
+                                Also enables Kubernetes Actions unless features.kubernetesActions.enabled is explicitly false.
+                                Default: false
+                              type: boolean
                             nodeAgent:
                               description: |-
                                 NodeAgent configures Private Action Runner on the Node Agent.

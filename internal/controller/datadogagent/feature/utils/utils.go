@@ -215,6 +215,24 @@ func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, ddaSpec
 	}
 }
 
+// IsKubernetesRemediationEnabled resolves the typed remediation setting with a legacy
+// annotation fallback. Remediation requires an enabled Cluster Agent Private Action Runner.
+func IsKubernetesRemediationEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	enabled := HasFeatureEnableAnnotation(dda, ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
+	if ddaSpec.Features != nil && ddaSpec.Features.PrivateActionRunner != nil {
+		par := ddaSpec.Features.PrivateActionRunner
+		if par.KubernetesRemediationsEnabled != nil {
+			enabled = *par.KubernetesRemediationsEnabled
+		}
+		parEnabled := apiutils.BoolValue(par.Enabled)
+		if par.ClusterAgent != nil && par.ClusterAgent.Enabled != nil {
+			parEnabled = *par.ClusterAgent.Enabled
+		}
+		return enabled && parEnabled
+	}
+	return enabled && (HasFeatureEnableAnnotation(dda, EnableClusterAgentPrivateActionRunnerAnnotation) || IsKubernetesActionsPAREnabled(ddaSpec))
+}
+
 // IsKubernetesActionsRCEnabled returns whether Kubernetes Actions should be delivered to the
 // Cluster Agent through Remote Configuration. Defaults to true when unset.
 func IsKubernetesActionsRCEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {

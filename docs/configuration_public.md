@@ -466,6 +466,9 @@ spec:
 `features.privateActionRunner.enabled`
 : Enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Per-component Enabled takes precedence. Default: false
 
+`features.privateActionRunner.kubernetesRemediationsEnabled`
+: KubernetesRemediationsEnabled enables the built-in Kubernetes remediation actions and their RBAC permissions on the Cluster Agent Private Action Runner. Also enables Kubernetes Actions unless features.kubernetesActions.enabled is explicitly false. Default: false
+
 `features.privateActionRunner.nodeAgent.actionsAllowlist`
 : ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
 
