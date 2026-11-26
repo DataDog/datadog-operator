@@ -7,9 +7,10 @@ package datadogagentinternal
 
 import (
 	"context"
-	"encoding/binary"
-	"encoding/hex"
-	"slices"
+	"fmt"
+	"hash"
+	"hash/fnv"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,27 +65,6 @@ func (r *Reconciler) annotateConfigMapsChecksum(ctx context.Context, namespace s
 	return nil
 }
 
-const (
-	fnv64aOffset uint64 = 14695981039346656037
-	fnv64aPrime  uint64 = 1099511628211
-)
-
-func fnv64aWriteString(h uint64, s string) uint64 {
-	for i := 0; i < len(s); i++ {
-		h ^= uint64(s[i])
-		h *= fnv64aPrime
-	}
-	return h
-}
-
-func fnv64aWriteBytes(h uint64, b []byte) uint64 {
-	for _, c := range b {
-		h ^= uint64(c)
-		h *= fnv64aPrime
-	}
-	return h
-}
-
 // hashConfigMapContents hashes contents in sorted-name order, so the result
 // doesn't depend on map iteration order.
 func hashConfigMapContents(contents map[string]configMapContent) string {
@@ -92,59 +72,44 @@ func hashConfigMapContents(contents map[string]configMapContent) string {
 	for name := range contents {
 		names = append(names, name)
 	}
-	slices.Sort(names)
+	sort.Strings(names)
 
-	var keys []string
-	h := fnv64aOffset
+	h := fnv.New64a()
 	for _, name := range names {
-		h = fnv64aWriteString(h, name)
+		h.Write([]byte(name))
 		c := contents[name]
-		if len(c.Data) > 0 {
-			keys = keys[:0]
-			for k := range c.Data {
-				keys = append(keys, k)
-			}
-			slices.Sort(keys)
-			for _, k := range keys {
-				h = fnv64aWriteString(h, k)
-				h = fnv64aWriteString(h, c.Data[k])
-			}
-		}
-		if len(c.BinaryData) > 0 {
-			keys = keys[:0]
-			for k := range c.BinaryData {
-				keys = append(keys, k)
-			}
-			slices.Sort(keys)
-			for _, k := range keys {
-				h = fnv64aWriteString(h, k)
-				h = fnv64aWriteBytes(h, c.BinaryData[k])
-			}
-		}
+		writeSortedMap(h, c.Data)
+		writeSortedMap(h, c.BinaryData)
 	}
 
-	var sumBytes [8]byte
-	binary.BigEndian.PutUint64(sumBytes[:], h)
-	var hexBuf [16]byte
-	hex.Encode(hexBuf[:], sumBytes[:])
-	return string(hexBuf[:])
+	return fmt.Sprintf("%016x", h.Sum64())
+}
+
+func writeSortedMap[V ~string | ~[]byte](h hash.Hash, m map[string]V) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		h.Write([]byte(k))
+		h.Write([]byte(m[k]))
+	}
 }
 
 func referencedConfigMapNames(podTmpl *corev1.PodTemplateSpec) []string {
-	var seen map[string]struct{}
+	seen := map[string]struct{}{}
 	var names []string
-	for i := range podTmpl.Spec.Volumes {
-		cm := podTmpl.Spec.Volumes[i].ConfigMap
-		if cm == nil {
+	for _, vol := range podTmpl.Spec.Volumes {
+		if vol.ConfigMap == nil {
 			continue
 		}
-		if seen == nil {
-			seen = make(map[string]struct{}, 4)
-		} else if _, ok := seen[cm.Name]; ok {
+		if _, ok := seen[vol.ConfigMap.Name]; ok {
 			continue
 		}
-		seen[cm.Name] = struct{}{}
-		names = append(names, cm.Name)
+		seen[vol.ConfigMap.Name] = struct{}{}
+		names = append(names, vol.ConfigMap.Name)
 	}
 	return names
 }
