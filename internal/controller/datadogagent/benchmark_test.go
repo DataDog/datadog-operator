@@ -83,21 +83,21 @@ func newBenchBaseDDAI() *v1alpha1.DatadogAgentInternal {
 				},
 			},
 			Features: &v2alpha1.DatadogFeatures{
-				APM:                 &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)},
-				LogCollection:       &v2alpha1.LogCollectionFeatureConfig{Enabled: ptr.To(true), ContainerCollectAll: ptr.To(true)},
-				LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{Enabled: ptr.To(true)},
+				APM:                     &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)},
+				LogCollection:           &v2alpha1.LogCollectionFeatureConfig{Enabled: ptr.To(true), ContainerCollectAll: ptr.To(true)},
+				LiveProcessCollection:   &v2alpha1.LiveProcessCollectionFeatureConfig{Enabled: ptr.To(true)},
 				LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{Enabled: ptr.To(true)},
-				NPM:                 &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(true)},
-				USM:                 &v2alpha1.USMFeatureConfig{Enabled: ptr.To(true)},
-				CWS:                 &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
-				CSPM:                &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
-				Dogstatsd:           &v2alpha1.DogstatsdFeatureConfig{OriginDetectionEnabled: ptr.To(true)},
-				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
-				KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{Enabled: ptr.To(true)},
-				OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{Enabled: ptr.To(true)},
-				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{Enabled: ptr.To(true)},
-				SBOM:                &v2alpha1.SBOMFeatureConfig{Enabled: ptr.To(true)},
-				EventCollection:     &v2alpha1.EventCollectionFeatureConfig{CollectKubernetesEvents: ptr.To(true)},
+				NPM:                     &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(true)},
+				USM:                     &v2alpha1.USMFeatureConfig{Enabled: ptr.To(true)},
+				CWS:                     &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
+				CSPM:                    &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
+				Dogstatsd:               &v2alpha1.DogstatsdFeatureConfig{OriginDetectionEnabled: ptr.To(true)},
+				AdmissionController:     &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
+				KubeStateMetricsCore:    &v2alpha1.KubeStateMetricsCoreFeatureConfig{Enabled: ptr.To(true)},
+				OrchestratorExplorer:    &v2alpha1.OrchestratorExplorerFeatureConfig{Enabled: ptr.To(true)},
+				RemoteConfiguration:     &v2alpha1.RemoteConfigurationFeatureConfig{Enabled: ptr.To(true)},
+				SBOM:                    &v2alpha1.SBOMFeatureConfig{Enabled: ptr.To(true)},
+				EventCollection:         &v2alpha1.EventCollectionFeatureConfig{CollectKubernetesEvents: ptr.To(true)},
 			},
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
@@ -333,7 +333,7 @@ func BenchmarkLabelNodesWithProfiles_200Nodes_SteadyState(b *testing.B) {
 	for i := range numNodes {
 		nodeName := fmt.Sprintf("node-%03d", i)
 		labels := map[string]string{
-			"kubernetes.io/hostname": nodeName,
+			"kubernetes.io/hostname":      nodeName,
 			"topology.kubernetes.io/zone": "us-east-1a",
 		}
 		if i%2 == 0 {

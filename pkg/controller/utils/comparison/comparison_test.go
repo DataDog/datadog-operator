@@ -109,14 +109,14 @@ func BenchmarkGenerateMD5ForSpec_DatadogAgentSpec(b *testing.B) {
 
 func BenchmarkGenerateMD5ForSpec_LabelsMap(b *testing.B) {
 	labels := map[string]string{
-		"agent.datadoghq.com/component":            "agent",
-		"agent.datadoghq.com/name":                 "datadog",
-		"agent.datadoghq.com/datadogagentprofile":  "profile-pool-01",
-		"app.kubernetes.io/instance":               "datadog-agent",
-		"app.kubernetes.io/managed-by":             "datadog-operator",
-		"app.kubernetes.io/name":                   "datadog-agent-deployment",
-		"app.kubernetes.io/part-of":                "datadog-agent",
-		"env":                                      "prod",
+		"agent.datadoghq.com/component":           "agent",
+		"agent.datadoghq.com/name":                "datadog",
+		"agent.datadoghq.com/datadogagentprofile": "profile-pool-01",
+		"app.kubernetes.io/instance":              "datadog-agent",
+		"app.kubernetes.io/managed-by":            "datadog-operator",
+		"app.kubernetes.io/name":                  "datadog-agent-deployment",
+		"app.kubernetes.io/part-of":               "datadog-agent",
+		"env":                                     "prod",
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
