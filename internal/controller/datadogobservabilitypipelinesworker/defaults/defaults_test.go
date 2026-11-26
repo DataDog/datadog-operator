@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -35,8 +36,11 @@ func TestApply(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext:            workerPodSecurityContext(),
+						SecurityContext:               workerSecurityContext(),
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -58,6 +62,8 @@ func TestApply(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext:            workerPodSecurityContext(),
+						SecurityContext:               workerSecurityContext(),
 					},
 					Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 						MinReplicas: ptr.To[int32](1),
@@ -73,7 +79,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -97,6 +104,8 @@ func TestApply(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext:            workerPodSecurityContext(),
+						SecurityContext:               workerSecurityContext(),
 					},
 					Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 						MinReplicas: ptr.To[int32](20),
@@ -112,7 +121,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -136,6 +146,8 @@ func TestApply(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext:            workerPodSecurityContext(),
+						SecurityContext:               workerSecurityContext(),
 					},
 					Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 						MinReplicas: ptr.To[int32](1),
@@ -151,7 +163,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -175,6 +188,8 @@ func TestApply(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext:            workerPodSecurityContext(),
+						SecurityContext:               workerSecurityContext(),
 					},
 					Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 						MinReplicas: ptr.To[int32](3),
@@ -190,7 +205,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -214,6 +230,8 @@ func TestApply(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("4Gi"),
 						}},
 						TerminationGracePeriodSeconds: ptr.To[int64](70),
+						PodSecurityContext:            workerPodSecurityContext(),
+						SecurityContext:               workerSecurityContext(),
 					},
 					Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 						MinReplicas: ptr.To[int32](1),
@@ -229,7 +247,8 @@ func TestApply(t *testing.T) {
 							},
 						}},
 					},
-					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					Storage:             &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+					PodManagementPolicy: ptr.To(appsv1.ParallelPodManagement),
 				},
 			},
 		},
@@ -244,6 +263,8 @@ func TestApply(t *testing.T) {
 								Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("8Gi")},
 							},
 							TerminationGracePeriodSeconds: ptr.To[int64](90),
+							PodSecurityContext:            &corev1.PodSecurityContext{RunAsUser: ptr.To[int64](2000)},
+							SecurityContext:               &corev1.SecurityContext{AllowPrivilegeEscalation: ptr.To(false)},
 						},
 						Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 							MinReplicas: ptr.To[int32](3),
@@ -254,6 +275,7 @@ func TestApply(t *testing.T) {
 						Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 							VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
 						},
+						PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 					},
 				},
 			}},
@@ -265,6 +287,8 @@ func TestApply(t *testing.T) {
 							Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("8Gi")},
 						},
 						TerminationGracePeriodSeconds: ptr.To[int64](90),
+						PodSecurityContext:            &corev1.PodSecurityContext{RunAsUser: ptr.To[int64](2000)},
+						SecurityContext:               &corev1.SecurityContext{AllowPrivilegeEscalation: ptr.To(false)},
 					},
 					Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
 						MinReplicas: ptr.To[int32](3),
@@ -275,6 +299,7 @@ func TestApply(t *testing.T) {
 					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 						VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
 					},
+					PodManagementPolicy: ptr.To(appsv1.OrderedReadyPodManagement),
 				},
 			},
 		},
@@ -287,5 +312,17 @@ func TestApply(t *testing.T) {
 				t.Errorf("Apply() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func workerPodSecurityContext() *corev1.PodSecurityContext {
+	return &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1000)}
+}
+
+func workerSecurityContext() *corev1.SecurityContext {
+	return &corev1.SecurityContext{
+		RunAsNonRoot: ptr.To(true),
+		RunAsUser:    ptr.To[int64](1000),
+		RunAsGroup:   ptr.To[int64](1000),
 	}
 }

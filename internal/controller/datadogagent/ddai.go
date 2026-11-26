@@ -16,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -115,18 +117,20 @@ func getDDAILabels(dda *v2alpha1.DatadogAgent) map[string]string {
 	return labels
 }
 
-func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, dda *v2alpha1.DatadogAgent, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
 	validDDAIMap := make(map[string]struct{}, len(validDDAIs))
 	for _, ddai := range validDDAIs {
 		validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)] = struct{}{}
 	}
 	ddaiList := &v1alpha1.DatadogAgentInternalList{}
-	if err := r.client.List(ctx, ddaiList); err != nil {
+	if err := r.client.List(ctx, ddaiList, client.InNamespace(dda.Namespace), client.MatchingLabels{
+		apicommon.DatadogAgentNameLabelKey: dda.Name,
+	}); err != nil {
 		return err
 	}
 	for _, ddai := range ddaiList.Items {
 		if _, isValid := validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)]; !isValid {
-			r.log.Info("Deleting unused DDAI", "namespace", ddai.Namespace, "name", ddai.Name)
+			ctrl.LoggerFrom(ctx).Info("Deleting unused DDAI", "object.kind", "DatadogAgentInternal", "object.namespace", ddai.Namespace, "object.name", ddai.Name)
 			if err := r.client.Delete(ctx, &ddai); err != nil {
 				return err
 			}
@@ -150,10 +154,10 @@ func (r *Reconciler) addRemoteConfigStatusToDDAIStatus(ctx context.Context, ddaS
 	// update ddai status
 	if err := r.client.Status().Update(ctx, updateDdai); err != nil {
 		if apierrors.IsConflict(err) {
-			r.log.V(1).Info("unable to update DatadogAgentInternal remote config status due to update conflict")
+			ctrl.LoggerFrom(ctx).V(1).Info("unable to update DatadogAgentInternal remote config status due to update conflict")
 			return reconcile.Result{RequeueAfter: time.Second}, nil
 		}
-		r.log.Error(err, "unable to update DatadogAgentInternal remote config status")
+		ctrl.LoggerFrom(ctx).Error(err, "unable to update DatadogAgentInternal remote config status")
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil

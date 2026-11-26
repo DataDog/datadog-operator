@@ -45,6 +45,7 @@ func (r *DatadogAgentProfileReconciler) SetupWithManager(mgr ctrl.Manager) error
 	r.internal = internal
 
 	builder := ctrl.NewControllerManagedBy(mgr).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), profileControllerName)).
 		For(&datadoghqv1alpha1.DatadogAgentProfile{})
 
 	err = builder.Complete(r)

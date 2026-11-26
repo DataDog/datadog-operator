@@ -8,6 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/utils"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 type MonitorHandler struct {
@@ -21,19 +23,92 @@ func (h *MonitorHandler) createResource(auth context.Context, instance *v1alpha1
 	}
 	createdTime := metav1.NewTime(*createdMonitor.Created)
 	return CreateResult{
-		ID:          resourceInt64ToStringID(createdMonitor.GetId()),
-		CreatedTime: &createdTime,
-		Creator:     *createdMonitor.GetCreator().Handle,
+		ID:                   resourceInt64ToStringID(createdMonitor.GetId()),
+		CreatedTime:          &createdTime,
+		Creator:              *createdMonitor.GetCreator().Handle,
+		RemoteDefinitionHash: monitorDefinitionHash(instance, createdMonitor),
 	}, nil
 }
 
 func (h *MonitorHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getMonitor(auth, h.client, instance.Status.Id)
+	_, err := h.read(auth, instance, instance.Status.Etag)
 	return err
 }
+
+func (h *MonitorHandler) readRemoteDefinition(auth context.Context, instance *v1alpha1.DatadogGenericResource) (remoteRead, error) {
+	return h.read(auth, instance, instance.Status.Etag)
+}
+
+// read reads the monitor, sending etag in If-None-Match when it is not empty.
+// Force syncs and state polls use the same request, so the ETag of one can
+// match the other.
+func (h *MonitorHandler) read(auth context.Context, instance *v1alpha1.DatadogGenericResource, etag string) (remoteRead, error) {
+	read, err := getMonitor(auth, h.client, instance.Status.Id, etag)
+	if err != nil {
+		return remoteRead{}, err
+	}
+	if read.NotModified {
+		return remoteRead{ETag: read.ETag, NotModified: true}, nil
+	}
+	state := string(read.Monitor.GetOverallState())
+	return remoteRead{
+		Hash:  monitorDefinitionHash(instance, read.Monitor),
+		ETag:  read.ETag,
+		State: &state,
+	}, nil
+}
+
 func (h *MonitorHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateMonitor(auth, h.client, instance)
 	return err
+}
+
+func (h *MonitorHandler) updateResourceWithHash(auth context.Context, instance *v1alpha1.DatadogGenericResource) (string, error) {
+	monitor, err := updateMonitor(auth, h.client, instance)
+	if err != nil {
+		return "", err
+	}
+	return monitorDefinitionHash(instance, monitor), nil
+}
+
+// monitorDefinitionHash returns the definition hash of a monitor returned by the
+// API, or "" when force syncs must keep updating it: a restriction policy in the
+// spec is not part of the monitor definition that the hash covers, and supplied
+// fields missing from the response cannot be monitored for drift.
+func monitorDefinitionHash(instance *v1alpha1.DatadogGenericResource, monitor datadogV1.Monitor) string {
+	var spec map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &spec); err != nil {
+		return ""
+	}
+	if _, ok := spec["restriction_policy"]; ok {
+		return ""
+	}
+	data, err := json.Marshal(monitor)
+	if err != nil {
+		return ""
+	}
+	var remoteFields map[string]json.RawMessage
+	if err = json.Unmarshal(data, &remoteFields); err != nil {
+		return ""
+	}
+	// The SDK preserves unknown properties, so jsonSpec can manage fields that
+	// are not in the shared definition list, even without an SDK upgrade.
+	// Response-only fields such as "state" are deliberately not filtered out:
+	// hashing one only costs extra updates, while a filter list that wrongly
+	// excluded a writable field would hide drift. The docs ask users to keep
+	// response-only fields out of jsonSpec.
+	fields := []string{"assets"}
+	for field := range spec {
+		if _, returned := remoteFields[field]; !returned {
+			return ""
+		}
+		fields = append(fields, field)
+	}
+	hash, err := utils.MonitorDefinitionHash(monitor, fields...)
+	if err != nil {
+		return ""
+	}
+	return hash
 }
 func (h *MonitorHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	return deleteMonitor(auth, h.client, instance.Status.Id)
@@ -45,28 +120,33 @@ func (h *MonitorHandler) deleteResource(auth context.Context, instance *v1alpha1
 // is intentionally not surfaced in DDGR (see internal/controller/datadogmonitor/
 // controller.go::convertStateToStatus for the per-group detail available on the
 // dedicated DatadogMonitor CRD).
-func (h *MonitorHandler) refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error) {
-	m, err := getMonitor(auth, h.client, instance.Status.Id)
-	if err != nil {
-		return nil, err
+func (h *MonitorHandler) refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (remoteRead, error) {
+	// Without a polled state, for example after a create or while polling was
+	// disabled, a Not Modified response would leave the state unknown.
+	etag := instance.Status.Etag
+	if instance.Status.State == "" || instance.Status.State == ctrutils.StatePollingDisabledState {
+		etag = ""
 	}
-	state := string(m.GetOverallState())
-	return &state, nil
+	return h.read(auth, instance, etag)
 }
 
-func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {
+// getMonitor reads a monitor with its assets, which are part of the hashed
+// definition and are only returned on request. It reports a monitor that has
+// not changed since the read that returned etag as NotModified.
+func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string, etag string) (utils.MonitorRead, error) {
 	monitorID, err := resourceStringToInt64ID(monitorStringID)
 	if err != nil {
-		return datadogV1.Monitor{}, err
+		return utils.MonitorRead{}, err
 	}
-	monitor, httpResp, err := client.GetMonitor(auth, monitorID)
+	params := *datadogV1.NewGetMonitorOptionalParameters().WithWithAssets(true)
+	read, httpResp, err := utils.GetMonitorIfChanged(auth, client, monitorID, etag, params)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error getting monitor")
+		return utils.MonitorRead{}, translateClientError(err, httpResp, "error getting monitor")
 	}
-	return monitor, nil
+	return read, nil
 }
 
 func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) error {

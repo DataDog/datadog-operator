@@ -764,7 +764,7 @@
                           "x-kubernetes-list-type": "set"
                         },
                         "injectionMode": {
-                          "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
+                          "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
                           "enum": [
                             "auto",
                             "init_container",
@@ -1496,6 +1496,17 @@
                       },
                       "type": "object"
                     },
+                    "databaseBenchmarks": {
+                      "additionalProperties": false,
+                      "description": "DatabaseBenchmarks contains configuration for database benchmarks.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
                       "description": "Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.\nDefault: false",
                       "type": "boolean"
@@ -1825,6 +1836,14 @@
                       "type": "array",
                       "x-kubernetes-list-type": "atomic"
                     },
+                    "collectionMode": {
+                      "description": "CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.\n`poll` re-opens a watch on every check run. `watch` streams events through a single\npersistent reflector-backed watch, which avoids dropping events in high-churn clusters.\nRequires Cluster Agent 7.81.1+.\nDefault: unset (the Cluster Agent's default is `poll`)",
+                      "enum": [
+                        "poll",
+                        "watch"
+                      ],
+                      "type": "string"
+                    },
                     "unbundleEvents": {
                       "description": "UnbundleEvents enables collection of Kubernetes events as individual events.\nDefault: false",
                       "type": "boolean"
@@ -1935,11 +1954,19 @@
                       "type": "boolean"
                     },
                     "privilegedMode": {
-                      "description": "PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF\nprobes are disabled; privileged mode is retained for cgroup permission patching.\nTo re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the\ncore agent and system-probe containers via spec.override.nodeAgent.containers.\nDefault: false",
+                      "description": "PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF\nprobes are disabled; privileged mode is retained for cgroup permission patching.\nTo re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the\ncore agent and system-probe containers via spec.override.nodeAgent.containers.\nApplies to NVIDIA GPUs only.\nDefault: false",
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {
-                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia, or unset when vendor is amd",
+                      "type": "string"
+                    },
+                    "vendor": {
+                      "description": "Vendor selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings,\nsets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot.",
+                      "enum": [
+                        "nvidia",
+                        "amd"
+                      ],
                       "type": "string"
                     }
                   },
@@ -2293,6 +2320,10 @@
                         "node_kubelet"
                       ],
                       "type": "string"
+                    },
+                    "shardingEnabled": {
+                      "description": "`ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other\nresources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins\ncannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,\n`container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.\n\nDefault behavior is unchanged when this field is unset.",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
@@ -2301,8 +2332,37 @@
                   "additionalProperties": false,
                   "description": "KubernetesActions configuration.",
                   "properties": {
+                    "communication": {
+                      "additionalProperties": false,
+                      "description": "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.\nAt least one channel must be enabled; both can be enabled at the same time.",
+                      "properties": {
+                        "privateActionRunner": {
+                          "additionalProperties": false,
+                          "description": "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.\nWhen enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already\nconfigured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.\nWhen disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions\nare not allowed in the Private Action Runner even if it is enabled for other workflows.\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "remoteConfiguration": {
+                          "additionalProperties": false,
+                          "description": "RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables delivery of Kubernetes actions through Remote Configuration.\nDisabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
-                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nRequires Cluster Agent 7.84.0 or greater.\nDefault: false",
                       "type": "boolean"
                     }
                   },
@@ -2821,6 +2881,60 @@
                             }
                           },
                           "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "privateActionRunner": {
+                  "additionalProperties": false,
+                  "description": "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
+                  "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist contains additional action patterns allowed on both agents.\nPer-component ActionsAllowlist replaces this list when set, including an empty list.\nTyped allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.\nBuilt-in actions remain controlled by private_action_runner.default_actions_enabled.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "clusterAgent": {
+                      "additionalProperties": false,
+                      "description": "ClusterAgent configures Private Action Runner on the Cluster Agent.\nOmitted settings inherit the shared feature settings.",
+                      "properties": {
+                        "actionsAllowlist": {
+                          "description": "ActionsAllowlist replaces the shared additional action patterns for this component.\nAn explicit empty list clears inherited additional action patterns.\nTakes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "enabled": {
+                          "description": "Enabled overrides the shared Private Action Runner enablement for this component.\nTakes precedence over private_action_runner.enabled in customConfigurations.",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,\nwith self-enrollment by default. Per-component Enabled takes precedence.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "nodeAgent": {
+                      "additionalProperties": false,
+                      "description": "NodeAgent configures Private Action Runner on the Node Agent.\nOmitted settings inherit the shared feature settings.",
+                      "properties": {
+                        "actionsAllowlist": {
+                          "description": "ActionsAllowlist replaces the shared additional action patterns for this component.\nAn explicit empty list clears inherited additional action patterns.\nTakes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "enabled": {
+                          "description": "Enabled overrides the shared Private Action Runner enablement for this component.\nTakes precedence over private_action_runner.enabled in customConfigurations.",
+                          "type": "boolean"
                         }
                       },
                       "type": "object"

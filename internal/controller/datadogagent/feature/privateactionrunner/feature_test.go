@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -122,7 +123,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 		volumeNames[v.Name] = true
 	}
 	assert.True(t, volumeNames[common.ProcdirVolumeName])
-	assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, volumeNames[common.OSReleaseFileVolumeName])
 	assert.True(t, volumeNames[hostVarLogVolumeName])
 
 	// Verify volume mounts (1 configmap + 3 host mounts)
@@ -139,12 +140,12 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 		mountNames[m.Name] = true
 	}
 	assert.True(t, mountNames[common.ProcdirVolumeName])
-	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, mountNames[common.OSReleaseFileVolumeName])
 	assert.True(t, mountNames[hostVarLogVolumeName])
 
 	// Verify host mounts are read-only
 	for _, m := range volumeMounts {
-		if m.Name == common.ProcdirVolumeName || m.Name == common.SystemProbeOSReleaseDirVolumeName || m.Name == hostVarLogVolumeName {
+		if m.Name == common.ProcdirVolumeName || m.Name == common.OSReleaseFileVolumeName || m.Name == hostVarLogVolumeName {
 			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
 		}
 	}
@@ -417,7 +418,7 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			container := &managers.PodTemplateSpec().Spec.Containers[0]
 			container.Image = images.OverrideAgentImage(container.Image, &tt.image)
 			experimental.ApplyExperimentalOverrides(logr.Discard(), dda, managers)
-			assert.Equal(t, tt.wantVersion, common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: container.Image}))
+			assert.Equal(t, tt.wantVersion, images.FromString(container.Image).Version())
 		})
 	}
 }
@@ -573,9 +574,12 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 	tests := []struct {
 		name                      string
 		annotations               map[string]string
+		kubernetesActions         *v2alpha1.KubernetesActionsFeatureConfig
+		clusterAgentTag           string
 		wantClusterAgentEnabled   bool
 		wantNodeAgentEnabled      bool
 		wantK8sRemediationEnabled bool
+		wantSelfEnroll            bool
 		expectedClusterConfigData string
 	}{
 		{
@@ -669,6 +673,111 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			wantK8sRemediationEnabled: false,
 			expectedClusterConfigData: defaultConfigData,
 		},
+		{
+			name: "cluster agent enabled by kubernetes actions PAR communication",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "kubernetes actions PAR communication keeps annotation config data",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+			},
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			wantClusterAgentEnabled: true,
+			wantSelfEnroll:          true,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+		},
+		{
+			name: "kubernetes actions enables the cluster agent runner by default",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled: new(true),
+			},
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "kubernetes actions with PAR communication disabled does not enable cluster agent runner",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(false)}},
+			},
+			wantClusterAgentEnabled: false,
+		},
+		{
+			// Kubernetes Actions requires Cluster Agent 7.84.0: do not provision an orphan
+			// runner, ConfigMap and RBAC for an older Cluster Agent.
+			name: "kubernetes actions PAR communication ignored on a cluster agent without Kubernetes Actions support",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			clusterAgentTag:         "7.83.0",
+			wantClusterAgentEnabled: false,
+		},
+		{
+			name: "kubernetes actions PAR communication enables the runner at the minimum cluster agent version",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(true),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			clusterAgentTag:           "7.84.0",
+			wantClusterAgentEnabled:   true,
+			wantSelfEnroll:            true,
+			expectedClusterConfigData: kubernetesActionsDefaultConfigData,
+		},
+		{
+			name: "invalid annotation config data leaves cluster agent unconfigured",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":    "true",
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": "private_action_runner: [",
+			},
+			wantClusterAgentEnabled: false,
+		},
+		{
+			name: "kubernetes actions keeps annotation-enabled default config data",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+			},
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled: new(true),
+			},
+			wantClusterAgentEnabled:   true,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "kubernetes actions with invalid annotation config data leaves cluster agent unconfigured",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": "private_action_runner: [",
+			},
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled: new(true),
+			},
+			wantClusterAgentEnabled: false,
+		},
+		{
+			name: "kubernetes actions PAR communication ignored when feature disabled",
+			kubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       new(false),
+				Communication: &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(true)}},
+			},
+			wantClusterAgentEnabled: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -679,13 +788,26 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 					Annotations: tt.annotations,
 				},
 			}
-			reqComp := f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+			ddaSpec := &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{KubernetesActions: tt.kubernetesActions},
+			}
+			if tt.clusterAgentTag != "" {
+				ddaSpec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.clusterAgentTag}},
+				}
+			}
+			reqComp := f.Configure(dda, ddaSpec, nil)
 
 			assert.Equal(t, tt.wantClusterAgentEnabled, reqComp.ClusterAgent.IsEnabled())
 			assert.Equal(t, tt.wantNodeAgentEnabled, reqComp.Agent.IsEnabled())
 
 			parFeat, ok := f.(*privateActionRunnerFeature)
 			require.True(t, ok)
+			// Legacy configuration errors are logged, not surfaced to dependency management.
+			require.NoError(t, parFeat.configErr)
+			if !tt.wantClusterAgentEnabled {
+				assert.Nil(t, reqComp.ClusterAgent.IsRequired)
+			}
 
 			// Check if cluster config is set correctly
 			if tt.wantClusterAgentEnabled {
@@ -696,6 +818,9 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 				// Validate the raw config data matches expected
 				if tt.expectedClusterConfigData != "" {
 					assert.Equal(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
+				}
+				if tt.wantSelfEnroll {
+					assert.Equal(t, new(true), parFeat.clusterConfig.SelfEnroll, "clusterConfig.SelfEnroll should be true")
 				}
 			} else {
 				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
@@ -715,6 +840,9 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 		name                      string
 		configData                string
 		expectedClusterConfigData string
+		expectedRBACSecretName    string
+		kubernetesActions         bool
+		k8sRemediation            bool
 	}{
 		{
 			name: "self-enroll with identity secret",
@@ -726,6 +854,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
   enabled: true
   self_enroll: true
   identity_secret_name: my-par-identity`,
+			expectedRBACSecretName: "my-par-identity",
 		},
 		{
 			name: "manual enrollment with URN and private key",
@@ -758,11 +887,76 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
     - com.datadoghq.http.request
     - com.datadoghq.kubernetes.core.listPod
     - com.datadoghq.traceroute`,
+			expectedRBACSecretName: defaultIdentitySecretName,
 		},
 		{
 			name:                      "default config (minimal)",
 			configData:                defaultConfigData,
 			expectedClusterConfigData: defaultConfigData,
+			expectedRBACSecretName:    defaultIdentitySecretName,
+		},
+		{
+			name:                      "no configdata annotation",
+			expectedClusterConfigData: defaultConfigData,
+			expectedRBACSecretName:    defaultIdentitySecretName,
+		},
+		{
+			name:                      "kubernetes actions uses the Agent identity secret default",
+			kubernetesActions:         true,
+			expectedClusterConfigData: "private_action_runner:\n    enabled: true\n    self_enroll: true\n",
+			expectedRBACSecretName:    "private-action-runner-identity",
+		},
+		{
+			name:              "kubernetes actions respects an explicit legacy identity secret",
+			kubernetesActions: true,
+			configData: `private_action_runner:
+  enabled: true
+  identity_secret_name: datadog-private-action-runner-identity`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_secret_name: datadog-private-action-runner-identity`,
+			expectedRBACSecretName: "datadog-private-action-runner-identity",
+		},
+		{
+			name: "file storage with omitted self-enroll",
+			configData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: false`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: false`,
+		},
+		{
+			name:           "file storage with explicit self-enroll preserves remediation RBAC",
+			k8sRemediation: true,
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_use_k8s_secret: false`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_use_k8s_secret: false`,
+		},
+		{
+			name: "explicit Kubernetes storage with omitted self-enroll",
+			configData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: true`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_use_k8s_secret: true`,
+			expectedRBACSecretName: defaultIdentitySecretName,
+		},
+		{
+			name: "omitted self-enroll with custom identity secret",
+			configData: `private_action_runner:
+  enabled: true
+  identity_secret_name: custom-par-identity`,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  identity_secret_name: custom-par-identity`,
+			expectedRBACSecretName: "custom-par-identity",
 		},
 	}
 
@@ -774,12 +968,24 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 					Name:      "test-dda",
 					Namespace: "default",
 					Annotations: map[string]string{
-						"cluster-agent.datadoghq.com/private-action-runner-enabled":    "true",
-						"cluster-agent.datadoghq.com/private-action-runner-configdata": tt.configData,
+						"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
 					},
 				},
 			}
-			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+			if tt.configData != "" {
+				dda.Annotations["cluster-agent.datadoghq.com/private-action-runner-configdata"] = tt.configData
+			}
+			if tt.k8sRemediation {
+				dda.Annotations["cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"] = "true"
+			}
+			ddaSpec := &v2alpha1.DatadogAgentSpec{}
+			if tt.kubernetesActions {
+				delete(dda.Annotations, "cluster-agent.datadoghq.com/private-action-runner-enabled")
+				ddaSpec.Features = &v2alpha1.DatadogFeatures{
+					KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: new(true)},
+				}
+			}
+			f.Configure(dda, ddaSpec, nil)
 
 			// Create store and resource managers for ConfigMap creation
 			storeOptions := &store.StoreOptions{
@@ -805,6 +1011,33 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			// Verify the ConfigMap contains the expected config data
 			yamlContent := configMap.Data["privateactionrunner.yaml"]
 			assert.Equal(t, tt.expectedClusterConfigData, yamlContent, "ConfigMap content should match expected")
+
+			role, roleFound := resourceManagers.Store().Get(kubernetes.RolesKind, "default", "test-dda-private-action-runner")
+			binding, bindingFound := resourceManagers.Store().Get(kubernetes.RoleBindingKind, "default", "test-dda-private-action-runner")
+			clusterRole, clusterRoleFound := resourceManagers.Store().Get(kubernetes.ClusterRolesKind, "", "test-dda-private-action-runner")
+			_, clusterBindingFound := resourceManagers.Store().Get(kubernetes.ClusterRoleBindingKind, "", "test-dda-private-action-runner")
+			require.Equal(t, tt.k8sRemediation, clusterRoleFound, "remediation ClusterRole")
+			require.Equal(t, tt.k8sRemediation, clusterBindingFound, "remediation ClusterRoleBinding")
+			if tt.k8sRemediation {
+				assert.Equal(t, getK8sRemediationPolicyRules(), clusterRole.(*rbacv1.ClusterRole).Rules)
+			}
+			wantRBAC := tt.expectedRBACSecretName != ""
+			require.Equal(t, wantRBAC, roleFound, "enrollment Role")
+			require.Equal(t, wantRBAC, bindingFound, "enrollment RoleBinding")
+			if wantRBAC {
+				assert.Equal(t, getClusterAgentRBACPolicyRules(tt.expectedRBACSecretName), role.(*rbacv1.Role).Rules)
+				roleBinding := binding.(*rbacv1.RoleBinding)
+				assert.Equal(t, rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     "Role",
+					Name:     "test-dda-private-action-runner",
+				}, roleBinding.RoleRef)
+				assert.Equal(t, []rbacv1.Subject{{
+					Kind:      "ServiceAccount",
+					Name:      "test-dda-cluster-agent",
+					Namespace: "default",
+				}}, roleBinding.Subjects)
+			}
 
 			// Create test managers with a container
 			podTmpl := corev1.PodTemplateSpec{

@@ -456,6 +456,17 @@ rules:
   - list
   - watch
 - apiGroups:
+  - kueue.x-k8s.io
+  resources:
+  - clusterqueues
+  - localqueues
+  - resourceflavors
+  - workloads
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - kustomize.toolkit.fluxcd.io
   resources:
   - kustomizations
@@ -600,6 +611,22 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - resource.k8s.io
+  resources:
+  - devicetaintrules
+  - resourceclaims
+  - resourceslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - scheduling.run.ai
+  resources:
+  - podgroups
+  verbs:
+  - list
   - watch
 - apiGroups:
   - security.openshift.io

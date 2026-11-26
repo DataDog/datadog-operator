@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -599,8 +600,7 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
 	// Create context with API key for validation
 	ctx := mf.generateDatadogContext()
 
-	config := datadogapi.NewConfiguration()
-	apiClient := datadogapi.NewAPIClient(config)
+	apiClient := datadogclient.NewAPIClient()
 	authAPI := datadogV1.NewAuthenticationApi(apiClient)
 
 	_, _, err := authAPI.Validate(ctx)
@@ -964,8 +964,7 @@ func (mf *metricsForwarder) setEnabledFeatures(features []string) {
 
 func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	// v2 client is used for metrics and events
-	configuration := datadogapi.NewConfiguration()
-	apiClient := datadogapi.NewAPIClient(configuration)
+	apiClient := datadogclient.NewAPIClient()
 	mf.datadogMetricsAPI = datadogV2.NewMetricsApi(apiClient)
 	mf.datadogEventsAPI = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }

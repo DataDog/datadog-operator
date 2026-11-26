@@ -13,6 +13,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -35,7 +37,7 @@ import (
 )
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
-	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (result reconcile.Result, err error) {
+	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string, conditionMessages map[string][]string) (result reconcile.Result, err error) {
 	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(datadoghqv2alpha1.NodeAgentComponentName)))
 	defer trace.FinishSpan(span, &err)
 	var daemonset *appsv1.DaemonSet
@@ -72,6 +74,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Apply features changes on the Deployment.Spec.Template.
 	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
 	// so that each feature owns its provider correctness independently.
+	var featErrors []error
 	for _, feat := range features {
 		// On the Windows provider path, features the support matrix marks Excluded do not run
 		// their node-agent hooks; they'd inject config the Windows agent can't use
@@ -79,14 +82,15 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		if windowsProfile && feature.FeatureSupportLevel(provider, feat.ID()) == feature.Excluded {
 			continue
 		}
+		var errFeat error
 		if singleContainerStrategyEnabled {
-			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
-				return result, errFeat
-			}
+			errFeat = feat.ManageSingleContainerNodeAgent(podManagers)
 		} else {
-			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
-				return result, errFeat
-			}
+			errFeat = feat.ManageNodeAgent(podManagers)
+		}
+		if errFeat != nil {
+			featErrors = append(featErrors, errFeat)
+			continue
 		}
 		// Apply provider capabilities after the feature's manage step regardless of
 		// container strategy, so colocated provider mutations are not silently
@@ -94,6 +98,21 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		if paf, ok := feat.(feature.ProviderAwareFeature); ok {
 			providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 		}
+	}
+	if len(featErrors) > 0 {
+		err = utilerrors.NewAggregate(featErrors)
+		// The name override is only applied to the DaemonSet later, so resolve the name here.
+		// Report the live DaemonSet's counts; nil (not found) leaves the previous counts.
+		dsName := component.GetDaemonSetNameFromDatadogAgent(ddai, &ddai.Spec)
+		currentDaemonset := &appsv1.DaemonSet{}
+		if getErr := r.client.Get(ctx, types.NamespacedName{Namespace: daemonset.Namespace, Name: dsName}, currentDaemonset); getErr != nil {
+			currentDaemonset = nil
+			if !errors.IsNotFound(getErr) {
+				daemonsetLogger.Error(getErr, "unable to get DaemonSet to report its status")
+			}
+		}
+		updateDSStatusV2WithAgent(dsName, currentDaemonset, newStatus, metav1.NewTime(time.Now()), metav1.ConditionFalse, "AgentFeatureError", err.Error())
+		return result, err
 	}
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
@@ -114,6 +133,20 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 
 	if r.options.UntaintControllerEnabled {
 		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
+	}
+
+	if disabledByOverride && agentEnabled {
+		// The override supersedes what's set in requiredComponents; update status to reflect the conflict
+		condition.AppendDatadogAgentInternalStatusConditions(
+			newStatus,
+			conditionMessages,
+			metav1.NewTime(time.Now()),
+			common.OverrideReconcileConflictConditionType,
+			metav1.ConditionTrue,
+			"OverrideConflict",
+			"Agent component is set to disabled",
+			true,
+		)
 	}
 
 	// Windows profile (DatadogAgentProfile targeting Windows nodes): the DaemonSet was built,
@@ -194,18 +227,6 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	}
 
 	if disabledByOverride {
-		if agentEnabled {
-			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-			condition.UpdateDatadogAgentInternalStatusConditions(
-				newStatus,
-				metav1.NewTime(time.Now()),
-				common.OverrideReconcileConflictConditionType,
-				metav1.ConditionTrue,
-				"OverrideConflict",
-				"Agent component is set to disabled",
-				true,
-			)
-		}
 		if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -222,8 +243,14 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
+// updateDSStatusV2WithAgent sets the agent status and the AgentReconcile condition.
+// A False condition marks the agent Failed, keeping the counts of ds if it is not nil.
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.Agent = condition.UpdateDaemonSetStatusDDAI(dsName, ds, newStatus.Agent, &updateTime)
+	if status == metav1.ConditionFalse {
+		newStatus.Agent = condition.UpdateDaemonSetStatusDDAIFailed(dsName, ds, newStatus.Agent, &updateTime)
+	} else {
+		newStatus.Agent = condition.UpdateDaemonSetStatusDDAI(dsName, ds, newStatus.Agent, &updateTime)
+	}
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
 }
 

@@ -17,49 +17,55 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIAPMConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_CSIAPMConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIImageConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_CSIImageConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ControlPlaneMonitoringFeatureConfig": schema_datadog_operator_api_datadoghq_v2alpha1_ControlPlaneMonitoringFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_CustomConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus":                     schema_datadog_operator_api_datadoghq_v2alpha1_DaemonSetStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DataPlaneDogstatsdConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneDogstatsdConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DataPlaneFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent":                        schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentGenericContainer":        schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentStatus":                  schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogCredentials":                  schema_datadog_operator_api_datadoghq_v2alpha1_DatadogCredentials(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures":                     schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus":                    schema_datadog_operator_api_datadoghq_v2alpha1_DeploymentStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTrackingStandalone":             schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig":        schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentCheckpoint":                schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentCheckpoint(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus":                    schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GlobalConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_GlobalConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig":   schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsFeatureConfig":      schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LocalService":                        schema_datadog_operator_api_datadoghq_v2alpha1_LocalService(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.MultiCustomConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_MultiCustomConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkPolicyConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPHTTPConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_OTLPHTTPConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPProtocolsConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_OTLPProtocolsConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig":                  schema_datadog_operator_api_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig":   schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelAgentGatewayFeatureConfig":       schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":       schema_datadog_operator_api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration":           schema_datadog_operator_api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig":                       schema_datadog_operator_api_datadoghq_v2alpha1_SeccompConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendRolesConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.UnixDomainSocketConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIAPMConfig":                               schema_datadog_operator_api_datadoghq_v2alpha1_CSIAPMConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIImageConfig":                             schema_datadog_operator_api_datadoghq_v2alpha1_CSIImageConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMDatabaseBenchmarksConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_CSPMDatabaseBenchmarksConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ControlPlaneMonitoringFeatureConfig":        schema_datadog_operator_api_datadoghq_v2alpha1_ControlPlaneMonitoringFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig":                                 schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig":                               schema_datadog_operator_api_datadoghq_v2alpha1_CustomConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus":                            schema_datadog_operator_api_datadoghq_v2alpha1_DaemonSetStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DataPlaneDogstatsdConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneDogstatsdConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DataPlaneFeatureConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent":                               schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentGenericContainer":               schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentStatus":                         schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogCredentials":                         schema_datadog_operator_api_datadoghq_v2alpha1_DatadogCredentials(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures":                            schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus":                           schema_datadog_operator_api_datadoghq_v2alpha1_DeploymentStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTrackingStandalone":                    schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentCheckpoint":                       schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentCheckpoint(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus":                           schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                                 schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GlobalConfig":                               schema_datadog_operator_api_datadoghq_v2alpha1_GlobalConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsCommunicationConfig":       schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsCommunicationConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsFeatureConfig":             schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsPrivateActionRunnerConfig": schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsPrivateActionRunnerConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsRemoteConfigurationConfig": schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsRemoteConfigurationConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LocalService":                               schema_datadog_operator_api_datadoghq_v2alpha1_LocalService(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.MultiCustomConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_MultiCustomConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkPolicyConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig":                             schema_datadog_operator_api_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPHTTPConfig":                             schema_datadog_operator_api_datadoghq_v2alpha1_OTLPHTTPConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPProtocolsConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_OTLPProtocolsConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig":                         schema_datadog_operator_api_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelAgentGatewayFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig":         schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerComponentConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerFeatureConfig":           schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration":                  schema_datadog_operator_api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig":                              schema_datadog_operator_api_datadoghq_v2alpha1_SeccompConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendRolesConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.UnixDomainSocketConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
 }
 
@@ -149,6 +155,26 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CSIImageConfig(ref common.Re
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CSPMDatabaseBenchmarksConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -950,6 +976,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.R
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig"),
 						},
 					},
+					"privateActionRunner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrivateActionRunner configuration for the Node Agent and Cluster Agent.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerFeatureConfig"),
+						},
+					},
 					"sbom": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SBOM collection configuration.",
@@ -1050,7 +1082,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.R
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.APMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ASMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AppsecFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CWSFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ControlPlaneMonitoringFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DataPlaneFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DynamicInstrumentationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostProfilerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OOMKillFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelAgentGatewayFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SBOMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.USMFeatureConfig"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.APMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ASMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AppsecFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CWSFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ControlPlaneMonitoringFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DataPlaneFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DynamicInstrumentationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostProfilerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OOMKillFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelAgentGatewayFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SBOMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -1257,6 +1289,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig
 									},
 								},
 							},
+						},
+					},
+					"collectionMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server. `poll` re-opens a watch on every check run. `watch` streams events through a single persistent reflector-backed watch, which avoids dropping events in high-churn clusters. Requires Cluster Agent 7.81.1+. Default: unset (the Cluster Agent's default is `poll`)",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -1859,11 +1898,45 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureC
 							},
 						},
 					},
+					"shardingEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.\n\nDefault behavior is unchanged when this field is unset.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.Resource"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsCommunicationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"remoteConfiguration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsRemoteConfigurationConfig"),
+						},
+					},
+					"privateActionRunner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsPrivateActionRunnerConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsPrivateActionRunnerConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsRemoteConfigurationConfig"},
 	}
 }
 
@@ -1876,7 +1949,55 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsFeatureConf
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables the Kubernetes Actions feature on the Cluster Agent. Default: false",
+							Description: "Enabled enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"communication": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Communication selects the channels the Cluster Agent uses to receive Kubernetes actions. At least one channel must be enabled; both can be enabled at the same time.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsCommunicationConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubernetesActionsCommunicationConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsPrivateActionRunnerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_KubernetesActionsRemoteConfigurationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2324,6 +2445,90 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ContainerPort"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerComponentConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrivateActionRunnerComponentConfig configures Private Action Runner for one component. Advanced settings use the component's customConfigurations without changing their file-mount semantics.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled overrides the shared Private Action Runner enablement for this component. Takes precedence over private_action_runner.enabled in customConfigurations.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"actionsAllowlist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrivateActionRunnerFeatureConfig contains Private Action Runner configuration. When present, this block replaces the legacy enable and configdata annotations. Advanced settings use override.nodeAgent.customConfigurations[\"datadog.yaml\"] and override.clusterAgent.customConfigurations[\"datadog-cluster.yaml\"]. Split mode and host systemd access remain configured through annotations.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Per-component Enabled takes precedence. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"actionsAllowlist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ActionsAllowlist contains additional action patterns allowed on both agents. Per-component ActionsAllowlist replaces this list when set, including an empty list. Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations. Built-in actions remain controlled by private_action_runner.default_actions_enabled.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"nodeAgent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeAgent configures Private Action Runner on the Node Agent. Omitted settings inherit the shared feature settings.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig"),
+						},
+					},
+					"clusterAgent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterAgent configures Private Action Runner on the Cluster Agent. Omitted settings inherit the shared feature settings.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrivateActionRunnerComponentConfig"},
 	}
 }
 

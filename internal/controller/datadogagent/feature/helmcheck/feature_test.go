@@ -64,6 +64,21 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 			WantDependenciesFunc: helmCheckWantDepsFunc(true, true, valuesAsTags, "ccr"),
 			ClusterAgent:         helmCheckWantResourcesFunc(),
 		},
+		{
+			Name: "Helm check enabled and runs on the core runner group",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithHelmCheckEnabled(true).
+				WithHelmCheckCollectEvents(true).
+				WithHelmCheckValuesAsTags(valuesAsTags).
+				WithClusterChecks(true, false).
+				WithCoreChecksRunnerDefault().
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: helmCheckWantDepsFunc(true, true, valuesAsTags, "ccr"),
+			ClusterAgent:         helmCheckWantResourcesFunc(),
+		},
 	}
 
 	tests.Run(t, buildHelmCheckFeature)

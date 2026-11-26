@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_addDDAIStatusToDDAStatus(t *testing.T) {
@@ -160,7 +159,6 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 
 			r := &Reconciler{
 				client: fakeClient,
-				log:    logf.Log.WithName(tt.name),
 			}
 
 			err := r.addDDAIStatusToDDAStatus(context.TODO(), &tt.status, tt.existingDDAI.ObjectMeta, now)

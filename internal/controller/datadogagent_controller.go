@@ -105,6 +105,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
+// KAI Scheduler
+// +kubebuilder:rbac:groups=scheduling.run.ai,resources=podgroups,verbs=list;watch
+
+// Kueue
+// +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=clusterqueues;localqueues;resourceflavors;workloads,verbs=get;list;watch
+
 // Configure Datadog Intrumentation
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
@@ -259,22 +265,20 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
+// +kubebuilder:rbac:groups=resource.k8s.io,resources=resourceclaims;resourceslices;devicetaintrules,verbs=list;watch
 
 // Profiles
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (ctrl.Result, error) {
-	// Get the logger from context (already has namespace, name, reconcileID from controller-runtime)
-	// Add our controller name - this enriched logger will be available to all downstream functions
-	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogAgent")
-	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, dda)
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
+		WithLogConstructor(reconcileLogConstructor(mgr.GetLogger(), agentControllerName)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}).
@@ -348,7 +352,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 
 	r.Options.APIReader = mgr.GetAPIReader()
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 	if err != nil {
 		return err
 	}

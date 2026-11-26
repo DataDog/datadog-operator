@@ -270,6 +270,17 @@ type DatadogMonitorStatus struct {
 	// CurrentHash tracks the hash of the current DatadogMonitorSpec to know
 	// if the Spec has changed and needs an update
 	CurrentHash string `json:"currentHash,omitempty"`
+
+	// RemoteDefinitionHash is the hash of the monitor definition returned by Datadog
+	// after the last successful create or update. A force sync skips the update
+	// while the remote monitor still has this hash.
+	RemoteDefinitionHash string `json:"remoteDefinitionHash,omitempty"`
+
+	// Etag is the ETag of the last monitor read whose definition had
+	// RemoteDefinitionHash. Reads send it in If-None-Match, so a Not Modified
+	// response shows that the monitor, including its state, has not changed
+	// since that read.
+	Etag string `json:"etag,omitempty"`
 }
 
 // DatadogMonitorCondition describes the current state of a DatadogMonitor
@@ -305,6 +316,8 @@ const (
 	DatadogMonitorConditionTypeUpdated DatadogMonitorConditionType = "Updated"
 	// DatadogMonitorConditionTypeError means the DatadogMonitor has an error
 	DatadogMonitorConditionTypeError DatadogMonitorConditionType = "Error"
+	// DatadogMonitorConditionTypeStateSynced reports why the monitor state is not being polled
+	DatadogMonitorConditionTypeStateSynced DatadogMonitorConditionType = "StateSynced"
 )
 
 // DatadogMonitorState represents the overall DatadogMonitor state
@@ -325,6 +338,8 @@ const (
 	DatadogMonitorStateIgnored DatadogMonitorState = "Ignored"
 	// DatadogMonitorStateUnknown means the DatadogMonitor is in an unknown state
 	DatadogMonitorStateUnknown DatadogMonitorState = "Unknown"
+	// DatadogMonitorStatePollingDisabled means the operator is not polling the monitor state
+	DatadogMonitorStatePollingDisabled DatadogMonitorState = "PollingDisabled"
 )
 
 // DatadogMonitorOptionsOnMissingData controls how groups or monitors are treated if an evaluation does not return any data points

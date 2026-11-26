@@ -14,8 +14,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/componenthealth"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -57,9 +65,13 @@ func newTestReconciler(e componentHealthEmitter) *ComponentHealthReconciler {
 		restartThreshold: defaultRestartThreshold,
 		emitter:          e,
 		snapshotInterval: defaultSnapshotInterval,
-		clock:            time.Now,
-		reported:         map[componentIssueKey]*componentIssueState{},
-		resolved:         map[componentIssueKey]resolvedIssue{},
+		// Debounce disabled by default so resolves emit on the next snapshot; the
+		// hysteresis is exercised explicitly in its own tests.
+		resolveGracePeriod: 0,
+		clock:              time.Now,
+		reported:           map[componentIssueKey]*componentIssueState{},
+		resolved:           map[componentIssueKey]resolvedIssue{},
+		seeded:             make(chan struct{}),
 	}
 }
 
@@ -322,6 +334,98 @@ func TestComponentHealth_ReactivationCancelsResolve(t *testing.T) {
 	assert.Empty(t, snap.resolved, "no stale resolve for a re-activated issue")
 }
 
+// TestComponentHealth_ResolveHysteresisSuppressesFlapping verifies that a
+// component stuck in an OOM/crash-loop cycle — which detects, briefly clears, and
+// re-detects faster than the resolve grace period — never emits a false RESOLVED:
+// each snapshot during the flap holds the pending resolve, and a re-activation
+// cancels it, so the backend is not told a still-broken component recovered. Once
+// the clear outlasts the grace window, the RESOLVED is finally emitted.
+func TestComponentHealth_ResolveHysteresisSuppressesFlapping(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+	r.resolveGracePeriod = 5 * time.Minute
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	// Six flap cycles: broken, a brief healthy blip, a snapshot landing in the blip,
+	// then broken again — each clear far shorter than the grace window.
+	for i := 0; i < 6; i++ {
+		r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+		now = now.Add(30 * time.Second)
+		r.reconcilePod(podKey("pod-a"), testComponent, nil) // brief recovery blip
+		now = now.Add(5 * time.Second)
+		r.emitSnapshot(context.Background())
+		assert.Empty(t, e.lastSnapshot().resolved, "a clear within the grace window must not emit RESOLVED")
+		now = now.Add(25 * time.Second)
+	}
+
+	// Genuine recovery: the clear now outlasts the grace window.
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	now = now.Add(30 * time.Second)
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	now = now.Add(6 * time.Minute)
+	r.emitSnapshot(context.Background())
+	if assert.Len(t, e.lastSnapshot().resolved, 1, "a clear sustained past the grace window emits RESOLVED") {
+		assert.Equal(t, componenthealth.IssueOOMKilled, e.lastSnapshot().resolved[0].IssueType)
+	}
+}
+
+// TestComponentHealth_FlapDoesNotRecount verifies that an issue re-activating
+// within the grace window (a flap) is not counted as a new detection, so a
+// crash-looping component does not inflate the detected counter (and, at the same
+// edge, does not re-emit the default-level "detected" log).
+func TestComponentHealth_FlapDoesNotRecount(t *testing.T) {
+	metrics.ComponentHealthIssuesDetected.Reset()
+	r := newTestReconciler(&recordingEmitter{})
+	r.resolveGracePeriod = 5 * time.Minute
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	require.Equal(t, float64(1), detectedCount(t, componenthealth.IssueOOMKilled), "first appearance counts once")
+
+	// Flap: clear and re-detect within the grace window several times.
+	for i := 0; i < 3; i++ {
+		now = now.Add(20 * time.Second)
+		r.reconcilePod(podKey("pod-a"), testComponent, nil)
+		now = now.Add(5 * time.Second)
+		r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	}
+	assert.Equal(t, float64(1), detectedCount(t, componenthealth.IssueOOMKilled), "flap re-detections within the grace window must not re-count")
+}
+
+// TestComponentHealth_ReactivationPreservesFirstSeen verifies that when an issue
+// clears and recurs while its resolve is still pending (within the grace window),
+// the re-activated issue keeps its original first_seen rather than resetting the
+// onset time on every flap.
+func TestComponentHealth_ReactivationPreservesFirstSeen(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+	r.resolveGracePeriod = 5 * time.Minute
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	require.Equal(t, t0, activeIssue(r, componenthealth.IssueOOMKilled).FirstSeen)
+
+	// Clear, then recur within the grace window.
+	now = t0.Add(1 * time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	now = t0.Add(2 * time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+
+	issue := activeIssue(r, componenthealth.IssueOOMKilled)
+	require.NotNil(t, issue)
+	assert.Equal(t, t0, issue.FirstSeen, "re-activation within the grace window preserves the original first_seen")
+	assert.Equal(t, t0.Add(2*time.Minute), issue.LastSeen, "last_seen still advances")
+}
+
 // TestComponentHealth_InFlightResolveRetained verifies that if an issue reappears
 // and clears again while a snapshot is being delivered (producing a newer
 // tombstone), acknowledging the sent snapshot does not drop that newer tombstone —
@@ -445,4 +549,140 @@ func TestComponentHealth_ActiveGaugeAggregatesAcrossNamespaces(t *testing.T) {
 
 	r.reconcilePod(nsA, testComponent, nil)
 	assert.Equal(t, float64(0), gauge())
+}
+
+// managedPod builds a managed component pod with the given component label and
+// status, for seeding the startup sweep from a fake client.
+func managedPod(name, component string, status corev1.PodStatus) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "datadog",
+			Labels:    map[string]string{common.AgentDeploymentComponentLabelKey: component},
+		},
+		Status: status,
+	}
+}
+
+func newSeedReconciler(t *testing.T, e componentHealthEmitter, objs ...client.Object) *ComponentHealthReconciler {
+	t.Helper()
+	s := runtime.NewScheme()
+	require.NoError(t, scheme.AddToScheme(s))
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).Build()
+	r := newTestReconciler(e)
+	r.client = c
+	return r
+}
+
+// resolvedKeys returns the set of resolved issue types for the given component.
+func resolvedKeys(resolved []componenthealth.ComponentIssue, component string) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, issue := range resolved {
+		if issue.Component == component {
+			out[issue.IssueType] = struct{}{}
+		}
+	}
+	return out
+}
+
+// TestComponentHealth_StartupSweepResolvesCatalog verifies the startup sweep
+// emits a RESOLVED for every catalog issue type on each observed component when
+// no issue is currently active — closing the restart resolve-gap for issues that
+// cleared while the operator was down.
+func TestComponentHealth_StartupSweepResolvesCatalog(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newSeedReconciler(t, e,
+		managedPod("dca-0", constants.DefaultClusterAgentResourceSuffix, corev1.PodStatus{}),
+		managedPod("clc-0", constants.DefaultClusterChecksRunnerResourceSuffix, corev1.PodStatus{}),
+	)
+
+	require.NoError(t, r.seedAndSweep(context.Background()))
+
+	active, resolved := r.collectSnapshot()
+	assert.Empty(t, active, "healthy pods produce no active issues")
+
+	// Every catalog issue type is resolved once for each observed component.
+	for _, component := range []string{constants.DefaultClusterAgentResourceSuffix, constants.DefaultClusterChecksRunnerResourceSuffix} {
+		keys := resolvedKeys(resolved, component)
+		for _, issueType := range componenthealth.AllIssueTypes {
+			_, ok := keys[issueType]
+			assert.Truef(t, ok, "expected RESOLVED for %s/%s", component, issueType)
+		}
+		assert.Len(t, keys, len(componenthealth.AllIssueTypes))
+	}
+}
+
+// TestComponentHealth_StartupSweepKeepsActiveIssue verifies the sweep seeds state
+// from the cache first, so an issue that is genuinely still active after restart
+// is reported active and is NOT resolved by the blind sweep (no flap).
+func TestComponentHealth_StartupSweepKeepsActiveIssue(t *testing.T) {
+	e := &recordingEmitter{}
+	oomStatus := corev1.PodStatus{
+		ContainerStatuses: []corev1.ContainerStatus{{
+			Name:  "agent",
+			State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{Reason: "OOMKilled", ExitCode: 137}},
+		}},
+	}
+	r := newSeedReconciler(t, e,
+		managedPod("dca-0", constants.DefaultClusterAgentResourceSuffix, oomStatus),
+	)
+
+	require.NoError(t, r.seedAndSweep(context.Background()))
+
+	active, resolved := r.collectSnapshot()
+	if assert.Len(t, active, 1, "the still-active OOMKill must be seeded as active") {
+		assert.Equal(t, componenthealth.IssueOOMKilled, active[0].IssueType)
+	}
+
+	// The active issue must not also appear as resolved; the rest of the catalog does.
+	keys := resolvedKeys(resolved, constants.DefaultClusterAgentResourceSuffix)
+	_, oomResolved := keys[componenthealth.IssueOOMKilled]
+	assert.False(t, oomResolved, "an active issue must not be resolved by the sweep")
+	assert.Len(t, keys, len(componenthealth.AllIssueTypes)-1)
+}
+
+// TestComponentHealth_StartupSweepEmitsOnce verifies the sweep's RESOLVED signals
+// are delivered on the first snapshot and acknowledged, not re-sent afterwards.
+func TestComponentHealth_StartupSweepEmitsOnce(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newSeedReconciler(t, e,
+		managedPod("dca-0", constants.DefaultClusterAgentResourceSuffix, corev1.PodStatus{}),
+	)
+
+	require.NoError(t, r.seedAndSweep(context.Background()))
+	r.emitSnapshot(context.Background())
+	assert.Len(t, e.lastSnapshot().resolved, len(componenthealth.AllIssueTypes), "sweep resolves are delivered on the first snapshot")
+
+	r.emitSnapshot(context.Background())
+	assert.Empty(t, e.lastSnapshot().resolved, "acknowledged sweep resolves are not re-sent")
+}
+
+// TestComponentHealth_ReconcileDefersUntilSeeded verifies Reconcile requeues
+// without touching state until seeding completes, then on re-run corrects a stale
+// issue the seed may have replayed from an older listed pod version — closing the
+// lost-update race between the concurrent seed and watch runnables.
+func TestComponentHealth_ReconcileDefersUntilSeeded(t *testing.T) {
+	// The pod is healthy in the cache; a concurrent seed replayed a staler OOMKilled
+	// version of it before this reconcile ran.
+	r := newSeedReconciler(t, &recordingEmitter{},
+		managedPod("dca-0", constants.DefaultClusterAgentResourceSuffix, corev1.PodStatus{}),
+	)
+	key := podKey("dca-0")
+
+	// Before seeding: reconcile defers (requeues) and does not mutate state.
+	res, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: key})
+	require.NoError(t, err)
+	assert.Positive(t, res.RequeueAfter, "reconcile should requeue until seeding completes")
+
+	// The stale seed marks the (actually recovered) component as OOMKilled active.
+	r.reconcilePod(key, testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "dca-0")})
+	require.NotNil(t, activeIssue(r, componenthealth.IssueOOMKilled), "precondition: stale active issue seeded")
+
+	// Seeding completes; the deferred reconcile now runs against the fresh healthy
+	// cache state and clears the stale issue.
+	close(r.seeded)
+	res, err = r.Reconcile(context.Background(), ctrl.Request{NamespacedName: key})
+	require.NoError(t, err)
+	assert.Zero(t, res.RequeueAfter, "reconcile should proceed once seeded")
+	assert.Nil(t, activeIssue(r, componenthealth.IssueOOMKilled), "fresh reconcile must clear the stale seeded issue")
 }

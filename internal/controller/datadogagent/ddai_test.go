@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -444,156 +444,71 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 }
 
 func Test_cleanUpUnusedDDAIs(t *testing.T) {
-	sch := agenttestutils.TestScheme()
-	ctx := context.Background()
-	logger := logf.Log.WithName("test_cleanUpUnusedDDAIs")
-
-	testCases := []struct {
-		name          string
-		existingDDAIs []client.Object
-		validDDAIs    []*v1alpha1.DatadogAgentInternal
-		wantDDAIs     *v1alpha1.DatadogAgentInternalList
+	newDDAI := func(namespace, name, ddaName string) *v1alpha1.DatadogAgentInternal {
+		ddai := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+		if ddaName != "" {
+			ddai.Labels = map[string]string{apicommon.DatadogAgentNameLabelKey: ddaName}
+		}
+		return ddai
+	}
+	tests := []struct {
+		name     string
+		existing []client.Object
+		valid    []*v1alpha1.DatadogAgentInternal
+		want     []types.NamespacedName
 	}{
+		{name: "empty lists"},
 		{
-			name:          "empty lists",
-			existingDDAIs: []client.Object{},
-			validDDAIs:    []*v1alpha1.DatadogAgentInternal{},
-			wantDDAIs: &v1alpha1.DatadogAgentInternalList{
-				Items: []v1alpha1.DatadogAgentInternal{},
+			name:     "keep the default and applied profile DDAIs",
+			existing: []client.Object{newDDAI("agent-a", "dda", "dda"), newDDAI("agent-a", "profile", "dda")},
+			valid:    []*v1alpha1.DatadogAgentInternal{newDDAI("agent-a", "dda", "dda"), newDDAI("agent-a", "profile", "dda")},
+			want:     []types.NamespacedName{{Namespace: "agent-a", Name: "dda"}, {Namespace: "agent-a", Name: "profile"}},
+		},
+		{
+			name:     "delete a profile DDAI that no longer applies",
+			existing: []client.Object{newDDAI("agent-a", "dda", "dda"), newDDAI("agent-a", "old-profile", "dda")},
+			valid:    []*v1alpha1.DatadogAgentInternal{newDDAI("agent-a", "dda", "dda")},
+			want:     []types.NamespacedName{{Namespace: "agent-a", Name: "dda"}},
+		},
+		{
+			name: "preserve same-named DDAIs in another namespace",
+			existing: []client.Object{
+				newDDAI("agent-a", "dda", "dda"), newDDAI("agent-a", "old-profile", "dda"),
+				newDDAI("agent-b", "dda", "dda"), newDDAI("agent-b", "old-profile", "dda"),
+			},
+			valid: []*v1alpha1.DatadogAgentInternal{newDDAI("agent-a", "dda", "dda")},
+			want: []types.NamespacedName{
+				{Namespace: "agent-a", Name: "dda"}, {Namespace: "agent-b", Name: "dda"}, {Namespace: "agent-b", Name: "old-profile"},
 			},
 		},
 		{
-			name: "no ddais to delete",
-			existingDDAIs: []client.Object{
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "default",
-					},
-				},
+			name: "preserve another DDA's resources and unlabeled DDAIs in the same namespace",
+			existing: []client.Object{
+				newDDAI("agent-a", "dda", "dda"), newDDAI("agent-a", "old-profile", "dda"),
+				newDDAI("agent-a", "other-dda", "other-dda"), newDDAI("agent-a", "other-profile", "other-dda"),
+				newDDAI("agent-a", "unlabeled", ""),
 			},
-			validDDAIs: []*v1alpha1.DatadogAgentInternal{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "default",
-					},
-				},
-			},
-			wantDDAIs: &v1alpha1.DatadogAgentInternalList{
-				Items: []v1alpha1.DatadogAgentInternal{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:            "dda-foo-agent",
-							Namespace:       "default",
-							ResourceVersion: "999",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "multiple ddais to delete",
-			existingDDAIs: []client.Object{
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "default",
-					},
-				},
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-bar-agent",
-						Namespace: "default",
-					},
-				},
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-baz-agent",
-						Namespace: "default",
-					},
-				},
-			},
-			validDDAIs: []*v1alpha1.DatadogAgentInternal{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "default",
-					},
-				},
-			},
-			wantDDAIs: &v1alpha1.DatadogAgentInternalList{
-				Items: []v1alpha1.DatadogAgentInternal{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:            "dda-foo-agent",
-							Namespace:       "default",
-							ResourceVersion: "999",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "multiple ddais to delete with different namespace",
-			existingDDAIs: []client.Object{
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "default",
-					},
-				},
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "foo",
-					},
-				},
-				&v1alpha1.DatadogAgentInternal{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "bar",
-					},
-				},
-			},
-			validDDAIs: []*v1alpha1.DatadogAgentInternal{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dda-foo-agent",
-						Namespace: "foo",
-					},
-				},
-			},
-			wantDDAIs: &v1alpha1.DatadogAgentInternalList{
-				Items: []v1alpha1.DatadogAgentInternal{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:            "dda-foo-agent",
-							Namespace:       "foo",
-							ResourceVersion: "999",
-						},
-					},
-				},
+			valid: []*v1alpha1.DatadogAgentInternal{newDDAI("agent-a", "dda", "dda")},
+			want: []types.NamespacedName{
+				{Namespace: "agent-a", Name: "dda"}, {Namespace: "agent-a", Name: "other-dda"},
+				{Namespace: "agent-a", Name: "other-profile"}, {Namespace: "agent-a", Name: "unlabeled"},
 			},
 		},
 	}
-
-	for _, tt := range testCases {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingDDAIs...).Build()
-
-			r := &Reconciler{
-				client: fakeClient,
-				log:    logger,
+			ctx := context.Background()
+			fakeClient := fake.NewClientBuilder().WithScheme(agenttestutils.TestScheme()).WithObjects(tt.existing...).Build()
+			r := &Reconciler{client: fakeClient}
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "dda", Namespace: "agent-a"}}
+			assert.NoError(t, r.cleanUpUnusedDDAIs(ctx, dda, tt.valid))
+			got := &v1alpha1.DatadogAgentInternalList{}
+			assert.NoError(t, fakeClient.List(ctx, got))
+			names := make([]types.NamespacedName, 0, len(got.Items))
+			for _, ddai := range got.Items {
+				names = append(names, types.NamespacedName{Namespace: ddai.Namespace, Name: ddai.Name})
 			}
-
-			err := r.cleanUpUnusedDDAIs(ctx, tt.validDDAIs)
-			assert.NoError(t, err)
-
-			ddaiList := &v1alpha1.DatadogAgentInternalList{}
-			err = fakeClient.List(ctx, ddaiList)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantDDAIs, ddaiList)
+			assert.ElementsMatch(t, tt.want, names)
 		})
 	}
 }

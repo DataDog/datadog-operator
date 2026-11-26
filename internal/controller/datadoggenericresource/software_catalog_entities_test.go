@@ -241,10 +241,3 @@ func Test_updateResource_rejectsIdentityChange(t *testing.T) {
 		})
 	}
 }
-
-func Test_softwareCatalogEntityHandler_refreshState(t *testing.T) {
-	handler := &SoftwareCatalogEntityHandler{}
-	state, err := handler.refreshState(nil, &v1alpha1.DatadogGenericResource{})
-	assert.NoError(t, err)
-	assert.Nil(t, state)
-}

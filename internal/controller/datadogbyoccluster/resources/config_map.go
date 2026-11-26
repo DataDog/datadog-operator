@@ -9,57 +9,110 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.ConfigMap, error) {
-	indexerMemoryLimit := cluster.Spec.Components.Indexer.Resources.Limits[corev1.ResourceMemory]
-	searcherMemoryLimit := cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
-	indexerMemoryBytes := indexerMemoryLimit.Value()
-	searcherMemoryBytes := searcherMemoryLimit.Value()
-	maxQueueDiskUsage := indexerMemoryBytes * 3 / 5
+const (
+	quickwitCloudPremConfigKey                   = "cloudprem"
+	quickwitCacheCapacityConfigKey               = "capacity"
+	quickwitFastFieldCacheConfigKey              = "fast_field_cache"
+	quickwitFastFieldCacheCapacityConfigKey      = "fast_field_cache_capacity"
+	quickwitPartialRequestCacheConfigKey         = "partial_request_cache"
+	quickwitPartialRequestCacheCapacityConfigKey = "partial_request_cache_capacity"
+	quickwitSplitFooterCacheConfigKey            = "split_footer_cache"
+	quickwitSplitFooterCacheCapacityConfigKey    = "split_footer_cache_capacity"
+	quickwitCreateLogsIndexConfigKey             = "create_dd_logs_index"
+	quickwitCreateDatadogIndexConfigKey          = "create_datadog_index"
+	quickwitUseReadOnlyMetastoreConfigKey        = "use_metastore_read_replica"
+	quickwitClusterIDConfigKey                   = "cluster_id"
+	quickwitMetastoreConfigKey                   = "metastore"
+	quickwitPostgresConfigKey                    = "postgres"
+	quickwitMaxConnectionsConfigKey              = "max_connections"
+	quickwitMaxNumConnectionsConfigKey           = "max_num_connections"
+)
 
-	config := defaultNodeConfig()
-	config["ingest_api"] = map[string]any{
-		// ByteSize accepts integer byte counts, so no unit conversion is needed.
-		"max_queue_disk_usage":   maxQueueDiskUsage,
-		"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
-	}
-	searcher := config[quickwitSearcherServiceName].(map[string]any)
-	searcher["fast_field_cache_capacity"] = searcherMemoryBytes * 13 / 32
-	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125))
-	searcher["partial_request_cache_capacity"] = searcherMemoryBytes / 64
-	searcher["split_footer_cache_capacity"] = searcherMemoryBytes / 32
-	if cluster.Spec.Components.ReadOnlyMetastore != nil {
-		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
-	}
-	storage := cluster.Spec.Components.Indexer.Storage
-	if storage != nil && storage.VolumeClaimTemplate != nil {
-		indexer := config[quickwitIndexerServiceName].(map[string]any)
-		capacity := storage.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
-		indexer["split_store_max_num_bytes"] = calculateSplitStoreMaxNumBytes(capacity, maxQueueDiskUsage)
-	}
+// newNodeConfig returns the Quickwit node configuration with spec.nodeConfigOverrides merged into the defaults.
+func newNodeConfig(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (map[string]any, error) {
+	indexerResources := cluster.Spec.Components.Indexer.Resources
+	searcherMemoryLimit := cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
+	maxQueueMemoryUsage := calculateMaxQueueMemoryUsage(indexerResources)
+	maxQueueDiskUsage := maxQueueMemoryUsage * 2
+	searcherGiB := sizingGiB(searcherMemoryLimit.Value())
+
+	var override map[string]any
 	if cluster.Spec.NodeConfigOverrides != nil && len(cluster.Spec.NodeConfigOverrides.Raw) != 0 {
-		var override map[string]any
 		if err := yaml.Unmarshal(cluster.Spec.NodeConfigOverrides.Raw, &override, func(d *json.Decoder) *json.Decoder {
 			d.UseNumber()
 			return d
 		}); err != nil {
 			return nil, fmt.Errorf("decode spec.nodeConfigOverrides: %w", err)
 		}
+	}
+
+	config := defaultNodeConfig()
+	config[quickwitClusterIDConfigKey] = cluster.Namespace + "-" + cluster.Name
+	config["ingest_api"] = map[string]any{
+		// ByteSize accepts integer byte counts, so no unit conversion is needed.
+		"max_queue_disk_usage":   maxQueueDiskUsage,
+		"max_queue_memory_usage": maxQueueMemoryUsage,
+	}
+	// The searcher sizing follows the CloudPrem Helm chart sizing map, which scales with the memory in
+	// whole GiB and writes cache capacities in decimal units (G = 10^9 bytes).
+	searcher := config[quickwitSearcherServiceName].(map[string]any)
+	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(searcherGiB * 3.125))
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitFastFieldCacheCapacityConfigKey}) {
+		searcher[quickwitFastFieldCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: int64(searcherGiB * 406_250_000)}
+	}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitPartialRequestCacheCapacityConfigKey}) {
+		searcher[quickwitPartialRequestCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: int64(searcherGiB * 15_625_000)}
+	}
+	if !overrideSets(override, []string{quickwitSearcherServiceName, quickwitSplitFooterCacheCapacityConfigKey}) {
+		searcher[quickwitSplitFooterCacheConfigKey] = map[string]any{quickwitCacheCapacityConfigKey: int64(searcherGiB * 31_250_000)}
+	}
+	if cluster.Spec.Components.ReadOnlyMetastore != nil {
+		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
+	}
+	if !overrideSets(override, []string{quickwitMetastoreConfigKey, quickwitPostgresConfigKey, quickwitMaxNumConnectionsConfigKey}) {
+		postgres := config[quickwitMetastoreConfigKey].(map[string]any)[quickwitPostgresConfigKey].(map[string]any)
+		postgres[quickwitMaxConnectionsConfigKey] = 50
+	}
+	signal := datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	if cluster.Spec.Signal != nil {
+		signal = *cluster.Spec.Signal
+	}
+	// Set both keys explicitly: CloudPrem treats a missing create_dd_logs_index as true.
+	cloudprem := config[quickwitCloudPremConfigKey].(map[string]any)
+	if !overrideSets(override, []string{quickwitCloudPremConfigKey, quickwitCreateDatadogIndexConfigKey}) {
+		cloudprem[quickwitCreateLogsIndexConfigKey] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	}
+	cloudprem["create_dd_traces_index"] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalTraces
+	storage := cluster.Spec.Components.Indexer.Storage
+	if storage != nil && storage.VolumeClaimTemplate != nil {
+		indexer := config[quickwitIndexerServiceName].(map[string]any)
+		capacity := storage.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
+		indexer["split_store_max_num_bytes"] = calculateSplitStoreMaxNumBytes(capacity, maxQueueDiskUsage)
+	}
+	if override != nil {
 		if err := mergo.Merge(&config, override, mergo.WithOverride); err != nil {
 			return nil, fmt.Errorf("merge spec.nodeConfigOverrides: %w", err)
 		}
 	}
-	nodeConfig, err := yaml.Marshal(config)
+	return config, nil
+}
+
+func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster, nodeConfig map[string]any) (*corev1.ConfigMap, error) {
+	data, err := yaml.Marshal(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("encode node config: %w", err)
 	}
@@ -71,8 +124,49 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 			Labels:      labels(cluster),
 			Annotations: annotations(cluster),
 		},
-		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(nodeConfig), "\n")},
+		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(data), "\n")},
 	}, nil
+}
+
+// overrideSets reports whether the override sets any of paths. The operator does not set a key that
+// the override sets under a serde alias (quickwit-config/src/node_config/mod.rs), because Pomsky
+// rejects a key set twice. Merging the override replaces a key it sets under the same name.
+func overrideSets(override map[string]any, paths ...[]string) bool {
+	return slices.ContainsFunc(paths, func(path []string) bool {
+		_, found, _ := unstructured.NestedFieldNoCopy(override, path...)
+		return found
+	})
+}
+
+// calculateMaxQueueMemoryUsage returns the indexer WAL memory budget. The CloudPrem Helm chart sizing map
+// tuned it with overload tests to 0.8, 2.4, 7.2 and 21.6 GiB for 2, 4, 8 and 16 cores: it triples each
+// time the cores double. The budget is capped at 40% of the memory limit, above the chart's largest
+// ratio of 37%, so that a pod with many cores and little memory keeps memory for indexing.
+func calculateMaxQueueMemoryUsage(resources *corev1.ResourceRequirements) int64 {
+	cores := max(1, cpuCores(resources))
+	memoryLimit := resources.Limits[corev1.ResourceMemory]
+	budgetBytes := int64(0.8 * bytesPerGiB * math.Pow(3, math.Log2(float64(cores)/2)))
+	return min(budgetBytes, memoryLimit.Value()*2/5)
+}
+
+// cpuCores returns the CPU request, or the limit, rounded up to a whole core, as the CloudPrem Helm chart
+// rounds its indexer CPU limit. It returns 0 without a CPU resource.
+func cpuCores(resources *corev1.ResourceRequirements) int64 {
+	requirements := ptr.Deref(resources, corev1.ResourceRequirements{})
+	cpu, found := requirements.Requests[corev1.ResourceCPU]
+	if !found {
+		cpu = requirements.Limits[corev1.ResourceCPU]
+	}
+	return (cpu.MilliValue() + 999) / 1000
+}
+
+// sizingGiB returns the memory rounded down to a whole GiB, as the CloudPrem Helm chart sizing map does.
+// Memory under 1 GiB keeps its fraction so that the caches are not sized to zero.
+func sizingGiB(memoryBytes int64) float64 {
+	if memoryBytes < bytesPerGiB {
+		return float64(memoryBytes) / bytesPerGiB
+	}
+	return float64(memoryBytes / bytesPerGiB)
 }
 
 func calculateSplitStoreMaxNumBytes(capacity resource.Quantity, maxQueueDiskUsage int64) int64 {

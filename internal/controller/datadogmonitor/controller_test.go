@@ -20,6 +20,7 @@ import (
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -138,6 +140,7 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 		log:           logf.Log.WithName("created-status-conflict"),
 		requeuePeriod: defaultRequeuePeriod,
 	}
+	r.apiReader = r.client
 
 	dm := genericDatadogMonitor(r.client)
 	dm.Finalizers = []string{datadogMonitorFinalizer}
@@ -259,6 +262,7 @@ func TestReconcileDatadogMonitor_CreateErrorUsesErrorRequeuePeriod(t *testing.T)
 		log:           logf.Log.WithName("create-error-requeue"),
 		requeuePeriod: 24 * time.Hour,
 	}
+	r.apiReader = r.client
 
 	result, err := r.Reconcile(context.Background(), dm)
 	assert.NoError(t, err)
@@ -306,6 +310,7 @@ func TestReconcileDatadogMonitor_PermanentCreateErrorUsesForceSyncBackstop(t *te
 		log:           logf.Log.WithName("permanent-create-error-backstop"),
 		requeuePeriod: 24 * time.Hour,
 	}
+	r.apiReader = r.client
 
 	result, err := r.Reconcile(context.Background(), dm)
 	assert.NoError(t, err)
@@ -369,6 +374,7 @@ func TestReconcileDatadogMonitor_SpecFixAfterPermanentErrorRetriesImmediately(t 
 		log:           logf.Log.WithName("spec-fix-after-permanent-error"),
 		requeuePeriod: 24 * time.Hour,
 	}
+	r.apiReader = r.client
 
 	result, err := r.Reconcile(context.Background(), dm)
 	assert.NoError(t, err)
@@ -440,6 +446,7 @@ func TestReconcileDatadogMonitor_StatePollingUsesLowPriority(t *testing.T) {
 		log:           logf.Log.WithName("state-polling-priority"),
 		requeuePeriod: requeuePeriod,
 	}
+	r.apiReader = r.client
 
 	result, err := r.Reconcile(context.Background(), dm)
 	assert.NoError(t, err)
@@ -864,6 +871,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				log:           logf.Log.WithName(tt.name),
 				requeuePeriod: defaultRequeuePeriod,
 			}
+			r.apiReader = r.client
 			_ = testAuth
 
 			// First monitor action
@@ -951,6 +959,7 @@ func TestReconcileDatadogMonitor_CredentialRefresh(t *testing.T) {
 		log:           logf.Log.WithName("credential-refresh-test"),
 		requeuePeriod: defaultRequeuePeriod,
 	}
+	r.apiReader = r.client
 
 	dm := genericDatadogMonitor(r.client)
 
@@ -1567,6 +1576,7 @@ func TestReconcileDatadogMonitor_RecreatesOnOutOfBandDelete(t *testing.T) {
 		log:           logf.Log.WithName("recreate-on-404"),
 		requeuePeriod: defaultRequeuePeriod,
 	}
+	r.apiReader = r.client
 
 	dm := genericDatadogMonitor(r.client)
 
@@ -1666,6 +1676,7 @@ func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
 		log:           logf.Log.WithName("clears-id-on-update-404"),
 		requeuePeriod: defaultRequeuePeriod,
 	}
+	rec.apiReader = rec.client
 
 	dm := genericDatadogMonitor(rec.client)
 
@@ -1690,4 +1701,157 @@ func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
 	rec.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
 
 	assert.Equal(t, 0, dm.Status.ID, "status.ID should be cleared after update returns 404 so next reconcile recreates")
+}
+
+// Model a reconcile reading an old cache entry before another status write is
+// visible. The fake API server enforces resource versions, so the stale write
+// conflicts and the retry reads the newer status.
+func TestUpdateStatusIfNeeded_StaleIDConflict(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		originalID     int
+		latestID       int
+		preserveLatest bool
+	}{
+		{name: "failed stale create preserves newly stored ID", originalID: 0, latestID: 12345, preserveLatest: true},
+		{name: "intentional reset of observed ID is allowed", originalID: 12345, latestID: 12345},
+		{name: "stale reset preserves replacement ID", originalID: 12345, latestID: 67890, preserveLatest: true},
+		{name: "ID-less error status can still be updated", originalID: 0, latestID: 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := scheme.Scheme
+			s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+			c := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build()
+			instance := &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{Name: "stale-status", Namespace: "default"},
+			}
+			assert.NoError(t, c.Create(ctx, instance))
+			instance.Status.ID = tt.originalID
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			stale := instance.DeepCopy()
+
+			instance.Status.ID = tt.latestID
+			instance.Status.CurrentHash = "latest-successful-hash"
+			assert.NoError(t, c.Status().Update(ctx, instance))
+			latestStatus := instance.Status.DeepCopy()
+			latestVersion := instance.ResourceVersion
+
+			desired := stale.Status.DeepCopy()
+			desired.ID = 0
+			desired.CurrentHash = "stale-attempt-hash"
+			r := &Reconciler{client: c, requeuePeriod: defaultRequeuePeriod}
+			scheduled := ctrl.Result{RequeueAfter: time.Minute}
+			result, err := r.updateStatusIfNeeded(logf.Log, stale, metav1.Now(), desired, fmt.Errorf("Duplicate of an existing monitor_id"), scheduled)
+			assert.NoError(t, err)
+			assert.Equal(t, scheduled, result)
+			assert.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(instance), instance))
+			if tt.preserveLatest {
+				assert.Equal(t, tt.latestID, instance.Status.ID)
+				assert.True(t, assert.ObjectsAreEqual(*latestStatus, instance.Status), "preserve the entire newer status, including conditions and hash")
+				assert.Equal(t, latestVersion, instance.ResourceVersion, "skipping must not perform a status write")
+			} else {
+				assert.Equal(t, 0, instance.Status.ID)
+				assert.Equal(t, desired.CurrentHash, instance.Status.CurrentHash)
+			}
+			assert.True(t, assert.ObjectsAreEqual(instance.Status, stale.Status), "refresh the caller's status too")
+			assert.Equal(t, instance.ResourceVersion, stale.ResourceVersion)
+		})
+	}
+}
+
+// A stale informer object must never create a second remote resource or write
+// its stale status over an ID already persisted in the API server.
+func TestReconcile_PreCreateAPIRead(t *testing.T) {
+	scheme.Scheme.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	for _, tc := range []struct {
+		name     string
+		oldID    bool
+		readErr  bool
+		missing  bool
+		replaced bool
+		deleting bool
+	}{
+		{name: "stale ID-less cache"},
+		{name: "stale ID during remote 404 recreation", oldID: true},
+		{name: "API read fails", readErr: true},
+		{name: "object disappeared", missing: true},
+		{name: "object replaced", replaced: true},
+		{name: "object deleting", deleting: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var createCalls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method == http.MethodPost {
+					createCalls.Add(1)
+				}
+				http.Error(w, "404 Not Found", http.StatusNotFound)
+			}))
+			defer server.Close()
+			t.Setenv("DD_URL", server.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			ctx := context.Background()
+			stale := genericDatadogMonitor(fake.NewClientBuilder().Build())
+			stale.UID = "original"
+			stale.ResourceVersion = "1"
+			stale.Finalizers = []string{datadogMonitorFinalizer}
+			if tc.oldID {
+				stale.Status.ID = 123
+			}
+			statusWrites := 0
+			cachedClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale).
+				WithInterceptorFuncs(interceptor.Funcs{
+					SubResourceUpdate: func(ctx context.Context, c client.Client, subresource string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+						statusWrites++
+						return c.SubResource(subresource).Update(ctx, obj, opts...)
+					},
+				}).Build()
+			live := fake.NewClientBuilder().WithScheme(scheme.Scheme).
+				WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(stale.DeepCopy()).Build()
+			latest := stale.DeepCopy()
+			latest.Status.ID = 456
+			require.NoError(t, live.Status().Update(ctx, latest))
+			if tc.missing {
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+			}
+			if tc.replaced {
+				latest.UID = "replacement"
+				latest.Status.ID = 0
+				live = fake.NewClientBuilder().WithScheme(scheme.Scheme).
+					WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(latest).Build()
+			}
+			if tc.deleting {
+				require.NoError(t, live.Delete(ctx, latest))
+			}
+			readErr := fmt.Errorf("API server unavailable")
+			reader := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(ctx context.Context, _ client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if tc.readErr {
+						return readErr
+					}
+					return live.Get(ctx, key, obj, opts...)
+				},
+			}).Build()
+			r := NewReconciler(cachedClient, config.NewCredentialManager(cachedClient), scheme.Scheme,
+				logf.Log, record.NewFakeRecorder(10), false, nil, ReconcilerOptions{APIReader: reader})
+			result, err := r.Reconcile(ctx, stale)
+			if tc.readErr {
+				require.ErrorIs(t, err, readErr)
+			} else {
+				require.NoError(t, err)
+			}
+			if !tc.readErr && !tc.missing {
+				require.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+			}
+			require.Zero(t, createCalls.Load())
+			require.Zero(t, statusWrites, "pre-create skip and read-error paths must not write stale status")
+			if !tc.missing {
+				stored := &datadoghqv1alpha1.DatadogMonitor{}
+				require.NoError(t, live.Get(ctx, client.ObjectKeyFromObject(latest), stored))
+				require.Equal(t, latest.Status.ID, stored.Status.ID)
+			}
+		})
+	}
 }

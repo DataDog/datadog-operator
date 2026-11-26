@@ -87,6 +87,8 @@ metadata:
 
 The value must use the `vX.Y.Z` format. Malformed values are ignored and the default version is used.
 
+On Autopilot, process collection keeps mounting the host's `/etc/passwd` at `/etc/passwd`. The `/host/etc/passwd` destination used by Agent 7.86.0+ elsewhere needs a newer WorkloadAllowlist and is not enabled on Autopilot yet. See [Process passwd mounts](../configuration.v2alpha1.md#process-passwd-mounts).
+
 ## Customize resources
 
 Use the `spec.override.nodeAgent.containers` override to set container resources. For example, the following configuration sets resources on the core Agent container:

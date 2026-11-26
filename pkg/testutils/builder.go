@@ -6,6 +6,9 @@
 package testutils
 
 import (
+	"encoding/json"
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -642,6 +645,13 @@ func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bo
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithEventCollectionMode(mode string) *DatadogAgentBuilder {
+	builder.initEventCollection()
+	builder.datadogAgent.Spec.Features.EventCollection.CollectionMode = new(mode)
+
+	return builder
+}
+
 // Remote Config
 func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
@@ -680,6 +690,12 @@ func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *Datado
 func (builder *DatadogAgentBuilder) WithKSMPodCollectionMode(mode v2alpha1.KSMPodCollectionMode) *DatadogAgentBuilder {
 	builder.initKSM()
 	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.PodCollectionMode = &mode
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMShardingEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.ShardingEnabled = new(enabled)
 	return builder
 }
 
@@ -753,6 +769,28 @@ func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners b
 	builder.initCC()
 	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = new(enabled)
 	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = new(useRunners)
+	return builder
+}
+
+// WithClusterChecksRunnerGroups sets the experimental cluster checks runner groups annotation to groups encoded as JSON.
+func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups any) *DatadogAgentBuilder {
+	raw, err := json.Marshal(groups)
+	if err != nil {
+		panic(err)
+	}
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, string(raw))
+}
+
+// WithCoreChecksRunnerDefault enables the experimental built-in core runner group.
+func (builder *DatadogAgentBuilder) WithCoreChecksRunnerDefault() *DatadogAgentBuilder {
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalCoreChecksRunnerDefault, "true")
+}
+
+func (builder *DatadogAgentBuilder) withAnnotation(key, value string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = map[string]string{}
+	}
+	builder.datadogAgent.Annotations[key] = value
 	return builder
 }
 
@@ -1035,6 +1073,36 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+// Kueue
+
+func (builder *DatadogAgentBuilder) withKueueConfigField(key string, value any) *DatadogAgentBuilder {
+	const annotation = "agent.datadoghq.com/kueue-config"
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = make(map[string]string)
+	}
+	config := make(map[string]any)
+	_ = json.Unmarshal([]byte(builder.datadogAgent.Annotations[annotation]), &config)
+	config[key] = value
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	builder.datadogAgent.Annotations[annotation] = string(data)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueEnabled(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = make(map[string]string)
+	}
+	builder.datadogAgent.Annotations["agent.datadoghq.com/kueue-enabled"] = strconv.FormatBool(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueCustomConf(conf *v2alpha1.CustomConfig) *DatadogAgentBuilder {
+	return builder.withKueueConfigField("conf", conf)
+}
+
 func (builder *DatadogAgentBuilder) initKubernetesActions() {
 	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
 		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
@@ -1044,6 +1112,15 @@ func (builder *DatadogAgentBuilder) initKubernetesActions() {
 func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initKubernetesActions()
 	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKubernetesActionsCommunication(rc, par bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Communication = &v2alpha1.KubernetesActionsCommunicationConfig{
+		RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(rc)},
+		PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: new(par)},
+	}
 	return builder
 }
 

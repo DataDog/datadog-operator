@@ -122,6 +122,10 @@
           "description": "CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know\nif the JsonSpec has changed and needs an update.",
           "type": "string"
         },
+        "etag": {
+          "description": "Etag is the ETag of the last read of the resource whose definition had\nRemoteDefinitionHash, for resource types that support it. Reads send it in\nIf-None-Match, so a Not Modified response shows that the resource,\nincluding its state, has not changed since that read.",
+          "type": "string"
+        },
         "id": {
           "description": "Id is the object unique identifier generated in Datadog.",
           "type": "string"
@@ -131,8 +135,12 @@
           "format": "date-time",
           "type": "string"
         },
+        "remoteDefinitionHash": {
+          "description": "RemoteDefinitionHash is the hash of the resource definition returned by Datadog\nafter the last successful create or update, for resource types that support it.\nA force sync skips the update while the remote resource still has this hash.",
+          "type": "string"
+        },
         "state": {
-          "description": "State is the live Datadog-side state of the underlying resource as last\nfetched from the Datadog API. Values are resource-type dependent — for\nMonitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:\nbreached, warning, ok, no_data. Only populated for resource types that\nexpose live state.",
+          "description": "State is the live Datadog-side state of the underlying resource as last\nfetched from the Datadog API. Values are resource-type dependent — for\nMonitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:\nbreached, warning, ok, no_data. Only populated for resource types that\nexpose live state. PollingDisabled when state polling is disabled.",
           "type": "string"
         },
         "stateLastTransitionTime": {

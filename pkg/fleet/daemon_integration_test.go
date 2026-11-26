@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -225,7 +224,6 @@ func TestPlanStartApplyOperation_ProducesReconcilerReadableCheckpoint(t *testing
 		reconcilerClient,
 		kubernetes.PlatformInfo{},
 		reconcilerScheme(),
-		logr.Discard(),
 		record.NewFakeRecorder(100),
 		noopMetricsForwardersManager{},
 	)

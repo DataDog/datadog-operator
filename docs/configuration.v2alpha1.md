@@ -34,6 +34,16 @@ change or be removed; prefer the stable equivalent where one exists (for GKE
 Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
 They are documented with the features they control.
 
+### Process passwd mounts
+
+For eligible containers using Agent version 7.86.0 or later (including 7.86.0+ prereleases such as release candidates), live-process and process-discovery mount the host's `/etc/passwd` read-only at `/host/etc/passwd`, preserving image-local accounts in `/etc/passwd`. Like other version-gated features, the version comes from the node Agent image override (`spec.override.nodeAgent.image`), or the Operator's default Agent version when there is no override. Older versions, tags without a full version (such as `7`, `latest`, or `7.86`), custom tags, and digest-only images retain `/etc/passwd`. Experimental per-container image annotations and container renames are not considered, so they can make the mount disagree with the running image; the effect is limited to process usernames. The relocated mount still uses the `passwd` volume. Separately, the core agent and process-agent always mount host `/etc/os-release` read-only at `/host/etc/os-release` (volume `os-release-file`), like the Helm chart, because the Agent sets `HOST_ETC=/host/etc` whenever that directory exists and then reads the host OS from there. Existing Talos exclusions and security mounts are unchanged.
+
+On GKE Autopilot, process collection keeps `/etc/passwd` for now: the new destination needs a published WorkloadAllowlist that permits it.
+
+The Operator does not override `HOST_ETC` or `ignore_host_etc`. If you customize these settings, ensure `HOST_ETC=/host/etc` to resolve users through the new mount.
+
+**Known limitation:** the [process resolver change](https://github.com/DataDog/datadog-agent/pull/55789) does not cover Gohai. Moving the core Agent mount can cause Gohai process metadata to report numeric UIDs or image-local usernames instead of host usernames.
+
 ## Manifest Templates
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]
@@ -103,7 +113,7 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
-| features.apm.instrumentation.injectionMode | InjectionMode is the injection mode to use for libraries injection. Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+). Empty by default so the Cluster Agent can apply its own defaults. |
+| features.apm.instrumentation.injectionMode | InjectionMode is the injection mode to use for libraries injection. Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+). Empty by default so the Cluster Agent can apply its own defaults. |
 | features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
@@ -143,6 +153,7 @@ spec:
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
 | features.cspm.customBenchmarks.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
+| features.cspm.databaseBenchmarks.enabled | Enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: false |
 | features.cspm.enabled | Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false |
 | features.cspm.hostBenchmarks.enabled | Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true |
 | features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send payloads directly, without using the security-agent. Requires Agent 7.77.0 or above; on older Agents this defaults to false. Default: true |
@@ -172,6 +183,7 @@ spec:
 | features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.eventCollection.collectedEventTypes | CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ] |
+| features.eventCollection.collectionMode | CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server. `poll` re-opens a watch on every check run. `watch` streams events through a single persistent reflector-backed watch, which avoids dropping events in high-churn clusters. Requires Cluster Agent 7.81.1+. Default: unset (the Cluster Agent's default is `poll`) |
 | features.eventCollection.unbundleEvents | UnbundleEvents enables collection of Kubernetes events as individual events. Default: false |
 | features.externalMetricsServer.enabled | Enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -187,8 +199,9 @@ spec:
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.gpu.enabled | Enables GPU monitoring core check. Default: false |
 | features.gpu.patchCgroupPermissions | PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false |
-| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Default: false |
-| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
+| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Applies to NVIDIA GPUs only. Default: false |
+| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia, or unset when vendor is amd |
+| features.gpu.vendor | Selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings, sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot. |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
@@ -203,7 +216,10 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.name | Is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enables Kube State Metrics Core. Default: true |
 | features.kubeStateMetricsCore.podCollectionMode | PodCollectionMode controls where the KSM check collects pod metrics.  When set to "node_kubelet" the operator splits the kubernetes_state_core check into two: the cluster-side instance keeps every collector except scheduled pods (only unscheduled pods are kept on that side), and a dedicated pods-only instance is deployed on every node agent to read pods locally from its Kubelet via workloadmeta. In the generated agent check YAML this corresponds to the snake_case check options `pod_collection_mode: cluster_unassigned` on the cluster side and `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the node side; this CRD field itself is the camelCase `podCollectionMode` per Kubernetes API convention.  Useful in large clusters where a single KSM instance is a bottleneck. The cluster-aggregate `.total` metrics (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total) carry a reduced tag set with no host or node, so they cannot be collected correctly by every node agent independently without colliding at ingestion. To avoid this, the operator also enables `cluster_aggregates_enabled` on the cluster-side and node-side instances, which silences those aggregate metrics on both, and schedules a dedicated `cluster_aggregates_only` instance on the cluster-side component to collect them instead. Requires Agent / Cluster Agent 7.82+.  When `features.kubeStateMetricsCore.conf` is also set, the operator deploys the node-side check but does NOT modify the user-supplied cluster-side config. To avoid double pod collection in that case, the user's cluster-side instance must either omit `pods` from its `collectors` list OR set the `pod_collection_mode: cluster_unassigned` check option themselves. Omitting `collectors` entirely falls back to upstream KSM defaults, which include `pods`.  Default behavior is unchanged when this field is unset. |
-| features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Default: false |
+| features.kubeStateMetricsCore.shardingEnabled | `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`, `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.  Default behavior is unchanged when this field is unset. |
+| features.kubernetesActions.communication.privateActionRunner.enabled | Enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner. When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations. When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions are not allowed in the Private Action Runner even if it is enabled for other workflows. Default: true |
+| features.kubernetesActions.communication.remoteConfiguration.enabled | Enables delivery of Kubernetes actions through Remote Configuration. Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration). Default: true |
+| features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Requires Cluster Agent 7.84.0 or greater. Default: false |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
@@ -251,6 +267,12 @@ spec:
 | features.otlp.receiver.protocols.http.endpoint | For OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.otlp.receiver.protocols.http.hostPortConfig.enabled | Enables host port configuration |
 | features.otlp.receiver.protocols.http.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.privateActionRunner.actionsAllowlist | ActionsAllowlist contains additional action patterns allowed on both agents. Per-component ActionsAllowlist replaces this list when set, including an empty list. Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations. Built-in actions remain controlled by private_action_runner.default_actions_enabled. |
+| features.privateActionRunner.clusterAgent.actionsAllowlist | ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations. |
+| features.privateActionRunner.clusterAgent.enabled | Overrides the shared Private Action Runner enablement for this component. Takes precedence over private_action_runner.enabled in customConfigurations. |
+| features.privateActionRunner.enabled | Enables Private Action Runner on both the Node Agent and Cluster Agent, with self-enrollment by default. Per-component Enabled takes precedence. Default: false |
+| features.privateActionRunner.nodeAgent.actionsAllowlist | ActionsAllowlist replaces the shared additional action patterns for this component. An explicit empty list clears inherited additional action patterns. Takes precedence over private_action_runner.actions_allowlist in customConfigurations. |
+| features.privateActionRunner.nodeAgent.enabled | Overrides the shared Private Action Runner enablement for this component. Takes precedence over private_action_runner.enabled in customConfigurations. |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |

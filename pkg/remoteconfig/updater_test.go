@@ -36,6 +36,34 @@ var testAdditionalUpdaterTags = []string{
 	"managed_agent_installation:eks-addon-config-v1",
 }
 
+func TestConfigureServiceInitializesConfig(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	tests := []struct {
+		name         string
+		site         string
+		directorRoot string
+		configRoot   string
+	}{
+		{name: "production", site: "datadoghq.com"},
+		{name: "staging", site: "datad0g.com"},
+		{name: "custom roots", site: "datad0g.com", directorRoot: "director-root", configRoot: "config-root"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updater := NewRemoteConfigUpdater(nil, logr.Discard())
+			require.NoError(t, updater.configureService("api-key", tt.site, "test-cluster", tt.directorRoot, tt.configRoot, ""))
+
+			cfg := updater.serviceConf.cfg
+			assert.Equal(t, tt.site, cfg.GetString("site"), "TUF root selection must use the configured site")
+			assert.Equal(t, "api-key", cfg.GetString("api_key"))
+			assert.Equal(t, tt.directorRoot, cfg.GetString("remote_configuration.director_root"))
+			assert.Equal(t, tt.configRoot, cfg.GetString("remote_configuration.config_root"))
+		})
+	}
+}
+
 func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 
@@ -515,4 +543,18 @@ func newFakeClient(t *testing.T, objects ...client.Object) client.Client {
 	assert.NoError(t, corev1.AddToScheme(scheme))
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+}
+
+func TestConfigureServiceConfigReadable(t *testing.T) {
+	updater := &RemoteConfigUpdater{logger: logr.Discard()}
+	require.NoError(t, updater.configureService("api-key", "datad0g.com", "", "director-root", "config-root", ""))
+
+	cfg := updater.serviceConf.cfg
+	// The Remote Configuration service picks its TUF roots from these values:
+	// an empty site selects the prod roots, which fail on datad0g.com.
+	assert.Equal(t, "datad0g.com", cfg.GetString("site"))
+	assert.Equal(t, "director-root", cfg.GetString("remote_configuration.director_root"))
+	assert.Equal(t, "config-root", cfg.GetString("remote_configuration.config_root"))
+	assert.Equal(t, "api-key", cfg.GetString("api_key"))
+	assert.Equal(t, "https://config.datad0g.com", updater.serviceConf.baseRawURL)
 }

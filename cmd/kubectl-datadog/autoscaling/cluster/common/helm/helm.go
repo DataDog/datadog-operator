@@ -10,11 +10,13 @@ import (
 	"os"
 	"time"
 
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/loader"
+	"helm.sh/helm/v4/pkg/cli"
+	"helm.sh/helm/v4/pkg/kube"
+	"helm.sh/helm/v4/pkg/release"
+	releasecommon "helm.sh/helm/v4/pkg/release/common"
+	"helm.sh/helm/v4/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -37,8 +39,14 @@ func Exists(_ context.Context, ac *action.Configuration, releaseName string) (bo
 	versions, err := historyAction.Run(releaseName)
 
 	if err != nil {
-		if errors.Is(err, driver.ErrReleaseNotFound) || (len(versions) > 0 && versions[len(versions)-1].Info.Status == release.StatusUninstalled) {
+		if errors.Is(err, driver.ErrReleaseNotFound) {
 			return false, nil
+		}
+		if len(versions) > 0 {
+			accessor, aerr := release.NewAccessor(versions[len(versions)-1])
+			if aerr == nil && accessor.Status() == releasecommon.StatusUninstalled.String() {
+				return false, nil
+			}
 		}
 		return false, fmt.Errorf("failed to get Helm release %s history: %w", releaseName, err)
 	}
@@ -58,7 +66,7 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	installAction.CreateNamespace = true
 	installAction.Namespace = namespace
 	installAction.Version = version
-	installAction.Wait = true
+	installAction.WaitStrategy = kube.StatusWatcherStrategy
 	installAction.WaitForJobs = true
 	installAction.Timeout = 30 * time.Minute
 
@@ -78,12 +86,16 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	ctx, cancel := context.WithTimeout(ctx, installAction.Timeout)
 	defer cancel()
 
-	release, err := installAction.RunWithContext(ctx, chart, values)
+	rel, err := installAction.RunWithContext(ctx, chart, values)
 	if err != nil {
 		return fmt.Errorf("failed to install Helm release %s: %w", releaseName, err)
 	}
 
-	log.Printf("Installed Helm release %s.", release.Name)
+	accessor, err := release.NewAccessor(rel)
+	if err != nil {
+		return fmt.Errorf("failed to read installed release: %w", err)
+	}
+	log.Printf("Installed Helm release %s.", accessor.Name())
 
 	return nil
 }
@@ -98,7 +110,7 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	upgradeAction := action.NewUpgrade(ac)
 	upgradeAction.Namespace = namespace
 	upgradeAction.Version = version
-	upgradeAction.Wait = true
+	upgradeAction.WaitStrategy = kube.StatusWatcherStrategy
 	upgradeAction.WaitForJobs = true
 	upgradeAction.Timeout = 30 * time.Minute
 
@@ -118,12 +130,16 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	ctx, cancel := context.WithTimeout(ctx, upgradeAction.Timeout)
 	defer cancel()
 
-	release, err := upgradeAction.RunWithContext(ctx, releaseName, chart, values)
+	rel, err := upgradeAction.RunWithContext(ctx, releaseName, chart, values)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade Helm release %s: %w", releaseName, err)
 	}
 
-	log.Printf("Upgraded Helm release %s.", release.Name)
+	accessor, err := release.NewAccessor(rel)
+	if err != nil {
+		return fmt.Errorf("failed to read upgraded release: %w", err)
+	}
+	log.Printf("Upgraded Helm release %s.", accessor.Name())
 
 	return nil
 }
@@ -142,7 +158,7 @@ func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string
 	log.Printf("Uninstalling Helm release %s…", releaseName)
 
 	uninstallAction := action.NewUninstall(ac)
-	uninstallAction.Wait = true
+	uninstallAction.WaitStrategy = kube.StatusWatcherStrategy
 	uninstallAction.Timeout = 30 * time.Minute
 
 	response, err := uninstallAction.Run(releaseName)
@@ -150,7 +166,11 @@ func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string
 		return fmt.Errorf("failed to uninstall Helm release %s: %w", releaseName, err)
 	}
 
-	log.Printf("Uninstalled Helm release %s.", response.Release.Name)
+	accessor, err := release.NewAccessor(response.Release)
+	if err != nil {
+		return fmt.Errorf("failed to read uninstalled release: %w", err)
+	}
+	log.Printf("Uninstalled Helm release %s.", accessor.Name())
 
 	return nil
 }
@@ -159,7 +179,7 @@ func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string
 func NewActionConfig(configFlags *genericclioptions.ConfigFlags, namespace string) (*action.Configuration, error) {
 	actionConfig := new(action.Configuration)
 
-	if err := actionConfig.Init(configFlags, namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := actionConfig.Init(configFlags, namespace, os.Getenv("HELM_DRIVER")); err != nil {
 		return nil, fmt.Errorf("failed to initialize Helm configuration: %w", err)
 	}
 

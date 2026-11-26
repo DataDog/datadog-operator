@@ -58,12 +58,16 @@ func (h *SLOHandler) deleteResource(auth context.Context, instance *v1alpha1.Dat
 	return deleteSLO(auth, h.client, instance.Status.Id)
 }
 
-func (h *SLOHandler) refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error) {
+func (h *SLOHandler) refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (remoteRead, error) {
 	sloName, err := getSLONameFromSpec(instance)
 	if err != nil {
-		return nil, err
+		return remoteRead{}, err
 	}
-	return getSLOState(auth, h.client, instance.Status.Id, sloName)
+	state, err := getSLOState(auth, h.client, instance.Status.Id, sloName)
+	if err != nil {
+		return remoteRead{}, err
+	}
+	return remoteRead{State: state}, nil
 }
 
 func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.ServiceLevelObjective, error) {

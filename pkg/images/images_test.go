@@ -575,6 +575,15 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/custom-agent:7.64.0",
 		},
 		{
+			name:         "registry port with a tag field",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "registry.example:5000/datadog/agent",
+				Tag:  "7.65.0",
+			},
+			want: "registry.example:5000/datadog/agent:7.65.0",
+		},
+		{
 			name:         "override image tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{

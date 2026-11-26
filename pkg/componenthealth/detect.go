@@ -35,6 +35,16 @@ const (
 	IssueImagePullFailure = "image_pull_failure"
 )
 
+// AllIssueTypes is the catalog of issue types this package detects. It is used by
+// the controller's startup resolve sweep to enumerate the issue space that may
+// need an explicit RESOLVED signal after an operator restart.
+var AllIssueTypes = []string{
+	IssueOOMKilled,
+	IssueCrashLooping,
+	IssueUnschedulable,
+	IssueImagePullFailure,
+}
+
 // We should be able to drop issue severity of each issue type
 // from the payloads sent by the operator because the backend
 // is able to enforce them uniformly for each issue type so we

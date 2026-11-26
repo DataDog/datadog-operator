@@ -55,10 +55,11 @@ const (
 	healthPort    int32 = 7284
 )
 
+const gossipProtocolVersion = 1
+
 const (
-	pomskyUserID                 int64 = 1005
 	startupProbePath                   = "/health/readyz"
-	startupProbeFailureThreshold int32 = 12
+	startupProbeFailureThreshold int32 = 60
 	startupProbePeriodSeconds    int32 = 5
 	livenessProbePath                  = "/health/livez"
 	livenessProbeTimeoutSeconds  int32 = 5
@@ -77,7 +78,6 @@ const (
 
 	envQuickwitNumCPUs                      = "QW_NUM_CPUS"
 	envQuickwitConfig                       = "QW_CONFIG"
-	envQuickwitClusterID                    = "QW_CLUSTER_ID"
 	envQuickwitNodeID                       = "QW_NODE_ID"
 	envQuickwitAvailabilityZone             = "QW_AVAILABILITY_ZONE"
 	envQuickwitPeerSeeds                    = "QW_PEER_SEEDS"
@@ -93,6 +93,10 @@ const (
 	envQuickwitLogFormat                    = "QW_LOG_FORMAT"
 	envQuickwitRandomSplitPrefix            = "QW_RANDOM_SPLIT_PREFIX"
 	envQuickwitOpenTelemetryExporter        = "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER"
+	envQuickwitLocalityAwareScheduling      = "QW_ENABLE_LOCALITY_AWARE_SCHEDULING"
+	envQuickwitInMemoryIndexing             = "QW_ENABLE_IN_MEMORY_INDEXING"
+	envQuickwitIndexingMaxWriteThroughput   = "QW_INDEXING_MAX_WRITE_THROUGHPUT"
+	envQuickwitDisableLoadEstimation        = "QW_DISABLE_LOAD_ESTIMATION"
 
 	envCloudPremDogstatsdHost     = "CP_DOGSTATSD_SERVER_HOST"
 	envCloudPremDogstatsdPort     = "CP_DOGSTATSD_SERVER_PORT"
@@ -115,6 +119,13 @@ const (
 	envOTelTracesSamplerArg           = "OTEL_TRACES_SAMPLER_ARG"
 	envImageName                      = "IMAGE_NAME"
 	envImageTag                       = "IMAGE_TAG"
+
+	envPipelineDestinationEndpoint       = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
+	envPipelineDestinationTracesEndpoint = "DD_OP_DESTINATION_DATADOG_BYOC_TRACES_ENDPOINT_URL"
+
+	// byocTracesPath is the BYOC indexer's traces route;
+	// the OPW destination uses the env value verbatim as its sink URI.
+	byocTracesPath = "/api/datadog/v1/byoc/traces"
 )
 
 const (
@@ -125,33 +136,35 @@ const (
 	telemetryMetricsTemporality = "delta"
 	telemetryTracesSampler      = "parentbased_traceidratio"
 	telemetryTracesSamplerRatio = "0.2"
+	// The CloudPrem Helm chart sizing map caps the indexer write throughput at 12.5MiB/s per core.
+	indexingMaxWriteThroughputMiBPerCore = 12.5
 )
-
-const quickwitUseReadOnlyMetastoreConfigKey = "use_metastore_read_replica"
 
 // defaultNodeConfig returns the node configuration defaults that do not depend on the cluster spec.
 func defaultNodeConfig() map[string]any {
 	return map[string]any{
-		"version":               0.8,
-		"listen_address":        "0.0.0.0",
-		"gossip_listen_port":    gossipPort,
-		"cloudprem_listen_port": cloudpremPort,
-		"data_dir":              defaultDataPath,
-		"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-		"health":                map[string]any{"listen_port": healthPort},
-		"cloudprem": map[string]any{
+		"version":                 0.8,
+		"listen_address":          "0.0.0.0",
+		"gossip_listen_port":      gossipPort,
+		"gossip_protocol_version": gossipProtocolVersion,
+		"cloudprem_listen_port":   cloudpremPort,
+		"data_dir":                defaultDataPath,
+		"grpc":                    map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+		"health":                  map[string]any{"listen_port": healthPort},
+		quickwitCloudPremConfigKey: map[string]any{
 			"mtls_header":              "X-Amzn-Mtls-Clientcert",
-			"create_dd_logs_index":     true,
 			"create_dd_metrics_index":  false,
 			"create_dd_sketches_index": false,
-			"create_dd_traces_index":   false,
 		},
 		"docs_clustering": []any{
-			map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
-			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
+			map[string]any{"fingerprint": []any{
+				map[string]any{"kind": "raw", "path": "source"},
+				map[string]any{"kind": "raw", "path": "service"},
+			}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 		},
+		quickwitMetastoreConfigKey:  map[string]any{quickwitPostgresConfigKey: map[string]any{"min_connections": 10}},
 		quickwitIndexerServiceName:  map[string]any{"split_store_max_num_splits": 10000},
 		quickwitSearcherServiceName: map[string]any{"aggregation_memory_limit": "500M"},
 	}

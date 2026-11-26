@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
-	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -56,7 +55,6 @@ type SetupOptions struct {
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
 	DatadogBYOCClusterEnabled         bool
-	BYOCImageResolver                 byocimage.ImageResolver
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
@@ -67,7 +65,9 @@ type SetupOptions struct {
 	DefaultDataPlaneLinuxEnabled      bool
 	ComponentHealthEnabled            bool
 	ComponentHealthIntakeEnabled      bool
+	ComponentHealthIntakeURL          string
 	ComponentHealthSnapshotInterval   time.Duration
+	ComponentHealthResolveGracePeriod time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
 
@@ -223,10 +223,9 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 	}
 
 	return (&datadogbyoccluster.Reconciler{
-		Client:        mgr.GetClient(),
-		APIReader:     mgr.GetAPIReader(),
-		Scheme:        mgr.GetScheme(),
-		ImageResolver: options.BYOCImageResolver,
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
 	}).SetupWithManager(mgr)
 }
 
@@ -292,6 +291,12 @@ func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.
 		reconciler.snapshotInterval = options.ComponentHealthSnapshotInterval
 	}
 
+	// Override the default resolve grace period when configured; a non-positive
+	// value keeps the built-in default.
+	if options.ComponentHealthResolveGracePeriod > 0 {
+		reconciler.resolveGracePeriod = options.ComponentHealthResolveGracePeriod
+	}
+
 	// When the intake is enabled, swap the default logging emitter for the
 	// production emitter that POSTs current-state HealthReport snapshots to the
 	// agenthealth intake.
@@ -299,8 +304,13 @@ func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.
 		if options.CredsManager == nil {
 			return fmt.Errorf("%s: intake emitter requires a credentials manager", componentHealthControllerName)
 		}
-		reconciler.emitter = newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
-		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake", "controller", componentHealthControllerName)
+		emitter := newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
+		// When set, override the derived agenthealth intake URL (testing/QA against a
+		// fakeintake). Empty keeps the production URL derived from the site.
+		emitter.intakeURL = options.ComponentHealthIntakeURL
+		reconciler.emitter = emitter
+		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake",
+			"controller", componentHealthControllerName, "intakeURLOverride", options.ComponentHealthIntakeURL)
 	}
 
 	return reconciler.SetupWithManager(mgr)

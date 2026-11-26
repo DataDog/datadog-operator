@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
@@ -44,6 +45,7 @@ func Test_handleFinalizer(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  "foo",
 			Name:       "bar",
+			Labels:     map[string]string{constants.ProfileLabelKey: "true"},
 			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
 		},
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
@@ -156,6 +158,123 @@ func Test_handleFinalizer(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotContains(t, currentNode.Labels, constants.ProfileLabelKey)
 	}
+}
+
+// Test_profilesCleanup checks which nodes lose the profile label.
+func Test_profilesCleanup(t *testing.T) {
+	tests := []struct {
+		name         string
+		profileName  string
+		wantLabelled map[string]string // node name -> expected profile label value ("" = no label)
+	}{
+		{
+			name:        "profile DDAI only cleans nodes of that profile",
+			profileName: "profile-a",
+			wantLabelled: map[string]string{
+				"node-a":       "",
+				"node-b":       "profile-b",
+				"node-default": "",
+			},
+		},
+		{
+			name:        "profile DDAI with no matching nodes leaves all labels",
+			profileName: "profile-deleted",
+			wantLabelled: map[string]string{
+				"node-a":       "profile-a",
+				"node-b":       "profile-b",
+				"node-default": "",
+			},
+		},
+		{
+			name:        "default DDAI cleans no nodes",
+			profileName: "",
+			wantLabelled: map[string]string{
+				"node-a":       "profile-a",
+				"node-b":       "profile-b",
+				"node-default": "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reconciler := reconcilerForFinalizerTest([]client.Object{
+				testutils.NewNode("node-a", map[string]string{
+					agentprofile.NodeLabelKey("foo"):   "profile-a",
+					agentprofile.NodeLabelKey("other"): "profile-a",
+				}),
+				testutils.NewNode("node-b", map[string]string{agentprofile.NodeLabelKey("foo"): "profile-b"}),
+				testutils.NewNode("node-default", nil),
+			})
+
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo"))
+
+			for nodeName, want := range tt.wantLabelled {
+				node := &corev1.Node{}
+				assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: nodeName}, node))
+				assert.Equal(t, want, node.Labels[agentprofile.NodeLabelKey("foo")], nodeName)
+				if nodeName == "node-a" {
+					assert.Equal(t, "profile-a", node.Labels[agentprofile.NodeLabelKey("other")])
+				}
+			}
+		})
+	}
+}
+
+// Test_profilesCleanup_emptyLabelValue checks that a node whose profile label is empty only loses it for an empty profile name.
+func Test_profilesCleanup_emptyLabelValue(t *testing.T) {
+	tests := []struct {
+		name        string
+		profileName string
+		wantLabel   bool
+	}{
+		{name: "empty profile name removes the empty label", profileName: "", wantLabel: false},
+		{name: "profile name keeps the empty label", profileName: "profile-a", wantLabel: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reconciler := reconcilerForFinalizerTest([]client.Object{
+				testutils.NewNode("node-empty", map[string]string{agentprofile.NodeLabelKey("foo"): ""}),
+			})
+
+			assert.NoError(t, reconciler.profilesCleanup(context.Background(), tt.profileName, "foo"))
+
+			node := &corev1.Node{}
+			assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-empty"}, node))
+			if tt.wantLabel {
+				assert.Contains(t, node.Labels, agentprofile.NodeLabelKey("foo"))
+			} else {
+				assert.NotContains(t, node.Labels, agentprofile.NodeLabelKey("foo"))
+			}
+		})
+	}
+}
+
+// Test_finalizeDDAI_defaultDDAI checks that deleting a DDAI without a profile label leaves node profile labels alone.
+func Test_finalizeDDAI_defaultDDAI(t *testing.T) {
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:  "foo",
+			Name:       "default-ddai",
+			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
+		},
+	}
+	reconciler := reconcilerForFinalizerTest([]client.Object{
+		ddai,
+		testutils.NewNode("node-a", map[string]string{agentprofile.NodeLabelKey("foo"): "profile-a"}),
+		testutils.NewNode("node-default", nil),
+	})
+
+	assert.NoError(t, reconciler.finalizeDDAI(context.Background(), ddai))
+
+	nodeA := &corev1.Node{}
+	assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-a"}, nodeA))
+	assert.Equal(t, "profile-a", nodeA.Labels[agentprofile.NodeLabelKey("foo")])
+
+	nodeDefault := &corev1.Node{}
+	assert.NoError(t, reconciler.client.Get(context.Background(), types.NamespacedName{Name: "node-default"}, nodeDefault))
+	assert.NotContains(t, nodeDefault.Labels, agentprofile.NodeLabelKey("foo"))
 }
 
 func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {

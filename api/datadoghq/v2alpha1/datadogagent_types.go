@@ -90,6 +90,9 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// PrivateActionRunner configuration for the Node Agent and Cluster Agent.
+	// +optional
+	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
@@ -131,13 +134,102 @@ type DatadogFeatures struct {
 	KubernetesActions *KubernetesActionsFeatureConfig `json:"kubernetesActions,omitempty"`
 }
 
+// PrivateActionRunnerFeatureConfig contains Private Action Runner configuration.
+// When present, this block replaces the legacy enable and configdata annotations.
+// Advanced settings use override.nodeAgent.customConfigurations["datadog.yaml"] and
+// override.clusterAgent.customConfigurations["datadog-cluster.yaml"].
+// Split mode and host systemd access remain configured through annotations.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerFeatureConfig struct {
+	// Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,
+	// with self-enrollment by default. Per-component Enabled takes precedence.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ActionsAllowlist contains additional action patterns allowed on both agents.
+	// Per-component ActionsAllowlist replaces this list when set, including an empty list.
+	// Typed allowlists take precedence over private_action_runner.actions_allowlist in customConfigurations.
+	// Built-in actions remain controlled by private_action_runner.default_actions_enabled.
+	// +optional
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
+
+	// NodeAgent configures Private Action Runner on the Node Agent.
+	// Omitted settings inherit the shared feature settings.
+	// +optional
+	NodeAgent *PrivateActionRunnerComponentConfig `json:"nodeAgent,omitempty"`
+
+	// ClusterAgent configures Private Action Runner on the Cluster Agent.
+	// Omitted settings inherit the shared feature settings.
+	// +optional
+	ClusterAgent *PrivateActionRunnerComponentConfig `json:"clusterAgent,omitempty"`
+}
+
+// PrivateActionRunnerComponentConfig configures Private Action Runner for one component.
+// Advanced settings use the component's customConfigurations without changing their file-mount semantics.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerComponentConfig struct {
+	// Enabled overrides the shared Private Action Runner enablement for this component.
+	// Takes precedence over private_action_runner.enabled in customConfigurations.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ActionsAllowlist replaces the shared additional action patterns for this component.
+	// An explicit empty list clears inherited additional action patterns.
+	// Takes precedence over private_action_runner.actions_allowlist in customConfigurations.
+	// +optional
+	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
+}
+
 // KubernetesActionsFeatureConfig allows configuration of the Kubernetes Actions feature.
 // When enabled, the Cluster Agent is granted RBAC to perform remediation actions
 // (deleting pods, restarting deployments) driven by the Datadog Kubernetes Actions product.
 // +k8s:openapi-gen=true
 type KubernetesActionsFeatureConfig struct {
 	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Requires Cluster Agent 7.84.0 or greater.
 	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Communication selects the channels the Cluster Agent uses to receive Kubernetes actions.
+	// At least one channel must be enabled; both can be enabled at the same time.
+	// +optional
+	Communication *KubernetesActionsCommunicationConfig `json:"communication,omitempty"`
+}
+
+// KubernetesActionsCommunicationConfig selects the channels used to deliver Kubernetes actions to the Cluster Agent.
+// +k8s:openapi-gen=true
+type KubernetesActionsCommunicationConfig struct {
+	// RemoteConfiguration configures delivery of Kubernetes actions through Remote Configuration.
+	// +optional
+	RemoteConfiguration *KubernetesActionsRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
+
+	// PrivateActionRunner configures delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// +optional
+	PrivateActionRunner *KubernetesActionsPrivateActionRunnerConfig `json:"privateActionRunner,omitempty"`
+}
+
+// KubernetesActionsRemoteConfigurationConfig configures delivery of Kubernetes actions through Remote Configuration.
+// +k8s:openapi-gen=true
+type KubernetesActionsRemoteConfigurationConfig struct {
+	// Enabled enables delivery of Kubernetes actions through Remote Configuration.
+	// Disabling it requires Cluster Agent 7.86.0 or greater (older versions always use Remote Configuration).
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// KubernetesActionsPrivateActionRunnerConfig configures delivery of Kubernetes actions through the Cluster Agent
+// Private Action Runner.
+// +k8s:openapi-gen=true
+type KubernetesActionsPrivateActionRunnerConfig struct {
+	// Enabled enables delivery of Kubernetes actions through the Cluster Agent Private Action Runner.
+	// When enabled, the Cluster Agent Private Action Runner is enabled with self-enrollment, unless it is already
+	// configured with spec.features.privateActionRunner or the cluster-agent.datadoghq.com/private-action-runner-* annotations.
+	// When disabled on Cluster Agent 7.86.0 or greater, Kubernetes actions
+	// are not allowed in the Private Action Runner even if it is enabled for other workflows.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -345,7 +437,7 @@ const (
 	InjectionModeAuto InjectionModeType = "auto"
 	// InjectionModeInitContainer uses init containers for library injection.
 	InjectionModeInitContainer InjectionModeType = "init_container"
-	// InjectionModeCSI uses CSI driver for library injection (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
+	// InjectionModeCSI uses CSI driver for library injection (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
 	InjectionModeCSI InjectionModeType = "csi"
 	// InjectionModeImageVolume uses image volumes for library injection (experimental, requires Cluster Agent 7.77.0+).
 	InjectionModeImageVolume InjectionModeType = "image_volume"
@@ -391,7 +483,7 @@ type SingleStepInstrumentation struct {
 	Injector *InjectorConfig `json:"injector,omitempty"`
 
 	// InjectionMode is the injection mode to use for libraries injection.
-	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Valid values are: "auto", "init_container", "csi" (requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
 	// Empty by default so the Cluster Agent can apply its own defaults.
 	// +optional
 	InjectionMode InjectionModeType `json:"injectionMode,omitempty"`
@@ -729,6 +821,10 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
+	// DatabaseBenchmarks contains configuration for database benchmarks.
+	// +optional
+	DatabaseBenchmarks *CSPMDatabaseBenchmarksConfig `json:"databaseBenchmarks,omitempty"`
+
 	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
 	// payloads directly, without using the security-agent.
 	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
@@ -742,6 +838,15 @@ type CSPMFeatureConfig struct {
 type CSPMHostBenchmarksConfig struct {
 	// Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
 	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.
+// +k8s:openapi-gen=true
+type CSPMDatabaseBenchmarksConfig struct {
+	// Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -937,13 +1042,14 @@ type GPUFeatureConfig struct {
 	// probes are disabled; privileged mode is retained for cgroup permission patching.
 	// To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
 	// core agent and system-probe containers via spec.override.nodeAgent.containers.
+	// Applies to NVIDIA GPUs only.
 	// Default: false
 	// +optional
 	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
-	// Default: nvidia
+	// Default: nvidia, or unset when vendor is amd
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
@@ -952,7 +1058,23 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+
+	// Vendor selects the GPU vendor on the nodes: `nvidia` (default) or `amd`. With `amd`, the Operator skips NVIDIA-specific settings,
+	// sets no RuntimeClass by default, and enables the AMD GPU check on Agent 7.86.0 and later. Ignored on GKE Autopilot.
+	// +optional
+	Vendor *GPUVendor `json:"vendor,omitempty"`
 }
+
+// GPUVendor is the vendor of the GPUs on the nodes.
+// +kubebuilder:validation:Enum=nvidia;amd
+type GPUVendor string
+
+const (
+	// GPUVendorNVIDIA is the NVIDIA GPU vendor.
+	GPUVendorNVIDIA GPUVendor = "nvidia"
+	// GPUVendorAMD is the AMD GPU vendor.
+	GPUVendorAMD GPUVendor = "amd"
+)
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
 // Data Plane runs as a sidecar container alongside the Core Agent.
@@ -1104,6 +1226,15 @@ type EventCollectionFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+
+	// CollectionMode sets how the Cluster Agent collects Kubernetes events from the API server.
+	// `poll` re-opens a watch on every check run. `watch` streams events through a single
+	// persistent reflector-backed watch, which avoids dropping events in high-churn clusters.
+	// Requires Cluster Agent 7.81.1+.
+	// Default: unset (the Cluster Agent's default is `poll`)
+	// +optional
+	// +kubebuilder:validation:Enum=poll;watch
+	CollectionMode *string `json:"collectionMode,omitempty"`
 }
 
 // EventTypes defines the kind and reasons of events to collect.
@@ -1216,6 +1347,15 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// `ShardingEnabled` splits the `kubernetes_state_core` check into three check instances (pods, nodes, and all other
+	// resources), each dispatched as a separate cluster check. (Requires Cluster Agent 7.83.0+) Trade-off: label joins
+	// cannot cross shards, so pod metrics lose these six node-derived tags: `kube_region`, `kube_zone`,
+	// `container_runtime_version`, `kernel_version`, `kubelet_version`, `os_image`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	ShardingEnabled *bool `json:"shardingEnabled,omitempty"`
 }
 
 // KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.

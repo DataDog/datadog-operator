@@ -129,11 +129,9 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -203,11 +201,9 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		scheme:       s,
 		platformInfo: platformInfo,
 		recorder:     recorder,
-		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
 		options:      opts,
 	}
-	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
@@ -780,6 +776,35 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent with Private Action Runner packet capture, create DaemonSet with capture socket",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAnnotations(map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":                "true",
+						"agent.datadoghq.com/private-action-runner-packet-capture-enabled": "true",
+					}).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.86.0"},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.PrivateActionRunnerContainerName),
+					string(apicommon.SystemProbeContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+				verifyPacketCaptureSocket(t, c, resourcesNamespace, dsName)
+			},
+		},
+		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -1346,7 +1371,9 @@ func Test_otelImageTags(t *testing.T) {
 
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
+				// A Name override is agent-specific and must not switch the otel-agent off its
+				// ddot-collector image; it stays on the default collector image.
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1371,7 +1398,9 @@ func Test_otelImageTags(t *testing.T) {
 
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
+				// A Name override (even one that embeds a tag) is agent-specific; the otel-agent
+				// stays on the default ddot-collector image.
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1387,17 +1416,22 @@ func Test_otelImageTags(t *testing.T) {
 				}).Build(),
 			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantFunc: func(t *testing.T, c client.Client) {
+				// The name's latest tag takes precedence, so service discovery defaults to enabled.
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
+					string(apicommon.SystemProbeContainerName),
 				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.OtelAgent].Image)
+				// Fully-qualified Name override is agent-specific; the otel-agent stays on the
+				// default ddot-collector image.
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.SystemProbeContainerName].Image)
 
 			},
 		},
@@ -2206,6 +2240,49 @@ func verifySystemdHostMounts(t *testing.T, c client.Client, resourcesNamespace, 
 	}
 }
 
+func verifyPacketCaptureSocket(t *testing.T, c client.Client, resourcesNamespace, dsName string) {
+	ds := &appsv1.DaemonSet{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+	assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
+
+	found := false
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		if volume.Name == "sysprobe-capture-socket-dir" {
+			found = true
+			assert.NotNil(t, volume.EmptyDir, "capture socket volume should be an emptyDir")
+		}
+	}
+	assert.True(t, found, "capture socket volume not found")
+
+	socketEnv := corev1.EnvVar{Name: "DD_PACKET_CAPTURE_SOCKET", Value: "/var/run/sysprobe-capture/capture.sock"}
+	containers := getDsContainers(c, resourcesNamespace, dsName)
+	for name, wantReadOnly := range map[apicommon.AgentContainerName]bool{
+		apicommon.SystemProbeContainerName:         false,
+		apicommon.PrivateActionRunnerContainerName: true,
+	} {
+		container, ok := containers[name]
+		assert.True(t, ok, "%s container not found", name)
+
+		var captureMount *corev1.VolumeMount
+		for i := range container.VolumeMounts {
+			mount := container.VolumeMounts[i]
+			if mount.Name == "sysprobe-capture-socket-dir" {
+				captureMount = &mount
+			}
+			if name == apicommon.PrivateActionRunnerContainerName {
+				assert.NotEqual(t, common.SystemProbeSocketVolumeName, mount.Name, "the full system-probe socket must not be mounted in the runner")
+			}
+		}
+		assert.NotNil(t, captureMount, "capture socket mount not found in %s", name)
+		if captureMount != nil {
+			assert.Equal(t, "/var/run/sysprobe-capture", captureMount.MountPath)
+			assert.Equal(t, wantReadOnly, captureMount.ReadOnly)
+		}
+		assert.Contains(t, container.Env, socketEnv)
+	}
+}
+
 func assertNoDanglingVolumeMounts(t *testing.T, podSpec corev1.PodSpec) {
 	t.Helper()
 
@@ -2484,7 +2561,7 @@ func Test_DDAI_Reconcile(t *testing.T) {
 													Values:   []string{"foo-profile"},
 												},
 												{
-													Key:      constants.ProfileLabelKey,
+													Key:      agentprofile.NodeLabelKey(dda.Namespace),
 													Operator: corev1.NodeSelectorOpIn,
 													Values:   []string{"foo-profile"},
 												},
@@ -2709,7 +2786,7 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 							{
 								MatchExpressions: []corev1.NodeSelectorRequirement{
 									{
-										Key:      constants.ProfileLabelKey,
+										Key:      agentprofile.NodeLabelKey(dda.Namespace),
 										Operator: corev1.NodeSelectorOpDoesNotExist,
 									},
 								},
@@ -2975,4 +3052,48 @@ func Test_AutopilotRegistryDefaulting(t *testing.T) {
 			runDDAReconcilerTest(t, tc, ReconcilerOptions{})
 		})
 	}
+}
+
+func TestReconcileDatadogAgentV2_MultipleOverrideConflicts(t *testing.T) {
+	runTestCases(t, []testCase{{
+		name: "all disabled components are reported",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder("bar", "foo").
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}).
+				WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Disabled: ptr.To(true)}).
+				Build()
+			assert.NoError(t, c.Create(context.Background(), dda))
+			return dda
+		},
+		want: reconcile.Result{RequeueAfter: 15 * time.Second},
+		wantFunc: func(t *testing.T, c client.Client) {
+			ddai := &v1alpha1.DatadogAgentInternal{}
+			assert.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "bar", Name: "foo"}, ddai))
+			conflict := condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+			assert.NotNil(t, conflict)
+			assert.Equal(t, "clusterAgent component is set to disabled; clusterChecksRunner component is set to disabled; Agent component is set to disabled", conflict.Message)
+
+			ri := datadogagentinternal.NewReconciler(ddaiReconcilerOptionsFromDDA(ReconcilerOptions{}), c, platformInfoForTest(testCase{}), c.Scheme(), record.NewFakeRecorder(100), dummyManager{})
+			// Reconcile again after resolving only the DCA and Node Agent conflicts.
+			delete(ddai.Spec.Override, v2alpha1.ClusterAgentComponentName)
+			delete(ddai.Spec.Override, v2alpha1.NodeAgentComponentName)
+			assert.NoError(t, c.Update(context.Background(), ddai))
+			_, err := ri.Reconcile(context.Background(), ddai)
+			assert.NoError(t, err)
+			assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(ddai), ddai))
+			conflict = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+			assert.NotNil(t, conflict)
+			assert.Equal(t, "clusterChecksRunner component is set to disabled", conflict.Message)
+
+			delete(ddai.Spec.Override, v2alpha1.ClusterChecksRunnerComponentName)
+			assert.NoError(t, c.Update(context.Background(), ddai))
+			_, err = ri.Reconcile(context.Background(), ddai)
+			assert.NoError(t, err)
+			assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(ddai), ddai))
+			assert.Nil(t, condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType))
+		},
+	}}, runFullReconcilerTest)
 }

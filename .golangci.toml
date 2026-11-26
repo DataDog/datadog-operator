@@ -23,6 +23,7 @@ disable = [
   'errcheck',
   'exhaustive',
   'exhaustruct',
+  'exhaustruct_v5',
   'forcetypeassert',
   'funcorder',
   'funlen',

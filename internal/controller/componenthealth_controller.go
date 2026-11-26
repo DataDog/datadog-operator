@@ -39,6 +39,12 @@ const (
 	// defaultSnapshotInterval is the cadence at which the current active-issue
 	// set is handed to the emitter.
 	defaultSnapshotInterval = 60 * time.Second
+
+	// defaultResolveGracePeriod is how long a component-level issue must stay clear
+	// before its RESOLVED signal is emitted. It debounces a component that flaps
+	// between detected and clear (e.g. an OOM/crash-loop cycle) so a brief recovery
+	// window does not emit a false resolve. The backend TTL remains the backstop.
+	defaultResolveGracePeriod = 5 * time.Minute
 )
 
 var _ manager.LeaderElectionRunnable = &ComponentHealthReconciler{}
@@ -93,6 +99,18 @@ type resolvedIssue struct {
 	firstSeen  time.Time
 	lastSeen   time.Time
 	resolvedAt time.Time
+	// clearedAt is when the issue last went clear. Its RESOLVED signal is withheld
+	// until it has stayed clear for resolveGracePeriod past this time (see
+	// collectSnapshot); a re-activation drops the tombstone (see addPod). A zero
+	// clearedAt bypasses the grace period (startup sweep resolves).
+	clearedAt time.Time
+}
+
+// componentScope identifies a managed component within a namespace. It is the
+// unit over which the startup resolve sweep enumerates the issue catalog.
+type componentScope struct {
+	namespace string
+	component string
 }
 
 // ComponentHealthReconciler watches the managed cluster-level component pods
@@ -113,7 +131,10 @@ type ComponentHealthReconciler struct {
 	restartThreshold int32
 	emitter          componentHealthEmitter
 	snapshotInterval time.Duration
-	clock            func() time.Time // overridable for tests; defaults to time.Now
+	// resolveGracePeriod is how long an issue must stay clear before its RESOLVED
+	// signal is emitted. Overridable for tests; 0 disables the debounce.
+	resolveGracePeriod time.Duration
+	clock              func() time.Time // overridable for tests; defaults to time.Now
 
 	// mu guards reported and resolved. reported holds every currently-active
 	// component-level issue and the set of pods exhibiting it. resolved holds the
@@ -125,26 +146,39 @@ type ComponentHealthReconciler struct {
 	mu       sync.Mutex
 	reported map[componentIssueKey]*componentIssueState
 	resolved map[componentIssueKey]resolvedIssue
+
+	// seeded is closed after startup initializes issue state from existing pods.
+	// Reconcile waits for it so startup cannot overwrite a newer pod observation.
+	seeded chan struct{}
 }
 
 // NewComponentHealthReconciler builds a ComponentHealthReconciler with the
 // default logging/metric emitter.
 func NewComponentHealthReconciler(c client.Client, log logr.Logger) *ComponentHealthReconciler {
 	return &ComponentHealthReconciler{
-		client:           c,
-		log:              log,
-		restartThreshold: defaultRestartThreshold,
-		emitter:          &logEmitter{log: log},
-		snapshotInterval: defaultSnapshotInterval,
-		clock:            time.Now,
-		reported:         map[componentIssueKey]*componentIssueState{},
-		resolved:         map[componentIssueKey]resolvedIssue{},
+		client:             c,
+		log:                log,
+		restartThreshold:   defaultRestartThreshold,
+		emitter:            &logEmitter{log: log},
+		snapshotInterval:   defaultSnapshotInterval,
+		resolveGracePeriod: defaultResolveGracePeriod,
+		clock:              time.Now,
+		reported:           map[componentIssueKey]*componentIssueState{},
+		resolved:           map[componentIssueKey]resolvedIssue{},
+		seeded:             make(chan struct{}),
 	}
 }
 
 // Reconcile evaluates a single managed component pod and folds its detected
 // issues into the component-level state, emitting only the resulting transitions.
 func (r *ComponentHealthReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// Retry after startup has initialized issue state.
+	select {
+	case <-r.seeded:
+	default:
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
+
 	pod := &corev1.Pod{}
 	if err := r.client.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -220,18 +254,33 @@ func (r *ComponentHealthReconciler) addPod(key componentIssueKey, pod string) {
 
 	if firstPod {
 		state.firstSeen = now
-		// The issue is active again: drop any pending resolve so we don't send a
-		// stale RESOLVED signal for something that is currently broken.
+		// A flap (re-activating while its resolve is still pending within the grace
+		// window) is not a new occurrence: keep the original first_seen and skip the
+		// detected log/counter. Otherwise drop the pending resolve and count it.
+		ri, pending := r.resolved[key]
+		flap := pending && !ri.clearedAt.IsZero() && now.Sub(ri.clearedAt) < r.resolveGracePeriod
+		if flap && !ri.firstSeen.IsZero() {
+			state.firstSeen = ri.firstSeen
+		}
 		delete(r.resolved, key)
-		metrics.ComponentHealthIssuesDetected.WithLabelValues(key.component, key.issueType).Inc()
+
 		issue := r.issueFor(key, state)
-		r.log.Info("component health issue detected",
-			"component", issue.Component,
-			"issue_type", issue.IssueType,
-			"severity", issue.Severity,
-			"namespace", issue.Namespace,
-			"affected_pods", issue.AffectedPods,
-		)
+		if flap {
+			r.log.V(1).Info("component health issue re-detected within resolve window",
+				"component", issue.Component,
+				"issue_type", issue.IssueType,
+				"namespace", issue.Namespace,
+			)
+		} else {
+			metrics.ComponentHealthIssuesDetected.WithLabelValues(key.component, key.issueType).Inc()
+			r.log.Info("component health issue detected",
+				"component", issue.Component,
+				"issue_type", issue.IssueType,
+				"severity", issue.Severity,
+				"namespace", issue.Namespace,
+				"affected_pods", issue.AffectedPods,
+			)
+		}
 	}
 	r.setActiveGauge(key)
 }
@@ -244,19 +293,24 @@ func (r *ComponentHealthReconciler) dropPod(key componentIssueKey, state *compon
 	}
 	delete(state.pods, pod)
 	if len(state.pods) == 0 {
-		r.log.Info("component health issue resolved",
+		// Debug only: the raw clear flaps for a crash-looping component. The
+		// default-level resolve is logged once, debounced, in emitSnapshot.
+		r.log.V(1).Info("component health issue clear observed",
 			"component", key.component,
 			"issue_type", key.issueType,
 			"namespace", key.namespace,
 		)
 		delete(r.reported, key)
-		// Remember the clear so the next snapshot carries an explicit RESOLVED
-		// signal for it, carrying the lifecycle timestamps; it is dropped once that
-		// snapshot is acknowledged.
+		// Remember the clear so a later snapshot carries an explicit RESOLVED signal
+		// for it, carrying the lifecycle timestamps. The signal is withheld until the
+		// issue has stayed clear for resolveGracePeriod (see collectSnapshot), and the
+		// tombstone is dropped once the snapshot carrying it is acknowledged.
+		now := r.clock()
 		r.resolved[key] = resolvedIssue{
 			firstSeen:  state.firstSeen,
 			lastSeen:   state.lastSeen,
-			resolvedAt: r.clock(),
+			resolvedAt: now,
+			clearedAt:  now,
 		}
 		r.setActiveGauge(key)
 		return
@@ -283,6 +337,7 @@ func (r *ComponentHealthReconciler) forgetPod(pod types.NamespacedName) {
 // r.mu to copy the state and returns before any emission happens, so the emitter
 // is never called while the lock is held.
 func (r *ComponentHealthReconciler) collectSnapshot() (active, resolved []componenthealth.ComponentIssue) {
+	now := r.clock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -294,6 +349,13 @@ func (r *ComponentHealthReconciler) collectSnapshot() (active, resolved []compon
 
 	resolved = make([]componenthealth.ComponentIssue, 0, len(r.resolved))
 	for key, ri := range r.resolved {
+		// Withhold the RESOLVED signal until the issue has stayed clear for the grace
+		// period, so a flapping component does not emit a false resolve. A zero
+		// clearedAt (startup sweep) is emitted immediately; otherwise the tombstone
+		// stays pending until it ages past the window or a re-activation drops it.
+		if !ri.clearedAt.IsZero() && now.Sub(ri.clearedAt) < r.resolveGracePeriod {
+			continue
+		}
 		resolved = append(resolved, componenthealth.ComponentIssue{
 			Component:  key.component,
 			IssueType:  key.issueType,
@@ -342,6 +404,18 @@ func (r *ComponentHealthReconciler) emitSnapshot(ctx context.Context) {
 		r.log.V(1).Info("component health snapshot not delivered, will retry resolved issues", "error", err)
 		return
 	}
+	// Debounced resolve log: fires once per delivered, grace-promoted resolve, so it
+	// does not flap. Startup-sweep catalog clears (no first_seen) stay at debug.
+	for _, issue := range resolved {
+		if issue.FirstSeen.IsZero() {
+			continue
+		}
+		r.log.Info("component health issue resolved",
+			"component", issue.Component,
+			"issue_type", issue.IssueType,
+			"namespace", issue.Namespace,
+		)
+	}
 	r.ackResolved(resolved)
 }
 
@@ -362,26 +436,88 @@ func sortIssues(issues []componenthealth.ComponentIssue) {
 // active-issue set to the emitter. It implements manager.Runnable and is
 // registered with the manager in SetupWithManager.
 //
-// TODO(CONTP-2137): close the restart resolve-gap. State is in-memory, so if an
-// issue was active before an operator restart and clears while the operator is
-// down (or before it re-observes the pods), no present->absent transition occurs
-// and no RESOLVED signal is sent — the backend only clears it via TTL. Once
-// detection has stabilized on startup, emit explicit RESOLVED signals for the
-// catalog issue types not currently active on each managed component, so the
-// backend reconciles any issue left stuck from before the restart. (Pending the
-// backend decision on whether a full operator snapshot can instead be treated as
-// authoritative, which would close this gap without a startup sweep.)
+// Before the loop it runs seedAndSweep once, then emits an initial snapshot so
+// recovered issues clear promptly instead of waiting a full interval.
 func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
+	r.log.Info("Starting component health snapshot loop", "interval", r.snapshotInterval)
+
+	if err := r.seedAndSweep(ctx); err != nil {
+		// A failed sweep is not fatal: steady-state reporting still works, and any
+		// pre-restart issue that cleared during downtime falls back to backend TTL.
+		r.log.Error(err, "component health startup resolve sweep failed; pre-restart issues that cleared during downtime will clear via backend TTL instead")
+	}
+	// Release deferred reconciles. Closed even on sweep error so reconciliation
+	// never stays blocked.
+	close(r.seeded)
+	r.emitSnapshot(ctx)
+
 	ticker := time.NewTicker(r.snapshotInterval)
 	defer ticker.Stop()
-
-	r.log.Info("Starting component health snapshot loop", "interval", r.snapshotInterval)
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
 			r.emitSnapshot(ctx)
+		}
+	}
+}
+
+// seedAndSweep loads active issues from existing component pods, then queues
+// RESOLVED signals for the remaining issue types. This clears issues that
+// recovered while the operator was stopped.
+//
+// Components with no remaining pods are skipped; their previous issues expire
+// through the backend TTL.
+func (r *ComponentHealthReconciler) seedAndSweep(ctx context.Context) error {
+	ls := managedComponentLabelSelector()
+	sel, err := metav1.LabelSelectorAsSelector(&ls)
+	if err != nil {
+		return err
+	}
+
+	pods := &corev1.PodList{}
+	if err := r.client.List(ctx, pods, &client.ListOptions{LabelSelector: sel}); err != nil {
+		return err
+	}
+
+	observed := map[componentScope]struct{}{}
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if !pod.DeletionTimestamp.IsZero() {
+			continue
+		}
+		component := componenthealth.ManagedComponent(pod)
+		if component == "" {
+			continue
+		}
+		observed[componentScope{namespace: pod.Namespace, component: component}] = struct{}{}
+		issues := componenthealth.DetectPodIssues(pod, r.restartThreshold)
+		r.reconcilePod(types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, component, issues)
+	}
+
+	r.sweepResolved(observed)
+	return nil
+}
+
+// sweepResolved queues a RESOLVED tombstone for every catalog issue type that is
+// not currently active on an observed component, skipping issues that are active
+// or already pending resolution. Caller must not hold mu.
+func (r *ComponentHealthReconciler) sweepResolved(observed map[componentScope]struct{}) {
+	now := r.clock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for scope := range observed {
+		for _, issueType := range componenthealth.AllIssueTypes {
+			key := componentIssueKey{namespace: scope.namespace, component: scope.component, issueType: issueType}
+			if _, active := r.reported[key]; active {
+				continue
+			}
+			if _, pending := r.resolved[key]; pending {
+				continue
+			}
+			// Only resolvedAt is known here; the backend matches on issue identity.
+			r.resolved[key] = resolvedIssue{resolvedAt: now}
 		}
 	}
 }
@@ -422,11 +558,12 @@ func (r *ComponentHealthReconciler) setActiveGauge(key componentIssueKey) {
 	metrics.ComponentHealthIssuesActive.WithLabelValues(key.component, key.issueType).Set(float64(total))
 }
 
-// SetupWithManager wires the controller to watch only the managed cluster-level
-// component pods (cluster-agent, cluster-checks-runner). Node Agent pods are
-// intentionally excluded.
-func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	pred, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+// managedComponentLabelSelector selects the managed cluster-level component pods
+// (cluster-agent, cluster-checks-runner). It is the single source of truth for
+// both the watch predicate and the startup resolve sweep's pod list, so the two
+// cannot drift.
+func managedComponentLabelSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
 				Key:      common.AgentDeploymentComponentLabelKey,
@@ -437,7 +574,15 @@ func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			},
 		},
-	})
+	}
+}
+
+// SetupWithManager wires the controller to watch only the managed cluster-level
+// component pods (cluster-agent, cluster-checks-runner). Node Agent pods are
+// intentionally excluded.
+func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	ls := managedComponentLabelSelector()
+	pred, err := predicate.LabelSelectorPredicate(ls)
 	if err != nil {
 		return err
 	}

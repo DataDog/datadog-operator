@@ -2,15 +2,19 @@ package datadogagent
 
 import (
 	"context"
+	"maps"
 	"testing"
+	"time"
 
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -22,6 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const defaultProvider = kubernetes.DefaultProvider
@@ -239,7 +244,9 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 		description    string
 		profilesByNode map[string]types.NamespacedName
 		nodes          []client.Object
-		wantNodeLabels map[string]map[string]string
+		// legacyLabelInUse simulates DaemonSets still selecting with the legacy label.
+		legacyLabelInUse bool
+		wantNodeLabels   map[string]map[string]string
 	}{
 		{
 			name:        "label multiple profile nodes and default node",
@@ -280,11 +287,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": nil,
 			},
@@ -324,19 +331,19 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							constants.ProfileLabelKey: "profile-1",
-							"foo":                     "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							"foo":                            "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -381,20 +388,20 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							constants.ProfileLabelKey:       "profile-1",
-							agentprofile.OldProfileLabelKey: "profile-2",
-							"foo":                           "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							agentprofile.OldProfileLabelKey:  "profile-2",
+							"foo":                            "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -423,8 +430,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                       "1",
-							constants.ProfileLabelKey: "profile-2",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -440,20 +447,20 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							constants.ProfileLabelKey:       "profile-1",
-							agentprofile.OldProfileLabelKey: "profile-2",
-							"foo":                           "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							agentprofile.OldProfileLabelKey:  "profile-2",
+							"foo":                            "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -482,8 +489,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                       "1",
-							constants.ProfileLabelKey: "profile-1",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
 						},
 					},
 				},
@@ -491,7 +498,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-2",
 						Labels: map[string]string{
-							constants.ProfileLabelKey: "profile-2",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -506,11 +513,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -539,9 +546,9 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                             "1",
-							constants.ProfileLabelKey:       "profile-1",
-							agentprofile.OldProfileLabelKey: "profile-2",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-1",
+							agentprofile.OldProfileLabelKey:  "profile-2",
 						},
 					},
 				},
@@ -549,7 +556,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-2",
 						Labels: map[string]string{
-							constants.ProfileLabelKey: "profile-2",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -557,19 +564,19 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							"foo":                     "bar",
-							constants.ProfileLabelKey: "profile-2",
+							"foo":                            "bar",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -598,8 +605,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                       "1",
-							constants.ProfileLabelKey: "profile-2",
+							"1":                              "1",
+							agentprofile.NodeLabelKey("foo"): "profile-2",
 						},
 					},
 				},
@@ -620,15 +627,61 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					constants.ProfileLabelKey: "profile-1",
-					"1":                       "1",
+					agentprofile.NodeLabelKey("foo"): "profile-1",
+					"1":                              "1",
 				},
 				"node-2": {
-					constants.ProfileLabelKey: "profile-2",
+					agentprofile.NodeLabelKey("foo"): "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
 				},
+			},
+		},
+		{
+			name: "remove the only node label when its profile no longer applies",
+			profilesByNode: map[string]types.NamespacedName{
+				"node": {Name: "default"},
+			},
+			nodes: []client.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "node", Labels: map[string]string{agentprofile.NodeLabelKey("foo"): "profile"},
+			}}},
+			wantNodeLabels: map[string]map[string]string{"node": nil},
+		},
+		{
+			name:        "keep legacy label while a DaemonSet still selects with it",
+			description: "removing the legacy label before the DaemonSets migrate evicts every profile pod at once",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-profile": {Namespace: "foo", Name: "profile"},
+				"node-default": {Name: "default"},
+			},
+			nodes: []client.Object{
+				&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+					Name: "node-profile", Labels: map[string]string{constants.ProfileLabelKey: "profile"},
+				}},
+				&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+					Name: "node-default", Labels: map[string]string{constants.ProfileLabelKey: "old-profile"},
+				}},
+			},
+			legacyLabelInUse: true,
+			wantNodeLabels: map[string]map[string]string{
+				"node-profile": {
+					constants.ProfileLabelKey:        "profile",
+					agentprofile.NodeLabelKey("foo"): "profile",
+				},
+				"node-default": {constants.ProfileLabelKey: "old-profile"},
+			},
+		},
+		{
+			name: "remove legacy label once DaemonSets use the namespace-scoped label",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-profile": {Namespace: "foo", Name: "profile"},
+			},
+			nodes: []client.Object{&corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "node-profile", Labels: map[string]string{constants.ProfileLabelKey: "profile"},
+			}}},
+			wantNodeLabels: map[string]map[string]string{
+				"node-profile": {agentprofile.NodeLabelKey("foo"): "profile"},
 			},
 		},
 	}
@@ -641,7 +694,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 				client: fakeClient,
 			}
 
-			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode)
+			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode, "foo", tt.legacyLabelInUse)
 			assert.NoError(t, err)
 
 			nodeList := &corev1.NodeList{}
@@ -859,14 +912,180 @@ func Test_cleanupPodsForProfilesThatNoLongerApply(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:        "delete unschedulable default pod on a node that has a profile",
+			description: "pending-default is pinned to node-1 by affinity and has no profile label, so it is deleted; pending-profile-1 matches node-1's profile and is kept",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "foo", Name: "profile-1"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				pendingAgentPod("pending-default", "node-1", nil),
+				pendingAgentPod("pending-profile-1", "node-1", map[string]string{constants.ProfileLabelKey: "profile-1"}),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(pendingAgentPod("pending-profile-1", "node-1", map[string]string{constants.ProfileLabelKey: "profile-1"})),
+			},
+		},
+		{
+			name:        "keep pending default pod on a default node",
+			description: "the pod has no profile label and the node uses the default profile, so it is kept",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "", Name: "default"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				pendingAgentPod("pod-1", "node-1", nil),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(pendingAgentPod("pod-1", "node-1", nil)),
+			},
+		},
+		{
+			name:        "keep pending default pods when there are no profiles",
+			description: "every node uses the default profile, so no pod is deleted",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "", Name: "default"},
+				"node-2": {Namespace: "", Name: "default"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				pendingAgentPod("pod-1", "node-1", nil),
+				pendingAgentPod("pod-2", "node-2", nil),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(pendingAgentPod("pod-1", "node-1", nil)),
+				*withResourceVersion(pendingAgentPod("pod-2", "node-2", nil)),
+			},
+		},
+		{
+			name:        "delete pending profile pod on a default node",
+			description: "the node no longer has a profile, so the pod with a profile label is deleted",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "", Name: "default"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				pendingAgentPod("pod-1", "node-1", map[string]string{constants.ProfileLabelKey: "profile-1"}),
+			},
+			wantPods: []corev1.Pod{},
+		},
+		{
+			name:        "keep pending pod on a node that is not in profilesByNode",
+			description: "the node was held back by the create strategy, so the pod is kept",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-2": {Namespace: "foo", Name: "profile-1"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				pendingAgentPod("pod-1", "node-1", nil),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(pendingAgentPod("pod-1", "node-1", nil)),
+			},
+		},
+		{
+			name:        "keep pending pod that is not unschedulable",
+			description: "pod has no Unschedulable condition, so it is kept",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "foo", Name: "profile-1"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				func() client.Object {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					pod.Status.Conditions = nil
+					return pod
+				}(),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(func() *corev1.Pod {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					pod.Status.Conditions = nil
+					return pod
+				}()),
+			},
+		},
+		{
+			name:        "keep unschedulable pod without node affinity",
+			description: "the node can't be determined, so the pod is kept",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "foo", Name: "profile-1"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				func() client.Object {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					pod.Spec.Affinity = nil
+					return pod
+				}(),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(func() *corev1.Pod {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					pod.Spec.Affinity = nil
+					return pod
+				}()),
+			},
+		},
+		{
+			name:        "keep unschedulable pod not managed by the operator",
+			description: "the pod has no managed-by=datadog-operator label, so it is kept",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "foo", Name: "profile-1"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				func() client.Object {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					delete(pod.Labels, kubernetes.AppKubernetesManageByLabelKey)
+					return pod
+				}(),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(func() *corev1.Pod {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					delete(pod.Labels, kubernetes.AppKubernetesManageByLabelKey)
+					return pod
+				}()),
+			},
+		},
+		{
+			name:        "skip pod that is already being deleted",
+			description: "the pod matches the delete rule but has a deletion timestamp, so no delete is sent and it stays until Kubernetes removes it",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {Namespace: "foo", Name: "profile-1"},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				func() client.Object {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					pod.DeletionTimestamp = new(metav1.NewTime(time.Unix(1700000000, 0)))
+					pod.Finalizers = []string{"test/keep"}
+					return pod
+				}(),
+			},
+			wantPods: []corev1.Pod{
+				*withResourceVersion(func() *corev1.Pod {
+					pod := pendingAgentPod("pod-1", "node-1", nil)
+					pod.DeletionTimestamp = new(metav1.NewTime(time.Unix(1700000000, 0)))
+					pod.Finalizers = []string{"test/keep"}
+					return pod
+				}()),
+			},
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingPods...).Build()
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingPods...).
+				WithIndex(&corev1.Pod{}, "spec.nodeName", func(obj client.Object) []string {
+					return []string{obj.(*corev1.Pod).Spec.NodeName}
+				}).Build()
 
 			r := &Reconciler{
-				client: fakeClient,
+				client:  fakeClient,
+				options: ReconcilerOptions{APIReader: fakeClient},
 			}
 
 			err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, tt.profilesByNode, tt.ddaNamespace)
@@ -879,4 +1098,136 @@ func Test_cleanupPodsForProfilesThatNoLongerApply(t *testing.T) {
 			assert.Equal(t, tt.wantPods, podList.Items)
 		})
 	}
+}
+
+// pendingAgentPod returns an unschedulable agent pod pinned to nodeName by node affinity, like the ones the DaemonSet controller creates.
+func pendingAgentPod(name, nodeName string, extraLabels map[string]string) *corev1.Pod {
+	labels := map[string]string{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+	}
+	maps.Copy(labels, extraLabels)
+
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "foo",
+			Labels:    labels,
+		},
+		Spec: corev1.PodSpec{
+			Affinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+							MatchFields: []corev1.NodeSelectorRequirement{{
+								Key:      common.FieldPathMetaName,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{nodeName},
+							}},
+						}},
+					},
+				},
+			},
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodPending,
+			Conditions: []corev1.PodCondition{{
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionFalse,
+				Reason: corev1.PodReasonUnschedulable,
+			}},
+		},
+	}
+}
+
+// withResourceVersion sets the resource version the fake client gives to stored objects.
+func withResourceVersion(pod *corev1.Pod) *corev1.Pod {
+	pod.ResourceVersion = "999"
+	return pod
+}
+
+// failingReader fails the test if the API server is read.
+type failingReader struct {
+	client.Reader
+	t *testing.T
+}
+
+func (f failingReader) List(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
+	f.t.Error("API server should not be read when all agent pods have a node")
+	return nil
+}
+
+// Test_cleanupPodsForProfilesThatNoLongerApply_noUnscheduledPods checks that the API server is not read when every agent pod has a node.
+func Test_cleanupPodsForProfilesThatNoLongerApply_noUnscheduledPods(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-1",
+			Namespace: "foo",
+			Labels:    map[string]string{apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix},
+		},
+		Spec: corev1.PodSpec{NodeName: "node-1"},
+	}
+	r := &Reconciler{
+		client:  fake.NewClientBuilder().WithScheme(sch).WithObjects(pod).Build(),
+		options: ReconcilerOptions{APIReader: failingReader{t: t}},
+	}
+
+	err := r.cleanupPodsForProfilesThatNoLongerApply(context.Background(), map[string]types.NamespacedName{"node-1": {Namespace: "", Name: "default"}}, "foo")
+	assert.NoError(t, err)
+}
+
+// podCacheTransform returns the function the operator's pod cache uses to strip pods.
+func podCacheTransform(t *testing.T) func(any) (any, error) {
+	t.Setenv(config.AgentWatchNamespaceEnvVar, "foo")
+	cacheOptions := config.CacheOptions(logf.Log.WithName(t.Name()), config.WatchOptions{DatadogAgentProfileEnabled: true})
+	for obj, byObject := range cacheOptions.ByObject {
+		if _, ok := obj.(*corev1.Pod); ok {
+			return byObject.Transform
+		}
+	}
+	t.Fatal("no pod cache options found")
+	return nil
+}
+
+// Test_cleanupPodsForProfilesThatNoLongerApply_withPodCache checks the cleanup when the cached client only has the pod fields the operator's cache keeps.
+func Test_cleanupPodsForProfilesThatNoLongerApply_withPodCache(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	ctx := context.Background()
+	transform := podCacheTransform(t)
+
+	fullPods := []client.Object{
+		pendingAgentPod("pending-default", "node-1", nil),
+		pendingAgentPod("pending-profile-1", "node-1", map[string]string{constants.ProfileLabelKey: "profile-1"}),
+	}
+	cachedPods := make([]client.Object, 0, len(fullPods))
+	for _, pod := range fullPods {
+		cached, err := transform(pod.DeepCopyObject())
+		assert.NoError(t, err)
+		cachedPods = append(cachedPods, cached.(client.Object))
+	}
+
+	cachedClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(cachedPods...).Build()
+	apiReader := fake.NewClientBuilder().WithScheme(sch).WithObjects(fullPods...).
+		WithIndex(&corev1.Pod{}, "spec.nodeName", func(obj client.Object) []string {
+			return []string{obj.(*corev1.Pod).Spec.NodeName}
+		}).Build()
+	r := &Reconciler{
+		client:  cachedClient,
+		options: ReconcilerOptions{APIReader: apiReader},
+	}
+
+	err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, map[string]types.NamespacedName{"node-1": {Namespace: "foo", Name: "profile-1"}}, "foo")
+	assert.NoError(t, err)
+
+	podList := &corev1.PodList{}
+	assert.NoError(t, cachedClient.List(ctx, podList))
+	remaining := make([]string, 0, len(podList.Items))
+	for _, pod := range podList.Items {
+		remaining = append(remaining, pod.Name)
+	}
+	assert.Equal(t, []string{"pending-profile-1"}, remaining, "the default pod should be deleted and the profile pod kept")
 }

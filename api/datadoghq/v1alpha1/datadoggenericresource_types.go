@@ -54,13 +54,22 @@ type DatadogGenericResourceStatus struct {
 	// CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know
 	// if the JsonSpec has changed and needs an update.
 	CurrentHash string `json:"currentHash,omitempty"`
+	// RemoteDefinitionHash is the hash of the resource definition returned by Datadog
+	// after the last successful create or update, for resource types that support it.
+	// A force sync skips the update while the remote resource still has this hash.
+	RemoteDefinitionHash string `json:"remoteDefinitionHash,omitempty"`
+	// Etag is the ETag of the last read of the resource whose definition had
+	// RemoteDefinitionHash, for resource types that support it. Reads send it in
+	// If-None-Match, so a Not Modified response shows that the resource,
+	// including its state, has not changed since that read.
+	Etag string `json:"etag,omitempty"`
 	// LastForceSyncTime is the last time the API object was last force synced with the custom resource
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
 	// State is the live Datadog-side state of the underlying resource as last
 	// fetched from the Datadog API. Values are resource-type dependent — for
 	// Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:
 	// breached, warning, ok, no_data. Only populated for resource types that
-	// expose live state.
+	// expose live state. PollingDisabled when state polling is disabled.
 	State string `json:"state,omitempty"`
 	// StateLastUpdateTime is the last time State was successfully refreshed from Datadog.
 	StateLastUpdateTime *metav1.Time `json:"stateLastUpdateTime,omitempty"`

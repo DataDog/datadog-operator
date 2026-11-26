@@ -1,0 +1,44 @@
+# Detached from the nightly Conductor pipeline. Keep QA failures visible here
+# without propagating their status or retry duration to the parent pipeline.
+include:
+  - local: .gitlab/ci/e2e-common.yml
+
+stages:
+  - image
+  - deps_fetch
+  - e2e
+
+variables:
+  GOPATH: "$CI_PROJECT_DIR/.go"
+  GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+
+publish_autopilot_operator_image:
+  extends: .docker_publish_job_definition
+  stage: image
+  retry: 2
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${PARENT_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_DESTINATIONS: operator:${PARENT_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: agent-qa
+
+prepare_e2e_plugins:
+  extends: .prepare_e2e_plugins_base
+
+e2e_gke_autopilot:
+  extends: .e2e_gcp_base
+  stage: e2e
+  needs:
+    - job: publish_autopilot_operator_image
+      artifacts: false
+    - job: prepare_e2e_plugins
+  timeout: 120m
+  retry: 2
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${PARENT_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  script:
+    - echo "Running GKE Autopilot e2e test with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-gke-autopilot-tests

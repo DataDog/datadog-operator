@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultIdentitySecretName = "datadog-private-action-runner-identity"
+	defaultIdentitySecretName = "private-action-runner-identity"
 )
 
 // getClusterAgentRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
@@ -26,7 +26,13 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 			APIGroups:     []string{rbac.CoreAPIGroup},
 			Resources:     []string{rbac.SecretsResource},
 			ResourceNames: []string{identitySecretName},
-			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
+			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+		},
+		{
+			// Kubernetes cannot restrict create requests by resource name.
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.SecretsResource},
+			Verbs:     []string{rbac.CreateVerb},
 		},
 	}
 }

@@ -49,7 +49,7 @@ func Test_applyOtelAgentGatewayResources(t *testing.T) {
 		},
 		{
 			Name:  "DD_OTELCOLLECTOR_CONVERTER_FEATURES",
-			Value: "health_check,zpages,pprof,datadog",
+			Value: "health_check,zpages,pprof,datadog,cumulativetodelta",
 		},
 		{
 			Name:  "DD_ENABLE_METADATA_COLLECTION",
@@ -74,6 +74,10 @@ func Test_applyOtelAgentGatewayResources(t *testing.T) {
 		{
 			Name:  "DD_AGENT_IPC_PORT",
 			Value: "0",
+		},
+		{
+			Name:  "DD_AGENT_IPC_USE_SOCKET",
+			Value: "false",
 		},
 		{
 			Name:  "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL",

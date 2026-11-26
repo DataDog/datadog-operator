@@ -6,12 +6,21 @@
 package privateactionrunner
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 // Environment variable names for Private Action Runner configuration
@@ -37,15 +46,145 @@ const (
 	privateActionRunnerEnabledKey = "enabled"
 )
 
+type componentConfig struct {
+	enabled    bool
+	configData string
+	settings   *PrivateActionRunnerConfig
+}
+
+// legacyConfiguration preserves annotation behavior when the feature block is absent.
+func legacyConfiguration(dda metav1.Object) (node, cluster componentConfig) {
+	node = componentConfig{enabled: featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation), configData: defaultConfigData}
+	cluster = componentConfig{enabled: featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation), configData: defaultConfigData}
+	if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
+		node.configData = data
+	}
+	if data, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
+		cluster.configData = data
+	}
+	return
+}
+
+// kubernetesActionsConfiguration enables the Cluster Agent runner for Kubernetes Actions
+// unless the legacy annotations already configure it.
+func kubernetesActionsConfiguration(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, legacy componentConfig, reader client.Reader) (componentConfig, error) {
+	if _, configured := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); legacy.enabled || configured {
+		// Legacy config data enables the runner even without the enable annotation.
+		legacy.enabled = true
+		return legacy, nil
+	}
+	override := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]
+	if override == nil {
+		return componentConfig{enabled: true, configData: kubernetesActionsDefaultConfigData}, nil
+	}
+	if _, custom := override.CustomConfigurations[v2alpha1.ClusterAgentConfigFile]; !custom {
+		return componentConfig{enabled: true, configData: kubernetesActionsDefaultConfigData}, nil
+	}
+	cluster, err := configurationFromFeature(&v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, nil)
+	if err == nil {
+		err = readClusterEnrollmentSettings(dda, override, reader, cluster.settings)
+	}
+	return cluster, err
+}
+
+// configurationFromFeature resolves shared and per-component typed PAR settings.
+// Advanced configuration stays in the main file mounted by the generic overrides.
+func configurationFromFeature(spec *v2alpha1.PrivateActionRunnerFeatureConfig, component *v2alpha1.PrivateActionRunnerComponentConfig) (result componentConfig, err error) {
+	result.enabled = apiutils.BoolValue(spec.Enabled)
+	allowlist := spec.ActionsAllowlist
+	if component != nil {
+		if component.Enabled != nil {
+			result.enabled = *component.Enabled
+		}
+		if component.ActionsAllowlist != nil {
+			allowlist = component.ActionsAllowlist
+		}
+	}
+	if !result.enabled {
+		return result, nil
+	}
+	extra := map[string]any{"enabled": true}
+	if allowlist != nil {
+		extra["actions_allowlist"] = append([]string{}, (*allowlist)...)
+	}
+	data, err := yaml.Marshal(map[string]any{privateActionRunnerConfigKey: extra})
+	if err != nil {
+		return result, err
+	}
+	result.configData = string(data)
+	result.settings, err = parsePrivateActionRunnerConfig(result.configData)
+	return result, err
+}
+
+// readClusterEnrollmentSettings reads only the settings needed to provision identity RBAC.
+// Other raw Agent settings are consumed by the Agent, not interpreted as feature configuration.
+func readClusterEnrollmentSettings(owner metav1.Object, override *v2alpha1.DatadogAgentComponentOverride, reader client.Reader, settings *PrivateActionRunnerConfig) error {
+	if override == nil {
+		return nil
+	}
+	data, err := customConfigurationData(owner, override.CustomConfigurations[v2alpha1.ClusterAgentConfigFile], v2alpha1.ClusterAgentConfigFile, reader)
+	if err != nil {
+		return err
+	}
+	var config struct {
+		PrivateActionRunner struct {
+			SelfEnroll           *bool  `yaml:"self_enroll"`
+			IdentityUseK8sSecret *bool  `yaml:"identity_use_k8s_secret"`
+			IdentitySecretName   string `yaml:"identity_secret_name"`
+		} `yaml:"private_action_runner"`
+	}
+	if err := yaml.Unmarshal([]byte(data), &config); err != nil {
+		return fmt.Errorf("invalid %s configuration: %w", v2alpha1.ClusterAgentConfigFile, err)
+	}
+	settings.SelfEnroll = config.PrivateActionRunner.SelfEnroll
+	settings.IdentityUseK8sSecret = config.PrivateActionRunner.IdentityUseK8sSecret
+	settings.IdentitySecretName = config.PrivateActionRunner.IdentitySecretName
+	return nil
+}
+
+func customConfigurationData(owner metav1.Object, custom v2alpha1.CustomConfig, fileName v2alpha1.AgentConfigFileName, reader client.Reader) (string, error) {
+	if custom.ConfigMap == nil {
+		if custom.ConfigData != nil {
+			return *custom.ConfigData, nil
+		}
+		return "", nil
+	}
+	if reader == nil {
+		return "", fmt.Errorf("a Kubernetes reader is required for custom configuration ConfigMap %s", custom.ConfigMap.Name)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var cm corev1.ConfigMap
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: owner.GetNamespace(), Name: custom.ConfigMap.Name}, &cm); err != nil {
+		return "", fmt.Errorf("read custom configuration ConfigMap %s: %w", custom.ConfigMap.Name, err)
+	}
+	key := string(fileName)
+	if len(custom.ConfigMap.Items) > 0 {
+		key = ""
+		for _, item := range custom.ConfigMap.Items {
+			if item.Path == string(fileName) {
+				key = item.Key
+				break
+			}
+		}
+	}
+	data, found := cm.Data[key]
+	if !found || key == "" {
+		return "", fmt.Errorf("custom configuration ConfigMap %s does not provide %s", cm.Name, fileName)
+	}
+	return data, nil
+}
+
 // PrivateActionRunnerConfig represents the parsed configuration from YAML for Private Action Runner
 type PrivateActionRunnerConfig struct {
 	// Enabled controls whether the Private Action Runner is enabled
 	Enabled bool `yaml:"enabled"`
 
-	// SelfEnroll controls whether the runner should automatically enroll with Datadog
+	// SelfEnroll controls whether the runner should automatically enroll with Datadog.
+	// When unset, the Agent determines the default.
 	// When true, the runner will automatically register and obtain credentials
 	// When false, urn and private_key must be provided
-	SelfEnroll bool `yaml:"self_enroll"`
+	SelfEnroll *bool `yaml:"self_enroll,omitempty"`
 
 	// IdentityUseK8sSecret controls whether to use a Kubernetes secret for identity storage
 	// Defaults to true. When enabled, identity is stored in a K8s secret for persistence.
@@ -116,22 +255,19 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 }
 
 // overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
-// matches the desired value.
+// matches the desired value without adding a missing private_action_runner section.
 func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
 	var data map[string]any
 	if err := yaml.Unmarshal([]byte(configData), &data); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
-
 	if parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any); ok {
 		parConfig[privateActionRunnerEnabledKey] = enabled
 	}
-
 	updatedYAML, err := yaml.Marshal(data)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated config data: %w", err)
 	}
-
 	return string(updatedYAML), nil
 }
 
@@ -150,10 +286,12 @@ func (c *PrivateActionRunnerConfig) ToEnvVars() []*corev1.EnvVar {
 		})
 	}
 
-	envVars = append(envVars, &corev1.EnvVar{
-		Name:  DDPARSelfEnroll,
-		Value: strconv.FormatBool(c.SelfEnroll),
-	})
+	if c.SelfEnroll != nil {
+		envVars = append(envVars, &corev1.EnvVar{
+			Name:  DDPARSelfEnroll,
+			Value: strconv.FormatBool(*c.SelfEnroll),
+		})
+	}
 
 	identityUseK8sSecret := c.IdentityUseK8sSecret == nil || *c.IdentityUseK8sSecret
 	envVars = append(envVars, &corev1.EnvVar{

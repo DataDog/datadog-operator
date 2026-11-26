@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -67,7 +68,7 @@ func newFieldManager(ctx context.Context, client client.Client, scheme *runtime.
 }
 
 // ssaMergeCRD merges two custom resource objects using server-side apply without applying the result in k8s
-func (r *Reconciler) ssaMergeCRD(original, modified runtime.Object) (runtime.Object, error) {
+func (r *Reconciler) ssaMergeCRD(ctx context.Context, original, modified runtime.Object) (runtime.Object, error) {
 	// Server side apply
 	// `datadog-operator` is the manager for managed fields
 	// Set force=true to override conflicts
@@ -105,7 +106,7 @@ func (r *Reconciler) ssaMergeCRD(original, modified runtime.Object) (runtime.Obj
 		kv = append(kv, "paths", paths)
 		kv = append(kv, originalKV...)
 		kv = append(kv, modifiedKV...)
-		r.log.V(1).Info("SSA merge failed due to missing CRD schema fields; retried after stripping unknown fields", kv...)
+		ctrl.LoggerFrom(ctx).V(1).Info("SSA merge failed due to missing CRD schema fields; retried after stripping unknown fields", kv...)
 		return newObj, nil
 	}
 

@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -17,10 +19,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -32,6 +35,149 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+func Test_reconcileProfiles_Namespace(t *testing.T) {
+	for _, sameNamespaceProfile := range []bool{false, true} {
+		name := "cross-namespace profile only"
+		if sameNamespaceProfile {
+			name = "same-named profiles in different namespaces"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			sch := agenttestutils.TestScheme()
+			foreignProfile := testAPMMatrixProfile("tenant", "profile", metav1.NewTime(time.Unix(1, 0)), workerProfileRequirement(), testAPMMatrixLibVersionConfig("java", "1.43.0"))
+			node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+				Name: "worker",
+				Labels: map[string]string{
+					"profile":                 "worker",
+					constants.ProfileLabelKey: foreignProfile.Name,
+				},
+			}}
+			// Simulate a pod previously created from the cross-namespace profile.
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "profile-agent", Namespace: "datadog",
+					Labels: map[string]string{
+						apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+						constants.ProfileLabelKey:                  foreignProfile.Name,
+					},
+				},
+				Spec: corev1.PodSpec{NodeName: node.Name},
+			}
+			objects := []k8sruntime.Object{foreignProfile, node, pod}
+			if sameNamespaceProfile {
+				localProfile := foreignProfile.DeepCopy()
+				localProfile.Namespace = "datadog"
+				localProfile.CreationTimestamp = metav1.NewTime(time.Unix(2, 0))
+				localProfile.Spec.Config = &v2alpha1.DatadogAgentSpec{}
+				objects = append(objects, localProfile)
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).
+				WithRuntimeObjects(objects...).
+				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+			r := &Reconciler{client: fakeClient, scheme: sch}
+			defaultDDAI := &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "datadog"},
+				Spec:       *testAPMMatrixBaseSpec(),
+			}
+			originalSpec := defaultDDAI.Spec.DeepCopy()
+			applied, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: "datadog", Name: "agent"}, intstr.FromInt(1), defaultDDAI)
+			require.NoError(t, err)
+			assert.Equal(t, *originalSpec, defaultDDAI.Spec, "foreign profiles must not contribute shared configuration")
+			require.NotEmpty(t, applied)
+			assert.True(t, agentprofile.IsDefaultProfile(applied[0].Namespace, applied[0].Name))
+			if sameNamespaceProfile {
+				require.Len(t, applied, 2)
+				assert.Equal(t, "datadog", applied[1].Namespace)
+				assert.Equal(t, foreignProfile.Name, applied[1].Name)
+			} else {
+				assert.Len(t, applied, 1)
+			}
+			gotProfile := &v1alpha1.DatadogAgentProfile{}
+			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: foreignProfile.Namespace, Name: foreignProfile.Name}, gotProfile))
+			assert.Equal(t, metav1.ConditionFalse, gotProfile.Status.Applied, "foreign profile must not report Applied")
+			appliedCondition := meta.FindStatusCondition(gotProfile.Status.Conditions, agentprofile.AppliedConditionType)
+			require.NotNil(t, appliedCondition)
+			assert.Equal(t, agentprofile.NoDatadogAgentConditionReason, appliedCondition.Reason)
+			assert.Nil(t, gotProfile.Status.CreateStrategy)
+			if sameNamespaceProfile {
+				localProfile := &v1alpha1.DatadogAgentProfile{}
+				require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: foreignProfile.Name}, localProfile))
+				assert.Equal(t, metav1.ConditionTrue, localProfile.Status.Applied)
+			}
+			gotNode := &corev1.Node{}
+			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
+			podErr := fakeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, &corev1.Pod{})
+			if sameNamespaceProfile {
+				assert.Equal(t, foreignProfile.Name, gotNode.Labels[agentprofile.NodeLabelKey("datadog")])
+				require.NoError(t, podErr)
+			} else {
+				assert.NotContains(t, gotNode.Labels, constants.ProfileLabelKey)
+				assert.True(t, apierrors.IsNotFound(podErr), "previously applied cross-namespace profile pod must be deleted: %v", podErr)
+			}
+		})
+	}
+}
+
+func Test_reconcileProfiles_MultipleNamespaces(t *testing.T) {
+	for _, secondProfile := range []bool{false, true} {
+		name := "second namespace has no profiles"
+		if secondProfile {
+			name = "same profile name in both namespaces"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			sch := agenttestutils.TestScheme()
+			profile := testAPMMatrixProfile("agent-a", "profile", metav1.Now(), workerProfileRequirement(), nil)
+			node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "worker", Labels: map[string]string{"profile": "worker"}}}
+			objects := []k8sruntime.Object{profile, node}
+			if secondProfile {
+				other := profile.DeepCopy()
+				other.Namespace = "agent-b"
+				objects = append(objects, other)
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).
+				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+			r := &Reconciler{client: fakeClient, scheme: sch}
+
+			for i, namespace := range []string{"agent-a", "agent-b", "agent-a", "agent-b"} {
+				ddai := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: namespace}}
+				applied, err := r.reconcileProfiles(ctx, types.NamespacedName{Name: "agent", Namespace: namespace}, intstr.FromInt(1), ddai)
+				require.NoError(t, err)
+				gotNode := &corev1.Node{}
+				require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
+				assert.Equal(t, profile.Name, gotNode.Labels[agentprofile.NodeLabelKey("agent-a")], "reconciling %s must preserve agent-a's assignment", namespace)
+				if secondProfile && i > 0 {
+					assert.Equal(t, profile.Name, gotNode.Labels[agentprofile.NodeLabelKey("agent-b")], "reconciling %s must preserve agent-b's assignment", namespace)
+				} else {
+					assert.NotContains(t, gotNode.Labels, agentprofile.NodeLabelKey("agent-b"))
+				}
+				hasProfile := namespace == "agent-a" || secondProfile
+				wantApplied := 1
+				if hasProfile {
+					wantApplied++
+				}
+				require.Len(t, applied, wantApplied)
+				for _, appliedProfile := range applied {
+					affinity := setProfileDDAIAffinity(ddai, appliedProfile)
+					selector, err := nodeaffinity.NewNodeSelector(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+					require.NoError(t, err)
+					isDefault := agentprofile.IsDefaultProfile(appliedProfile.Namespace, appliedProfile.Name)
+					assert.Equal(t, !isDefault || !hasProfile, selector.Match(gotNode), "namespace %s, profile %s", namespace, appliedProfile.Name)
+				}
+			}
+
+			// Finalizing one namespace must preserve the other namespace's assignment.
+			require.NoError(t, r.profilesCleanup(ctx, "agent-a"))
+			gotNode := &corev1.Node{}
+			require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, gotNode))
+			assert.NotContains(t, gotNode.Labels, agentprofile.NodeLabelKey("agent-a"))
+			if secondProfile {
+				assert.Equal(t, profile.Name, gotNode.Labels[agentprofile.NodeLabelKey("agent-b")])
+			}
+		})
+	}
+}
 
 func Test_computeProfileMerge(t *testing.T) {
 	sch := k8sruntime.NewScheme()
@@ -83,7 +229,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "10394c6b4f1e5029544f602ecb5a557b",
+						constants.MD5DDAIDeploymentAnnotationKey: "9ede0e2088d78de526dc93e90cdfeb9a",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -101,7 +247,7 @@ func Test_computeProfileMerge(t *testing.T) {
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},
@@ -196,7 +342,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "a9033f6ffba89ddf862136d39a5db466",
+						constants.MD5DDAIDeploymentAnnotationKey: "465beed1eea604efe8f0a1e7c402591f",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -220,7 +366,7 @@ func Test_computeProfileMerge(t *testing.T) {
 														Values:   []string{"foo"},
 													},
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpIn,
 														Values:   []string{"foo-profile"},
 													},
@@ -277,7 +423,6 @@ func Test_computeProfileMerge(t *testing.T) {
 		assert.NoError(t, err)
 
 		fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&tt.ddai, crd).Build()
-		logger := logf.Log.WithName("Test_computeProfileMerge")
 		eventBroadcaster := record.NewBroadcaster()
 		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_computeProfileMerge"})
 		fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
@@ -286,7 +431,6 @@ func Test_computeProfileMerge(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
 				client:       fakeClient,
-				log:          logger,
 				scheme:       sch,
 				recorder:     recorder,
 				fieldManager: fieldManager,
@@ -300,7 +444,7 @@ func Test_computeProfileMerge(t *testing.T) {
 				crd)
 			assert.NoError(t, err)
 
-			ddai, err := r.computeProfileMerge(&tt.ddai, &tt.profile)
+			ddai, err := r.computeProfileMerge(context.Background(), &tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.Name, ddai.Name)
 			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
@@ -372,7 +516,7 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 				fieldManager: fieldManager,
 			}
 
-			mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+			mergedDDAI, err := r.computeProfileMerge(context.Background(), ddai, profile)
 			require.NoError(t, err)
 			require.NotNil(t, mergedDDAI.Spec.Global)
 			require.NotNil(t, mergedDDAI.Spec.Global.Registry)
@@ -471,7 +615,7 @@ func Test_computeProfileMergeHostProfiler(t *testing.T) {
 				fieldManager: fieldManager,
 			}
 
-			mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+			mergedDDAI, err := r.computeProfileMerge(context.Background(), ddai, profile)
 			require.NoError(t, err)
 			require.NotNil(t, mergedDDAI.Spec.Features)
 			assert.Equal(t, tt.want, mergedDDAI.Spec.Features.HostProfiler)
@@ -542,7 +686,7 @@ func Test_setProfileSpec(t *testing.T) {
 														Values:   []string{"value"},
 													},
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},
@@ -658,7 +802,7 @@ func Test_setProfileSpec(t *testing.T) {
 														Values:   []string{"foo"},
 													},
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpIn,
 														Values:   []string{"foo-profile"},
 													},
@@ -736,7 +880,7 @@ func Test_setProfileSpec(t *testing.T) {
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
 													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Key:      "bar.agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},
@@ -1248,13 +1392,11 @@ func Test_reconcileProfiles(t *testing.T) {
 				WithRuntimeObjects(objects...).
 				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).
 				Build()
-			logger := logf.Log.WithName("Test_reconcileProfiles")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfiles"})
 
 			r := &Reconciler{
 				client:   fakeClient,
-				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
 				options:  ReconcilerOptions{},
@@ -1816,13 +1958,11 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				WithRuntimeObjects(objects...).
 				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).
 				Build()
-			logger := logf.Log.WithName("Test_reconcileProfiles_APMSharedOverlayMatrix")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfiles_APMSharedOverlayMatrix"})
 
 			r := &Reconciler{
 				client:   fakeClient,
-				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
 				options:  ReconcilerOptions{},
@@ -2099,7 +2239,6 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).Build()
 			r := &Reconciler{
 				client: fakeClient,
-				log:    logf.Log.WithName(tt.name),
 			}
 
 			r.addDDAIStatusToProfileStatus(ctx, tt.profile, "test-profile", "default", now)
@@ -2121,4 +2260,43 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 			assert.Equal(t, tt.expectMessage, found.Message)
 		})
 	}
+}
+
+// Test_markCrossNamespaceProfiles checks that only profiles outside the
+// DatadogAgent namespace are marked as not applied.
+func Test_markCrossNamespaceProfiles(t *testing.T) {
+	ctx := context.Background()
+	sch := agenttestutils.TestScheme()
+	now := metav1.Now()
+	profile := func(namespace string) *v1alpha1.DatadogAgentProfile {
+		return &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "profile"},
+			Status: v1alpha1.DatadogAgentProfileStatus{
+				Applied:        metav1.ConditionTrue,
+				CreateStrategy: &v1alpha1.CreateStrategy{Status: v1alpha1.CompletedStatus},
+				Conditions: []metav1.Condition{
+					agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"),
+				},
+			},
+		}
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).
+		WithObjects(profile("datadog"), profile("team-a")).
+		WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).Build()
+	r := &Reconciler{client: fakeClient, scheme: sch}
+
+	r.markCrossNamespaceProfiles(ctx, "datadog", now)
+
+	local := &v1alpha1.DatadogAgentProfile{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "profile"}, local))
+	assert.Equal(t, metav1.ConditionTrue, local.Status.Applied)
+	assert.NotNil(t, local.Status.CreateStrategy)
+
+	foreign := &v1alpha1.DatadogAgentProfile{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "team-a", Name: "profile"}, foreign))
+	assert.Equal(t, metav1.ConditionFalse, foreign.Status.Applied)
+	assert.Nil(t, foreign.Status.CreateStrategy)
+	cond := meta.FindStatusCondition(foreign.Status.Conditions, agentprofile.AppliedConditionType)
+	require.NotNil(t, cond)
+	assert.Equal(t, agentprofile.NoDatadogAgentConditionReason, cond.Reason)
 }

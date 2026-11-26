@@ -241,8 +241,7 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	pending, err := d.dispatchRemoteAPIRequest(ctx, req)
 	if err != nil {
 		// Expected and current stable/experiment configs don't match.
-		var stateErr *stateDoesntMatchError
-		if errors.As(err, &stateErr) {
+		if _, ok := errors.AsType[*stateDoesntMatchError](err); ok {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
 		} else {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)

@@ -214,7 +214,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 		SCCAuthorizer: StaticSCCAuthorizer(opts.SCCAllowed),
 		APIReader:     fakeClient,
 	}
-	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, log, recorder, noopForwarder{})
+	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating DDA reconciler: %w", err)
 	}

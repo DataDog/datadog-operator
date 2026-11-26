@@ -52,6 +52,7 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 
 type cwsFeature struct {
 	syscallMonitorEnabled      bool
+	spec                       *v2alpha1.DatadogAgentSpec
 	networkEnabled             bool
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
@@ -90,6 +91,7 @@ func (f *cwsFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+	f.spec = ddaSpec
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(ddaSpec, ddaRCStatus)
@@ -99,7 +101,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
 		if cwsConfig.DirectSendFromSystemProbe == nil {
-			cwsConfig.DirectSendFromSystemProbe = new(agentSupportsDirectSendFromSystemProbe(dda))
+			cwsConfig.DirectSendFromSystemProbe = new(agentSupportsDirectSendFromSystemProbe(ddaSpec))
 		}
 		f.directSendFromSystemProbe = *cwsConfig.DirectSendFromSystemProbe
 
@@ -167,9 +169,9 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // agentSupportsDirectSendFromSystemProbe reports whether the node Agent is recent enough to send the
 // events from the system-probe. A version the Operator cannot parse is assumed recent enough.
-func agentSupportsDirectSendFromSystemProbe(dda metav1.Object) bool {
+func agentSupportsDirectSendFromSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	defaultIfVersionUnknown := true
-	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendFromSystemProbeMinVersion, &defaultIfVersionUnknown)
+	return utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), directSendFromSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -271,7 +273,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 		// The system-probe submits the events itself and cannot resolve a secret-backed
 		// api_key on its own, so it needs config sync to get the resolved value.
-		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+		featureutils.EnableConfigSyncForDirectSend(managers, f.spec, []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		})
@@ -349,7 +351,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	volMgr.AddVolume(&groupVol)
 
 	// osRelease volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := common.GetVolumeForOSRelease(), common.GetVolumeMountForOSRelease()
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 

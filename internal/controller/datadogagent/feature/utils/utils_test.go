@@ -13,14 +13,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+func newDatadogAgentSpecWithNodeAgentVersion(tag string) *v2alpha1.DatadogAgentSpec {
+	return &v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {
+				Image: &v2alpha1.AgentImageConfig{Tag: tag},
+			},
+		},
+	}
+}
 
 func TestShouldRunProcessChecksInCoreAgent(t *testing.T) {
 	withNodeAgentImage := func(tag string) *v2alpha1.DatadogAgentSpec {
@@ -89,6 +100,16 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 	}{
 		{name: "runtime default disabled", spec: &v2alpha1.DatadogAgentSpec{}},
 		{name: "runtime default enables current default Agent image at or above minimum version", spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true, want: true},
+		{
+			name: "pull policy override inherits the compatible bundled Agent version",
+			spec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)}},
+				},
+			},
+			defaultEnabled: true,
+			want:           true,
+		},
 		{name: "runtime default does not enable older pinned Agent image", spec: withNodeAgentImage("7.83.0"), defaultEnabled: true},
 		{name: "runtime default enables compatible pinned Agent image", spec: withNodeAgentImage("7.84.0"), defaultEnabled: true, want: true},
 		{name: "runtime default enables compatible pinned Agent RC image", spec: withNodeAgentImage("7.84.0-rc.1"), defaultEnabled: true, want: true},
@@ -115,10 +136,48 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 		apicommon.SystemProbeContainerName,
 	}
 
+	// defaultAgentIPCEnvVars returns the expected transport env var for a DDA
+	// without an image override, so the expectation follows the default agent
+	// version instead of breaking when it crosses the socket gate.
+	defaultAgentIPCEnvVars := func() *corev1.EnvVar {
+		if pkgutils.IsAboveMinVersion(images.AgentLatestVersion, AgentIPCUnixSocketMinVersion, nil) {
+			return &corev1.EnvVar{Name: common.DDAgentIpcUseSocket, Value: "true"}
+		}
+		return &corev1.EnvVar{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort}
+	}
+
 	t.Run("sets both env vars on every container", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-		EnableConfigSyncForDirectSend(managers, containers)
+		EnableConfigSyncForDirectSend(managers, &v2alpha1.DatadogAgentSpec{}, containers)
+
+		want := []*corev1.EnvVar{
+			defaultAgentIPCEnvVars(),
+			{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
+		}
+		for _, container := range containers {
+			assert.Equal(t, want, managers.EnvVarMgr.EnvVarsByC[container], "container %s", container)
+		}
+	})
+
+	t.Run("uses the unix socket on agents that support it", func(t *testing.T) {
+		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentSpecWithNodeAgentVersion("7.87.0"), containers)
+
+		want := []*corev1.EnvVar{
+			{Name: common.DDAgentIpcUseSocket, Value: "true"},
+			{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
+		}
+		for _, container := range containers {
+			assert.Equal(t, want, managers.EnvVarMgr.EnvVarsByC[container], "container %s", container)
+		}
+	})
+
+	t.Run("falls back to the port on agents without unix socket support", func(t *testing.T) {
+		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentSpecWithNodeAgentVersion("7.86.0"), containers)
 
 		want := []*corev1.EnvVar{
 			{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
@@ -131,15 +190,79 @@ func TestEnableConfigSyncForDirectSend(t *testing.T) {
 
 	t.Run("keeps a user-provided value", func(t *testing.T) {
 		managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-		userPort := &corev1.EnvVar{Name: common.DDAgentIpcPort, Value: "1234"}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, userPort)
+		userSocket := &corev1.EnvVar{Name: common.DDAgentIpcUseSocket, Value: "false"}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, userSocket)
 
-		EnableConfigSyncForDirectSend(managers, containers)
+		EnableConfigSyncForDirectSend(managers, newDatadogAgentSpecWithNodeAgentVersion("7.87.0"), containers)
 
 		want := []*corev1.EnvVar{
-			userPort,
+			userSocket,
 			{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
 		}
 		assert.Equal(t, want, managers.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName])
 	})
+}
+
+func kubernetesActionsSpec(enabled bool, communication *v2alpha1.KubernetesActionsCommunicationConfig, clusterAgentTag string) *v2alpha1.DatadogAgentSpec {
+	spec := &v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			KubernetesActions: &v2alpha1.KubernetesActionsFeatureConfig{
+				Enabled:       ptr.To(enabled),
+				Communication: communication,
+			},
+		},
+	}
+	if clusterAgentTag != "" {
+		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.ClusterAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: clusterAgentTag}},
+		}
+	}
+	return spec
+}
+
+func TestIsKubernetesActionsRCEnabled(t *testing.T) {
+	tests := []struct {
+		name string
+		spec *v2alpha1.DatadogAgentSpec
+		want bool
+	}{
+		{name: "nil spec", spec: nil, want: false},
+		{name: "feature not configured", spec: &v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{}}, want: false},
+		{name: "feature disabled", spec: kubernetesActionsSpec(false, nil, ""), want: false},
+		{name: "communication unset defaults to true", spec: kubernetesActionsSpec(true, nil, ""), want: true},
+		{name: "remoteConfiguration unset defaults to true", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: ptr.To(true)}}, ""), want: true},
+		{name: "remoteConfiguration set without enabled defaults to true", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{}}, ""), want: true},
+		{name: "remoteConfiguration disabled", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: ptr.To(false)}}, ""), want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsKubernetesActionsRCEnabled(tt.spec))
+		})
+	}
+}
+
+func TestIsKubernetesActionsPAREnabled(t *testing.T) {
+	par := &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: ptr.To(true)}}
+	tests := []struct {
+		name          string
+		spec          *v2alpha1.DatadogAgentSpec
+		wantRequested bool
+		wantEnabled   bool
+	}{
+		{name: "nil spec", spec: nil},
+		{name: "communication unset defaults to true", spec: kubernetesActionsSpec(true, nil, ""), wantRequested: true, wantEnabled: true},
+		{name: "privateActionRunner set without enabled defaults to true", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{}}, ""), wantRequested: true, wantEnabled: true},
+		{name: "default on a cluster agent without Kubernetes Actions support", spec: kubernetesActionsSpec(true, nil, "7.83.0"), wantRequested: true, wantEnabled: false},
+		{name: "privateActionRunner disabled", spec: kubernetesActionsSpec(true, &v2alpha1.KubernetesActionsCommunicationConfig{PrivateActionRunner: &v2alpha1.KubernetesActionsPrivateActionRunnerConfig{Enabled: ptr.To(false)}}, "")},
+		{name: "feature disabled", spec: kubernetesActionsSpec(false, par, "")},
+		{name: "privateActionRunner enabled on the default cluster agent", spec: kubernetesActionsSpec(true, par, ""), wantRequested: true, wantEnabled: true},
+		{name: "privateActionRunner enabled at the minimum cluster agent version", spec: kubernetesActionsSpec(true, par, "7.84.0"), wantRequested: true, wantEnabled: true},
+		{name: "privateActionRunner enabled on a cluster agent without Kubernetes Actions support", spec: kubernetesActionsSpec(true, par, "7.83.0"), wantRequested: true, wantEnabled: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantRequested, IsKubernetesActionsPARRequested(tt.spec))
+			assert.Equal(t, tt.wantEnabled, IsKubernetesActionsPAREnabled(tt.spec))
+		})
+	}
 }

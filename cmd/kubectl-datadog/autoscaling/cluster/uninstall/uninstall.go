@@ -136,8 +136,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, o.ConfigFlags); err != nil {
-		var lookupUnavailable *clients.ClusterLookupUnavailableError
-		if !errors.As(err, &lookupUnavailable) {
+		if _, ok := errors.AsType[*clients.ClusterLookupUnavailableError](err); !ok {
 			return err
 		}
 		// The cluster may already be deleted; warn but proceed with cleanup.
@@ -522,8 +521,7 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 	})
 	if err != nil {
 		// If the role doesn't exist, there's nothing to clean up
-		var noSuchEntity *iamtypes.NoSuchEntityException
-		if errors.As(err, &noSuchEntity) {
+		if _, ok := errors.AsType[*iamtypes.NoSuchEntityException](err); ok {
 			log.Println("KarpenterNodeRole not found, skipping instance profile cleanup.")
 			return nil
 		}

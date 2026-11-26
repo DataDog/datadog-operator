@@ -7,7 +7,6 @@ package resources
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -24,7 +23,7 @@ func newStatefulSet(metadata metav1.ObjectMeta, selector map[string]string, temp
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:             replicas,
 			ServiceName:          serviceName,
-			PodManagementPolicy:  appsv1.OrderedReadyPodManagement,
+			PodManagementPolicy:  *spec.PodManagementPolicy,
 			Selector:             &metav1.LabelSelector{MatchLabels: selector},
 			Template:             template,
 			VolumeClaimTemplates: newVolumeClaimTemplates(spec.Storage),
@@ -46,17 +45,4 @@ func newVolumeClaimTemplates(storage *datadoghqv1alpha1.DatadogBYOCClusterStorag
 		},
 		Spec: template.Spec,
 	}}
-}
-
-func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) *autoscalingv2.HorizontalPodAutoscaler {
-	return &autoscalingv2.HorizontalPodAutoscaler{
-		ObjectMeta: metadata,
-		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: metadata.Name},
-			MinReplicas:    autoscaling.MinReplicas,
-			MaxReplicas:    *autoscaling.MaxReplicas,
-			Metrics:        autoscaling.Metrics,
-			Behavior:       autoscaling.Behavior,
-		},
-	}
 }

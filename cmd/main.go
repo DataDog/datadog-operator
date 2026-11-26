@@ -46,7 +46,6 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
-	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -73,6 +72,7 @@ const (
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
 	defaultComponentHealthSnapshotInterval               = 60 * time.Second
+	defaultComponentHealthResolveGracePeriod             = 5 * time.Minute
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
 )
 
@@ -149,7 +149,9 @@ type options struct {
 	defaultDataPlaneLinuxEnabled        bool
 	componentHealthEnabled              bool
 	componentHealthIntakeEnabled        bool
+	componentHealthIntakeURL            string
 	componentHealthSnapshotInterval     time.Duration
+	componentHealthResolveGracePeriod   time.Duration
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -212,6 +214,10 @@ func (opts *options) Parse() {
 		"Requires --componentHealthEnabled. When set, the ComponentHealth controller reports current-state HealthReport snapshots to the Datadog agenthealth intake on a fixed cadence, instead of only logging them.")
 	flag.DurationVar(&opts.componentHealthSnapshotInterval, "componentHealthSnapshotInterval", defaultComponentHealthSnapshotInterval,
 		"Cadence at which the ComponentHealth controller emits current-state snapshots (log or intake), for example 60s.")
+	flag.DurationVar(&opts.componentHealthResolveGracePeriod, "componentHealthResolveGracePeriod", defaultComponentHealthResolveGracePeriod,
+		"How long a ComponentHealth issue must stay clear before a RESOLVED signal is emitted, debouncing a flapping component, for example 5m.")
+	flag.StringVar(&opts.componentHealthIntakeURL, "componentHealthIntakeURL", "",
+		"Override the full agenthealth intake URL the ComponentHealth controller POSTs to (including path, e.g. http://host:port/api/v2/agenthealth). Intended for testing/QA against a fakeintake; empty derives the URL from the configured site.")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -249,7 +255,9 @@ func (opts *options) Parse() {
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
 		boolEnv(&opts.componentHealthIntakeEnabled, "DD_COMPONENT_HEALTH_INTAKE_ENABLED"),
+		stringEnv(&opts.componentHealthIntakeURL, "DD_COMPONENT_HEALTH_INTAKE_URL"),
 		durationEnv(&opts.componentHealthSnapshotInterval, "DD_COMPONENT_HEALTH_SNAPSHOT_INTERVAL"),
+		durationEnv(&opts.componentHealthResolveGracePeriod, "DD_COMPONENT_HEALTH_RESOLVE_GRACE_PERIOD"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
@@ -308,7 +316,7 @@ func durationEnv(dst *time.Duration, envVar string) envOption {
 	return envOptionFor(dst, envVar, time.ParseDuration)
 }
 
-// ddServiceName returns the service name reported to Datadog APM.
+// ddServiceName returns the service name reported to Datadog APM and profiling.
 func ddServiceName() string {
 	if svc := os.Getenv("DD_SERVICE"); svc != "" {
 		return svc
@@ -352,6 +360,7 @@ func run(opts *options) error {
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
+			profiler.WithService(ddServiceName()),
 			profiler.WithVersion(version.Version),
 			profiler.WithProfileTypes(
 				profiler.CPUProfile,
@@ -477,10 +486,6 @@ func run(opts *options) error {
 	// If RBAC restricts list and watch permissions, the informer will log errors and may cause crash loops.
 	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
-	creds, err := credsManager.GetCredentials()
-	if err != nil {
-		setupLog.Error(err, "Unable to get credentials")
-	}
 
 	secretBackendConfigured := opts.secretBackendCommand != "" || opts.secretBackendType != ""
 	if opts.secretRefreshInterval > 0 && !secretBackendConfigured {
@@ -519,7 +524,7 @@ func run(opts *options) error {
 				return
 			case <-mgr.Elected():
 			}
-			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
+			if rcErr := rcUpdater.SetupWithCredentials(credsManager); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
@@ -562,9 +567,10 @@ func run(opts *options) error {
 		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
 		ComponentHealthEnabled:            opts.componentHealthEnabled,
 		ComponentHealthIntakeEnabled:      opts.componentHealthIntakeEnabled,
+		ComponentHealthIntakeURL:          opts.componentHealthIntakeURL,
 		ComponentHealthSnapshotInterval:   opts.componentHealthSnapshotInterval,
+		ComponentHealthResolveGracePeriod: opts.componentHealthResolveGracePeriod,
 		ClusterProviderDetector:           providerDetector,
-		BYOCImageResolver:                 byocimage.NewOCIImageResolver(),
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -735,10 +741,9 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	// Wrap the encoder to filter out certain controller-runtime fields
 	fieldsToSkip := []string{
-		"controller",           // "datadogagentinternal", present in log name
-		"controllerGroup",      // "datadoghq.com", unnecessary
-		"controllerKind",       // "DatadogAgentInternal", use `kind` instead since it's shorter
-		"DatadogAgentInternal", // {"name":"datadog-agent","namespace":"default"}, duplicate of namespace and name
+		"controller",      // present in log name
+		"controllerGroup", // "datadoghq.com", unnecessary
+		"controllerKind",  // present in log name
 	}
 	encoder := newFilteringEncoder(baseEncoder, fieldsToSkip)
 

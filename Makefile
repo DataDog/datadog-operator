@@ -22,6 +22,8 @@ PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
 FIPS_ENABLED?=false
+# Keep the embedded connector aligned with the default Agent version unless overridden.
+SGC_VERSION?=$(or $(shell awk -F '"' '/^[[:space:]]*AgentLatestVersion =/ {print $$2}' pkg/images/images.go),$(error Cannot determine SGC_VERSION from AgentLatestVersion in pkg/images/images.go; update the extraction or set SGC_VERSION explicitly))
 SGC_TAG_SUFFIX?=$(if $(filter true,$(FIPS_ENABLED)),-fips,)
 
 # Default bundle image tag
@@ -60,6 +62,7 @@ E2E_GO_TEST_TIMEOUT ?= 55m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
 E2E_GKE_AUTOPILOT_GO_TEST_TIMEOUT ?= 100m
 E2E_UNTAINT_GO_TEST_TIMEOUT ?= 90m
+E2E_COMPONENTHEALTH_GO_TEST_TIMEOUT ?= 60m
 E2E_GO_TEST_OUTPUT ?= go run ./hack/e2e-test-output
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -77,10 +80,13 @@ all: build test ## Build test
 .PHONY: build
 build: manager kubectl-datadog build-renderer ## Builds manager + kubectl plugin + operator-render
 
+.PHONY: ci-build
+ci-build: managergobuild kubectl-datadog-gobuild build-renderer ## Build binaries only (no generation/lint)
+
 .PHONY: fmt
-fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
+fmt: ## Run gofmt against code (use lint-fix for import formatting and lint fixes)
 	go fmt ./...
-	bin/$(PLATFORM)/golangci-lint run ./... ./api/... --fix
+	cd api && go fmt ./...
 	cd test/e2e && GOWORK=off go fmt ./...
 
 .PHONY: vet
@@ -103,6 +109,8 @@ $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$@,sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.22)
+
+OPENAPI_GEN = bin/$(PLATFORM)/openapi-gen
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -176,7 +184,7 @@ docker-build: generate docker-build-ci docker-build-check-ci
 # For local use
 .PHONY: docker-build-ci
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg SGC_TAG_SUFFIX="${SGC_TAG_SUFFIX}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg SGC_VERSION="${SGC_VERSION}" --build-arg SGC_TAG_SUFFIX="${SGC_TAG_SUFFIX}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
 # For local use
 .PHONY: docker-build-check-ci
@@ -187,7 +195,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg SGC_TAG_SUFFIX="${SGC_TAG_SUFFIX}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg SGC_VERSION="${SGC_VERSION}" --build-arg SGC_TAG_SUFFIX="${SGC_TAG_SUFFIX}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
@@ -212,7 +220,7 @@ docker-push-check-img:
 test: build fmt verify-licenses gotest integration-tests ## Run unit tests and integration tests
 
 .PHONY: ci-test
-ci-test: gotest integration-tests ## Run tests only (for CI, where build/generate/lint are separate jobs)
+ci-test: gotest integration-tests ## Run tests only (without build/generation/lint)
 
 .PHONY: gotest
 gotest:
@@ -228,20 +236,27 @@ golden-update: ## Regenerate operator-render golden files (review the diff befor
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/pkg/fleet/... -coverprofile cover_integration_fleet.out
+	assets="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" || exit $$?; \
+	KUBEBUILDER_ASSETS="$$assets" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out; \
+	KUBEBUILDER_ASSETS="$$assets" go test --tags=integration github.com/DataDog/datadog-operator/pkg/fleet/... -coverprofile cover_integration_fleet.out
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+	# By default only the k8s_suite package is built: TestAWSKindSuite lives there,
+	# and building every suite binary only to report "no tests to run" took ~1 min.
+	# With E2E_RUN_REGEX, ./... is globbed so the regex can target any suite; -p 2
+	# then caps how many test binaries build/link in parallel, as each links the
+	# full agent dependency tree and uncapped parallelism peaked over the 16Gi job
+	# limit (OOMKilled).
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/k8s_suite/ -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ -p 2 ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	fi
 
 .PHONY: e2e-autoscaling-tests
-e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+e2e-autoscaling-tests: kubectl-datadog-gobuild ## Run autoscaling E2E tests on EKS (lint separately). To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
 	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -json -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out | $(E2E_GO_TEST_OUTPUT)
 
 .PHONY: e2e-gke-autopilot-tests
@@ -252,8 +267,12 @@ e2e-gke-autopilot-tests: ## Run GKE Autopilot E2E tests.
 e2e-untaint-tests: ## Run untaint controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
 	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/untaint_suite/... -count=1 --tags=e2e -json -run 'TestUntaint.*AWSKind' -timeout $(E2E_UNTAINT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_untaint.out | $(E2E_GO_TEST_OUTPUT)
 
+.PHONY: e2e-componenthealth-tests
+e2e-componenthealth-tests: ## Run ComponentHealth controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/componenthealth_suite/... -count=1 --tags=e2e -json -run 'TestComponentHealth.*AWSKind' -timeout $(E2E_COMPONENTHEALTH_GO_TEST_TIMEOUT) -coverprofile cover_e2e_componenthealth.out | $(E2E_GO_TEST_OUTPUT)
+
 .PHONY: yaml-mapper-tests
-yaml-mapper-tests: fmt yaml-mapper-unit-tests
+yaml-mapper-tests: fmt lint yaml-mapper-unit-tests
 # Run yaml-mapper tests
 
 .PHONY: yaml-mapper-unit-tests
@@ -340,11 +359,12 @@ ensure-gsed: ## Install GNU sed on macOS if not present (no-op on Linux)
 install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen ensure-gsed
 
 .PHONY: generate-openapi
-generate-openapi: bin/$(PLATFORM)/openapi-gen
-	@set -o pipefail; \
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
-	@set -o pipefail; \
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
+generate-openapi: $(OPENAPI_GEN)
+	@log=$$(mktemp); trap 'rm -f "$$log"' EXIT; \
+	for version in v1alpha1 v2alpha1; do \
+		if ! $(OPENAPI_GEN) --logtostderr --output-dir api/datadoghq/$$version --output-file zz_generated.openapi.go --output-pkg api/datadoghq/$$version --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/$$version 2>&1 | tee "$$log"; then exit 1; fi; \
+		if grep -q "violation" "$$log"; then echo "Error: OpenAPI violations detected" >&2; exit 1; fi; \
+	done
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
@@ -363,19 +383,31 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 	bin/$(PLATFORM)/golangci-lint run ./... ./api/...
 
+.PHONY: lint-fix
+lint-fix: bin/$(PLATFORM)/golangci-lint ## Apply supported linter fixes and formatting
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... --fix
+
 .PHONY: lint-e2e
 lint-e2e: bin/$(PLATFORM)/golangci-lint ## Lint e2e tests (slow, run separately from main lint)
 	cd test/e2e && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	# Generate licenses for all target platforms (linux/darwin/windows)
-	GOOS=linux ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-linux.csv 2> errors
-	GOOS=darwin ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-darwin.csv 2>> errors
-	GOOS=windows ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-windows.csv 2>> errors
-	# Merge all platform-specific licenses into a single sorted file
-	head -1 /tmp/licenses-linux.csv > LICENSE-3rdparty.csv
-	tail -n +2 /tmp/licenses-linux.csv /tmp/licenses-darwin.csv /tmp/licenses-windows.csv | grep -v "^==>" | grep -v "^$$" | LC_ALL=C sort -u >> LICENSE-3rdparty.csv
+	# Match shipped OS, architecture, and cgo settings independently of the host.
+	@reports=$$(mktemp -d); trap 'rm -rf -- "$$reports"' EXIT; \
+	for target in {linux,darwin}/{amd64,arm64}/{0,1} windows/{amd64,arm64}/0; do \
+		IFS=/ read -r goos goarch cgo <<< "$$target"; \
+		printf 'Generating licenses for %s/%s (CGO_ENABLED=%s)\n' "$$goos" "$$goarch" "$$cgo"; \
+		if ! GOOS="$$goos" GOARCH="$$goarch" CGO_ENABLED="$$cgo" \
+			./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper \
+			--template ./hack/licenses.tpl > "$$reports/$$goos-$$goarch-$$cgo.csv" 2> "$$reports/errors"; then \
+			cat "$$reports/errors" >&2; \
+			exit 1; \
+		fi; \
+	done; \
+	head -n 1 "$$reports/linux-amd64-0.csv" > "$$reports/merged"; \
+	awk 'FNR > 1 && NF' "$$reports"/*.csv | LC_ALL=C sort -u >> "$$reports/merged"; \
+	cat "$$reports/merged" > LICENSE-3rdparty.csv
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
@@ -393,7 +425,10 @@ sync: ## Run go work sync
 	hack/sync-go-work.sh
 
 .PHONY: kubectl-datadog
-kubectl-datadog: lint
+kubectl-datadog: lint kubectl-datadog-gobuild
+
+.PHONY: kubectl-datadog-gobuild
+kubectl-datadog-gobuild: ## Build only kubectl plugin (no lint)
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
 .PHONY: yaml-mapper
@@ -421,7 +456,7 @@ bin/$(PLATFORM)/jq: Makefile
 	hack/install-jq.sh 1.7.1
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v2.11.3
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v2.15.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.34.1
@@ -436,7 +471,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 bin/$(PLATFORM)/preflight: Makefile
 	hack/install-openshift-preflight.sh latest
 
-bin/$(PLATFORM)/openapi-gen:
+$(OPENAPI_GEN):
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
 	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20250902184714-7fc278399c7f
 
