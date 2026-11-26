@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,63 +20,19 @@ import (
 
 const maxPooledJSONBufCap = 64 * 1024
 
+// jsonBufPool reuses encoding buffers across GenerateMD5ForSpec calls, which run
+// for every rendered spec on every reconcile.
 var jsonBufPool = sync.Pool{
 	New: func() any {
 		return bytes.NewBuffer(make([]byte, 0, 2048))
 	},
 }
 
-// isPlainJSONASCII reports whether s contains only printable ASCII characters
-// that encoding/json writes verbatim without backslash or HTML escaping.
-func isPlainJSONASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c < 0x20 || c >= 0x7f || c == '"' || c == '\\' || c == '<' || c == '>' || c == '&' {
-			return false
-		}
+func putJSONBuf(buf *bytes.Buffer) {
+	// Don't keep unusually large buffers alive in the pool.
+	if buf.Cap() <= maxPooledJSONBufCap {
+		jsonBufPool.Put(buf)
 	}
-	return true
-}
-
-// writeStringMapJSON writes m in exact encoding/json format into buf if all keys
-// and values are plain ASCII. Returns false if any string requires escaping so
-// the caller can fall back to json.NewEncoder.
-func writeStringMapJSON(buf *bytes.Buffer, m map[string]string) bool {
-	if m == nil {
-		buf.WriteString("null")
-		return true
-	}
-	if len(m) == 0 {
-		buf.WriteString("{}")
-		return true
-	}
-	var stackKeys [16]string
-	var keys []string
-	if len(m) <= len(stackKeys) {
-		keys = stackKeys[:0]
-	} else {
-		keys = make([]string, 0, len(m))
-	}
-	for k, v := range m {
-		if !isPlainJSONASCII(k) || !isPlainJSONASCII(v) {
-			return false
-		}
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	buf.WriteByte('{')
-	for i, k := range keys {
-		if i > 0 {
-			buf.WriteByte(',')
-		}
-		buf.WriteByte('"')
-		buf.WriteString(k)
-		buf.WriteString(`":"`)
-		buf.WriteString(m[k])
-		buf.WriteByte('"')
-	}
-	buf.WriteByte('}')
-	return true
 }
 
 // IsSameSpecMD5Hash used to compare the DatadogAgent.spec md5 hash with the one set in annotations
@@ -99,38 +54,18 @@ func GenerateMD5ForSpec(spec any) (string, error) {
 	buf := jsonBufPool.Get().(*bytes.Buffer)
 	buf.Reset()
 
-	encoded := false
-	if m, ok := spec.(map[string]string); ok {
-		if writeStringMapJSON(buf, m) {
-			encoded = true
-		} else {
-			buf.Reset()
-		}
+	if err := json.NewEncoder(buf).Encode(spec); err != nil {
+		putJSONBuf(buf)
+		return "", err
 	}
-
-	if !encoded {
-		enc := json.NewEncoder(buf)
-		if err := enc.Encode(spec); err != nil {
-			if buf.Cap() <= maxPooledJSONBufCap {
-				jsonBufPool.Put(buf)
-			}
-			return "", err
-		}
-		// json.Encoder.Encode appends a single trailing newline compared to json.Marshal.
-		if data := buf.Bytes(); len(data) > 0 && data[len(data)-1] == '\n' {
-			buf.Truncate(len(data) - 1)
-		}
-	}
+	// json.Encoder.Encode appends a trailing newline that json.Marshal doesn't.
+	// Strip it so hashes stay identical to the previous json.Marshal-based ones.
+	data := bytes.TrimSuffix(buf.Bytes(), []byte{'\n'})
 
 	/* #nosec */
-	sum := md5.Sum(buf.Bytes())
-	if buf.Cap() <= maxPooledJSONBufCap {
-		jsonBufPool.Put(buf)
-	}
-
-	var hexBuf [md5.Size * 2]byte
-	hex.Encode(hexBuf[:], sum[:])
-	return string(hexBuf[:]), nil
+	sum := md5.Sum(data)
+	putJSONBuf(buf)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // SetMD5DatadogAgentGenerationAnnotation is used to set the md5 annotation key/value from spec
