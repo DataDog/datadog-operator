@@ -88,23 +88,27 @@ func (f *kaiSchedulerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 			if utils.IsAboveMinVersion(clusterAgentVersion, clusterAgentEventsMinVersion, new(false)) {
 				f.clusterAgentEvents = true
 			} else {
-				f.logger.Info("KAI Scheduler PodGroup events in the Cluster Agent require Cluster Agent >= 7.87.0; not enabling them")
+				f.logger.V(1).Info("KAI Scheduler PodGroup events in the Cluster Agent need a newer Cluster Agent; not enabling them",
+					"version", clusterAgentVersion, "minVersion", clusterAgentEventsMinVersion)
 			}
 		}
 		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		f.clusterAgentServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	} else {
-		f.logger.Info("KAI Scheduler PodGroup collection requires Cluster Agent >= 7.86.0; not enabling it")
+		f.logger.V(1).Info("KAI Scheduler PodGroup collection needs a newer Cluster Agent; not enabling it",
+			"version", clusterAgentVersion, "minVersion", kaiSchedulerMinVersion)
 	}
 
 	if ddaSpec.Features != nil && ddaSpec.Features.GPU != nil && apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
-		if utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), kaiSchedulerMinVersion, nil) {
+		agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+		if utils.IsAboveMinVersion(agentVersion, kaiSchedulerMinVersion, nil) {
 			f.gpuEnabled = true
 			reqComp.Agent.IsRequired = new(true)
 			reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 		} else {
-			f.logger.Info("KAI Scheduler fractional GPU mapping requires Agent >= 7.86.0; not enabling it")
+			f.logger.V(1).Info("KAI Scheduler fractional GPU mapping needs a newer Agent; not enabling it",
+				"version", agentVersion, "minVersion", kaiSchedulerMinVersion)
 		}
 	}
 

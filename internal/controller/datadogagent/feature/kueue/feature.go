@@ -139,23 +139,27 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), kueueMinVersion, nil) {
-		f.logger.Info("Kueue feature requires Cluster Agent >= 7.82.0; not enabling it")
+	clusterAgentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName)
+	if !utils.IsAboveMinVersion(clusterAgentVersion, kueueMinVersion, nil) {
+		f.logger.V(1).Info("Kueue feature needs a newer Cluster Agent; not enabling it",
+			"version", clusterAgentVersion, "minVersion", kueueMinVersion)
 		return reqComp
 	}
 
 	reqComp.ClusterAgent.IsRequired = new(true)
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
-	f.clusterAgentEvents = f.useClusterAgentEvents(kueue, ddaSpec)
+	f.clusterAgentEvents = f.useClusterAgentEvents(kueue, clusterAgentVersion)
 	f.clusterAgentServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	if !constants.IsClusterChecksEnabled(ddaSpec) {
-		f.logger.Info("Kueue check requires features.clusterChecks.enabled; only Kueue metadata collection is enabled in the Cluster Agent")
+		f.logger.V(1).Info("Kueue check requires features.clusterChecks.enabled; only Kueue metadata collection is enabled in the Cluster Agent")
 		return reqComp
 	}
 
-	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName), kueueMinVersion, nil) {
-		f.logger.Info("Kueue check requires Agent >= 7.82.0; only Kueue metadata collection is enabled in the Cluster Agent")
+	agentVersion := common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.NodeAgentComponentName)
+	if !utils.IsAboveMinVersion(agentVersion, kueueMinVersion, nil) {
+		f.logger.V(1).Info("Kueue check needs a newer Agent; only Kueue metadata collection is enabled in the Cluster Agent",
+			"version", agentVersion, "minVersion", kueueMinVersion)
 		return reqComp
 	}
 
@@ -165,7 +169,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	f.agentServiceAccountName = constants.GetAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	if ddaSpec.Global != nil && apiutils.BoolValue(ddaSpec.Global.DisableNonResourceRules) {
-		f.logger.Info("Warning: global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
+		f.logger.V(1).Info("global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
 	}
 
 	// The node check must not emit the events the Cluster Agent already sends.
@@ -191,12 +195,13 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 // and the Cluster Agent image contains the job_scheduler_events check. The node check keeps
 // sending the events otherwise, so they are never lost. A version that cannot be parsed is
 // treated as too old.
-func (f *kueueFeature) useClusterAgentEvents(kueue kueueConfig, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+func (f *kueueFeature) useClusterAgentEvents(kueue kueueConfig, clusterAgentVersion string) bool {
 	if kueue.ClusterAgentEvents == nil || !*kueue.ClusterAgentEvents {
 		return false
 	}
-	if !utils.IsAboveMinVersion(common.GetComponentVersionFromSpec(ddaSpec, v2alpha1.ClusterAgentComponentName), clusterAgentEventsMinVersion, new(false)) {
-		f.logger.Info("Kueue Workload events in the Cluster Agent require Cluster Agent >= 7.87.0; the node Agent check keeps sending them")
+	if !utils.IsAboveMinVersion(clusterAgentVersion, clusterAgentEventsMinVersion, new(false)) {
+		f.logger.V(1).Info("Kueue Workload events in the Cluster Agent need a newer Cluster Agent; the node Agent check keeps sending them",
+			"version", clusterAgentVersion, "minVersion", clusterAgentEventsMinVersion)
 		return false
 	}
 	return true
