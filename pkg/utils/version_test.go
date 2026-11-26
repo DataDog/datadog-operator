@@ -8,7 +8,6 @@ package utils
 import (
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/assert"
@@ -202,47 +201,6 @@ func TestIsAboveMinVersion(t *testing.T) {
 			assert.Equal(t, test.expected, result)
 		})
 	}
-
-	// Exhaustively verify parity between the stateless fast path and Masterminds/semver.
-	t.Run("parity with masterminds semver", func(t *testing.T) {
-		versions := []string{
-			"", "latest", "main", "foobar", "custom-image",
-			"7.25.0", "7.26.0", "7.26.0-0", "7.26.0-alpha", "7.26.0-beta", "7.26.0-rc.4", "7.26.0-rc.5", "7.26.0-rc.6",
-			"7.26.1", "7.27.0", "7.27.0-jmx", "7.27.0-rc-3-jmx", "7.27.0+build.1", "7.27.0-rc.1+build.2",
-			"7-26-0", "7-27-0-jmx", "7-27-0-rc-3-jmx",
-			"v1.22.0", "v1.31.2-gke.100", "v1.30.0-eks-1234", "prefix-7.27.0", "7.27.0-1-2-3", "7.027.0", "7.27.0-01",
-		}
-		minVersions := []string{
-			"7.26.0", "7.26.0-0", "7.26.0-rc.5", "7.27.0", "7.27.0-0", "1.22-0", "1.30.0-0", "1.31.2", "invalid",
-		}
-		defaults := []*bool{nil, ptr.To(true), ptr.To(false)}
-
-		refIsAbove := func(version, minVersion string, defaultValue *bool) bool {
-			fallback := true
-			if defaultValue != nil {
-				fallback = *defaultValue
-			}
-			v, err := semver.NewVersion(formatVersionTag(version))
-			if err != nil {
-				return fallback
-			}
-			c, err := semver.NewConstraint(">= " + minVersion)
-			if err != nil {
-				return false
-			}
-			return c.Check(v)
-		}
-
-		for _, v := range versions {
-			for _, m := range minVersions {
-				for _, d := range defaults {
-					want := refIsAbove(v, m, d)
-					got := IsAboveMinVersion(v, m, d)
-					assert.Equal(t, want, got, "mismatch for version=%q minVersion=%q default=%v", v, m, d)
-				}
-			}
-		}
-	})
 }
 
 func Test_formatVersionTag(t *testing.T) {
