@@ -25,21 +25,35 @@ var (
 		Version:  "v2alpha1",
 		Resource: "datadogagents",
 	}
+
+	// DatadogAgentInternalGVR is the GroupVersionResource for DatadogAgentInternal CRD
+	DatadogAgentInternalGVR = schema.GroupVersionResource{
+		Group:    "datadoghq.com",
+		Version:  "v1alpha1",
+		Resource: "datadogagentinternals",
+	}
 )
 
 // DeleteAllDatadogAgents deletes all DatadogAgent resources in the specified
-// namespace and waits until they are gone. Use it before a Pulumi stack destroy
-// to avoid CRD deletion timing out on the DatadogAgent finalizers.
+// namespace, then waits until they and their DatadogAgentInternals are gone.
+// Use it before a Pulumi stack destroy, so that no DatadogAgent or
+// DatadogAgentInternal finalizer is left once the operator is removed, which
+// would make the CRD deletion time out.
 //
-// DatadogAgentInternals are left to the DatadogAgent finalizer, which deletes
-// them: deleting them directly only makes the operator re-create them while the
-// DatadogAgent still exists.
+// DatadogAgentInternals are owned by their DatadogAgent: the garbage collector
+// deletes them after the DatadogAgent is gone, and the operator then runs their
+// finalizer (cluster-level RBAC, APIService cleanup). They are only waited for,
+// never deleted directly: that would make the operator re-create them while
+// the DatadogAgent still exists.
 func DeleteAllDatadogAgents(ctx context.Context, k8sConfig *rest.Config, namespace string) error {
 	dynamicClient, err := dynamic.NewForConfig(k8sConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create dynamic client: %w", err)
 	}
-	return deleteAllDatadogAgentsWithClient(ctx, dynamicClient, namespace)
+	if err := deleteAllDatadogAgentsWithClient(ctx, dynamicClient, namespace); err != nil {
+		return err
+	}
+	return waitForDatadogAgentInternalsDeletion(ctx, dynamicClient.Resource(DatadogAgentInternalGVR).Namespace(namespace))
 }
 
 func deleteAllDatadogAgentsWithClient(ctx context.Context, dynamicClient dynamic.Interface, namespace string) error {
@@ -93,4 +107,30 @@ func waitForDatadogAgentsDeletion(ctx context.Context, ddaClient dynamic.Resourc
 	}
 
 	return nil
+}
+
+// waitForDatadogAgentInternalsDeletion waits until no DatadogAgentInternal is
+// left in the namespace.
+func waitForDatadogAgentInternalsDeletion(ctx context.Context, ddaiClient dynamic.ResourceInterface) error {
+	pollInterval := 5 * time.Second
+
+	for {
+		ddaiList, err := ddaiClient.List(ctx, metav1.ListOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// CRD doesn't exist, nothing to wait for
+				return nil
+			}
+			return fmt.Errorf("failed to list DatadogAgentInternals: %w", err)
+		}
+		if len(ddaiList.Items) == 0 {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("%d DatadogAgentInternals still present: %w", len(ddaiList.Items), ctx.Err())
+		case <-time.After(pollInterval):
+		}
+	}
 }
