@@ -169,7 +169,7 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	f.agentServiceAccountName = constants.GetAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	if ddaSpec.Global != nil && apiutils.BoolValue(ddaSpec.Global.DisableNonResourceRules) {
-		f.logger.V(1).Info("global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
+		f.logger.V(1).Info("Warning: global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
 	}
 
 	// The node check must not emit the events the Cluster Agent already sends.
