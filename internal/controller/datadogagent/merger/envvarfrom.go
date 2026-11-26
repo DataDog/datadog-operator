@@ -121,14 +121,13 @@ func AddEnvFromSourceFromToContainer(container *corev1.Container, envFromSource 
 
 		if found {
 			if mergeFunc == nil {
-				envFromSource.DeepCopyInto(cEnvFromSource)
-			} else {
-				newEnvFromSource, err := mergeFunc(cEnvFromSource, envFromSource)
-				if err != nil {
-					return nil, err
-				}
-				container.EnvFrom[id] = *newEnvFromSource
+				mergeFunc = DefaultEnvFromSourceFromMergeFunction
 			}
+			newEnvFromSource, err := mergeFunc(cEnvFromSource, envFromSource)
+			if err != nil {
+				return nil, err
+			}
+			container.EnvFrom[id] = *newEnvFromSource
 		}
 	}
 	if !found {

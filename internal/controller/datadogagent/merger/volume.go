@@ -32,7 +32,7 @@ type volumeManagerImpl struct {
 }
 
 func (impl *volumeManagerImpl) AddVolume(volume *corev1.Volume) {
-	_ = impl.AddVolumeWithMergeFunc(volume, nil)
+	_ = impl.AddVolumeWithMergeFunc(volume, DefaultVolumeMergeFunction)
 }
 
 func (impl *volumeManagerImpl) AddVolumeWithMergeFunc(volume *corev1.Volume, volumeMergeFunc VolumeMergeFunction) error {
@@ -88,14 +88,13 @@ func AddVolumeToPod(podSpec *corev1.PodSpec, volume *corev1.Volume, mergeFunc Vo
 	for id := range podSpec.Volumes {
 		if volume.Name == podSpec.Volumes[id].Name {
 			if mergeFunc == nil {
-				volume.DeepCopyInto(&podSpec.Volumes[id])
-			} else {
-				newVolume, err := mergeFunc(&podSpec.Volumes[id], volume)
-				if err != nil {
-					return nil, err
-				}
-				podSpec.Volumes[id] = *newVolume
+				mergeFunc = DefaultVolumeMergeFunction
 			}
+			newVolume, err := mergeFunc(&podSpec.Volumes[id], volume)
+			if err != nil {
+				return nil, err
+			}
+			podSpec.Volumes[id] = *newVolume
 			found = true
 		}
 	}

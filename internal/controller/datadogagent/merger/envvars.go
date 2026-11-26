@@ -43,7 +43,7 @@ type envVarManagerImpl struct {
 }
 
 func (impl *envVarManagerImpl) AddEnvVar(newEnvVar *corev1.EnvVar) {
-	_ = impl.AddEnvVarWithMergeFunc(newEnvVar, nil)
+	_ = impl.AddEnvVarWithMergeFunc(newEnvVar, DefaultEnvVarMergeFunction)
 }
 
 func (impl *envVarManagerImpl) AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
@@ -59,17 +59,17 @@ func (impl *envVarManagerImpl) AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, 
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToContainer(containerName common.AgentContainerName, newEnvVar *corev1.EnvVar) {
-	_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, nil)
+	_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, DefaultEnvVarMergeFunction)
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToContainers(containerNames []common.AgentContainerName, newEnvVar *corev1.EnvVar) {
 	for _, containerName := range containerNames {
-		_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, nil)
+		_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, DefaultEnvVarMergeFunction)
 	}
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToInitContainer(initContainerName common.AgentContainerName, newEnvVar *corev1.EnvVar) {
-	_ = impl.AddEnvVarToInitContainerWithMergeFunc(initContainerName, newEnvVar, nil)
+	_ = impl.AddEnvVarToInitContainerWithMergeFunc(initContainerName, newEnvVar, DefaultEnvVarMergeFunction)
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToContainerWithMergeFunc(containerName common.AgentContainerName, newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
@@ -133,14 +133,13 @@ func AddEnvVarToContainer(container *corev1.Container, envvar *corev1.EnvVar, me
 	for id := range container.Env {
 		if envvar.Name == container.Env[id].Name {
 			if mergeFunc == nil {
-				envvar.DeepCopyInto(&container.Env[id])
-			} else {
-				newEnvVar, err := mergeFunc(&container.Env[id], envvar)
-				if err != nil {
-					return nil, err
-				}
-				container.Env[id] = *newEnvVar
+				mergeFunc = DefaultEnvVarMergeFunction
 			}
+			newEnvVar, err := mergeFunc(&container.Env[id], envvar)
+			if err != nil {
+				return nil, err
+			}
+			container.Env[id] = *newEnvVar
 			found = true
 		}
 	}

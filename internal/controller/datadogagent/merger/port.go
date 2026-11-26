@@ -77,14 +77,13 @@ func AddPortToContainer(container *corev1.Container, newPort *corev1.ContainerPo
 	for id := range container.Ports {
 		if container.Ports[id].Name == newPort.Name {
 			if mergeFunc == nil {
-				newPort.DeepCopyInto(&container.Ports[id])
-			} else {
-				mergedPort, err := mergeFunc(&container.Ports[id], newPort)
-				if err != nil {
-					return nil, err
-				}
-				container.Ports[id] = *mergedPort
+				mergeFunc = DefaultPortMergeFunction
 			}
+			mergedPort, err := mergeFunc(&container.Ports[id], newPort)
+			if err != nil {
+				return nil, err
+			}
+			container.Ports[id] = *mergedPort
 			found = true
 		}
 	}
