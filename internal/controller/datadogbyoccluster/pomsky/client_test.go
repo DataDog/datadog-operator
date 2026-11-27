@@ -34,6 +34,31 @@ func TestIndexID(t *testing.T) {
 	}
 }
 
+func TestIndexName(t *testing.T) {
+	tests := []struct {
+		id       string
+		wantName string
+		wantOK   bool
+	}{
+		{id: "datadog", wantName: "main", wantOK: true},
+		{id: "datadog-payment", wantName: "payment", wantOK: true},
+		{id: "datadog-my-index", wantName: "my-index", wantOK: true},
+		{id: "datadog-spans", wantOK: false},
+		{id: "datadog-metrics-prod", wantOK: false},
+		{id: "datadog-sketches", wantOK: false},
+		{id: "payment", wantOK: false},
+		{id: "", wantOK: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.id, func(t *testing.T) {
+			name, ok := IndexName(tt.id)
+			if name != tt.wantName || ok != tt.wantOK {
+				t.Errorf("IndexName(%q) = (%q, %t), want (%q, %t)", tt.id, name, ok, tt.wantName, tt.wantOK)
+			}
+		})
+	}
+}
+
 type recordedRequest struct {
 	Method string
 	Path   string
@@ -145,6 +170,14 @@ func TestClient(t *testing.T) {
 			},
 		},
 		{
+			name:      "delete index",
+			responses: map[string]string{"DELETE /api/v1/indexes/datadog-payment": `[]`},
+			call:      func(c Client) (any, error) { return nil, c.DeleteIndex(context.Background(), "datadog-payment") },
+			wantReqs: []recordedRequest{
+				{Method: "DELETE", Path: "/api/v1/indexes/datadog-payment"},
+			},
+		},
+		{
 			name: "get routing table",
 			responses: map[string]string{
 				"GET /api/v1/index-routing-table": `[{"filter": "service:payment", "index_id": "datadog-payment"}, {"filter": "*", "index_id": "datadog"}]`,
@@ -225,6 +258,13 @@ func TestClient(t *testing.T) {
 					"retention": map[string]any{"period": "7 days"},
 				}},
 			},
+		},
+		{
+			name:      "delete index fails",
+			responses: map[string]string{},
+			call:      func(c Client) (any, error) { return nil, c.DeleteIndex(context.Background(), "datadog-payment") },
+			wantErr:   true,
+			wantReqs:  []recordedRequest{{Method: "DELETE", Path: "/api/v1/indexes/datadog-payment"}},
 		},
 		{
 			name:      "set routing table fails",

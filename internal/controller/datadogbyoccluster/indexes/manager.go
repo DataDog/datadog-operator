@@ -52,13 +52,15 @@ type changes struct {
 	updateRetention []pomsky.Index
 	// routingTable is the routing table to set, nil when the current one is already the desired one.
 	routingTable []pomsky.RoutingRule
+	// delete lists the IDs of the managed indexes that are not desired.
+	delete []string
 }
 
 // plan reads the indexes and the routing table of the cluster and compares them with desired.
 //
 // The routing table follows the order of desired. When desired does not list main, a catch-all rule routes the
-// remaining logs to main. main is never created, as Pomsky owns its lifecycle.
-// Indexes are never deleted: those that desired does not list are kept but drop out of the routing table.
+// remaining logs to main. main is never created or deleted, as Pomsky owns its lifecycle.
+// Indexes that the Datadog UI does not show as log indexes are left alone.
 func (m *Manager) plan(ctx context.Context, desired []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec) (changes, error) {
 	current, err := m.client.ListIndexes(ctx)
 	if err != nil {
@@ -74,10 +76,12 @@ func (m *Manager) plan(ctx context.Context, desired []datadoghqv1alpha1.DatadogB
 	}
 
 	var c changes
+	desiredIDs := make(map[string]struct{}, len(desired))
 	routingTable := make([]pomsky.RoutingRule, 0, len(desired)+1)
 	mainListed := false
 	for _, spec := range desired {
 		id := pomsky.IndexID(spec.Name)
+		desiredIDs[id] = struct{}{}
 		routingTable = append(routingTable, pomsky.RoutingRule{Filter: spec.Filter, IndexID: id})
 		mainListed = mainListed || spec.Name == pomsky.MainIndexName
 
@@ -96,10 +100,18 @@ func (m *Manager) plan(ctx context.Context, desired []datadoghqv1alpha1.DatadogB
 	if !slices.Equal(routingTable, currentRoutingTable) {
 		c.routingTable = routingTable
 	}
+
+	for _, index := range current {
+		name, managed := pomsky.IndexName(index.ID)
+		if _, wanted := desiredIDs[index.ID]; managed && !wanted && name != pomsky.MainIndexName {
+			c.delete = append(c.delete, index.ID)
+		}
+	}
 	return c, nil
 }
 
-// apply makes the changes. It creates the indexes before the routing table refers to them.
+// apply makes the changes. It creates the indexes before the routing table refers to them, and deletes the obsolete
+// indexes after it stops routing to them. Deleting an index removes its routing rules.
 func (m *Manager) apply(ctx context.Context, c changes) error {
 	for _, index := range c.create {
 		if err := m.client.CreateIndex(ctx, index.ID, index.Retention); err != nil {
@@ -113,6 +125,11 @@ func (m *Manager) apply(ctx context.Context, c changes) error {
 	}
 	for _, index := range c.updateRetention {
 		if err := m.client.UpdateIndexRetention(ctx, index.ID, index.Retention); err != nil {
+			return err
+		}
+	}
+	for _, id := range c.delete {
+		if err := m.client.DeleteIndex(ctx, id); err != nil {
 			return err
 		}
 	}
