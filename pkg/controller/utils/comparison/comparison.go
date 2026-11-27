@@ -11,12 +11,29 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
+	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
+
+const maxPooledJSONBufCap = 64 * 1024
+
+// jsonBufPool reuses encoding buffers across GenerateMD5ForSpec calls, which run
+// for every rendered spec on every reconcile.
+var jsonBufPool = sync.Pool{
+	New: func() any {
+		return bytes.NewBuffer(make([]byte, 0, 2048))
+	},
+}
+
+func putJSONBuf(buf *bytes.Buffer) {
+	// Don't keep unusually large buffers alive in the pool.
+	if buf.Cap() <= maxPooledJSONBufCap {
+		jsonBufPool.Put(buf)
+	}
+}
 
 // IsSameSpecMD5Hash used to compare the DatadogAgent.spec md5 hash with the one set in annotations
 func IsSameSpecMD5Hash(hash string, annotations map[string]string) bool {
@@ -34,18 +51,21 @@ func IsSameMD5Hash(hash string, annotations map[string]string, annotationKey str
 
 // GenerateMD5ForSpec used to generate MD5 hashes for the Agent and Cluster Agent specs
 func GenerateMD5ForSpec(spec any) (string, error) {
-	b, err := json.Marshal(spec)
-	if err != nil {
-		return "", err
-	}
-	/* #nosec */
-	hash := md5.New()
-	_, err = io.Copy(hash, bytes.NewReader(b))
-	if err != nil {
-		return "", err
-	}
+	buf := jsonBufPool.Get().(*bytes.Buffer)
+	buf.Reset()
 
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	if err := json.NewEncoder(buf).Encode(spec); err != nil {
+		putJSONBuf(buf)
+		return "", err
+	}
+	// json.Encoder.Encode appends a trailing newline that json.Marshal doesn't.
+	// Strip it so hashes stay identical to the previous json.Marshal-based ones.
+	data := bytes.TrimSuffix(buf.Bytes(), []byte{'\n'})
+
+	/* #nosec */
+	sum := md5.Sum(data)
+	putJSONBuf(buf)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // SetMD5DatadogAgentGenerationAnnotation is used to set the md5 annotation key/value from spec

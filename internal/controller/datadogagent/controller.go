@@ -8,10 +8,10 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -129,7 +129,10 @@ type Reconciler struct {
 	scheme       *runtime.Scheme
 	recorder     record.EventRecorder
 	forwarders   datadog.MetricsForwardersManager
-	fieldManager *managedfields.FieldManager
+	fieldManager *crdFieldManager
+
+	profileMergeMu    sync.RWMutex
+	profileMergeCache map[profileMergeCacheKey]profileMergeCacheEntry
 }
 
 // NewReconciler returns a reconciler for DatadogAgent

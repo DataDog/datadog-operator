@@ -8,12 +8,30 @@ package utils
 import (
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/semver/v3"
 )
 
 var versionRx = regexp.MustCompile(`(\d+\.\d+\.\d+)(\-[^\+]+)*(\+.+)*`)
 var versionWithDashesRx = regexp.MustCompile(`(\d+\-\d+\-\d+)(\-[^\+]+)*(\+.+)*`)
+
+// minVersionConstraints caches parsed ">= minVersion" constraints. Callers pass
+// package constants as minVersion, so the cache stays small. A nil value means
+// the constraint failed to parse.
+var minVersionConstraints sync.Map // map[string]*semver.Constraints
+
+func minVersionConstraint(minVersion string) *semver.Constraints {
+	if c, ok := minVersionConstraints.Load(minVersion); ok {
+		return c.(*semver.Constraints)
+	}
+	c, err := semver.NewConstraint(">= " + minVersion)
+	if err != nil {
+		c = nil
+	}
+	minVersionConstraints.Store(minVersion, c)
+	return c
+}
 
 // IsAboveMinVersion uses semver to check if `version` is >= minVersion.
 // The defaultValue parameter controls the behavior when version parsing fails:
@@ -34,8 +52,8 @@ func IsAboveMinVersion(version, minVersion string, defaultValue *bool) bool {
 		return fallback
 	}
 
-	c, err := semver.NewConstraint(">= " + minVersion)
-	if err != nil {
+	c := minVersionConstraint(minVersion)
+	if c == nil {
 		return false
 	}
 

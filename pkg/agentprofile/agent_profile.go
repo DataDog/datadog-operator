@@ -46,7 +46,8 @@ type CreateStrategyInfo struct {
 // CheckProfileNodeConflicts checks whether a profile conflicts with already-assigned profiles.
 // It is a pure read: it does not modify profilesByNode or csInfo.
 func CheckProfileNodeConflicts(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName) error {
-	for _, node := range nodes {
+	for i := range nodes {
+		node := &nodes[i]
 		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
 			continue
 		}
@@ -66,19 +67,22 @@ func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labe
 		Name:      profile.Name,
 	}
 
-	if CreateStrategyEnabled() && csInfo[profileNSName] == nil {
+	csEnabled := CreateStrategyEnabled()
+	profileLabelKey := NodeLabelKey(profile.Namespace)
+	if csEnabled && csInfo[profileNSName] == nil {
 		csInfo[profileNSName] = &CreateStrategyInfo{}
 	}
 
-	for _, node := range nodes {
+	for i := range nodes {
+		node := &nodes[i]
 		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
 			continue
 		}
 		profilesByNode[node.Name] = profileNSName
-		if CreateStrategyEnabled() {
+		if csEnabled {
 			// Nodes assigned before the namespace-scoped label existed already
 			// run the profile pod, so the create strategy must not throttle them.
-			needsLabel := node.Labels[NodeLabelKey(profile.Namespace)] != profile.Name &&
+			needsLabel := node.Labels[profileLabelKey] != profile.Name &&
 				node.Labels[constants.ProfileLabelKey] != profile.Name
 			if needsLabel {
 				csInfo[profileNSName].nodesNeedingLabel = append(csInfo[profileNSName].nodesNeedingLabel, node.Name)

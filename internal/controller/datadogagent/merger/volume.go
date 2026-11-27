@@ -85,12 +85,12 @@ func ErrorOnMergeAttemptdVolumeMergeFunction(current, newVolume *corev1.Volume) 
 // the mergeFunc can be provided to change the default merge behavior
 func AddVolumeToPod(podSpec *corev1.PodSpec, volume *corev1.Volume, mergeFunc VolumeMergeFunction) ([]corev1.Volume, error) {
 	var found bool
-	for id, cVolume := range podSpec.Volumes {
-		if volume.Name == cVolume.Name {
+	for id := range podSpec.Volumes {
+		if volume.Name == podSpec.Volumes[id].Name {
 			if mergeFunc == nil {
 				mergeFunc = DefaultVolumeMergeFunction
 			}
-			newVolume, err := mergeFunc(&cVolume, volume)
+			newVolume, err := mergeFunc(&podSpec.Volumes[id], volume)
 			if err != nil {
 				return nil, err
 			}

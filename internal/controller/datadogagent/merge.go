@@ -14,6 +14,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/controller/openapi/builder"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -34,7 +36,17 @@ const (
 	ddaiCRDName            = "datadogagentinternals.datadoghq.com"
 )
 
-func newFieldManager(ctx context.Context, client client.Client, scheme *runtime.Scheme, objGVK schema.GroupVersionKind) (*managedfields.FieldManager, error) {
+// crdFieldManager wraps managedfields.FieldManager alongside the CRD's TypeConverter
+// so in-memory merges without managed-field pruning can execute TypedValue.Merge directly
+// without paying for unused ManagedFields diffing, fieldset construction, or encoding.
+type crdFieldManager struct {
+	fieldManager  *managedfields.FieldManager
+	typeConverter managedfields.TypeConverter
+	scheme        *runtime.Scheme
+	gvk           schema.GroupVersionKind
+}
+
+func newFieldManager(ctx context.Context, client client.Client, scheme *runtime.Scheme, objGVK schema.GroupVersionKind) (*crdFieldManager, error) {
 	crd := &apiextensionsv1.CustomResourceDefinition{}
 	if err := client.Get(ctx, types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
 		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)
@@ -64,15 +76,98 @@ func newFieldManager(ctx context.Context, client client.Client, scheme *runtime.
 		return nil, fmt.Errorf("failed to create field manager: %w", err)
 	}
 
-	return fm, nil
+	return &crdFieldManager{
+		fieldManager:  fm,
+		typeConverter: typeConverter,
+		scheme:        scheme,
+		gvk:           objGVK,
+	}, nil
+}
+
+// hasPopulatedManagedFields reports whether obj carries any ManagedFields entry
+// with non-empty FieldsV1 (the only case where FieldManager.Apply's prune step
+// can remove fields during merge).
+func hasPopulatedManagedFields(obj runtime.Object) bool {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return true
+	}
+	for _, entry := range accessor.GetManagedFields() {
+		if entry.FieldsV1 != nil && len(entry.FieldsV1.Raw) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (fm *crdFieldManager) objectToTypedLive(obj runtime.Object) (*typed.TypedValue, error) {
+	versioned, err := fm.scheme.ConvertToVersion(obj, fm.gvk.GroupVersion())
+	if err != nil {
+		return nil, err
+	}
+	return fm.typeConverter.ObjectToTyped(versioned, typed.AllowDuplicates)
+}
+
+// applyDirect performs the schema-aware structured merge directly via TypedValue.Merge,
+// bypassing FieldManager's unused ManagedFields tracking, Compare, ToFieldSet, and encoding.
+// If preTypedOriginal is non-nil, it is reused instead of re-converting original.
+func (fm *crdFieldManager) applyDirect(original, modified runtime.Object, preTypedOriginal *typed.TypedValue) (runtime.Object, error) {
+	if preTypedOriginal == nil && hasPopulatedManagedFields(original) {
+		return fm.fieldManager.Apply(original, modified, defaultOperatorManager, true)
+	}
+
+	if patchVersion := modified.GetObjectKind().GroupVersionKind().GroupVersion(); patchVersion != fm.gvk.GroupVersion() {
+		return nil, apierrors.NewBadRequest(
+			fmt.Sprintf("Incorrect version specified in apply patch. Specified patch version: %s, expected: %s",
+				patchVersion, fm.gvk.GroupVersion()))
+	}
+
+	patchMeta, err := meta.Accessor(modified)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get accessor: %w", err)
+	}
+	if patchMeta.GetManagedFields() != nil {
+		return nil, apierrors.NewBadRequest("metadata.managedFields must be nil")
+	}
+
+	patchTyped, err := fm.typeConverter.ObjectToTyped(modified)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create typed patch object: %w", err)
+	}
+
+	liveTyped := preTypedOriginal
+	if liveTyped == nil {
+		liveTyped, err = fm.objectToTypedLive(original)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create typed live object: %w", err)
+		}
+	}
+
+	mergedTyped, err := liveTyped.Merge(patchTyped)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge config: %w", err)
+	}
+
+	newObj, err := fm.typeConverter.TypedToObject(mergedTyped)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert new typed object to object: %w", err)
+	}
+
+	newObjVersioned, err := fm.scheme.ConvertToVersion(newObj, fm.gvk.GroupVersion())
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert new object to proper version: %w", err)
+	}
+	fm.scheme.Default(newObjVersioned)
+	return newObjVersioned, nil
 }
 
 // ssaMergeCRD merges two custom resource objects using server-side apply without applying the result in k8s
 func (r *Reconciler) ssaMergeCRD(ctx context.Context, original, modified runtime.Object) (runtime.Object, error) {
-	// Server side apply
-	// `datadog-operator` is the manager for managed fields
-	// Set force=true to override conflicts
-	newObj, err := r.fieldManager.Apply(original, modified, defaultOperatorManager, true)
+	return r.ssaMergeCRDWithTypedOriginal(ctx, original, modified, nil)
+}
+
+func (r *Reconciler) ssaMergeCRDWithTypedOriginal(ctx context.Context, original, modified runtime.Object, preTypedOriginal *typed.TypedValue) (runtime.Object, error) {
+	newObj, err := r.fieldManager.applyDirect(original, modified, preTypedOriginal)
 	if err != nil {
 		// Backward-compatibility: if the installed CRD schema is older than the operator code,
 		// managedfields apply fails with "field not declared in schema".
@@ -94,7 +189,7 @@ func (r *Reconciler) ssaMergeCRD(ctx context.Context, original, modified runtime
 		}
 
 		var retryErr error
-		newObj, retryErr = r.fieldManager.Apply(orig, mod, defaultOperatorManager, true)
+		newObj, retryErr = r.fieldManager.applyDirect(orig, mod, nil)
 		if retryErr != nil {
 			// If we still fail, return the original error to avoid masking other issues.
 			return nil, fmt.Errorf("failed to apply merge: %w", err)

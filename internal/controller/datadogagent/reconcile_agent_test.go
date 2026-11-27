@@ -694,7 +694,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 				client: fakeClient,
 			}
 
-			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode, "foo", tt.legacyLabelInUse)
+			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode, "foo", tt.legacyLabelInUse, nil)
 			assert.NoError(t, err)
 
 			nodeList := &corev1.NodeList{}

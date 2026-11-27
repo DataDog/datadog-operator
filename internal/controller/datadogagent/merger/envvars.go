@@ -47,8 +47,8 @@ func (impl *envVarManagerImpl) AddEnvVar(newEnvVar *corev1.EnvVar) {
 }
 
 func (impl *envVarManagerImpl) AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
-	for id, cont := range impl.podTmpl.Spec.Containers {
-		if _, ok := AllAgentContainers[common.AgentContainerName(cont.Name)]; ok {
+	for id := range impl.podTmpl.Spec.Containers {
+		if _, ok := AllAgentContainers[common.AgentContainerName(impl.podTmpl.Spec.Containers[id].Name)]; ok {
 			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.Containers[id], newEnvVar, mergeFunc)
 			if err != nil {
 				return err
@@ -130,12 +130,12 @@ func ErrorOnMergeAttemptdEnvVarMergeFunction(current, newEnv *corev1.EnvVar) (*c
 // AddEnvVarToContainer used to add an EnvVar to a container
 func AddEnvVarToContainer(container *corev1.Container, envvar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) ([]corev1.EnvVar, error) {
 	var found bool
-	for id, cEnvVar := range container.Env {
-		if envvar.Name == cEnvVar.Name {
+	for id := range container.Env {
+		if envvar.Name == container.Env[id].Name {
 			if mergeFunc == nil {
 				mergeFunc = DefaultEnvVarMergeFunction
 			}
-			newEnvVar, err := mergeFunc(&cEnvVar, envvar)
+			newEnvVar, err := mergeFunc(&container.Env[id], envvar)
 			if err != nil {
 				return nil, err
 			}

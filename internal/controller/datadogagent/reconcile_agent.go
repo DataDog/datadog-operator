@@ -27,9 +27,19 @@ import (
 
 // labelNodesWithProfiles updates profile assignments only for this Agent namespace.
 // legacyLabelInUse keeps the legacy shared label on nodes while DaemonSets still
-// select with it (see agentprofile.LegacyProfileLabelInUse).
-func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string, legacyLabelInUse bool) error {
+// select with it (see agentprofile.LegacyProfileLabelInUse). nodes is the
+// already-listed node slice; nodes missing from it are fetched individually.
+func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, namespace string, legacyLabelInUse bool, nodes []corev1.Node) error {
 	profileLabelKey := agentprofile.NodeLabelKey(namespace)
+
+	var nodeByName map[string]*corev1.Node
+	if len(nodes) > 0 {
+		nodeByName = make(map[string]*corev1.Node, len(nodes))
+		for i := range nodes {
+			nodeByName[nodes[i].Name] = &nodes[i]
+		}
+	}
+
 	for nodeName, profileNamespacedName := range profilesByNode {
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 
@@ -38,12 +48,14 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			isDefaultProfile = true
 		}
 
-		node := &corev1.Node{}
-		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
-			return err
+		node := nodeByName[nodeName]
+		if node == nil {
+			node = &corev1.Node{}
+			if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
+				return err
+			}
 		}
 
-		newLabels := map[string]string{}
 		labelsToRemove := map[string]bool{}
 		labelsToAddOrChange := map[string]string{}
 
@@ -71,21 +83,20 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			labelsToRemove[agentprofile.OldProfileLabelKey] = true
 		}
 
-		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
-			ctrl.LoggerFrom(ctx).V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
-			for k, v := range node.Labels {
-				if _, ok := labelsToRemove[k]; ok {
-					continue
-				}
-				newLabels[k] = v
-			}
-
-			maps.Copy(newLabels, labelsToAddOrChange)
-		}
-
 		if len(labelsToRemove) == 0 && len(labelsToAddOrChange) == 0 {
 			continue
 		}
+
+		ctrl.LoggerFrom(ctx).V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
+
+		newLabels := make(map[string]string, len(node.Labels)+len(labelsToAddOrChange))
+		for k, v := range node.Labels {
+			if _, ok := labelsToRemove[k]; ok {
+				continue
+			}
+			newLabels[k] = v
+		}
+		maps.Copy(newLabels, labelsToAddOrChange)
 
 		modifiedNode := node.DeepCopy()
 		modifiedNode.Labels = newLabels
@@ -125,9 +136,13 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 	// The pod cache only keeps names, labels and node names, so unscheduled
 	// pods are read straight from the API server to get their node affinity.
 	// This only happens when the cache shows a pod with no node yet.
-	hasUnscheduledPod := slices.ContainsFunc(agentPods.Items, func(pod corev1.Pod) bool {
-		return pod.Spec.NodeName == ""
-	})
+	hasUnscheduledPod := false
+	for i := range agentPods.Items {
+		if agentPods.Items[i].Spec.NodeName == "" {
+			hasUnscheduledPod = true
+			break
+		}
+	}
 	if hasUnscheduledPod && r.options.APIReader != nil {
 		unscheduledPods := &corev1.PodList{}
 		err = r.options.APIReader.List(
@@ -145,13 +160,14 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		agentPods.Items = append(agentPods.Items, unscheduledPods.Items...)
 	}
 
-	for _, agentPod := range agentPods.Items {
+	for i := range agentPods.Items {
+		agentPod := &agentPods.Items[i]
 		// Already being deleted
 		if agentPod.DeletionTimestamp != nil {
 			continue
 		}
 
-		profileNamespacedName, found := profilesByNode[agentPodNodeName(&agentPod)]
+		profileNamespacedName, found := profilesByNode[agentPodNodeName(agentPod)]
 		if !found {
 			continue
 		}

@@ -34,6 +34,10 @@ func (r *Reconciler) finalizeDad(ctx context.Context, obj client.Object) error {
 		r.forwarders.Unregister(obj)
 	}
 
+	// Deleted DatadogAgents never reach applyProfilesToDDAISpec again, so their
+	// cached profile merges must be dropped here.
+	r.evictProfileMergeCache(obj.GetNamespace(), obj.GetName())
+
 	if err := r.profilesCleanup(ctx, obj.GetNamespace()); err != nil {
 		return err
 	}
