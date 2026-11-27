@@ -789,7 +789,7 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 
 	// validate gateway-enabled tests use the gateway config
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_with_gateway_enabled_default_ports" {
-		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("")
+		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("", defaultconfig.OTLPHTTPExporterName)
 		assert.True(
 			t,
 			apiutils.IsEqualStruct(configMap.Data, expectedCM),
@@ -799,7 +799,7 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	}
 
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_with_gateway_enabled_non_default_ports" {
-		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("")
+		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("", defaultconfig.OTLPHTTPExporterName)
 		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4317", "4444", 1)
 		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4318", "5555", 1)
 		assert.True(
