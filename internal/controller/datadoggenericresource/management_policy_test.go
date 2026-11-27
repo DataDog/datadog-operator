@@ -135,6 +135,7 @@ func TestReconcileGenericResource_OrphanPolicy(t *testing.T) {
 
 func TestReconcileGenericResource_OrphanReleasesStuckDeletion(t *testing.T) {
 	resetMockHandlerState()
+	t.Cleanup(resetMockHandlerState)
 	r, _ := newMockReconciler(t)
 	ctx := context.TODO()
 	req := newRequest(resourcesNamespace, resourcesName)
@@ -188,4 +189,60 @@ func TestReconcileGenericResource_OrphanWithoutCredentials(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, apierrors.IsNotFound(r.client.Get(ctx, req.NamespacedName, &datadoghqv1alpha1.DatadogGenericResource{})))
 	assert.Equal(t, 0, mockCalls())
+}
+
+func TestReconcileGenericResource_CreateSkippedWhenOrphanedInAPIServer(t *testing.T) {
+	resetMockHandlerState()
+	r, _ := newMockReconciler(t)
+	ctx := context.TODO()
+	req := newRequest(resourcesNamespace, resourcesName)
+	require.NoError(t, r.client.Create(ctx, mockGenericResource()))
+
+	// Add the finalizer, stopping before the create.
+	_, err := reconcileRequest(r, ctx, req)
+	require.NoError(t, err)
+	obj := getGenericResource(t, r)
+	require.Empty(t, obj.Status.Id)
+
+	// The API server has the annotation, but the reconcile works from a cache
+	// entry that doesn't have it yet.
+	stale := obj.DeepCopy()
+	obj.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	require.NoError(t, r.client.Update(ctx, obj))
+	stale.ResourceVersion = obj.ResourceVersion
+
+	result, err := r.Reconcile(ctx, stale)
+	require.NoError(t, err)
+	assert.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+	assert.Equal(t, 0, mockCreateCalls, "no resource is created")
+}
+
+func TestReconcileGenericResource_OrphanStatusConflictRequeuesWithoutClobbering(t *testing.T) {
+	resetMockHandlerState()
+	r, _ := newMockReconciler(t)
+	ctx := context.TODO()
+	obj := mockGenericResource()
+	obj.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	obj.Finalizers = []string{datadogGenericResourceFinalizer}
+	require.NoError(t, r.client.Create(ctx, obj))
+
+	// Capture a stale copy of the orphaned CR before a concurrent update removes
+	// the annotation and persists a newer status (for example an in-flight create).
+	stale := getGenericResource(t, r)
+	latest := stale.DeepCopy()
+	latest.Annotations = nil
+	require.NoError(t, r.client.Update(ctx, latest))
+	latest = getGenericResource(t, r)
+	latest.Status.Id = "persisted-id"
+	latest.Status.CurrentHash = "newer-hash"
+	require.NoError(t, r.client.Status().Update(ctx, latest))
+
+	result, err := r.Reconcile(ctx, stale)
+	require.NoError(t, err)
+	assert.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+
+	after := getGenericResource(t, r)
+	assert.Equal(t, "persisted-id", after.Status.Id, "newer status ID must not be clobbered")
+	assert.Equal(t, "newer-hash", after.Status.CurrentHash, "newer status hash must not be clobbered")
+	assert.Nil(t, meta.FindStatusCondition(after.Status.Conditions, string(condition.DatadogConditionTypeOrphaned)), "stale Orphaned condition must not overwrite newer status")
 }

@@ -60,7 +60,7 @@ type Option func(*Finalizer)
 // datadoghq.com/management-policy: orphan annotation: deleting an annotated
 // object removes the finalizer without calling the ResourceDeleteFunc, so the
 // Datadog object is kept. recorder, if not nil, records an Orphaned event.
-// onOrphan, if not nil, runs before the finalizer is removed, for local
+// onOrphan, if not nil, runs after the finalizer is removed, for local
 // cleanup the ResourceDeleteFunc would otherwise do (for example metrics).
 func WithOrphanPolicy(recorder record.EventRecorder, onOrphan func(client.Object)) Option {
 	return func(f *Finalizer) {

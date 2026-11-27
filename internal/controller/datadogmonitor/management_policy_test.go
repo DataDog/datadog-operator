@@ -18,6 +18,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 func TestReconcileDatadogMonitor_OrphanPolicy(t *testing.T) {
@@ -103,7 +104,10 @@ func TestReconcileDatadogMonitor_OrphanWithoutCredentials(t *testing.T) {
 	_, err := r.Reconcile(context.TODO(), dm)
 	require.NoError(t, err)
 	require.NoError(t, r.client.Get(context.TODO(), key, dm))
-	require.NotEmpty(t, dm.Status.Conditions, "the Orphaned condition is set without credentials")
+	require.Len(t, dm.Status.Conditions, 1, "the Orphaned condition is set without credentials")
+	assert.Equal(t, datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned, dm.Status.Conditions[0].Type)
+	assert.Equal(t, corev1.ConditionTrue, dm.Status.Conditions[0].Status)
+	assert.Equal(t, condition.OrphanedReason, dm.Status.Conditions[0].Reason)
 
 	require.NoError(t, r.client.Delete(context.TODO(), dm))
 	require.NoError(t, r.client.Get(context.TODO(), key, dm))
@@ -138,4 +142,56 @@ func TestReconcileDatadogMonitor_CreateSkippedWhenOrphanedInAPIServer(t *testing
 	api.mu.Lock()
 	defer api.mu.Unlock()
 	assert.Nil(t, api.monitor, "no monitor is created")
+}
+
+type spyForwardersManager struct {
+	registered   int
+	unregistered int
+	processError int
+}
+
+func (s *spyForwardersManager) Register(client.Object)                                 { s.registered++ }
+func (s *spyForwardersManager) Unregister(client.Object)                               { s.unregistered++ }
+func (s *spyForwardersManager) ProcessError(client.Object, error)                      { s.processError++ }
+func (s *spyForwardersManager) ProcessEvent(client.Object, pkgutils.Event)             {}
+func (s *spyForwardersManager) MetricsForwarderStatusForObj(client.Object) *pkgutils.ConditionCommon {
+	return nil
+}
+func (s *spyForwardersManager) SetEnabledFeatures(client.Object, []string) {}
+
+func TestReconcileDatadogMonitor_OrphanForwarderLifecycle(t *testing.T) {
+	r, _ := newForceSyncTestReconciler(t)
+	fwd := &spyForwardersManager{}
+	r.operatorMetricsEnabled = true
+	r.forwarders = fwd
+
+	dm := genericDatadogMonitor(r.client)
+	key := client.ObjectKeyFromObject(dm)
+	get := func() *datadoghqv1alpha1.DatadogMonitor {
+		t.Helper()
+		got := &datadoghqv1alpha1.DatadogMonitor{}
+		require.NoError(t, r.client.Get(context.TODO(), key, got))
+		return got
+	}
+
+	// Normal reconcile reports metrics via ProcessError.
+	_, err := r.Reconcile(context.TODO(), get())
+	require.NoError(t, err)
+	require.Equal(t, 1, fwd.processError)
+
+	// Reconciling an orphaned monitor does not report reconcile metrics.
+	dm = get()
+	dm.Annotations = map[string]string{datadoghqv1alpha1.ManagementPolicyAnnotationKey: datadoghqv1alpha1.ManagementPolicyOrphan}
+	require.NoError(t, r.client.Update(context.TODO(), dm))
+	_, err = r.Reconcile(context.TODO(), get())
+	require.NoError(t, err)
+	assert.Equal(t, 1, fwd.processError, "orphaned monitor must not call ProcessError")
+	assert.Equal(t, 0, fwd.unregistered)
+
+	// Deleting an orphaned monitor unregisters its forwarder without calling ProcessError.
+	require.NoError(t, r.client.Delete(context.TODO(), get()))
+	_, err = r.Reconcile(context.TODO(), get())
+	require.NoError(t, err)
+	assert.Equal(t, 1, fwd.unregistered, "deleting an orphaned monitor unregisters its forwarder")
+	assert.Equal(t, 1, fwd.processError, "deleting an orphaned monitor must not call ProcessError")
 }

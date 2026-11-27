@@ -22,5 +22,8 @@ const (
 
 // IsOrphaned reports whether obj has the orphan management policy.
 func IsOrphaned(obj metav1.Object) bool {
+	if obj == nil {
+		return false
+	}
 	return obj.GetAnnotations()[ManagementPolicyAnnotationKey] == ManagementPolicyOrphan
 }

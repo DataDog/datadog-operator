@@ -307,7 +307,19 @@ func (r *Reconciler) reconcileOrphaned(ctx context.Context, instance *v1alpha1.D
 	logger.V(1).Info("DatadogGenericResource has the orphan management policy; skipping reconciliation")
 	status := instance.Status.DeepCopy()
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeOrphaned, metav1.ConditionTrue, condition.OrphanedReason, condition.OrphanedMessage)
-	return r.updateStatusIfNeeded(ctx, instance, status, ctrl.Result{})
+	if apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		return ctrl.Result{}, nil
+	}
+	instance.Status = *status
+	if err := r.client.Status().Update(ctx, instance); err != nil {
+		if apierrors.IsConflict(err) {
+			logger.Error(err, "unable to update DatadogGenericResource status due to update conflict")
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
+		logger.Error(err, "unable to update DatadogGenericResource status")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) update(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
@@ -365,7 +377,8 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 		}
 		return fmt.Errorf("%w: %w", errPreCreateRead, err)
 	}
-	if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.Id != "" && latest.Status.Id != instance.Status.Id) {
+	// A stale cache may not have the orphan annotation yet.
+	if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.Id != "" && latest.Status.Id != instance.Status.Id) || v1alpha1.IsOrphaned(latest) {
 		logger.Info("Skipping create because DatadogGenericResource changed; requeuing")
 		return errCreateSkipped
 	}
