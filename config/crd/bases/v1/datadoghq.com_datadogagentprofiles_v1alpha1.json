@@ -2921,6 +2921,10 @@
                       "description": "Enabled enables Private Action Runner on both the Node Agent and Cluster Agent,\nwith self-enrollment by default. Per-component Enabled takes precedence.\nDefault: false",
                       "type": "boolean"
                     },
+                    "kubernetesRemediationsEnabled": {
+                      "description": "KubernetesRemediationsEnabled enables the built-in Kubernetes remediation actions\nand their RBAC permissions on the Cluster Agent Private Action Runner.\nAlso enables Kubernetes Actions unless features.kubernetesActions.enabled is explicitly false.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "nodeAgent": {
                       "additionalProperties": false,
                       "description": "NodeAgent configures Private Action Runner on the Node Agent.\nOmitted settings inherit the shared feature settings.",

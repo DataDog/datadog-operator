@@ -38,7 +38,6 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 }
 
 // getK8sRemediationPolicyRules returns the ClusterRole policy rules required for k8s remediation actions.
-// The policy rules included are constrained within the maximum set the DCA could have if all features were enabled
 func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		// Read to some workload types
@@ -52,11 +51,11 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{rbac.PodsResource, rbac.EventsResource, rbac.ConfigMapsResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
-		// Deployment patch
+		// Deployment scaling/restart uses patch; rollback uses update.
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.DeploymentsResource},
-			Verbs:     []string{rbac.PatchVerb},
+			Verbs:     []string{rbac.PatchVerb, rbac.UpdateVerb},
 		},
 		// StatefulSet patch
 		{
@@ -81,6 +80,26 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.EventsResource},
 			Verbs:     []string{rbac.CreateVerb, rbac.PatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+			Verbs:     []string{rbac.PatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.DatadogAPIGroup},
+			Resources: []string{rbac.WpaResource},
+			Verbs:     []string{rbac.GetVerb, rbac.PatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.JobsResource},
+			Verbs:     []string{rbac.DeleteVerb},
+		},
+		{
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.CronjobsResource},
+			Verbs:     []string{rbac.PatchVerb},
 		},
 	}
 }

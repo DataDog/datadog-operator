@@ -2512,6 +2512,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_PrivateActionRunnerFeatureCo
 							},
 						},
 					},
+					"kubernetesRemediationsEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubernetesRemediationsEnabled enables the built-in Kubernetes remediation actions and their RBAC permissions on the Cluster Agent Private Action Runner. Also enables Kubernetes Actions unless features.kubernetesActions.enabled is explicitly false. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"nodeAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "NodeAgent configures Private Action Runner on the Node Agent. Omitted settings inherit the shared feature settings.",

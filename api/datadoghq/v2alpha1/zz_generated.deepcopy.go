@@ -3704,6 +3704,11 @@ func (in *PrivateActionRunnerFeatureConfig) DeepCopyInto(out *PrivateActionRunne
 			copy(*out, *in)
 		}
 	}
+	if in.KubernetesRemediationsEnabled != nil {
+		in, out := &in.KubernetesRemediationsEnabled, &out.KubernetesRemediationsEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	if in.NodeAgent != nil {
 		in, out := &in.NodeAgent, &out.NodeAgent
 		*out = new(PrivateActionRunnerComponentConfig)

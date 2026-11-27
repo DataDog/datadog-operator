@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -167,6 +168,60 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildKubernetesActionsFeature)
+}
+
+func TestKubernetesActionsAutoEnabledForRemediation(t *testing.T) {
+	enabled := &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), KubernetesRemediationsEnabled: new(true)}
+	for _, tt := range []struct {
+		name           string
+		par            *v2alpha1.PrivateActionRunnerFeatureConfig
+		actions        *v2alpha1.KubernetesActionsFeatureConfig
+		annotations    map[string]string
+		version        string
+		wantEnabled    bool
+		wantRCDisabled bool
+	}{
+		{name: "typed remediation", par: enabled, wantEnabled: true},
+		{name: "empty actions block", par: enabled, actions: &v2alpha1.KubernetesActionsFeatureConfig{}, wantEnabled: true},
+		{name: "cluster PAR only", par: &v2alpha1.PrivateActionRunnerFeatureConfig{ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(true)}, KubernetesRemediationsEnabled: new(true)}, wantEnabled: true},
+		{name: "explicit disable", par: enabled, actions: &v2alpha1.KubernetesActionsFeatureConfig{Enabled: new(false)}},
+		{name: "disabled PAR", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(false), KubernetesRemediationsEnabled: new(true)}},
+		{name: "disabled cluster PAR", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), KubernetesRemediationsEnabled: new(true), ClusterAgent: &v2alpha1.PrivateActionRunnerComponentConfig{Enabled: new(false)}}},
+		{name: "disabled remediation", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), KubernetesRemediationsEnabled: new(false)}},
+		{name: "legacy annotation", annotations: map[string]string{featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true", featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled: "true"}, wantEnabled: true},
+		{name: "annotation fallback with typed PAR", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true)}, annotations: map[string]string{featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled: "true"}, wantEnabled: true},
+		{name: "typed false overrides annotation", par: &v2alpha1.PrivateActionRunnerFeatureConfig{Enabled: new(true), KubernetesRemediationsEnabled: new(false)}, annotations: map[string]string{featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled: "true"}},
+		{name: "too old for Kubernetes Actions", par: enabled, version: "7.83.0"},
+		{name: "preserve channel settings", par: enabled, actions: &v2alpha1.KubernetesActionsFeatureConfig{Communication: &v2alpha1.KubernetesActionsCommunicationConfig{RemoteConfiguration: &v2alpha1.KubernetesActionsRemoteConfigurationConfig{Enabled: new(false)}}}, wantEnabled: true, wantRCDisabled: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			version := tt.version
+			if version == "" {
+				version = "7.86.0"
+			}
+			dda := testutils.NewDatadogAgentBuilder().WithClusterAgentTag(version).Build()
+			dda.Annotations = tt.annotations
+			if dda.Spec.Features == nil {
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{}
+			}
+			dda.Spec.Features.PrivateActionRunner = tt.par
+			dda.Spec.Features.KubernetesActions = tt.actions
+			before := dda.DeepCopy()
+			f := buildKubernetesActionsFeature(nil)
+			req := f.Configure(dda, &dda.Spec, nil)
+			assert.Equal(t, tt.wantEnabled, req.ClusterAgent.IsEnabled())
+			assert.Equal(t, before, dda)
+			if tt.wantEnabled {
+				managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+				assert.NoError(t, f.ManageClusterAgent(managers))
+				if tt.wantRCDisabled {
+					kubernetesActionsPAROnlyClusterAgentWantFunc(t, managers)
+				} else {
+					kubernetesActionsClusterAgentWantFunc(t, managers)
+				}
+			}
+		})
+	}
 }
 
 // kubernetesActionsClusterAgentWantFunc expects only the feature switch: both channels are on

@@ -54,12 +54,21 @@ func TestGetK8sRemediationPolicyRules(t *testing.T) {
 	assertPermission(t, rules, rbac.CoreAPIGroup, rbac.PodsResource, rbac.DeleteVerb)
 	assertPermission(t, rules, rbac.CoreAPIGroup, rbac.ConfigMapsResource, rbac.CreateVerb)
 	assertPermission(t, rules, rbac.CoreAPIGroup, rbac.EventsResource, rbac.CreateVerb)
+	assertPermission(t, rules, rbac.AppsAPIGroup, rbac.DeploymentsResource, rbac.UpdateVerb)
+	assertPermission(t, rules, rbac.AppsAPIGroup, rbac.ReplicasetsResource, rbac.ListVerb)
+	assertPermission(t, rules, rbac.AutoscalingAPIGroup, rbac.HorizontalPodAutoscalersRecource, rbac.PatchVerb)
+	assertPermission(t, rules, rbac.DatadogAPIGroup, rbac.WpaResource, rbac.GetVerb)
+	assertPermission(t, rules, rbac.DatadogAPIGroup, rbac.WpaResource, rbac.PatchVerb)
+	assertPermission(t, rules, rbac.BatchAPIGroup, rbac.JobsResource, rbac.DeleteVerb)
+	assertPermission(t, rules, rbac.BatchAPIGroup, rbac.CronjobsResource, rbac.PatchVerb)
 
 	// not granted
 	assertNoPermission(t, rules, rbac.AppsAPIGroup, rbac.DeploymentsResource, rbac.DeleteVerb)
 	assertNoPermission(t, rules, rbac.AppsAPIGroup, rbac.StatefulsetsResource, rbac.DeleteVerb)
 	assertNoPermission(t, rules, rbac.CoreAPIGroup, rbac.PodsResource, rbac.CreateVerb)
 	assertNoPermission(t, rules, rbac.CoreAPIGroup, rbac.ConfigMapsResource, rbac.DeleteVerb)
+	assertNoPermission(t, rules, rbac.BatchAPIGroup, rbac.CronjobsResource, rbac.DeleteVerb)
+	assertNoPermission(t, rules, rbac.DatadogAPIGroup, rbac.WpaResource, rbac.DeleteVerb)
 }
 
 func TestGetClusterAgentRBACPolicyRules(t *testing.T) {

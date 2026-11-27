@@ -19,6 +19,10 @@ spec:
   features:
     privateActionRunner:
       enabled: true
+      # Enable Kubernetes remediation actions and their Cluster Agent RBAC.
+      # Also enables Kubernetes Actions (kubetray), unless explicitly disabled.
+      # Requires an Agent with private_action_runner.kubernetes_remediations_enabled support.
+      kubernetesRemediationsEnabled: true
       actionsAllowlist:
         - com.datadoghq.script.runPredefinedScript
 

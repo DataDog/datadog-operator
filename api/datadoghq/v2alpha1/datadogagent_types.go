@@ -154,6 +154,13 @@ type PrivateActionRunnerFeatureConfig struct {
 	// +optional
 	ActionsAllowlist *[]string `json:"actionsAllowlist,omitempty"`
 
+	// KubernetesRemediationsEnabled enables the built-in Kubernetes remediation actions
+	// and their RBAC permissions on the Cluster Agent Private Action Runner.
+	// Also enables Kubernetes Actions unless features.kubernetesActions.enabled is explicitly false.
+	// Default: false
+	// +optional
+	KubernetesRemediationsEnabled *bool `json:"kubernetesRemediationsEnabled,omitempty"`
+
 	// NodeAgent configures Private Action Runner on the Node Agent.
 	// Omitted settings inherit the shared feature settings.
 	// +optional
