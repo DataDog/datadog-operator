@@ -34,6 +34,9 @@ const (
 	otelAgentVersionExample         = "7.72.1"
 	otelAgentVersionWithFullExample = "7.72.1-full"
 	otelAgentMinVersionForDisplay   = "7.67.0"
+	// otlpHTTPExporterMinVersion is the first Agent version bundling OTel Collector v0.144.0,
+	// which renamed the `otlphttp` exporter to `otlp_http`.
+	otlpHTTPExporterMinVersion = "7.76.0-0"
 )
 
 var errIncompatibleImage = errors.New("incompatible OTel Agent image")
@@ -68,6 +71,7 @@ type otelCollectorFeature struct {
 	coreAgentConfig coreAgentConfig
 
 	incompatibleImage bool
+	agentVersion      string
 
 	otelGatewayEnabled bool
 
@@ -107,6 +111,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 
 	o.owner = dda
 	o.spec = ddaSpec
+	o.agentVersion = agentVersion
 	if ddaSpec.Features.OtelCollector.Conf != nil {
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
@@ -193,7 +198,7 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
 		var defaultConfig string
 		if o.otelGatewayEnabled {
-			defaultConfig = defaultconfig.DefaultOtelCollectorConfigInGateway(o.owner.GetName())
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfigInGateway(o.owner.GetName(), otlpHTTPExporterName(o.agentVersion))
 		} else {
 			defaultConfig = defaultconfig.DefaultOtelCollectorConfig
 		}
@@ -284,6 +289,16 @@ func otelCollectorSupportsAgentImage(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 func otelCollectorRequiresNewerAgent(imageOverride *v2alpha1.AgentImageConfig, agentVersion string) bool {
 	return (imageOverride == nil || imageOverride.Name == "") &&
 		!utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, new(true))
+}
+
+// otlpHTTPExporterName returns the OTLP/HTTP exporter type to use in the default gateway config:
+// `otlp_http` for Agent 7.76.0+ (and unparseable versions, e.g. custom images), and the deprecated
+// `otlphttp` alias for older Agents whose OTel Collector doesn't know the new name.
+func otlpHTTPExporterName(agentVersion string) string {
+	if utils.IsAboveMinVersion(agentVersion, otlpHTTPExporterMinVersion, nil) {
+		return defaultconfig.OTLPHTTPExporterName
+	}
+	return defaultconfig.DeprecatedOTLPHTTPExporterName
 }
 
 func otelCollectorRejectsFullTag(imageOverride *v2alpha1.AgentImageConfig) bool {

@@ -44,7 +44,7 @@ func Test_buildOtelCollectorConfigMap(t *testing.T) {
 
 func Test_buildOtelCollectorConfigMapWithGateway(t *testing.T) {
 	ddaName := "test-dda"
-	gatewayConfig := defaultconfig.DefaultOtelCollectorConfigInGateway(ddaName)
+	gatewayConfig := defaultconfig.DefaultOtelCollectorConfigInGateway(ddaName, defaultconfig.OTLPHTTPExporterName)
 
 	// check config map with gateway enabled
 	configMapWant := &corev1.ConfigMap{
