@@ -50,11 +50,6 @@ func (f *fakeClient) UpdateIndexRetention(_ context.Context, id, retention strin
 	return f.fail("update index")
 }
 
-func (f *fakeClient) DeleteIndex(_ context.Context, id string) error {
-	f.calls = append(f.calls, "delete "+id)
-	return f.fail("delete index")
-}
-
 func (f *fakeClient) GetRoutingTable(context.Context) ([]pomsky.RoutingRule, error) {
 	return f.routingTable, f.fail("get routing table")
 }
@@ -93,7 +88,7 @@ func TestManagerSync(t *testing.T) {
 			want:         nil,
 		},
 		{
-			name:         "creates, routes, updates and deletes in this order",
+			name:         "creates, routes and updates in this order",
 			desired:      changesDesired,
 			indexes:      changesIndexes,
 			routingTable: changesRoutingTable,
@@ -101,23 +96,22 @@ func TestManagerSync(t *testing.T) {
 				"create datadog-new 7 days",
 				"set routing table [{service:new datadog-new} {service:kept datadog-kept} {* datadog}]",
 				"update datadog-kept 7 days",
-				"delete datadog-old",
 			},
 		},
 		{
-			name:    "deletes unlisted indexes but not main, spans, metrics, sketches or foreign indexes",
+			name:    "keeps unlisted indexes and drops them from the routing table",
 			desired: []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "30 days"}},
 			indexes: []pomsky.Index{
 				{ID: "datadog", Retention: "30 days"},
 				{ID: "datadog-payment", Retention: "30 days"},
 				{ID: "datadog-old", Retention: "30 days"},
-				{ID: "datadog-spans"},
-				{ID: "datadog-metrics"},
-				{ID: "datadog-sketches"},
-				{ID: "other"},
 			},
-			routingTable: []pomsky.RoutingRule{{Filter: "service:payment", IndexID: "datadog-payment"}, {Filter: "*", IndexID: "datadog"}},
-			want:         []string{"delete datadog-old"},
+			routingTable: []pomsky.RoutingRule{
+				{Filter: "service:old", IndexID: "datadog-old"},
+				{Filter: "service:payment", IndexID: "datadog-payment"},
+				{Filter: "*", IndexID: "datadog"},
+			},
+			want: []string{"set routing table [{service:payment datadog-payment} {* datadog}]"},
 		},
 		{
 			name:         "listed main is not created and keeps its filter and position",
@@ -179,20 +173,6 @@ func TestManagerSync(t *testing.T) {
 				"create datadog-new 7 days",
 				"set routing table [{service:new datadog-new} {service:kept datadog-kept} {* datadog}]",
 				"update datadog-kept 7 days",
-			},
-		},
-		{
-			name:         "returns the error when deleting an index fails",
-			desired:      changesDesired,
-			indexes:      changesIndexes,
-			routingTable: changesRoutingTable,
-			failOn:       "delete index",
-			wantErr:      errFake,
-			want: []string{
-				"create datadog-new 7 days",
-				"set routing table [{service:new datadog-new} {service:kept datadog-kept} {* datadog}]",
-				"update datadog-kept 7 days",
-				"delete datadog-old",
 			},
 		},
 	}

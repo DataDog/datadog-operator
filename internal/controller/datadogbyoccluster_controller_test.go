@@ -882,12 +882,6 @@ func (f *fakePomskyClient) UpdateIndexRetention(_ context.Context, id, retention
 	return nil
 }
 
-func (f *fakePomskyClient) DeleteIndex(_ context.Context, id string) error {
-	f.calls = append(f.calls, "delete "+id)
-	f.indexes = slices.DeleteFunc(f.indexes, func(index pomsky.Index) bool { return index.ID == id })
-	return nil
-}
-
 func (f *fakePomskyClient) GetRoutingTable(context.Context) ([]pomsky.RoutingRule, error) {
 	return f.routingTable, nil
 }

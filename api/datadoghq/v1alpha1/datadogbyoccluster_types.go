@@ -68,8 +68,9 @@ type DatadogBYOCClusterSpec struct {
 
 	// Indexes lists the log indexes in routing order: a log goes to the first index whose filter matches it.
 	// Unless main is listed, a catch-all rule routes the remaining logs to main; otherwise they are dropped.
-	// When set, the Operator owns the routing table and the indexes: it reverts changes made in the Datadog UI and
-	// deletes unlisted indexes, but never creates or deletes main. When empty, they are left to the UI.
+	// When set, the Operator owns the routing table and the listed indexes, and reverts changes made to them in the
+	// Datadog UI. It never deletes indexes: unlisted ones are kept but receive no logs. When empty, they are left to
+	// the UI.
 	// +optional
 	// +listType=map
 	// +listMapKey=name

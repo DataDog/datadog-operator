@@ -44,25 +44,6 @@ func IndexID(name string) string {
 	return indexIDPrefix + name
 }
 
-// IndexName returns the name that the Datadog UI shows for a log index stored under id.
-// It reports false for indexes that the UI does not show as log indexes: those without the datadog- prefix, and the
-// spans, metrics and sketches indexes.
-func IndexName(id string) (string, bool) {
-	if id == MainIndexID {
-		return MainIndexName, true
-	}
-	name, found := strings.CutPrefix(id, indexIDPrefix)
-	if !found {
-		return "", false
-	}
-	for _, prefix := range ReservedIndexNamePrefixes {
-		if strings.HasPrefix(name, prefix) {
-			return "", false
-		}
-	}
-	return name, true
-}
-
 // Index is the part of an index that the Operator manages.
 type Index struct {
 	// ID is the index ID in Pomsky.
@@ -85,7 +66,6 @@ type Client interface {
 	CreateIndex(ctx context.Context, id, retention string) error
 	// UpdateIndexRetention sets the retention of an index and keeps the rest of its configuration.
 	UpdateIndexRetention(ctx context.Context, id, retention string) error
-	DeleteIndex(ctx context.Context, id string) error
 	GetRoutingTable(ctx context.Context) ([]RoutingRule, error)
 	// SetRoutingTable replaces the routing table.
 	SetRoutingTable(ctx context.Context, rules []RoutingRule) error
@@ -145,13 +125,6 @@ func (c *httpClient) UpdateIndexRetention(ctx context.Context, id, retention str
 	setRetentionPeriod(config, retention)
 	if err := c.do(ctx, http.MethodPut, "/api/v1/indexes/"+url.PathEscape(id), config, nil); err != nil {
 		return fmt.Errorf("update index %s: %w", id, err)
-	}
-	return nil
-}
-
-func (c *httpClient) DeleteIndex(ctx context.Context, id string) error {
-	if err := c.do(ctx, http.MethodDelete, "/api/v1/indexes/"+url.PathEscape(id), nil, nil); err != nil {
-		return fmt.Errorf("delete index %s: %w", id, err)
 	}
 	return nil
 }

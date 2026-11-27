@@ -3005,7 +3005,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Indexes lists the log indexes in routing order: a log goes to the first index whose filter matches it. Unless main is listed, a catch-all rule routes the remaining logs to main; otherwise they are dropped. When set, the Operator owns the routing table and the indexes: it reverts changes made in the Datadog UI and deletes unlisted indexes, but never creates or deletes main. When empty, they are left to the UI.",
+							Description: "Indexes lists the log indexes in routing order: a log goes to the first index whose filter matches it. Unless main is listed, a catch-all rule routes the remaining logs to main; otherwise they are dropped. When set, the Operator owns the routing table and the listed indexes, and reverts changes made to them in the Datadog UI. It never deletes indexes: unlisted ones are kept but receive no logs. When empty, they are left to the UI.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
