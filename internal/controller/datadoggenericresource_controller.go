@@ -41,6 +41,8 @@ type DatadogGenericResourceReconcilerOptions struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=get;list;watch;create;update;patch;delete
+// Adoption checks that no legacy CR manages the object to adopt.
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors;datadogdashboards;datadogslos,verbs=get;list
 
 func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, instance)
