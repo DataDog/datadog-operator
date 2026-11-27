@@ -51,8 +51,6 @@ const (
 	reasonReconciled           = "Reconciled"
 	reasonAvailable            = "Available"
 	reasonWorkloadsUnavailable = "WorkloadsUnavailable"
-
-	datadogBYOCClusterFieldOwner = "datadog-byoccluster-controller"
 )
 
 // Reconciler reconciles a DatadogBYOCCluster object.
@@ -141,7 +139,7 @@ func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv
 	}
 
 	for _, object := range resources.Objects() {
-		if err := byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, object, datadogBYOCClusterFieldOwner); err != nil {
+		if err := byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, object, byocutils.ClusterFieldOwner); err != nil {
 			return false, false, applyFailure(object, err)
 		}
 	}
@@ -203,7 +201,7 @@ func (r *Reconciler) applyWorker(ctx context.Context, cluster *datadoghqv1alpha1
 	case metav1.IsControlledBy(current, cluster) && !current.DeletionTimestamp.IsZero():
 		return errWorkerDeleting
 	}
-	return byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, desired, datadogBYOCClusterFieldOwner)
+	return byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, desired, byocutils.ClusterFieldOwner)
 }
 
 // deleteObsoleteWorkers deletes owned workers absent from desired and reports whether deletion is still pending.
