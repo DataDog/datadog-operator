@@ -48,6 +48,11 @@ func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instan
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Finds other DatadogGenericResources that manage or adopt the same Datadog object.
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.DatadogGenericResource{}, ddgr.IDIndexField, ddgr.IDIndexValues); err != nil {
+		return err
+	}
+
 	r.internal = ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, ddgr.ReconcilerOptions{
 		APIReader:     mgr.GetAPIReader(),
 		RequeuePeriod: r.Options.RequeuePeriod,

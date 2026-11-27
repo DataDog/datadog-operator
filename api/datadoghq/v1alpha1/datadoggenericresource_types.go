@@ -34,6 +34,15 @@ type DatadogGenericResourceSpec struct {
 	// JsonSpec is the specification of the API object
 	// +kubebuilder:validation:MinLength=1
 	JsonSpec string `json:"jsonSpec"`
+	// ID is the ID of an existing Datadog resource to adopt instead of creating
+	// a new one. The Operator then writes JsonSpec to that resource. While ID is
+	// set, the Operator never creates a replacement resource, even if the
+	// resource is deleted in Datadog. ID can't be changed once the resource is
+	// adopted. Not supported for software_catalog_entity.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	ID string `json:"id,omitempty"`
 }
 
 // DatadogGenericResourceStatus defines the observed state of DatadogGenericResource

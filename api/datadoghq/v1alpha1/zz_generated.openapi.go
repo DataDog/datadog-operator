@@ -4251,6 +4251,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(r
 							Format:      "",
 						},
 					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is the ID of an existing Datadog resource to adopt instead of creating a new one. The Operator then writes JsonSpec to that resource. While ID is set, the Operator never creates a replacement resource, even if the resource is deleted in Datadog. ID can't be changed once the resource is adopted. Not supported for software_catalog_entity.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"type", "jsonSpec"},
 			},

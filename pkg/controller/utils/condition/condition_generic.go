@@ -28,6 +28,9 @@ const (
 	// datadoghq.com/management-policy: orphan annotation, so the Operator
 	// doesn't manage its Datadog object.
 	DatadogConditionTypeOrphaned Type = "Orphaned"
+	// DatadogConditionTypeAdopted means the CR took over an existing Datadog
+	// object, identified by its spec.id, instead of creating one.
+	DatadogConditionTypeAdopted Type = "Adopted"
 )
 
 const (

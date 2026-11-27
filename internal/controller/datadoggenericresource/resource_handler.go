@@ -55,6 +55,15 @@ type remoteDefinitionHasher interface {
 	updateResourceWithHash(auth context.Context, instance *v1alpha1.DatadogGenericResource) (string, error)
 }
 
+// adoptionGetter is an optional extension of ResourceHandler for resource
+// types whose getResource can return an object that doesn't match the type.
+type adoptionGetter interface {
+	// getResourceToAdopt replaces getResource when checking the object to
+	// adopt (identified by instance.Status.Id). It returns a 404 APIError when
+	// the object exists with another type.
+	getResourceToAdopt(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
+}
+
 // liveStateRefresher is an optional extension of ResourceHandler for resource
 // types with live Datadog-side state. Only these handlers are polled and get
 // the PollingDisabled state when state polling is disabled.
