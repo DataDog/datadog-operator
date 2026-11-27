@@ -275,6 +275,12 @@ type DatadogMonitorStatus struct {
 	// after the last successful create or update. A force sync skips the update
 	// while the remote monitor still has this hash.
 	RemoteDefinitionHash string `json:"remoteDefinitionHash,omitempty"`
+
+	// Etag is the ETag of the last monitor read whose definition had
+	// RemoteDefinitionHash. Reads send it in If-None-Match, so a Not Modified
+	// response shows that the monitor, including its state, has not changed
+	// since that read.
+	Etag string `json:"etag,omitempty"`
 }
 
 // DatadogMonitorCondition describes the current state of a DatadogMonitor

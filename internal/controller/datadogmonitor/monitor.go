@@ -19,6 +19,7 @@ import (
 	"github.com/go-logr/logr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -244,20 +245,23 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 	return m, u
 }
 
-func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID int) (datadogV1.Monitor, error) {
+// getMonitor reads a monitor, or reports that it has not changed since the
+// read that returned etag. Every read uses the same parameters, so that the
+// ETag of one read can match the next.
+func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID int, etag string) (controllerutils.MonitorRead, error) {
 	groupStates := "all"
 	optionalParams := datadogV1.GetMonitorOptionalParameters{
 		GroupStates: &groupStates,
 	}
-	m, httpResp, err := client.GetMonitor(auth, int64(monitorID), optionalParams)
+	read, httpResp, err := controllerutils.GetMonitorIfChanged(auth, client, int64(monitorID), etag, optionalParams)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error getting monitor")
+		return controllerutils.MonitorRead{}, translateClientError(err, httpResp, "error getting monitor")
 	}
 
-	return m, nil
+	return read, nil
 }
 
 func validateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) error {

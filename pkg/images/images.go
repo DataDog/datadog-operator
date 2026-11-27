@@ -21,6 +21,8 @@ const (
 	ClusterAgentLatestVersion = "7.86.0"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
 	DdotCollectorLatestVersion = "7.86.0"
+	// HostProfilerLatestVersion corresponds to the latest ddot-ebpf release used by the host profiler
+	HostProfilerLatestVersion = "7.86.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.34"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
@@ -61,6 +63,7 @@ const (
 	DefaultAgentImageName         string = "agent"
 	DefaultClusterAgentImageName  string = "cluster-agent"
 	DefaultDdotCollectorImageName string = "ddot-collector"
+	DefaultHostProfilerImageName  string = "ddot-ebpf"
 )
 
 // IsGCRRegistry reports whether registry points to a Datadog GCR registry,
@@ -147,11 +150,15 @@ func (i *Image) WithFull(isFull bool) *Image {
 // for the configured version. Specifically:
 //   - agent -fips-full (isFIPS && isFull) is only published from v7.78.0
 //   - ddot-collector -fips (isFIPS && name == DefaultDdotCollectorImageName) is only published from v7.78.0
+//   - ddot-ebpf -fips (isFIPS && name == DefaultHostProfilerImageName) is not published
 //
 // Returns nil if no incompatibility is detected.
 func (i *Image) FIPSVersionError() error {
 	if !i.isFIPS {
 		return nil
+	}
+	if i.name == DefaultHostProfilerImageName {
+		return fmt.Errorf("%s:%s does not have a FIPS variant: the host profiler is not supported with useFIPSAgent", i.name, i.tag)
 	}
 	if (i.name == DefaultAgentImageName && i.isFull) || i.name == DefaultDdotCollectorImageName {
 		if !utils.IsAboveMinVersion(i.tag, DDOTFIPSMinimumVersion, nil) {
@@ -180,6 +187,12 @@ func GetLatestWindowsAgentImage() string {
 // GetLatestDdotCollectorImage returns the latest ddot collector image
 func GetLatestDdotCollectorImage() string {
 	image := newImage(DefaultImageRegistry, DefaultDdotCollectorImageName, DdotCollectorLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+// GetLatestHostProfilerImage returns the latest host profiler (ddot-ebpf) image
+func GetLatestHostProfilerImage() string {
+	image := newImage(DefaultImageRegistry, DefaultHostProfilerImageName, HostProfilerLatestVersion, false, false, false)
 	return image.ToString()
 }
 

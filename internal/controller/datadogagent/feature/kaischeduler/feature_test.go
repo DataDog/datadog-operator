@@ -120,6 +120,64 @@ func Test_kaiSchedulerFeature_Configure(t *testing.T) {
 			ClusterAgent:         clusterAgentWantFunc(true),
 			Agent:                nodeAgentWantFunc(false),
 		},
+		{
+			Name: "KAI Scheduler Cluster Agent events with Cluster Agent 7.87.0",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kaiSchedulerEventsAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: assertClusterRole(true),
+			ClusterAgent:         clusterAgentWantFunc(true, DDClusterAgentKAISchedulerEventsEnabled),
+		},
+		{
+			Name: "KAI Scheduler Cluster Agent events with prerelease Cluster Agent",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kaiSchedulerEventsAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0-rc.1").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: assertClusterRole(true),
+			ClusterAgent:         clusterAgentWantFunc(true, DDClusterAgentKAISchedulerEventsEnabled),
+		},
+		{
+			Name: "KAI Scheduler Cluster Agent events with Cluster Agent 7.86.0 does not enable events",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kaiSchedulerEventsAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterAgentImage(clusterAgentImage).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: assertClusterRole(true),
+			ClusterAgent:         clusterAgentWantFunc(true),
+		},
+		{
+			Name: "KAI Scheduler Cluster Agent events with unparsable Cluster Agent tag does not enable events",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kaiSchedulerEventsAnnotations(`{"clusterAgentEvents":true}`)).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:my-custom-build").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: assertClusterRole(true),
+			ClusterAgent:         clusterAgentWantFunc(true),
+		},
+		{
+			Name: "KAI Scheduler Cluster Agent events set to false",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kaiSchedulerEventsAnnotations(`{"clusterAgentEvents":false}`)).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: assertClusterRole(true),
+			ClusterAgent:         clusterAgentWantFunc(true),
+		},
+		{
+			Name: "KAI Scheduler rejects invalid configuration annotation",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(kaiSchedulerEventsAnnotations(`{"clusterAgentEvent":true}`)).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.87.0").
+				Build(),
+			WantConfigure: false,
+		},
 	}
 
 	tests.Run(t, buildKAISchedulerFeature)
@@ -127,6 +185,13 @@ func Test_kaiSchedulerFeature_Configure(t *testing.T) {
 
 func kaiSchedulerAnnotation(value string) map[string]string {
 	return map[string]string{featureutils.EnableKAISchedulerAnnotation: value}
+}
+
+func kaiSchedulerEventsAnnotations(config string) map[string]string {
+	return map[string]string{
+		featureutils.EnableKAISchedulerAnnotation: "true",
+		featureutils.KAISchedulerConfigAnnotation: config,
+	}
 }
 
 func assertClusterRole(want bool) func(testing.TB, store.StoreClient) {
@@ -138,7 +203,7 @@ func assertClusterRole(want bool) func(testing.TB, store.StoreClient) {
 	}
 }
 
-func clusterAgentWantFunc(wantEnv bool) *test.ComponentTest {
+func clusterAgentWantFunc(wantEnv bool, extraEnvNames ...string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -147,7 +212,11 @@ func clusterAgentWantFunc(wantEnv bool) *test.ComponentTest {
 				assert.Empty(t, envVars)
 				return
 			}
-			assert.Equal(t, []*corev1.EnvVar{{Name: DDClusterAgentKAISchedulerEnabled, Value: "true"}}, envVars)
+			want := []*corev1.EnvVar{{Name: DDClusterAgentKAISchedulerEnabled, Value: "true"}}
+			for _, name := range extraEnvNames {
+				want = append(want, &corev1.EnvVar{Name: name, Value: "true"})
+			}
+			assert.Equal(t, want, envVars)
 		})
 }
 

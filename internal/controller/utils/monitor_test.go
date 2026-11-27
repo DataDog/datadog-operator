@@ -8,6 +8,7 @@ package utils
 import (
 	"encoding/json"
 	"maps"
+	"strings"
 	"testing"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
@@ -68,6 +69,14 @@ func TestMonitorDefinitionHash(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("scheme", func(t *testing.T) {
+		assert.True(t, HasCurrentMonitorHashScheme(base))
+		_, md5, _ := strings.Cut(base, ":")
+		assert.False(t, HasCurrentMonitorHashScheme(md5), "a hash without a scheme")
+		assert.False(t, HasCurrentMonitorHashScheme("00000000:"+md5), "a hash with another scheme")
+		assert.False(t, HasCurrentMonitorHashScheme(""))
+	})
 
 	t.Run("extra fields", func(t *testing.T) {
 		withAssets, err := MonitorDefinitionHash(monitorFromJSON(t, nil), "assets")

@@ -424,6 +424,9 @@ e2e:
           - "1.36"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    # Stream Pulumi's per-resource progress during stack up/destroy; by default
+    # the e2e-framework only prints errors, leaving minutes without any output.
+    E2E_PULUMI_VERBOSE_PROGRESS_STREAMS: "true"
   script:
     - echo "Running e2e test with target image $TARGET_IMAGE"
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests

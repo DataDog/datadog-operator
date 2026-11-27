@@ -34,28 +34,26 @@ var (
 	}
 )
 
-// DeleteAllDatadogResources deletes all DatadogAgent and DatadogAgentInternal resources
-// in the specified namespace.
-// This is useful for cleanup before Pulumi stack destroy to avoid CRD deletion timeout
-// caused by finalizers blocking deletion.
-func DeleteAllDatadogResources(ctx context.Context, k8sConfig *rest.Config, namespace string) error {
-	// Create dynamic client
+// DeleteAllDatadogAgents deletes all DatadogAgent resources in the specified
+// namespace, then waits until they and their DatadogAgentInternals are gone.
+// Use it before a Pulumi stack destroy, so that no DatadogAgent or
+// DatadogAgentInternal finalizer is left once the operator is removed, which
+// would make the CRD deletion time out.
+//
+// DatadogAgentInternals are owned by their DatadogAgent: the garbage collector
+// deletes them after the DatadogAgent is gone, and the operator then runs their
+// finalizer (cluster-level RBAC, APIService cleanup). They are only waited for,
+// never deleted directly: that would make the operator re-create them while
+// the DatadogAgent still exists.
+func DeleteAllDatadogAgents(ctx context.Context, k8sConfig *rest.Config, namespace string) error {
 	dynamicClient, err := dynamic.NewForConfig(k8sConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create dynamic client: %w", err)
 	}
-
-	// Delete DatadogAgents first (they create DatadogAgentInternals)
 	if err := deleteAllDatadogAgentsWithClient(ctx, dynamicClient, namespace); err != nil {
-		return fmt.Errorf("failed to delete DatadogAgents: %w", err)
+		return err
 	}
-
-	// Delete DatadogAgentInternals (in case any remain)
-	if err := deleteAllDatadogAgentInternalsWithClient(ctx, dynamicClient, namespace); err != nil {
-		return fmt.Errorf("failed to delete DatadogAgentInternals: %w", err)
-	}
-
-	return nil
+	return waitForDatadogAgentInternalsDeletion(ctx, dynamicClient.Resource(DatadogAgentInternalGVR).Namespace(namespace))
 }
 
 func deleteAllDatadogAgentsWithClient(ctx context.Context, dynamicClient dynamic.Interface, namespace string) error {
@@ -84,32 +82,6 @@ func deleteAllDatadogAgentsWithClient(ctx context.Context, dynamicClient dynamic
 	return waitForDatadogAgentsDeletion(ctx, ddaClient, ddaList.Items)
 }
 
-func deleteAllDatadogAgentInternalsWithClient(ctx context.Context, dynamicClient dynamic.Interface, namespace string) error {
-	ddaiClient := dynamicClient.Resource(DatadogAgentInternalGVR).Namespace(namespace)
-
-	// List all DatadogAgentInternals
-	ddaiList, err := ddaiClient.List(ctx, metav1.ListOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// CRD doesn't exist, nothing to delete
-			return nil
-		}
-		return fmt.Errorf("failed to list DatadogAgentInternals: %w", err)
-	}
-
-	// Delete each DatadogAgentInternal
-	for _, ddai := range ddaiList.Items {
-		name := ddai.GetName()
-		err := ddaiClient.Delete(ctx, name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete DatadogAgentInternal %s: %w", name, err)
-		}
-	}
-
-	// Wait for all DatadogAgentInternals to be fully deleted
-	return waitForDatadogAgentsDeletion(ctx, ddaiClient, ddaiList.Items)
-}
-
 // waitForDatadogAgentsDeletion waits for all specified DatadogAgents to be fully deleted
 func waitForDatadogAgentsDeletion(ctx context.Context, ddaClient dynamic.ResourceInterface, ddas []unstructured.Unstructured) error {
 	pollInterval := 5 * time.Second
@@ -135,4 +107,30 @@ func waitForDatadogAgentsDeletion(ctx context.Context, ddaClient dynamic.Resourc
 	}
 
 	return nil
+}
+
+// waitForDatadogAgentInternalsDeletion waits until no DatadogAgentInternal is
+// left in the namespace.
+func waitForDatadogAgentInternalsDeletion(ctx context.Context, ddaiClient dynamic.ResourceInterface) error {
+	pollInterval := 5 * time.Second
+
+	for {
+		ddaiList, err := ddaiClient.List(ctx, metav1.ListOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// CRD doesn't exist, nothing to wait for
+				return nil
+			}
+			return fmt.Errorf("failed to list DatadogAgentInternals: %w", err)
+		}
+		if len(ddaiList.Items) == 0 {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("%d DatadogAgentInternals still present: %w", len(ddaiList.Items), ctx.Err())
+		case <-time.After(pollInterval):
+		}
+	}
 }
