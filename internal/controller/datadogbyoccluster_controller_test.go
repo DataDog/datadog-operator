@@ -35,6 +35,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/pomsky"
 )
 
 const (
@@ -281,13 +282,51 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("running a reconcile of the cluster to completion")
-			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
+			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme(), NewPomskyClient: pomsky.NewClient}
 			Expect(reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})).To(Equal(ctrl.Result{}))
 
 			By("verifying that the reconcile did not update any object")
 			got, err := byocTestResourceVersions(namespace.Name)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cmp.Diff(want, got)).To(BeEmpty())
+		})
+
+		It("syncs spec.indexes to Pomsky", func() {
+			By("declaring an index")
+			Eventually(func() error {
+				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), cluster); err != nil {
+					return err
+				}
+				cluster.Spec.Indexes = []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{
+					{Name: "payment", Filter: "service:payment", Retention: "90 days"},
+					{Name: "main", Filter: "*", Retention: "30 days"},
+				}
+				return k8sClient.Update(context.Background(), cluster)
+			}, timeout, interval).Should(Succeed())
+
+			By("running a reconcile with a Pomsky that only has the main index")
+			fake := newFakePomskyClient()
+			var endpoint string
+			reconciler := &datadogbyoccluster.Reconciler{
+				Client:    k8sClient,
+				APIReader: k8sClient,
+				Scheme:    k8sClient.Scheme(),
+				NewPomskyClient: func(baseURL string) pomsky.Client {
+					endpoint = baseURL
+					return fake
+				},
+			}
+			Eventually(func(g Gomega) {
+				_, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(fake.calls).NotTo(BeEmpty())
+			}, timeout, interval).Should(Succeed())
+
+			Expect(endpoint).To(Equal("http://byoc-searcher." + namespace.Name + ".svc:7280"))
+			Expect(fake.calls).To(Equal([]string{
+				"create datadog-payment 90 days",
+				"set routing table [{service:payment datadog-payment} {* datadog}]",
+			}))
 		})
 
 		It("becomes available only when both workers are available", func() {
@@ -811,6 +850,56 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		})
 	})
 })
+
+// fakePomskyClient keeps the indexes and the routing table it is given, so that a repeated sync changes nothing.
+type fakePomskyClient struct {
+	indexes      []pomsky.Index
+	routingTable []pomsky.RoutingRule
+	calls        []string
+}
+
+func newFakePomskyClient() *fakePomskyClient {
+	return &fakePomskyClient{
+		indexes:      []pomsky.Index{{ID: "datadog", Retention: "30 days"}},
+		routingTable: []pomsky.RoutingRule{{Filter: "*", IndexID: "datadog"}},
+	}
+}
+
+func (f *fakePomskyClient) ListIndexes(context.Context) ([]pomsky.Index, error) {
+	return f.indexes, nil
+}
+
+func (f *fakePomskyClient) CreateIndex(_ context.Context, id, retention string) error {
+	f.calls = append(f.calls, fmt.Sprintf("create %s %s", id, retention))
+	f.indexes = append(f.indexes, pomsky.Index{ID: id, Retention: retention})
+	return nil
+}
+
+func (f *fakePomskyClient) UpdateIndexRetention(_ context.Context, id, retention string) error {
+	f.calls = append(f.calls, fmt.Sprintf("update %s %s", id, retention))
+	for i := range f.indexes {
+		if f.indexes[i].ID == id {
+			f.indexes[i].Retention = retention
+		}
+	}
+	return nil
+}
+
+func (f *fakePomskyClient) DeleteIndex(_ context.Context, id string) error {
+	f.calls = append(f.calls, "delete "+id)
+	f.indexes = slices.DeleteFunc(f.indexes, func(index pomsky.Index) bool { return index.ID == id })
+	return nil
+}
+
+func (f *fakePomskyClient) GetRoutingTable(context.Context) ([]pomsky.RoutingRule, error) {
+	return f.routingTable, nil
+}
+
+func (f *fakePomskyClient) SetRoutingTable(_ context.Context, rules []pomsky.RoutingRule) error {
+	f.calls = append(f.calls, fmt.Sprintf("set routing table %v", rules))
+	f.routingTable = rules
+	return nil
+}
 
 func byocTestPipeline() *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec {
 	return &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{

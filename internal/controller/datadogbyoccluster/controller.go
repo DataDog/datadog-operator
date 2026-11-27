@@ -32,6 +32,8 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	byocindexes "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/indexes"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/pomsky"
 	byocresources "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/resources"
 	byocutils "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/utils"
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
@@ -46,6 +48,7 @@ const (
 	reasonInvalidConfiguration = "InvalidConfiguration"
 	reasonConflict             = "Conflict"
 	reasonApplyFailed          = "ApplyFailed"
+	reasonIndexesSyncFailed    = "IndexesSyncFailed"
 	reasonCleanupFailed        = "CleanupFailed"
 	reasonCleanupInProgress    = "CleanupInProgress"
 	reasonReconciled           = "Reconciled"
@@ -61,6 +64,8 @@ type Reconciler struct {
 	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
+	// NewPomskyClient creates the client of the Pomsky REST API.
+	NewPomskyClient pomsky.Factory
 }
 
 // errWorkerDeleting reports a desired worker that is still being deleted.
@@ -160,7 +165,11 @@ func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv
 		return false, false, &reconcileFailure{reason: reasonCleanupFailed, err: cleanupErr}
 	}
 	// The applied objects hold the live status returned by the server-side apply.
-	return updateComponentStatus(cluster, resources, workers), deleting, nil
+	available = updateComponentStatus(cluster, resources, workers)
+	if err := byocindexes.NewManager(r.NewPomskyClient(byocresources.RESTEndpoint(cluster))).Sync(ctx, cluster.Spec.Indexes); err != nil {
+		return available, deleting, &reconcileFailure{reason: reasonIndexesSyncFailed, err: err}
+	}
+	return available, deleting, nil
 }
 
 func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) error {

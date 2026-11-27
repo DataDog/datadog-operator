@@ -25399,6 +25399,29 @@ spec:
                           type: string
                       type: object
                   type: object
+                indexes:
+                  items:
+                    properties:
+                      filter:
+                        minLength: 1
+                        type: string
+                      name:
+                        maxLength: 246
+                        minLength: 1
+                        pattern: ^[a-zA-Z0-9_.]+(-[a-zA-Z0-9_.]+)*$
+                        type: string
+                      retention:
+                        default: 30 days
+                        pattern: ^[1-9][0-9]* (hour|day|week|month|year)s?$
+                        type: string
+                    required:
+                      - filter
+                      - name
+                    type: object
+                  type: array
+                  x-kubernetes-list-map-keys:
+                    - name
+                  x-kubernetes-list-type: map
                 nodeConfigOverrides:
                   type: object
                   x-kubernetes-preserve-unknown-fields: true

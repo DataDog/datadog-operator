@@ -65,6 +65,40 @@ type DatadogBYOCClusterSpec struct {
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	NodeConfigOverrides *runtime.RawExtension `json:"nodeConfigOverrides,omitempty"`
+
+	// Indexes lists the log indexes in routing order: a log goes to the first index whose filter matches it, and logs
+	// that match none are dropped. When set, it must list main, for example last with the filter "*".
+	// The Operator then owns the routing table and the indexes: it reverts changes made in the Datadog UI and deletes
+	// unlisted indexes with their data, so renaming an index deletes the old one. When empty, they are left to the UI.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Indexes []DatadogBYOCClusterIndexSpec `json:"indexes,omitempty"`
+}
+
+// DatadogBYOCClusterIndexSpec defines a log index.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterIndexSpec struct {
+	// Name is the name of the index as shown in the Datadog UI. Pomsky stores the index as datadog-<name>,
+	// except main, which it stores as datadog.
+	// It must not start or end with a hyphen, contain consecutive hyphens, or start with spans, metrics or sketches.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=246
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.]+(-[a-zA-Z0-9_.]+)*$`
+	Name string `json:"name"`
+
+	// Filter is the query that selects the logs routed to the index, for example service:payment.
+	// A filter of * matches every log.
+	// +kubebuilder:validation:MinLength=1
+	Filter string `json:"filter"`
+
+	// Retention is the period for which the index keeps its logs: a positive integer, a space and a unit of hours,
+	// days, weeks, months or years, for example 12 hours or 6 months. Pomsky applies retention hourly, so shorter
+	// units are not accepted.
+	// +optional
+	// +kubebuilder:default="30 days"
+	// +kubebuilder:validation:Pattern=`^[1-9][0-9]* (hour|day|week|month|year)s?$`
+	Retention string `json:"retention,omitempty"`
 }
 
 // DatadogBYOCClusterImageOverrides defines overrides for the default BYOC images.

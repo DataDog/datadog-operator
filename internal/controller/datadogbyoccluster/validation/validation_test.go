@@ -388,6 +388,55 @@ func TestValidateClusterSpec(t *testing.T) {
 				"spec.components.janitor.volumes[0].name: is reserved for a built-in volume",
 			},
 		},
+
+		{
+			name: "valid index names",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Indexes: []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{
+					{Name: "main", Filter: "*"},
+					{Name: "payment-prod", Filter: "service:payment"},
+					{Name: "span", Filter: "source:span"},
+				},
+			},
+			want: nil,
+		},
+
+		{
+			name: "reserved index name prefixes",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Indexes: []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{
+					{Name: "spans", Filter: "*"},
+					{Name: "payment", Filter: "service:payment"},
+					{Name: "metrics-prod", Filter: "*"},
+					{Name: "sketches2", Filter: "*"},
+					{Name: "main", Filter: "*"},
+				},
+			},
+			want: []string{
+				`spec.indexes[0].name: must not start with the reserved prefix "spans"`,
+				`spec.indexes[2].name: must not start with the reserved prefix "metrics"`,
+				`spec.indexes[3].name: must not start with the reserved prefix "sketches"`,
+			},
+		},
+
+		{
+			name: "indexes without main",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Indexes: []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{
+					{Name: "payment", Filter: "service:payment"},
+				},
+			},
+			want: []string{"spec.indexes: must list the main index"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

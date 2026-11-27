@@ -38,6 +38,18 @@ spec:
   global:
     labels:
       team: byoc-logs
+  # Optional: manage the log indexes and the routing table. The order is the routing order, and the first index whose
+  # filter matches a log receives it. Logs that match no index are dropped. When set, main must be listed, changes
+  # made in the Datadog UI are reverted, and indexes that are not listed are deleted with their data. Leave it unset
+  # to manage the indexes in the UI.
+  # indexes:
+  #   - name: payment
+  #     filter: "service:payment"
+  #     retention: 90 days
+  #   - name: security
+  #     filter: "source:cloudtrail"
+  #   - name: main
+  #     filter: "*"
   components:
     metastore:
       database:
