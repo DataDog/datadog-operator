@@ -42,6 +42,7 @@ Available Commands:
   helm2dda     Map Datadog Helm values to DatadogAgent CRD schema
   help         Help about any command
   metrics
+  monitor      Manage DatadogMonitor resources
   validate
 
 ```
@@ -71,6 +72,33 @@ Available Commands:
   leader      Get Datadog Cluster Agent leader
   upgrade     Upgrade the Datadog Cluster Agent version
 ```
+
+### Monitor sub-commands
+
+#### `monitor migrate`
+
+`kubectl datadog monitor migrate <name>` converts a `DatadogMonitor` into a `DatadogGenericResource` that [adopts](datadoggenericresource/datadog_generic_resource.md#adopting-an-existing-datadog-resource) the same monitor, so the monitor keeps its ID, history and references. The command uses your kubeconfig and needs no Datadog API keys: it builds `jsonSpec` from the `DatadogMonitor` the same way the Operator does, including the `generated:kubernetes` tag, so the first update doesn't change the monitor.
+
+The command:
+
+1. Checks that the `DatadogMonitor` has a monitor ID, is in sync with no error, and that no other `DatadogGenericResource` uses the monitor ID.
+2. Annotates the `DatadogMonitor` with `datadoghq.com/management-policy=orphan`, and waits for the Operator to acknowledge it with the `Orphaned` condition. If the Operator doesn't, for example because it's an older version, the command stops before deleting anything.
+3. Creates a `DatadogGenericResource` with the same name and namespace, `spec.id` set to the monitor ID, and the labels and annotations of the `DatadogMonitor`, except GitOps and Helm tracking metadata.
+4. Deletes the `DatadogMonitor`. The monitor is kept.
+5. Waits for the `DatadogGenericResource` to adopt the monitor and write its definition. While the `DatadogMonitor` exists, the Operator usually holds the adoption and retries it every requeue period (60 seconds by default). Adopting earlier is safe: once the `DatadogMonitor` is orphaned, its controller no longer writes to the monitor.
+
+Run the command again after an interruption: it continues from where it stopped. The `DatadogMonitor` and `DatadogGenericResource` controllers must both be enabled during the migration.
+
+| Flag | Description |
+| --- | --- |
+| `--dry-run` | Print the steps and the `DatadogGenericResource` manifest, without changing anything. |
+| `-o yaml` | For GitOps: print the annotated `DatadogMonitor` to commit first, and the `DatadogGenericResource` that replaces it in a later commit. Changes nothing. |
+| `-o json` | For templates: print only the monitor ID and `jsonSpec`. Changes nothing. |
+| `--annotate-only` | For GitOps: only add the orphan annotation to the live `DatadogMonitor`, so that pruning it keeps the monitor. |
+| `--check` | Report whether the `DatadogMonitor` is annotated and whether the `DatadogGenericResource` adopted the monitor. Changes nothing. |
+| `--timeout` | How long to wait for each step done by the Operator. Defaults to `5m`. |
+
+With Argo CD or Flux, run `--annotate-only` (or commit the annotation from `-o yaml`) and wait for it to be on the live resource, then replace the `DatadogMonitor` manifest with the `DatadogGenericResource` manifest in a later commit. When the same manifest is deployed to several clusters, each cluster has its own monitor ID: run `-o yaml` against each cluster.
 
 ### Validate sub-commands
 

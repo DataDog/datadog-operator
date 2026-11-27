@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/helm2dda"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/monitor"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/validate"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -59,6 +60,9 @@ func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 
 	// DatadogMetric commands
 	cmd.AddCommand(metrics.New(streams))
+
+	// DatadogMonitor commands
+	cmd.AddCommand(monitor.New(streams))
 
 	// Autoscaling commands
 	cmd.AddCommand(autoscaling.New(streams))

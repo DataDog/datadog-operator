@@ -99,7 +99,7 @@ func Test_buildMonitor(t *testing.T) {
 		},
 	}
 
-	monitor, monitorUR := buildMonitor(testLogger, dm)
+	monitor, monitorUR := BuildMonitor(testLogger, dm)
 
 	assert.Equal(t, dm.Spec.Query, monitor.GetQuery(), "discrepancy found in parameter: Query")
 	assert.Equal(t, dm.Spec.Query, monitorUR.GetQuery(), "discrepancy found in parameter: Query")
@@ -555,7 +555,7 @@ func Test_translateClientError(t *testing.T) {
 }
 
 // TestUpdateRequestFieldsMatchBuildMonitor fails when the update request that
-// buildMonitor builds sends a top-level field that the force-sync hash does not
+// BuildMonitor builds sends a top-level field that the force-sync hash does not
 // cover, or stops sending one: for example a new spec field, or a default that
 // an SDK upgrade adds to NewMonitorUpdateRequest.
 func TestUpdateRequestFieldsMatchBuildMonitor(t *testing.T) {
@@ -571,7 +571,7 @@ func TestUpdateRequestFieldsMatchBuildMonitor(t *testing.T) {
 			Options:         datadoghqv1alpha1.DatadogMonitorOptions{IncludeTags: ptr.To(true)},
 		},
 	}
-	_, u := buildMonitor(logf.Log, dm)
+	_, u := BuildMonitor(logf.Log, dm)
 	data, err := json.Marshal(u)
 	require.NoError(t, err)
 	var sent map[string]json.RawMessage
@@ -601,7 +601,7 @@ func TestUpdateRequestFieldsCoverSpec(t *testing.T) {
 	for field := range specType.Fields() {
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		requestField, ok := specToRequest[name]
-		if !assert.Truef(t, ok, "spec field %q is not mapped to an update request field; add it to buildMonitor and controllerutils.MonitorDefinitionFields, or map it to \"\"", name) {
+		if !assert.Truef(t, ok, "spec field %q is not mapped to an update request field; add it to BuildMonitor and controllerutils.MonitorDefinitionFields, or map it to \"\"", name) {
 			continue
 		}
 		if requestField != "" {
