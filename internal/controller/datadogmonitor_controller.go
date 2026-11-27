@@ -63,13 +63,7 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 
 	var builderOptions []ctrlbuilder.ForOption
 	if r.operatorMetricsEnabled {
-		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
-			// On `DatadogMonitor` object creation, we register a metrics forwarder for it.
-			CreateFunc: func(e event.CreateEvent) bool {
-				metricForwardersMgr.Register(e.Object)
-				return true
-			},
-		}))
+		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(monitorMetricsForwarderPredicate(metricForwardersMgr)))
 	}
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogMonitor](r.Client, r)
 	// Keep informer events at the default priority, including the initial list
@@ -77,7 +71,7 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 	// DatadogMonitor is reconciled promptly; only controller-scheduled
 	// background requeues are assigned low priority by the internal reconciler.
 	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(datadogResourcePredicate()).
 		WithOptions(ctrlcontroller.Options{
 			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
 		}).
@@ -87,4 +81,18 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 	}
 
 	return nil
+}
+
+func monitorMetricsForwarderPredicate(metricForwardersMgr datadog.MetricsForwardersManager) predicate.Predicate {
+	return predicate.Funcs{
+		// On `DatadogMonitor` object creation, we register a metrics forwarder for it
+		// unless it already has the orphan management policy (removing the annotation
+		// auto-registers it on the next reconcile).
+		CreateFunc: func(e event.CreateEvent) bool {
+			if e.Object != nil && !datadoghqv1alpha1.IsOrphaned(e.Object) {
+				metricForwardersMgr.Register(e.Object)
+			}
+			return true
+		},
+	}
 }

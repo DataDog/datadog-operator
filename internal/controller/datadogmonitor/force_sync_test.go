@@ -51,6 +51,7 @@ type fakeMonitorAPI struct {
 	reads     int
 	puts      atomic.Int32
 	validates atomic.Int32
+	deletes   atomic.Int32
 	failPuts  atomic.Bool
 	failGets  atomic.Bool
 
@@ -105,6 +106,8 @@ func (f *fakeMonitorAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = w.Write(body)
 		return
+	case r.Method == http.MethodDelete:
+		f.deletes.Add(1)
 	case r.Method == http.MethodGet:
 		f.reads++
 		f.monitor["overall_state"] = []string{"OK", "Alert"}[f.reads%2]

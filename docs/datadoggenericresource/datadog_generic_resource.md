@@ -173,6 +173,8 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     kubectl delete datadoggenericresource ddgr-notebook-sample
     ```
 
+    To keep the resource in your account, add the `datadoghq.com/management-policy: orphan` annotation before deleting. See [Stop managing a Datadog resource](../management_policy.md).
+
 Further example manifests are provided [in the supported resources table](#supported-resources).
 
 ## Controller tuning

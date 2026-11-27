@@ -15,7 +15,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -57,7 +56,7 @@ func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) er
 	or := reconcile.AsReconciler[*v1alpha1.DatadogGenericResource](r.Client, r)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogGenericResource{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(datadogResourcePredicate()).
 		WithOptions(ctrlcontroller.Options{
 			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
 		}).

@@ -24,6 +24,17 @@ const (
 	// the CR. Applies to any resource type that exposes live state — only set
 	// by controllers/handlers that perform state refresh.
 	DatadogConditionTypeStateSynced Type = "StateSynced"
+	// DatadogConditionTypeOrphaned means the CR has the
+	// datadoghq.com/management-policy: orphan annotation, so the Operator
+	// doesn't manage its Datadog object.
+	DatadogConditionTypeOrphaned Type = "Orphaned"
+)
+
+const (
+	// OrphanedReason is the reason of the Orphaned condition.
+	OrphanedReason = "ManagementPolicyOrphan"
+	// OrphanedMessage is the message of the Orphaned condition.
+	OrphanedMessage = "Not managed by the Operator (datadoghq.com/management-policy: orphan); deleting this resource keeps the Datadog object"
 )
 
 // UpdateFailureStatusConditions is a generic method to update the failure StatusConditions.

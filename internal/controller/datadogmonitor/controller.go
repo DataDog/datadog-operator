@@ -126,6 +126,12 @@ func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	if datadoghqv1alpha1.IsOrphaned(instance) {
+		// Before anything that needs credentials. No reconcile metrics either:
+		// they would register a metrics forwarder for the resource again.
+		return r.reconcileOrphaned(ctx, instance)
+	}
+
 	res, err := r.internalReconcile(ctx, instance)
 
 	if r.operatorMetricsEnabled {
@@ -169,6 +175,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
+
+	removeMonitorCondition(newStatus, datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned)
 
 	// Validate the DatadogMonitor spec
 	if err = datadoghqv1alpha1.IsValidDatadogMonitor(&instance.Spec); err != nil {
@@ -294,7 +302,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		if getErr := r.apiReader.Get(ctx, client.ObjectKeyFromObject(instance), latest); getErr != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(getErr)
 		}
-		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) {
+		// A stale cache may not have the orphan annotation yet.
+		if latest.UID != instance.UID || !latest.DeletionTimestamp.IsZero() || (latest.Status.ID != 0 && latest.Status.ID != instance.Status.ID) || datadoghqv1alpha1.IsOrphaned(latest) {
 			logger.Info("Skipping create because DatadogMonitor changed; requeuing")
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
 		}
@@ -544,6 +553,40 @@ func setStatePollingDisabled(now metav1.Time, status *datadoghqv1alpha1.DatadogM
 		}
 	}
 	status.Conditions = append(status.Conditions, condition.NewDatadogMonitorCondition(t, corev1.ConditionFalse, now, ctrutils.StatePollingDisabledState, msg))
+}
+
+// reconcileOrphaned handles a DatadogMonitor with the orphan management
+// policy. It makes no Datadog API call and needs no credentials. Unlike
+// updateStatusIfNeeded, it leaves the Error and Active conditions as they were.
+// Removing the annotation triggers a reconcile, so there is no need to requeue.
+func (r *Reconciler) reconcileOrphaned(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
+	final := finalizer.NewOrphanFinalizer(logger, r.client, r.requeuePeriod, defaultErrRequeuePeriod, r.recorder, r.unregisterForwarder)
+	if result, err := final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
+		return result, err
+	}
+	logger.V(1).Info("DatadogMonitor has the orphan management policy; skipping reconciliation")
+
+	status := instance.Status.DeepCopy()
+	condition.UpdateDatadogMonitorConditions(status, metav1.NewTime(time.Now()), datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned, corev1.ConditionTrue, condition.OrphanedMessage)
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeOrphaned {
+			status.Conditions[i].Reason = condition.OrphanedReason
+		}
+	}
+	if apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		return ctrl.Result{}, nil
+	}
+	instance.Status = *status
+	if err := r.client.Status().Update(ctx, instance); err != nil {
+		if apierrors.IsConflict(err) {
+			logger.Error(err, "unable to update DatadogMonitor status due to update conflict")
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+		}
+		logger.Error(err, "unable to update DatadogMonitor status")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
 }
 
 func removeMonitorCondition(status *datadoghqv1alpha1.DatadogMonitorStatus, t datadoghqv1alpha1.DatadogMonitorConditionType) {
