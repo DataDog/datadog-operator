@@ -1,0 +1,46 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-on-call-schedule-sample
+spec:
+  type: on_call_schedule
+  # Replace <USER_ID> and <TEAM_ID> with existing Datadog user and team IDs.
+  # Adjust the layer dates and time zone for your rotation. Omitting end_date
+  # keeps the layer active indefinitely.
+  jsonSpec: |-
+    {
+      "data": {
+        "type": "schedules",
+        "attributes": {
+          "name": "Example On-Call schedule (DatadogGenericResource)",
+          "time_zone": "UTC",
+          "layers": [
+            {
+              "name": "Primary",
+              "effective_date": "2026-01-01T00:00:00Z",
+              "rotation_start": "2026-01-01T00:00:00Z",
+              "interval": {
+                "days": 1
+              },
+              "members": [
+                {
+                  "user": {
+                    "id": "<USER_ID>"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "relationships": {
+          "teams": {
+            "data": [
+              {
+                "type": "teams",
+                "id": "<TEAM_ID>"
+              }
+            ]
+          }
+        }
+      }
+    }
