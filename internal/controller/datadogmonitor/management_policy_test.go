@@ -150,10 +150,10 @@ type spyForwardersManager struct {
 	processError int
 }
 
-func (s *spyForwardersManager) Register(client.Object)                                 { s.registered++ }
-func (s *spyForwardersManager) Unregister(client.Object)                               { s.unregistered++ }
-func (s *spyForwardersManager) ProcessError(client.Object, error)                      { s.processError++ }
-func (s *spyForwardersManager) ProcessEvent(client.Object, pkgutils.Event)             {}
+func (s *spyForwardersManager) Register(client.Object)                     { s.registered++ }
+func (s *spyForwardersManager) Unregister(client.Object)                   { s.unregistered++ }
+func (s *spyForwardersManager) ProcessError(client.Object, error)          { s.processError++ }
+func (s *spyForwardersManager) ProcessEvent(client.Object, pkgutils.Event) {}
 func (s *spyForwardersManager) MetricsForwarderStatusForObj(client.Object) *pkgutils.ConditionCommon {
 	return nil
 }
