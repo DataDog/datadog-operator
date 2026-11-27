@@ -34,6 +34,22 @@ type DatadogAgentInternalStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *v2alpha1.RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
+	// ClusterChecksRunnerGroups lists the runner groups that waited for an available runner before taking their
+	// checks, once they have had one.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ClusterChecksRunnerGroups []ClusterChecksRunnerGroupStatus `json:"clusterChecksRunnerGroups,omitempty"`
+}
+
+// ClusterChecksRunnerGroupStatus records when a runner group started taking its checks.
+// +k8s:openapi-gen=true
+type ClusterChecksRunnerGroupStatus struct {
+	// Name is the runner group's name.
+	Name string `json:"name"`
+	// ActivatedAt is when the group first had an available runner. From then on the Cluster Agent sends the group its
+	// checks, even while its runners are unavailable.
+	ActivatedAt metav1.Time `json:"activatedAt"`
 }
 
 // DatadogAgentInternal is the Schema for the datadogagentinternals API

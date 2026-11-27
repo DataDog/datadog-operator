@@ -17,6 +17,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -75,8 +76,24 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
+			FeatureOptions:       &feature.Options{ActivatedClusterChecksRunnerGroups: []string{componentccr.CoreGroupName}},
 			WantConfigure:        true,
 			WantDependenciesFunc: helmCheckWantDepsFunc(true, true, valuesAsTags, "ccr"),
+			ClusterAgent:         helmCheckWantResourcesFunc(),
+		},
+		{
+			Name: "Helm check enabled, core runner group not activated yet: stays on the Cluster Agent",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithHelmCheckEnabled(true).
+				WithHelmCheckCollectEvents(true).
+				WithHelmCheckValuesAsTags(valuesAsTags).
+				WithClusterChecks(true, false).
+				WithCoreChecksRunnerDefault().
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: helmCheckWantDepsFunc(false, true, valuesAsTags, "dca"),
 			ClusterAgent:         helmCheckWantResourcesFunc(),
 		},
 	}

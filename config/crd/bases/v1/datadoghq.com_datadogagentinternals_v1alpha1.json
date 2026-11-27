@@ -8946,6 +8946,34 @@
           },
           "type": "object"
         },
+        "clusterChecksRunnerGroups": {
+          "description": "ClusterChecksRunnerGroups lists the runner groups that waited for an available runner before taking their\nchecks, once they have had one.",
+          "items": {
+            "additionalProperties": false,
+            "description": "ClusterChecksRunnerGroupStatus records when a runner group started taking its checks.",
+            "properties": {
+              "activatedAt": {
+                "description": "ActivatedAt is when the group first had an available runner. From then on the Cluster Agent sends the group its\nchecks, even while its runners are unavailable.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "name": {
+                "description": "Name is the runner group's name.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "activatedAt",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-kubernetes-list-map-keys": [
+            "name"
+          ],
+          "x-kubernetes-list-type": "map"
+        },
         "conditions": {
           "description": "Conditions Represents the latest available observations of a DatadogAgent's current state.",
           "items": {

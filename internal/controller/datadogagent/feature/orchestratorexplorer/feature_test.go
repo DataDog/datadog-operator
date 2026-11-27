@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -165,6 +166,7 @@ instances:
 				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
+			FeatureOptions:       &feature.Options{ActivatedClusterChecksRunnerGroups: []string{componentccr.CoreGroupName}},
 			WantConfigure:        true,
 			ClusterAgent:         orchestratorExplorerClusterAgentWantFunc(),
 			Agent:                test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),

@@ -80,6 +80,23 @@ func Groups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) ([]Group, err
 	return groups, err
 }
 
+// NeedsActivation returns whether a group only takes its checks once one of its runners has been available. The core
+// group is on by default and inherits pod settings meant for other runners, so it may never schedule; until it has, its
+// checks stay where they ran before. Other groups are explicit isolation requests and take their checks right away.
+func NeedsActivation(groupName string) bool {
+	return groupName == CoreGroupName
+}
+
+// ActiveGroups returns the groups from Groups that take their checks: those that don't need activation, and those in
+// activated.
+func ActiveGroups(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, activated []string) ([]Group, error) {
+	groups, err := Groups(obj, ddaSpec)
+	groups = slices.DeleteFunc(groups, func(group Group) bool {
+		return NeedsActivation(group.Name) && !slices.Contains(activated, group.Name)
+	})
+	return groups, err
+}
+
 // RunnersRequired returns whether the DDA needs the default Cluster Checks Runners or runner groups.
 func RunnersRequired(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if !constants.IsClusterChecksEnabled(ddaSpec) {
@@ -89,29 +106,29 @@ func RunnersRequired(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool
 	return constants.IsCCREnabled(ddaSpec) || len(groups) > 0
 }
 
-// RunsOnRunners returns whether a cluster check runs on the default Cluster Checks Runners or on its runner group.
-func RunsOnRunners(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkName string) bool {
+// RunsOnRunners returns whether a cluster check runs on the default Cluster Checks Runners or on an active runner group.
+func RunsOnRunners(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, activated []string, checkName string) bool {
 	if !constants.IsClusterChecksEnabled(ddaSpec) {
 		return false
 	}
 	if constants.IsCCREnabled(ddaSpec) {
 		return true
 	}
-	_, claimed := claimingGroup(obj, ddaSpec, checkName)
+	_, claimed := claimingGroup(obj, ddaSpec, activated, checkName)
 	return claimed
 }
 
-// RunnerVersion returns the Agent version of the runners that run a check: its runner group's image when a group
-// claims it, else the default Cluster Checks Runners' image.
-func RunnerVersion(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkName string) string {
-	if group, claimed := claimingGroup(obj, ddaSpec, checkName); claimed {
+// RunnerVersion returns the Agent version of the runners that run a check: its runner group's image when an active
+// group claims it, else the default Cluster Checks Runners' image.
+func RunnerVersion(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, activated []string, checkName string) string {
+	if group, claimed := claimingGroup(obj, ddaSpec, activated, checkName); claimed {
 		return groupVersion(ddaSpec, group)
 	}
 	return runnersVersion(ddaSpec)
 }
 
-func claimingGroup(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkName string) (Group, bool) {
-	groups, _ := Groups(obj, ddaSpec)
+func claimingGroup(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, activated []string, checkName string) (Group, bool) {
+	groups, _ := ActiveGroups(obj, ddaSpec, activated)
 	for _, group := range groups {
 		if slices.Contains(group.Checks, checkName) {
 			return group, true

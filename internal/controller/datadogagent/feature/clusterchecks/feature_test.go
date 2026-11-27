@@ -132,8 +132,26 @@ func TestClusterChecksFeature(t *testing.T) {
 				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
+			FeatureOptions:      &feature.Options{ActivatedClusterChecksRunnerGroups: []string{componentccr.CoreGroupName}},
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"core","checks":["kubernetes_state_core","orchestrator","helm"]}]`)),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+		},
+		{
+			Name: "mixed mode, core group not activated yet: the Cluster Agent doesn't learn about it",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithCoreChecksRunnerDefault().
+				WithKSMEnabled(true).
+				WithOrchestratorExplorerEnabled(true).
+				WithHelmCheckEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 		},
@@ -152,8 +170,29 @@ func TestClusterChecksFeature(t *testing.T) {
 				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
+			FeatureOptions:      &feature.Options{ActivatedClusterChecksRunnerGroups: []string{componentccr.CoreGroupName}},
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"core","checks":["kubernetes_state_core","orchestrator","helm"]},{"name":"kafka","checks":["kafka_consumer"]}]`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "knob on and runners on, core group not activated yet: the Cluster Agent only learns the user group",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithCoreChecksRunnerDefault().
+				WithKSMEnabled(true).
+				WithOrchestratorExplorerEnabled(true).
+				WithHelmCheckEnabled(true).
+				WithClusterChecksRunnerGroups([]componentccr.Group{
+					{Name: "kafka", Checks: []string{"kafka_consumer"}},
+				}).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`[{"name":"kafka","checks":["kafka_consumer"]}]`)),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
 		},

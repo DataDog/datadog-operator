@@ -147,10 +147,26 @@ func Test_ksmFeature_Configure(t *testing.T) {
 				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
 				Build(),
+			FeatureOptions:       &feature.Options{ActivatedClusterChecksRunnerGroups: []string{componentccr.CoreGroupName}},
 			WantConfigure:        true,
 			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 			ClusterAgent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-ksm-core-ccr", "datadog-cluster-checks-runner"),
+		},
+		{
+			Name: "ksm-core enabled, mixed mode, core group not activated yet: KSM RBAC stays on the Cluster Agent",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("datadog").
+				WithKSMEnabled(true).
+				WithClusterChecks(true, false).
+				WithCoreChecksRunnerDefault().
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.86.0").
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.86.0").
+				Build(),
+			WantConfigure:        true,
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-ksm-core-dca", "datadog-cluster-agent"),
 		},
 		{
 			Name: "ksm-core enabled, runners off, unrelated runner group: KSM RBAC stays on the Cluster Agent",

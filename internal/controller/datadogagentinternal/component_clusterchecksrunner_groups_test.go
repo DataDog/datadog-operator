@@ -11,6 +11,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -500,4 +501,119 @@ func TestReconcileClusterChecksRunnerGroupsServiceAccount(t *testing.T) {
 	deployments := reconcileGroups(t, ddai, true)
 	assert.Equal(t, "runner-account", deployments["foo-cluster-checks-runner-http"].Spec.Template.Spec.ServiceAccountName, "inherited from the default runners")
 	assert.Equal(t, "group-account", deployments["foo-cluster-checks-runner-redis"].Spec.Template.Spec.ServiceAccountName, "a group's own ServiceAccount wins")
+}
+
+func newGroupDeployment(ddai *datadoghqv1alpha1.DatadogAgentInternal, groupName string, generation int64, status appsv1.DeploymentStatus) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       componentccr.GetClusterChecksRunnerGroupName(ddai, groupName),
+			Namespace:  ddai.Namespace,
+			Generation: generation,
+		},
+		Status: status,
+	}
+}
+
+func TestActivateClusterChecksRunnerGroups(t *testing.T) {
+	now := metav1.NewTime(time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC))
+	earlier := metav1.NewTime(now.Add(-time.Hour))
+	available := appsv1.DeploymentStatus{ObservedGeneration: 2, UpdatedReplicas: 1, AvailableReplicas: 1}
+	http := []componentccr.Group{{Name: "http", Checks: []string{"http_check"}}}
+
+	tests := []struct {
+		name          string
+		groups        []componentccr.Group
+		coreKnob      bool
+		status        []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus
+		storedStatus  []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus
+		deployment    *appsv1.DeploymentStatus
+		wantActivated []string
+		wantStatus    []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus
+	}{
+		{
+			name:     "core not created yet",
+			coreKnob: true,
+		},
+		{
+			name:       "core has no available runner",
+			coreKnob:   true,
+			deployment: &appsv1.DeploymentStatus{ObservedGeneration: 2, UpdatedReplicas: 1},
+		},
+		{
+			name:       "core's available runner predates the current generation",
+			coreKnob:   true,
+			deployment: &appsv1.DeploymentStatus{ObservedGeneration: 1, UpdatedReplicas: 1, AvailableReplicas: 1},
+		},
+		{
+			name:          "core has an available runner",
+			coreKnob:      true,
+			deployment:    &available,
+			wantActivated: []string{componentccr.CoreGroupName},
+			wantStatus:    []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus{{Name: componentccr.CoreGroupName, ActivatedAt: now}},
+		},
+		{
+			name:          "activation is kept when core's runners go away",
+			coreKnob:      true,
+			status:        []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus{{Name: componentccr.CoreGroupName, ActivatedAt: earlier}},
+			deployment:    &appsv1.DeploymentStatus{ObservedGeneration: 2},
+			wantActivated: []string{componentccr.CoreGroupName},
+			wantStatus:    []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus{{Name: componentccr.CoreGroupName, ActivatedAt: earlier}},
+		},
+		{
+			name:          "a cache lagging the previous reconcile's activation doesn't deactivate core",
+			coreKnob:      true,
+			storedStatus:  []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus{{Name: componentccr.CoreGroupName, ActivatedAt: earlier}},
+			deployment:    &appsv1.DeploymentStatus{ObservedGeneration: 1, AvailableReplicas: 2},
+			wantActivated: []string{componentccr.CoreGroupName},
+			wantStatus:    []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus{{Name: componentccr.CoreGroupName, ActivatedAt: earlier}},
+		},
+		{
+			name:       "turning core off clears its activation",
+			status:     []datadoghqv1alpha1.ClusterChecksRunnerGroupStatus{{Name: componentccr.CoreGroupName, ActivatedAt: earlier}},
+			deployment: &available,
+		},
+		{
+			name:   "user groups don't need activation",
+			groups: http,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddai := newTestDDAI("foo", tt.groups, tt.coreKnob)
+			ddai.Status.ClusterChecksRunnerGroups = tt.status
+			var objects []client.Object
+			if tt.deployment != nil {
+				objects = append(objects, newGroupDeployment(ddai, componentccr.CoreGroupName, 2, *tt.deployment))
+			}
+			if tt.storedStatus != nil {
+				stored := ddai.DeepCopy()
+				stored.Status.ClusterChecksRunnerGroups = tt.storedStatus
+				objects = append(objects, stored)
+			}
+			r := newTestReconciler(testScheme(), objects...)
+
+			newStatus := ddai.Status.DeepCopy()
+			activated := r.activateClusterChecksRunnerGroups(context.Background(), ddai, newStatus, now)
+
+			assert.Equal(t, tt.wantActivated, activated)
+			for i := range newStatus.ClusterChecksRunnerGroups {
+				newStatus.ClusterChecksRunnerGroups[i].ActivatedAt = metav1.NewTime(newStatus.ClusterChecksRunnerGroups[i].ActivatedAt.UTC())
+			}
+			assert.Equal(t, tt.wantStatus, newStatus.ClusterChecksRunnerGroups)
+		})
+	}
+}
+
+func TestActivateClusterChecksRunnerGroupsReadError(t *testing.T) {
+	ddai := newTestDDAI("foo", nil, true)
+	r := newTestReconciler(testScheme())
+	r.client = interceptor.NewClient(r.client.(client.WithWatch), interceptor.Funcs{
+		Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+			return errors.New("boom")
+		},
+	})
+
+	newStatus := ddai.Status.DeepCopy()
+	assert.Empty(t, r.activateClusterChecksRunnerGroups(context.Background(), ddai, newStatus, metav1.Now()), "a read error keeps the group waiting")
+	assert.Empty(t, newStatus.ClusterChecksRunnerGroups)
 }

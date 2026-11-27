@@ -46,7 +46,8 @@ type clusterChecksFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
-	runnerGroups string
+	runnerGroups          string
+	activatedRunnerGroups []string
 
 	logger logr.Logger
 }
@@ -55,6 +56,7 @@ func buildClusterChecksFeature(options *feature.Options) feature.Feature {
 	feature := &clusterChecksFeature{}
 	if options != nil {
 		feature.logger = options.Logger
+		feature.activatedRunnerGroups = options.ActivatedClusterChecksRunnerGroups
 	}
 	return feature
 }
@@ -81,8 +83,10 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		// Skipped groups are logged by the runner groups reconciler.
 		runnerGroups, _ := componentccr.Groups(dda, ddaSpec)
 		f.runnersOrGroupsEnabled = f.useClusterCheckRunners || len(runnerGroups) > 0
+		// The Cluster Agent holds a claimed check until its group has a runner, so it only learns about active groups.
+		activeGroups, _ := componentccr.ActiveGroups(dda, ddaSpec, f.activatedRunnerGroups)
 		var err error
-		if f.runnerGroups, err = runnerGroupsJSON(runnerGroups); err != nil {
+		if f.runnerGroups, err = runnerGroupsJSON(activeGroups); err != nil {
 			f.logger.Error(err, "cannot pass the cluster checks runner groups to the Cluster Agent")
 		}
 		reqComp = feature.RequiredComponents{
