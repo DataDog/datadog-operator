@@ -404,6 +404,12 @@ func (r *Reconciler) pruneProfileMergeCache(ddaiNamespace, ddaiName string, acti
 	r.profileMergeMu.Unlock()
 }
 
+// evictProfileMergeCache drops every cached profile merge for a DatadogAgent.
+// The DDAI built from a DatadogAgent shares its namespace and name.
+func (r *Reconciler) evictProfileMergeCache(ddaNamespace, ddaName string) {
+	r.pruneProfileMergeCache(ddaNamespace, ddaName, nil)
+}
+
 func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := make([]*v1alpha1.DatadogAgentInternal, 0, len(profiles))
 

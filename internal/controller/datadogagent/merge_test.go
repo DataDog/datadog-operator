@@ -752,4 +752,12 @@ func Test_applyProfilesToDDAISpec_CacheCorrectnessAndEviction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, ddais5, 2)
 	assert.Len(t, r.profileMergeCache, 2)
+
+	// 7. Finalizing the DatadogAgent evicts all of its entries and keeps other DatadogAgents' entries
+	otherKey := profileMergeCacheKey{ddaiNamespace: baseDDAI.Namespace, ddaiName: "other-dda", profileNS: "ns", profileName: "p"}
+	r.storeProfileMergeCache(otherKey, profileMergeCacheEntry{merged: ddais5[0]})
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Namespace: baseDDAI.Namespace, Name: baseDDAI.Name}}
+	assert.NoError(t, r.finalizeDad(ctx, dda))
+	assert.Len(t, r.profileMergeCache, 1)
+	assert.Contains(t, r.profileMergeCache, otherKey)
 }
