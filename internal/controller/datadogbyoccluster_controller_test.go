@@ -282,7 +282,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("running a reconcile of the cluster to completion")
-			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme()}
+			reconciler := &datadogbyoccluster.Reconciler{Client: k8sClient, APIReader: k8sClient, Scheme: k8sClient.Scheme(), NewPomskyClient: pomsky.NewClient}
 			Expect(reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(cluster)})).To(Equal(ctrl.Result{}))
 
 			By("verifying that the reconcile did not update any object")
@@ -291,7 +291,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Expect(cmp.Diff(want, got)).To(BeEmpty())
 		})
 
-		It("syncs spec.indexes to Pomsky once the index API is available", func() {
+		It("syncs spec.indexes to Pomsky", func() {
 			By("declaring an index")
 			Eventually(func() error {
 				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), cluster); err != nil {
@@ -299,33 +299,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				}
 				cluster.Spec.Indexes = []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{{Name: "payment", Filter: "service:payment", Retention: "90 days"}}
 				return k8sClient.Update(context.Background(), cluster)
-			}, timeout, interval).Should(Succeed())
-
-			By("making the searcher, metastore and control plane ready")
-			// envtest does not run the Deployment or StatefulSet controllers.
-			for _, name := range []string{"byoc-metastore", "byoc-control-plane"} {
-				Eventually(func() error {
-					current := &appsv1.Deployment{}
-					if err := k8sClient.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace.Name}, current); err != nil {
-						return err
-					}
-					current.Status = appsv1.DeploymentStatus{
-						ObservedGeneration: current.Generation,
-						Replicas:           *current.Spec.Replicas, ReadyReplicas: *current.Spec.Replicas, AvailableReplicas: *current.Spec.Replicas,
-					}
-					return k8sClient.Status().Update(context.Background(), current)
-				}, timeout, interval).Should(Succeed())
-			}
-			Eventually(func() error {
-				current := &appsv1.StatefulSet{}
-				if err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-searcher", Namespace: namespace.Name}, current); err != nil {
-					return err
-				}
-				current.Status = appsv1.StatefulSetStatus{
-					ObservedGeneration: current.Generation,
-					Replicas:           *current.Spec.Replicas, ReadyReplicas: *current.Spec.Replicas,
-				}
-				return k8sClient.Status().Update(context.Background(), current)
 			}, timeout, interval).Should(Succeed())
 
 			By("running a reconcile with a Pomsky that only has the main index")

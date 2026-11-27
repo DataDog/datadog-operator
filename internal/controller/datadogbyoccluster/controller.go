@@ -64,7 +64,7 @@ type Reconciler struct {
 	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
-	// NewPomskyClient creates the client of the Pomsky REST API. It defaults to pomsky.NewClient.
+	// NewPomskyClient creates the client of the Pomsky REST API.
 	NewPomskyClient pomsky.Factory
 }
 
@@ -166,30 +166,10 @@ func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv
 	}
 	// The applied objects hold the live status returned by the server-side apply.
 	available = updateComponentStatus(cluster, resources, workers)
-	// The workloads that serve the index API requeue the cluster when they become available.
-	if len(cluster.Spec.Indexes) > 0 && isIndexAPIAvailable(resources) {
-		if err := byocindexes.NewManager(r.pomskyClient(cluster)).Sync(ctx, cluster.Spec.Indexes); err != nil {
-			return available, deleting, &reconcileFailure{reason: reasonIndexesSyncFailed, err: err}
-		}
+	if err := byocindexes.NewManager(r.NewPomskyClient(byocresources.RESTEndpoint(cluster))).Sync(ctx, cluster.Spec.Indexes); err != nil {
+		return available, deleting, &reconcileFailure{reason: reasonIndexesSyncFailed, err: err}
 	}
 	return available, deleting, nil
-}
-
-func (r *Reconciler) pomskyClient(cluster *datadoghqv1alpha1.DatadogBYOCCluster) pomsky.Client {
-	newClient := r.NewPomskyClient
-	if newClient == nil {
-		newClient = pomsky.NewClient
-	}
-	return newClient(byocresources.RESTEndpoint(cluster))
-}
-
-// isIndexAPIAvailable reports whether the searcher, which serves the REST API, and the components that it needs to
-// create indexes and read the routing table are available.
-func isIndexAPIAvailable(resources *byocresources.Resources) bool {
-	_, searcherAvailable := statefulSetStatus(resources.Component(byocresources.SearcherComponentName).StatefulSet)
-	_, metastoreAvailable := deploymentStatus(resources.Component(byocresources.MetastoreComponentName).Deployment)
-	_, controlPlaneAvailable := deploymentStatus(resources.Component(byocresources.ControlPlaneComponentName).Deployment)
-	return searcherAvailable && metastoreAvailable && controlPlaneAvailable
 }
 
 func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) error {

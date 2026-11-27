@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/pomsky"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -223,9 +224,10 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 	}
 
 	return (&datadogbyoccluster.Reconciler{
-		Client:    mgr.GetClient(),
-		APIReader: mgr.GetAPIReader(),
-		Scheme:    mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		APIReader:       mgr.GetAPIReader(),
+		Scheme:          mgr.GetScheme(),
+		NewPomskyClient: pomsky.NewClient,
 	}).SetupWithManager(mgr)
 }
 
