@@ -4,7 +4,7 @@ ARG FIPS_ENABLED=false
 ARG SGC_VERSION
 ARG SGC_TAG_SUFFIX
 
-FROM datadog/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
+FROM registry.datadoghq.com/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
 
 # Build the manager binary
 FROM golang:1.26.11 AS builder
