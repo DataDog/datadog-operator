@@ -66,9 +66,16 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 	return errs
 }
 
-// validateIndexes rejects names that cloudprem-bridge refuses to create, which the CRD pattern cannot express.
+// validateIndexes rejects names that cloudprem-bridge refuses to create, which the CRD pattern cannot express, and
+// requires main, which the Operator would otherwise delete although Pomsky recreates it when a node starts.
 func validateIndexes(indexes []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec, path *field.Path) field.ErrorList {
 	var errs field.ErrorList
+	isMain := func(index datadoghqv1alpha1.DatadogBYOCClusterIndexSpec) bool {
+		return index.Name == pomsky.MainIndexName
+	}
+	if len(indexes) > 0 && !slices.ContainsFunc(indexes, isMain) {
+		errs = append(errs, field.Required(path, fmt.Sprintf("must list the %s index", pomsky.MainIndexName)))
+	}
 	for i, index := range indexes {
 		for _, prefix := range pomsky.ReservedIndexNamePrefixes {
 			if strings.HasPrefix(index.Name, prefix) {

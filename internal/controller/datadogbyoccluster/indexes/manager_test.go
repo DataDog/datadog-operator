@@ -65,8 +65,10 @@ func (f *fakeClient) SetRoutingTable(_ context.Context, rules []pomsky.RoutingRu
 }
 
 func TestManagerSync(t *testing.T) {
+	// Validation requires main in every non-empty spec.
+	mainSpec := indexSpec{Name: "main", Filter: "*", Retention: "30 days"}
 	// changesDesired against changesIndexes and changesRoutingTable needs every kind of change.
-	changesDesired := []indexSpec{{Name: "new", Filter: "service:new", Retention: "7 days"}, {Name: "kept", Filter: "service:kept", Retention: "7 days"}}
+	changesDesired := []indexSpec{{Name: "new", Filter: "service:new", Retention: "7 days"}, {Name: "kept", Filter: "service:kept", Retention: "7 days"}, mainSpec}
 	changesIndexes := []pomsky.Index{{ID: "datadog", Retention: "30 days"}, {ID: "datadog-kept", Retention: "30 days"}, {ID: "datadog-old", Retention: "30 days"}}
 	changesRoutingTable := []pomsky.RoutingRule{{Filter: "service:old", IndexID: "datadog-old"}, {Filter: "*", IndexID: "datadog"}}
 
@@ -87,7 +89,7 @@ func TestManagerSync(t *testing.T) {
 		},
 		{
 			name:         "up to date",
-			desired:      []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "90 days"}},
+			desired:      []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "90 days"}, mainSpec},
 			indexes:      []pomsky.Index{{ID: "datadog", Retention: "30 days"}, {ID: "datadog-payment", Retention: "90 days"}},
 			routingTable: []pomsky.RoutingRule{{Filter: "service:payment", IndexID: "datadog-payment"}, {Filter: "*", IndexID: "datadog"}},
 			want:         nil,
@@ -105,8 +107,8 @@ func TestManagerSync(t *testing.T) {
 			},
 		},
 		{
-			name:    "deletes unlisted indexes but not main, spans, metrics, sketches or foreign indexes",
-			desired: []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "30 days"}},
+			name:    "deletes unlisted indexes but not spans, metrics, sketches or foreign indexes",
+			desired: []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "30 days"}, mainSpec},
 			indexes: []pomsky.Index{
 				{ID: "datadog", Retention: "30 days"},
 				{ID: "datadog-payment", Retention: "30 days"},
@@ -120,14 +122,22 @@ func TestManagerSync(t *testing.T) {
 			want:         []string{"delete datadog-old"},
 		},
 		{
-			name:         "listed main is not created and keeps its filter and position",
+			name:         "main keeps its filter and position",
 			desired:      []indexSpec{{Name: "main", Filter: "env:prod", Retention: "7 days"}, {Name: "payment", Filter: "*", Retention: "30 days"}},
-			indexes:      nil,
+			indexes:      []pomsky.Index{{ID: "datadog", Retention: "7 days"}},
 			routingTable: []pomsky.RoutingRule{{Filter: "*", IndexID: "datadog"}},
 			want: []string{
 				"create datadog-payment 30 days",
 				"set routing table [{env:prod datadog} {* datadog-payment}]",
 			},
+		},
+		{
+			name:         "stops while main does not exist",
+			desired:      []indexSpec{{Name: "payment", Filter: "service:payment", Retention: "30 days"}, mainSpec},
+			indexes:      []pomsky.Index{{ID: "datadog-payment", Retention: "30 days"}},
+			routingTable: []pomsky.RoutingRule{{Filter: "service:payment", IndexID: "datadog-payment"}},
+			wantErr:      errMainIndexMissing,
+			want:         nil,
 		},
 		{
 			name:         "stops when listing the indexes fails",

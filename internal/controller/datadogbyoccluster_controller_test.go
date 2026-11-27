@@ -297,7 +297,10 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), cluster); err != nil {
 					return err
 				}
-				cluster.Spec.Indexes = []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{{Name: "payment", Filter: "service:payment", Retention: "90 days"}}
+				cluster.Spec.Indexes = []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{
+					{Name: "payment", Filter: "service:payment", Retention: "90 days"},
+					{Name: "main", Filter: "*", Retention: "30 days"},
+				}
 				return k8sClient.Update(context.Background(), cluster)
 			}, timeout, interval).Should(Succeed())
 

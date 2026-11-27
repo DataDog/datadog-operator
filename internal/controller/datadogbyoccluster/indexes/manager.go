@@ -8,6 +8,7 @@ package indexes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -15,8 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/pomsky"
 )
 
-// catchAllFilter matches every log.
-const catchAllFilter = "*"
+// errMainIndexMissing is returned while main does not exist, as the indexes are created from its configuration.
+var errMainIndexMissing = errors.New("the main index does not exist: Pomsky recreates it when a node starts")
 
 // Manager converges the log indexes and the routing table of a Pomsky cluster.
 type Manager struct {
@@ -58,8 +59,9 @@ type changes struct {
 
 // plan reads the indexes and the routing table of the cluster and compares them with desired.
 //
-// The routing table follows the order of desired. When desired does not list main, a catch-all rule routes the
-// remaining logs to main. main is never created or deleted, as Pomsky owns its lifecycle.
+// The routing table has one rule per desired index, in the order of desired, so logs that match no rule are dropped.
+// Unlisted indexes are deleted. desired always lists main, which is never created: Pomsky creates it from its
+// built-in configuration when a node starts, and the other indexes are created from its configuration.
 // Indexes that the Datadog UI does not show as log indexes are left alone.
 func (m *Manager) plan(ctx context.Context, desired []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec) (changes, error) {
 	current, err := m.client.ListIndexes(ctx)
@@ -77,33 +79,30 @@ func (m *Manager) plan(ctx context.Context, desired []datadoghqv1alpha1.DatadogB
 
 	var c changes
 	desiredIDs := make(map[string]struct{}, len(desired))
-	routingTable := make([]pomsky.RoutingRule, 0, len(desired)+1)
-	mainListed := false
+	routingTable := make([]pomsky.RoutingRule, 0, len(desired))
 	for _, spec := range desired {
 		id := pomsky.IndexID(spec.Name)
 		desiredIDs[id] = struct{}{}
 		routingTable = append(routingTable, pomsky.RoutingRule{Filter: spec.Filter, IndexID: id})
-		mainListed = mainListed || spec.Name == pomsky.MainIndexName
 
 		index := pomsky.Index{ID: id, Retention: spec.Retention}
 		existing, exists := currentByID[id]
 		switch {
-		case !exists && spec.Name != pomsky.MainIndexName:
+		case !exists && spec.Name == pomsky.MainIndexName:
+			return changes{}, errMainIndexMissing
+		case !exists:
 			c.create = append(c.create, index)
 		case exists && existing.Retention != index.Retention:
 			c.updateRetention = append(c.updateRetention, index)
 		}
-	}
-	if !mainListed {
-		routingTable = append(routingTable, pomsky.RoutingRule{Filter: catchAllFilter, IndexID: pomsky.MainIndexID})
 	}
 	if !slices.Equal(routingTable, currentRoutingTable) {
 		c.routingTable = routingTable
 	}
 
 	for _, index := range current {
-		name, managed := pomsky.IndexName(index.ID)
-		if _, wanted := desiredIDs[index.ID]; managed && !wanted && name != pomsky.MainIndexName {
+		_, managed := pomsky.IndexName(index.ID)
+		if _, wanted := desiredIDs[index.ID]; managed && !wanted {
 			c.delete = append(c.delete, index.ID)
 		}
 	}

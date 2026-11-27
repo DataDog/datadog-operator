@@ -415,6 +415,7 @@ func TestValidateClusterSpec(t *testing.T) {
 					{Name: "payment", Filter: "service:payment"},
 					{Name: "metrics-prod", Filter: "*"},
 					{Name: "sketches2", Filter: "*"},
+					{Name: "main", Filter: "*"},
 				},
 			},
 			want: []string{
@@ -422,6 +423,19 @@ func TestValidateClusterSpec(t *testing.T) {
 				`spec.indexes[2].name: must not start with the reserved prefix "metrics"`,
 				`spec.indexes[3].name: must not start with the reserved prefix "sketches"`,
 			},
+		},
+
+		{
+			name: "indexes without main",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Indexes: []datadoghqv1alpha1.DatadogBYOCClusterIndexSpec{
+					{Name: "payment", Filter: "service:payment"},
+				},
+			},
+			want: []string{"spec.indexes: must list the main index"},
 		},
 	}
 	for _, tt := range tests {
