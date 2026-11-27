@@ -3,7 +3,7 @@ module github.com/DataDog/datadog-operator
 go 1.26.11
 
 require (
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.83.2 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.83.2
 	github.com/DataDog/datadog-api-client-go/v2 v2.65.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/go-logr/logr v1.4.4
@@ -259,7 +259,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.70.1 // indirect
+	github.com/prometheus/common v0.70.1
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/richardartoul/molecule v1.0.1-0.20240531184615-7ca0df43c0b3 // indirect

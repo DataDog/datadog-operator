@@ -115,6 +115,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
 
+// Remote flares read ExtendedDaemonSets; their other reads are granted above.
+// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list
+
 // Use CiliumNetworkPolicy
 // +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 
