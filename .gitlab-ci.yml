@@ -396,7 +396,7 @@ trigger_e2e_operator_image:
     - build_operator_image_amd64
   extends: .docker_publish_job_definition
   variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_SOURCES: $CANONICAL_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
     IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     IMG_REGISTRIES: agent-qa
 
@@ -506,7 +506,7 @@ trigger_autopilot_nightly:
     variables:
       # The nightly rule needs this default variable before the child is created.
       - NIGHTLY_BUILD_CONDUCTOR_NAME
-      - BUILD_DOCKER_REGISTRY
+      - CANONICAL_REGISTRY
       - E2E_DOCKER_REGISTRY
       - PROJECTNAME
       - CI_IMAGE_LINUX
