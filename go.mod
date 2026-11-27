@@ -39,9 +39,9 @@ require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.83.2
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.83.2
 	github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9
-	github.com/DataDog/dd-trace-go/contrib/k8s.io/client-go/v2 v2.10.1
-	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.10.1
-	github.com/DataDog/dd-trace-go/v2 v2.10.1
+	github.com/DataDog/dd-trace-go/contrib/k8s.io/client-go/v2 v2.12.0
+	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.12.0
+	github.com/DataDog/dd-trace-go/v2 v2.12.0
 	github.com/aws/aws-sdk-go-v2 v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.78.0
@@ -83,6 +83,7 @@ require (
 	github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/puzpuzpuz/xsync/v4 v4.5.0 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
@@ -261,7 +262,6 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
-	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/richardartoul/molecule v1.0.1-0.20240531184615-7ca0df43c0b3 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rubenv/sql-migrate v1.8.1 // indirect
