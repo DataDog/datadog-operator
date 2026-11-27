@@ -5,9 +5,11 @@
 
 package agent
 
+import "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+
 const (
 	agentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
-	systemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+	systemProbeConfigVolumePath = common.SystemProbeConfigFilePath
 	otelCustomConfigVolumePath  = "/etc/datadog-agent/otel-config.yaml"
 	agentCheckRunnerBinaryPath  = "/opt/datadog-agent/embedded/bin/agent-check-runner/agent-check-runner"
 )

@@ -131,6 +131,20 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 
 	experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
 
+	// Runs after the features and the user overrides so it sees the final
+	// container list and commands. Linux multi-container pods only: Windows
+	// and single-container pods have no separate system-probe container, and
+	// GKE Autopilot's WorkloadAllowlist pins the container commands.
+	if experimental.IsOrderedShutdownEnabled(ddai) {
+		autopilot := experimental.IsAutopilotEnabled(ddai)
+		if windowsProfile || singleContainerStrategyEnabled || autopilot {
+			objLogger.V(1).Info("Ordered shutdown not applied: unsupported on Windows, in single-container mode and on GKE Autopilot",
+				"windowsProfile", windowsProfile, "singleContainer", singleContainerStrategyEnabled, "autopilot", autopilot)
+		} else {
+			experimental.ApplyOrderedShutdown(objLogger, podManagers)
+		}
+	}
+
 	if r.options.UntaintControllerEnabled {
 		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
 	}

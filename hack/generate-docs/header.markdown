@@ -32,7 +32,9 @@ provider—for example, `experimental.agent.datadoghq.com/autopilot: "true"`
 enables GKE Autopilot handling. Experimental annotations are unstable and may
 change or be removed; prefer the stable equivalent where one exists (for GKE
 Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
-They are documented with the features they control.
+They are documented with the features they control, for example
+[ordered shutdown of the node Agent pod](https://github.com/DataDog/datadog-operator/blob/main/docs/ordered_shutdown.md)
+(`experimental.agent.datadoghq.com/ordered-shutdown`).
 
 ### Process passwd mounts
 
