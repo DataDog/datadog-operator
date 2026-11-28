@@ -1,0 +1,65 @@
+---
+name: PR Milestone Cutoff
+
+on:
+  pull_request:
+    # Re-check on merge, since a release branch may have been cut during review.
+    types: [milestoned, closed]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-cutoff:
+    name: Check milestone cutoff
+    if: github.event.action == 'milestoned' || github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment if milestone release branch exists
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            if (!pr.milestone) {
+              core.info('PR has no milestone, skipping.');
+              return;
+            }
+
+            // Milestones are vX.Y.Z; release branches are vX.Y.
+            const match = pr.milestone.title.match(/^v?(\d+)\.(\d+)/);
+            if (!match) {
+              core.info(`Milestone ${pr.milestone.title} is not a version, skipping.`);
+              return;
+            }
+            const branch = `v${match[1]}.${match[2]}`;
+            const nextMilestone = `v${match[1]}.${Number(match[2]) + 1}.0`;
+            const label = `backport/${branch}`;
+
+            if (pr.labels.some(l => l.name === label)) {
+              core.info(`PR already has ${label}, skipping.`);
+              return;
+            }
+
+            try {
+              await github.rest.repos.getBranch({ owner, repo, branch });
+            } catch (err) {
+              if (err.status === 404) {
+                core.info(`Release branch ${branch} does not exist yet, skipping.`);
+                return;
+              }
+              throw err;
+            }
+
+            core.info(`Release branch ${branch} exists, commenting on PR #${pr.number}`);
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr.number,
+              body: `@${pr.user.login}, the current milestone has already been cutoff and is being tested for release. ` +
+                `If your PR resolves a newly introduced bug, please set the \`${label}\` label on your PR ` +
+                `so that a backport PR is created to be included in the next release candidate. ` +
+                `Otherwise, please bump your targeted milestone to \`${nextMilestone}\`.`,
+            });
