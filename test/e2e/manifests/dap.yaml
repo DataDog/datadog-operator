@@ -1,0 +1,29 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: dap
+  namespace: e2e-operator
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: beta.kubernetes.io/os
+        operator: In
+        values:
+          - linux
+  config:
+    override:
+      nodeAgent:
+        updateStrategy:
+          type: "RollingUpdate"
+          rollingUpdate:
+            maxUnavailable: 2
+        labels:
+          "foo": "bar"
+        containers:
+          agent:
+            env:
+            - name: TEST
+              value: "test"
+            resources:
+              limits:
+                cpu: "0.50"
