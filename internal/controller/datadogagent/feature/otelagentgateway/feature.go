@@ -57,7 +57,10 @@ func (f *otelAgentGatewayFeature) ID() feature.IDType {
 	return feature.OtelAgentGatewayIDType
 }
 
-func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
+	mergeConfigs(ddaSpec, ddaRCStatus)
+
 	if ddaSpec.Features.OtelAgentGateway == nil || !apiutils.BoolValue(ddaSpec.Features.OtelAgentGateway.Enabled) {
 		return reqComp
 	}
@@ -98,6 +101,22 @@ func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1
 	f.featureGates = ddaSpec.Features.OtelAgentGateway.FeatureGates
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.OtelAgentGateway == nil || ddaRCStatus.Features.OtelAgentGateway.Enabled == nil {
+		return
+	}
+
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if ddaSpec.Features.OtelAgentGateway == nil {
+		ddaSpec.Features.OtelAgentGateway = &v2alpha1.OtelAgentGatewayFeatureConfig{}
+	}
+
+	ddaSpec.Features.OtelAgentGateway.Enabled = ddaRCStatus.Features.OtelAgentGateway.Enabled
 }
 
 func (f *otelAgentGatewayFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
