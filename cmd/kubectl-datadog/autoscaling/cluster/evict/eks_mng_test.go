@@ -47,7 +47,7 @@ func TestEvictEKSManagedNodeGroup(t *testing.T) {
 		}}
 	}
 	podOnNode := corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "default", OwnerReferences: controllerOwnerRefs()},
 		Spec:       corev1.PodSpec{NodeName: nodeName},
 	}
 
